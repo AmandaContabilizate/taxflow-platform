@@ -160,13 +160,35 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
     setLoading(true)
     setError(null)
     try {
-      // Decode CIEC from base64 (stored in state as btoa(ciec))
-      const ciecDecoded = ciec
+      let payload: Record<string, string>
+
+      if (authMethod === 'fiel') {
+        if (!cerFile || !keyFile || !fielPassword) {
+          setError('Sube el certificado .cer, la llave .key y la contraseña para continuar')
+          setLoading(false)
+          return
+        }
+        const toBase64 = (file: File) => new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve((reader.result as string).split(',')[1])
+          reader.onerror = reject
+          reader.readAsDataURL(file)
+        })
+        const [cerBase64, keyBase64] = await Promise.all([toBase64(cerFile), toBase64(keyFile)])
+        payload = { method: 'fiel', cerBase64, keyBase64, keyPassword: fielPassword }
+      } else {
+        if (!rfc || !ciec) {
+          setError('RFC y CIEC son requeridos')
+          setLoading(false)
+          return
+        }
+        payload = { method: 'ciec', rfc: rfc.toUpperCase(), ciec }
+      }
 
       const res = await fetch('/api/sat/constancia', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rfc: rfc.toUpperCase(), ciec: ciecDecoded }),
+        body: JSON.stringify(payload),
       })
 
       const data = await res.json()
