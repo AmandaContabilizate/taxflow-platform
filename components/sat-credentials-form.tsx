@@ -380,32 +380,38 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
 
       {/* Step 2: FIEL */}
       {step === 'fiel' && (
-        <form onSubmit={handleFiel} className="flex flex-col gap-4">
+        <form onSubmit={handleFiel} className="flex flex-col gap-5">
           <div>
             <h2
-              className="text-xl font-black mb-1"
+              className="text-2xl font-black mb-1"
               style={{ fontFamily: 'var(--font-display)', color: 'var(--foreground)' }}
             >
-              e.Firma (FIEL)
+              Acceso con e.Firma
             </h2>
             <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-              Sube tus archivos de firma electrónica para mayor seguridad
+              Sube tus archivos de firma electrónica del SAT
             </p>
           </div>
 
-          {/* CER file */}
-          <div className="flex flex-col gap-1">
+          {/* Certificado (.cer) */}
+          <div className="flex flex-col gap-1.5">
             <label className="text-sm font-bold" style={{ color: 'var(--foreground)' }}>
-              Certificado (.cer)
+              Certificado (.cer):
             </label>
-            <div
-              className="relative flex flex-col items-center justify-center gap-2 py-6 rounded-xl cursor-pointer transition-all"
-              style={{
-                border: '2px dashed var(--border)',
-                background: cerFile ? 'var(--brand-50)' : 'var(--muted)',
-              }}
-              onClick={() => cerRef.current?.click()}
-            >
+            <div className="flex gap-2 items-center">
+              <input
+                type="text"
+                readOnly
+                value={cerFile ? cerFile.name : ''}
+                placeholder="Ubicación del certificado"
+                onClick={() => cerRef.current?.click()}
+                className="flex-1 px-4 py-3 rounded-xl text-sm outline-none cursor-pointer transition-all"
+                style={{
+                  background: 'var(--muted)',
+                  border: '1.5px solid var(--border)',
+                  color: cerFile ? 'var(--foreground)' : 'var(--muted-foreground)',
+                }}
+              />
               <input
                 ref={cerRef}
                 type="file"
@@ -413,26 +419,46 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
                 className="hidden"
                 onChange={e => setCerFile(e.target.files?.[0] ?? null)}
               />
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={cerFile ? 'var(--brand-600)' : 'var(--muted-foreground)'} strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-              <span className="text-sm font-semibold" style={{ color: cerFile ? 'var(--brand-700)' : 'var(--muted-foreground)' }}>
-                {cerFile ? cerFile.name : 'Seleccionar archivo .cer'}
-              </span>
+              <button
+                type="button"
+                onClick={() => cerRef.current?.click()}
+                className="px-5 py-3 rounded-xl text-sm font-bold transition-all active:scale-95 whitespace-nowrap"
+                style={{
+                  background: 'var(--card)',
+                  color: 'var(--foreground)',
+                  border: '1.5px solid var(--border)',
+                  boxShadow: '0 1px 3px rgba(21,17,63,0.07)',
+                }}
+              >
+                Buscar
+              </button>
             </div>
+            {cerFile && (
+              <p className="text-xs font-semibold" style={{ color: 'var(--brand-700)' }}>
+                Archivo seleccionado: {cerFile.name}
+              </p>
+            )}
           </div>
 
-          {/* KEY file */}
-          <div className="flex flex-col gap-1">
+          {/* Clave privada (.key) */}
+          <div className="flex flex-col gap-1.5">
             <label className="text-sm font-bold" style={{ color: 'var(--foreground)' }}>
-              Llave privada (.key)
+              Clave privada (.key):
             </label>
-            <div
-              className="relative flex flex-col items-center justify-center gap-2 py-6 rounded-xl cursor-pointer transition-all"
-              style={{
-                border: '2px dashed var(--border)',
-                background: keyFile ? 'var(--brand-50)' : 'var(--muted)',
-              }}
-              onClick={() => keyRef.current?.click()}
-            >
+            <div className="flex gap-2 items-center">
+              <input
+                type="text"
+                readOnly
+                value={keyFile ? keyFile.name : ''}
+                placeholder="Ubicación de la llave privada"
+                onClick={() => keyRef.current?.click()}
+                className="flex-1 px-4 py-3 rounded-xl text-sm outline-none cursor-pointer transition-all"
+                style={{
+                  background: 'var(--muted)',
+                  border: '1.5px solid var(--border)',
+                  color: keyFile ? 'var(--foreground)' : 'var(--muted-foreground)',
+                }}
+              />
               <input
                 ref={keyRef}
                 type="file"
@@ -440,30 +466,77 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
                 className="hidden"
                 onChange={e => setKeyFile(e.target.files?.[0] ?? null)}
               />
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={keyFile ? 'var(--brand-600)' : 'var(--muted-foreground)'} strokeWidth="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
-              <span className="text-sm font-semibold" style={{ color: keyFile ? 'var(--brand-700)' : 'var(--muted-foreground)' }}>
-                {keyFile ? keyFile.name : 'Seleccionar archivo .key'}
+              <button
+                type="button"
+                onClick={() => keyRef.current?.click()}
+                className="px-5 py-3 rounded-xl text-sm font-bold transition-all active:scale-95 whitespace-nowrap"
+                style={{
+                  background: 'var(--card)',
+                  color: 'var(--foreground)',
+                  border: '1.5px solid var(--border)',
+                  boxShadow: '0 1px 3px rgba(21,17,63,0.07)',
+                }}
+              >
+                Buscar
+              </button>
+            </div>
+            {keyFile && (
+              <p className="text-xs font-semibold" style={{ color: 'var(--brand-700)' }}>
+                Archivo seleccionado: {keyFile.name}
+              </p>
+            )}
+          </div>
+
+          {/* Contraseña de clave privada */}
+          <div className="flex flex-col gap-1.5">
+            <label className="flex items-center gap-1.5 text-sm font-bold" style={{ color: 'var(--foreground)' }}>
+              Contraseña de clave privada:
+              <span
+                title="Es la contraseña que asignaste al generar tu e.Firma en el SAT"
+                className="inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-black cursor-help select-none"
+                style={{ background: 'var(--ink-900)', color: '#fff' }}
+              >
+                ?
               </span>
+            </label>
+            <div className="relative">
+              <input
+                type={showCiec ? 'text' : 'password'}
+                value={fielPassword}
+                onChange={e => setFielPassword(e.target.value)}
+                placeholder="Contraseña"
+                className="w-full px-4 py-3 pr-12 rounded-xl text-sm font-semibold outline-none transition-all"
+                style={{
+                  background: 'var(--muted)',
+                  border: '1.5px solid var(--border)',
+                  color: 'var(--foreground)',
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowCiec(!showCiec)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 transition-opacity opacity-50 hover:opacity-100"
+                style={{ color: 'var(--muted-foreground)' }}
+                aria-label={showCiec ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              >
+                {showCiec ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                )}
+              </button>
             </div>
           </div>
 
-          {/* FIEL password */}
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-bold" style={{ color: 'var(--foreground)' }}>
-              Contraseña de la FIEL
-            </label>
-            <input
-              type="password"
-              value={fielPassword}
-              onChange={e => setFielPassword(e.target.value)}
-              placeholder="Contraseña de tu e.Firma"
-              className="w-full px-4 py-3 rounded-xl text-sm font-semibold outline-none"
-              style={{
-                background: 'var(--muted)',
-                border: '1.5px solid var(--border)',
-                color: 'var(--foreground)',
-              }}
-            />
+          {/* Security note */}
+          <div
+            className="flex items-start gap-3 p-3 rounded-xl"
+            style={{ background: 'var(--brand-50)', border: '1px solid var(--brand-200)' }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand-700)" strokeWidth="2" className="mt-0.5 flex-shrink-0"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <p className="text-xs font-semibold" style={{ color: 'var(--brand-700)' }}>
+              Tus archivos se procesan de forma segura y nunca se almacenan en nuestros servidores.
+            </p>
           </div>
 
           <div className="flex gap-3">
