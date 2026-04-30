@@ -16,6 +16,17 @@ type AuthMethod = 'ciec' | 'fiel'
 export default function SatCredentialsForm({ regimes, existingRfc, onComplete }: Props) {
   const supabase = createClient()
   const [step, setStep] = useState<Step>(existingRfc ? 'constancia' : 'rfc-ciec')
+
+  // When user switches to FIEL method, skip directly to the fiel step
+  function handleMethodChange(method: AuthMethod) {
+    setAuthMethod(method)
+    setError(null)
+    if (method === 'fiel' && step === 'rfc-ciec') {
+      setStep('fiel')
+    } else if (method === 'ciec' && step === 'fiel') {
+      setStep('rfc-ciec')
+    }
+  }
   const [authMethod, setAuthMethod] = useState<AuthMethod>('ciec')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -164,9 +175,8 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
         { id: 'constancia', label: 'Constancia Fiscal', num: 2 },
       ]
     : [
-        { id: 'rfc-ciec', label: 'RFC', num: 1 },
-        { id: 'fiel', label: 'e.Firma (FIEL)', num: 2 },
-        { id: 'constancia', label: 'Constancia Fiscal', num: 3 },
+        { id: 'fiel', label: 'e.Firma (FIEL)', num: 1 },
+        { id: 'constancia', label: 'Constancia Fiscal', num: 2 },
       ]
   const currentStepIdx = steps.findIndex(s => s.id === step)
 
@@ -259,7 +269,7 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
                 <button
                   key={m.id}
                   type="button"
-                  onClick={() => { setAuthMethod(m.id); setError(null) }}
+                  onClick={() => handleMethodChange(m.id)}
                   className="flex flex-col items-start gap-2 p-4 rounded-2xl text-left transition-all"
                   style={{
                     background: active ? 'var(--ink-900)' : 'var(--muted)',
@@ -381,9 +391,37 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
       {/* Step 2: FIEL */}
       {step === 'fiel' && (
         <form onSubmit={handleFiel} className="flex flex-col">
-          <h2 style={{ fontSize: '32px', fontWeight: 900, color: 'var(--foreground)', marginBottom: '40px', letterSpacing: '-0.5px', lineHeight: 1.1 }}>
+          <h2 style={{ fontSize: '32px', fontWeight: 900, color: 'var(--foreground)', marginBottom: '16px', letterSpacing: '-0.5px', lineHeight: 1.1 }}>
             Acceso con e.firma
           </h2>
+
+          {/* Method selector — also shown on FIEL step so user can switch to CIEC */}
+          <div className="grid grid-cols-2 gap-3 mb-8">
+            {([
+              { id: 'ciec' as AuthMethod, title: 'Con CIEC', desc: 'Contraseña del portal del SAT' },
+              { id: 'fiel' as AuthMethod, title: 'Con e.Firma', desc: 'Certificado .cer y llave .key' },
+            ] as const).map((m) => {
+              const active = authMethod === m.id
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => handleMethodChange(m.id)}
+                  className="flex flex-col items-start gap-1.5 p-3 rounded-2xl text-left transition-all"
+                  style={{
+                    background: active ? 'var(--ink-900)' : 'var(--muted)',
+                    border: active ? '2px solid var(--ink-700)' : '2px solid transparent',
+                    color: active ? '#fff' : 'var(--foreground)',
+                  }}
+                >
+                  <p className="text-sm font-black leading-tight">{m.title}</p>
+                  <p className="text-xs" style={{ color: active ? 'rgba(255,255,255,0.6)' : 'var(--muted-foreground)' }}>
+                    {m.desc}
+                  </p>
+                </button>
+              )
+            })}
+          </div>
 
           {/* Certificado (.cer) */}
           <div style={{ marginBottom: '24px' }}>
@@ -533,7 +571,7 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
           <div className="flex gap-3">
             <button
               type="button"
-              onClick={handleSkipFiel}
+              onClick={() => { setStep('rfc-ciec'); setAuthMethod('ciec'); setError(null) }}
               className="flex-1 py-3.5 rounded-2xl font-bold text-sm transition-all active:scale-95"
               style={{
                 background: 'var(--muted)',
@@ -541,7 +579,7 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
                 border: '1.5px solid var(--border)',
               }}
             >
-              Omitir por ahora
+              Volver
             </button>
             <button
               type="submit"
