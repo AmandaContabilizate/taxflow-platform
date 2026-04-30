@@ -11,13 +11,18 @@ export default function LoginPage() {
   async function handleOAuth(provider: 'google' | 'facebook') {
     setLoading(provider)
     setError(null)
+
+    // Build the callback URL from the current origin so it always points
+    // to the running preview regardless of environment
+    const redirectTo =
+      process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ??
+      `${window.location.origin}/auth/callback`
+
+    console.log('[v0] OAuth redirectTo:', redirectTo)
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
-      options: {
-        redirectTo:
-          process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ??
-          `${window.location.origin}/auth/callback`,
-      },
+      options: { redirectTo },
     })
     if (error) {
       setError(error.message)
