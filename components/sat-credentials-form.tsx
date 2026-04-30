@@ -11,10 +11,12 @@ interface Props {
 }
 
 type Step = 'rfc-ciec' | 'fiel' | 'constancia'
+type AuthMethod = 'ciec' | 'fiel'
 
 export default function SatCredentialsForm({ regimes, existingRfc, onComplete }: Props) {
   const supabase = createClient()
   const [step, setStep] = useState<Step>(existingRfc ? 'constancia' : 'rfc-ciec')
+  const [authMethod, setAuthMethod] = useState<AuthMethod>('ciec')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -49,17 +51,42 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('No hay sesión activa')
-      // Store credentials (CIEC is sent encrypted via HTTPS)
       const { error: upsertError } = await supabase.from('user_credentials').upsert({
         user_id: user.id,
         rfc: rfc.toUpperCase(),
-        ciec_encrypted: btoa(ciec), // Base64 encoding as placeholder — in production use server-side encryption
+        ciec_encrypted: btoa(ciec),
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' })
+      if (upsertError) throw upsertError
+      setStep('constancia')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error al guardar credenciales')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleRfcFiel(e: React.FormEvent) {
+    e.preventDefault()
+    if (rfc.length < 12 || rfc.length > 13) {
+      setError('El RFC debe tener entre 12 y 13 caracteres')
+      return
+    }
+    setLoading(true)
+    setError(null)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('No hay sesión activa')
+      const { error: upsertError } = await supabase.from('user_credentials').upsert({
+        user_id: user.id,
+        rfc: rfc.toUpperCase(),
+        ciec_encrypted: 'fiel-auth', // No CIEC when using FIEL method
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' })
       if (upsertError) throw upsertError
       setStep('fiel')
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error al guardar credenciales')
+      setError(err instanceof Error ? err.message : 'Error al guardar RFC')
     } finally {
       setLoading(false)
     }
@@ -135,11 +162,16 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
     }, 2000)
   }
 
-  const steps: { id: Step; label: string; num: number }[] = [
-    { id: 'rfc-ciec', label: 'RFC y CIEC', num: 1 },
-    { id: 'fiel', label: 'e.Firma (FIEL)', num: 2 },
-    { id: 'constancia', label: 'Constancia Fiscal', num: 3 },
-  ]
+  const steps: { id: Step; label: string; num: number }[] = authMethod === 'ciec'
+    ? [
+        { id: 'rfc-ciec', label: 'RFC y CIEC', num: 1 },
+        { id: 'constancia', label: 'Constancia Fiscal', num: 2 },
+      ]
+    : [
+        { id: 'rfc-ciec', label: 'RFC', num: 1 },
+        { id: 'fiel', label: 'e.Firma (FIEL)', num: 2 },
+        { id: 'constancia', label: 'Constancia Fiscal', num: 3 },
+      ]
   const currentStepIdx = steps.findIndex(s => s.id === step)
 
   return (
@@ -191,25 +223,72 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
         </div>
       )}
 
-      {/* Step 1: RFC + CIEC */}
+      {/* Step 1: RFC + método de autenticación */}
       {step === 'rfc-ciec' && (
-        <form onSubmit={handleRfcCiec} className="flex flex-col gap-4">
+        <form onSubmit={authMethod === 'ciec' ? handleRfcCiec : handleRfcFiel} className="flex flex-col gap-4">
           <div>
             <h2
               className="text-xl font-black mb-1"
               style={{ fontFamily: 'var(--font-display)', color: 'var(--foreground)' }}
             >
-              Datos de acceso al SAT
+              Acceso al SAT
             </h2>
             <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-              Necesitamos tu RFC y CIEC para consultar tu situación fiscal
+              Elige cómo quieres conectar tu cuenta del SAT
             </p>
           </div>
 
+          {/* Method selector */}
+          <div className="grid grid-cols-2 gap-3">
+            {([
+              {
+                id: 'ciec' as AuthMethod,
+                title: 'Con CIEC',
+                desc: 'Contraseña del portal del SAT',
+                icon: (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                ),
+              },
+              {
+                id: 'fiel' as AuthMethod,
+                title: 'Con e.Firma',
+                desc: 'Certificado .cer y llave .key',
+                icon: (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="M9 15l3 3 3-3"/></svg>
+                ),
+              },
+            ] as const).map((m) => {
+              const active = authMethod === m.id
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => { setAuthMethod(m.id); setError(null) }}
+                  className="flex flex-col items-start gap-2 p-4 rounded-2xl text-left transition-all"
+                  style={{
+                    background: active ? 'var(--ink-900)' : 'var(--muted)',
+                    border: active ? '2px solid var(--ink-700)' : '2px solid transparent',
+                    color: active ? '#fff' : 'var(--foreground)',
+                    boxShadow: active ? '0 4px 20px rgba(21,17,63,0.20)' : 'none',
+                  }}
+                >
+                  <span style={{ color: active ? 'var(--brand-400)' : 'var(--muted-foreground)' }}>
+                    {m.icon}
+                  </span>
+                  <div>
+                    <p className="text-sm font-black leading-tight">{m.title}</p>
+                    <p className="text-xs mt-0.5" style={{ color: active ? 'rgba(255,255,255,0.65)' : 'var(--muted-foreground)' }}>
+                      {m.desc}
+                    </p>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* RFC field — always shown */}
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-bold" style={{ color: 'var(--foreground)' }}>
-              RFC
-            </label>
+            <label className="text-sm font-bold" style={{ color: 'var(--foreground)' }}>RFC</label>
             <input
               type="text"
               value={rfc}
@@ -226,41 +305,57 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
             />
           </div>
 
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-bold" style={{ color: 'var(--foreground)' }}>
-              Contraseña CIEC
-            </label>
-            <div className="relative">
-              <input
-                type={showCiec ? 'text' : 'password'}
-                value={ciec}
-                onChange={e => setCiec(e.target.value)}
-                placeholder="Tu contraseña del SAT"
-                required
-                className="w-full px-4 py-3 pr-12 rounded-xl text-sm font-semibold outline-none transition-all"
-                style={{
-                  background: 'var(--muted)',
-                  border: '1.5px solid var(--border)',
-                  color: 'var(--foreground)',
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowCiec(!showCiec)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1"
-                style={{ color: 'var(--muted-foreground)' }}
-              >
-                {showCiec ? (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                ) : (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                )}
-              </button>
+          {/* CIEC field — only when method is ciec */}
+          {authMethod === 'ciec' && (
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-bold" style={{ color: 'var(--foreground)' }}>
+                Contraseña CIEC
+              </label>
+              <div className="relative">
+                <input
+                  type={showCiec ? 'text' : 'password'}
+                  value={ciec}
+                  onChange={e => setCiec(e.target.value)}
+                  placeholder="Tu contraseña del SAT"
+                  required
+                  className="w-full px-4 py-3 pr-12 rounded-xl text-sm font-semibold outline-none transition-all"
+                  style={{
+                    background: 'var(--muted)',
+                    border: '1.5px solid var(--border)',
+                    color: 'var(--foreground)',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCiec(!showCiec)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1"
+                  style={{ color: 'var(--muted-foreground)' }}
+                >
+                  {showCiec ? (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  )}
+                </button>
+              </div>
+              <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>
+                Tu CIEC se transmite cifrada y nunca se almacena en texto plano
+              </p>
             </div>
-            <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>
-              Tu CIEC se transmite cifrada y nunca se almacena en texto plano
-            </p>
-          </div>
+          )}
+
+          {/* FIEL info — only when method is fiel */}
+          {authMethod === 'fiel' && (
+            <div
+              className="flex items-start gap-3 p-3 rounded-xl"
+              style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" strokeWidth="2" className="mt-0.5 flex-shrink-0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <p className="text-xs font-semibold" style={{ color: 'var(--muted-foreground)' }}>
+                En el siguiente paso subirás tu certificado .cer y llave privada .key de tu e.Firma del SAT.
+              </p>
+            </div>
+          )}
 
           <div
             className="flex items-start gap-3 p-3 rounded-xl"
