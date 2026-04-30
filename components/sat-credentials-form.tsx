@@ -156,17 +156,50 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
     }
   }
 
-  function simulateAutoDownload() {
-    // Simulate detecting regime from CSF
+  async function simulateAutoDownload() {
     setLoading(true)
-    setTimeout(() => {
-      const mockRegimes: string[] = regimes.map(r => r.name)
-      const detected = mockRegimes[Math.floor(Math.random() * mockRegimes.length)]
-      setDetectedRegime(detected)
-      const foundRegime = regimes.find(r => r.name === detected)
+    setError(null)
+    try {
+      // Decode CIEC from base64 (stored in state as btoa(ciec))
+      const ciecDecoded = ciec
+
+      const res = await fetch('/api/sat/constancia', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rfc: rfc.toUpperCase(), ciec: ciecDecoded }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || 'Error al descargar la constancia del SAT')
+        setLoading(false)
+        return
+      }
+
+      // If PDF came back, trigger browser download
+      if (data.pdfBase64) {
+        const bytes = Uint8Array.from(atob(data.pdfBase64), c => c.charCodeAt(0))
+        const blob = new Blob([bytes], { type: 'application/pdf' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `constancia_${rfc.toUpperCase()}.pdf`
+        a.click()
+        URL.revokeObjectURL(url)
+      }
+
+      const detected = data.regime
+      setDetectedRegime(detected ?? null)
+      const foundRegime = regimes.find(r =>
+        detected && r.name.toLowerCase().includes(detected.toLowerCase())
+      )
       if (foundRegime) setSelectedRegimeId(foundRegime.id)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error al conectar con el SAT')
+    } finally {
       setLoading(false)
-    }, 2000)
+    }
   }
 
   const steps: { id: Step; label: string; num: number }[] = authMethod === 'ciec'
