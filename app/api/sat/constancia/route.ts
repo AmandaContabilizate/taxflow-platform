@@ -6,6 +6,25 @@ import * as os from 'os'
 
 export const maxDuration = 60
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: launch Playwright browser
+// ─────────────────────────────────────────────────────────────────────────────
+async function launchBrowser() {
+  const chromium = (await import('@sparticuz/chromium')).default
+  const { chromium: playwrightChromium } = await import('playwright-core')
+
+  return playwrightChromium.launch({
+    args: chromium.args,
+    executablePath: await chromium.executablePath(),
+    headless: true,
+  })
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/sat/constancia
+// body: { method: 'ciec', rfc, ciec }
+//       { method: 'fiel', cerBase64, keyBase64, keyPassword }
+// ─────────────────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -14,212 +33,205 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   const { method, rfc, ciec, cerBase64, keyBase64, keyPassword } = body
 
-  if (!method) return NextResponse.json({ error: 'Método requerido (ciec | fiel)' }, { status: 400 })
+  if (!method) {
+    return NextResponse.json({ error: 'Método requerido: ciec o fiel' }, { status: 400 })
+  }
 
-  const chromium = (await import('@sparticuz/chromium')).default
-  const puppeteer = (await import('puppeteer-core')).default
+  const browser = await launchBrowser()
+  const context = await browser.newContext({
+    acceptDownloads: true,
+    viewport: { width: 1280, height: 800 },
+  })
+  const page = await context.newPage()
 
-  const browser = await puppeteer.launch({
-    args: chromium.args,
-    defaultViewport: { width: 1280, height: 800 },
-    executablePath: await chromium.executablePath(),
-    headless: true,
+  // Block images / fonts to speed things up
+  await page.route('**/*', (route) => {
+    const type = route.request().resourceType()
+    if (['image', 'font', 'stylesheet'].includes(type)) {
+      route.abort()
+    } else {
+      route.continue()
+    }
   })
 
-  const page = await browser.newPage()
-
-  // Block images/fonts to speed up scraping
-  await page.setRequestInterception(true)
-  page.on('request', (req) => {
-    if (['image', 'font', 'stylesheet'].includes(req.resourceType())) req.abort()
-    else req.continue()
-  })
-
+  // Capture PDF response
   let pdfBuffer: Buffer | null = null
-
-  // Capture PDF from network responses
   page.on('response', async (response) => {
     const ct = response.headers()['content-type'] ?? ''
     if (ct.includes('pdf') || response.url().includes('.pdf')) {
       try {
-        pdfBuffer = await response.buffer()
+        pdfBuffer = Buffer.from(await response.body())
       } catch { /* ignore */ }
     }
   })
 
   try {
+    // ── FLUJO CIEC ────────────────────────────────────────────────────────────
     if (method === 'ciec') {
-      // ── CIEC FLOW ──────────────────────────────────────────────────────────
       if (!rfc || !ciec) {
         await browser.close()
         return NextResponse.json({ error: 'RFC y CIEC son requeridos' }, { status: 400 })
       }
 
-      console.log('[v0] Navigating to SAT CIEC login...')
-      await page.goto('https://idcsc.sat.gob.mx/', {
-        waitUntil: 'networkidle2',
-        timeout: 30000,
-      })
+      await page.goto('https://idcsc.sat.gob.mx/', { waitUntil: 'networkidle', timeout: 30000 })
 
-      // Fill RFC
-      await page.waitForSelector('#id_usuario, input[name="id_usuario"]', { timeout: 10000 })
-      await page.type('#id_usuario', rfc.toUpperCase().trim(), { delay: 40 })
+      // RFC
+      await page.waitForSelector('#id_usuario', { timeout: 10000 })
+      await page.fill('#id_usuario', rfc.toUpperCase().trim())
 
-      // Fill CIEC
-      await page.waitForSelector('#usu_contraseña, input[name="usu_contraseña"], input[type="password"]', { timeout: 10000 })
-      const pwdSelector = await page.$('#usu_contraseña') ?? await page.$('input[type="password"]')
-      await pwdSelector?.type(ciec, { delay: 40 })
+      // Contraseña CIEC
+      const pwdSel = '#usu_contraseña, input[type="password"]'
+      await page.waitForSelector(pwdSel, { timeout: 10000 })
+      await page.fill(pwdSel, ciec)
 
       // Submit
-      const submitBtn = await page.$('#submit, button[type="submit"], input[type="submit"]')
-      await submitBtn?.click()
-      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 20000 }).catch(() => {})
+      await page.click('#submit, button[type="submit"], input[type="submit"]')
+      await page.waitForLoadState('networkidle').catch(() => {})
 
-      // Check login error
-      const pageText = await page.evaluate(() => document.body.innerText)
-      if (
-        pageText.includes('RFC o contraseña incorrectos') ||
-        pageText.includes('contraseña no es correcta') ||
-        pageText.includes('datos incorrectos') ||
-        pageText.includes('Error de autenticación')
-      ) {
+      // Validar credenciales
+      const bodyText = await page.innerText('body').catch(() => '')
+      if (/RFC o contraseña incorrectos|contraseña no es correcta|datos incorrectos|Error de autenticación/i.test(bodyText)) {
         await browser.close()
         return NextResponse.json({ error: 'RFC o CIEC incorrectos. Verifica tus datos.' }, { status: 400 })
       }
 
-      // Navigate to Constancia de Situación Fiscal
-      console.log('[v0] Navigating to constancia page...')
+      // Navegar a Constancia de Situación Fiscal
       await page.goto('https://servicios.sat.gob.mx/servicio/csf/index.xhtml', {
-        waitUntil: 'networkidle2',
+        waitUntil: 'networkidle',
         timeout: 20000,
       })
 
-      // Click generate button
-      const btn = await page.$(
-        'input[value*="Generar"], input[value*="generar"], button[id*="generar"], ' +
-        'a[id*="generar"], input[id*="generar"], button[id*="Generar"]'
-      )
-      if (btn) await btn.click()
-      await new Promise(r => setTimeout(r, 8000))
+      // Generar / descargar constancia
+      const btnSel = 'input[value*="Generar" i], button[id*="generar" i], a[id*="generar" i]'
+      const btn = page.locator(btnSel).first()
+      if (await btn.count()) await btn.click()
 
+      // Esperar a que llegue el PDF (máx 15 s)
+      await page.waitForTimeout(15000)
+
+    // ── FLUJO FIEL ────────────────────────────────────────────────────────────
     } else if (method === 'fiel') {
-      // ── FIEL FLOW ──────────────────────────────────────────────────────────
       if (!cerBase64 || !keyBase64 || !keyPassword) {
         await browser.close()
-        return NextResponse.json({ error: 'Certificado, llave privada y contraseña son requeridos' }, { status: 400 })
+        return NextResponse.json(
+          { error: 'Certificado .cer, llave .key y contraseña son requeridos' },
+          { status: 400 }
+        )
       }
 
-      // Write temp files for .cer and .key
+      // Escribir archivos temporales
       const tmpDir = os.tmpdir()
-      const cerPath = path.join(tmpDir, `${Date.now()}.cer`)
-      const keyPath = path.join(tmpDir, `${Date.now()}.key`)
+      const cerPath = path.join(tmpDir, `cer_${Date.now()}.cer`)
+      const keyPath = path.join(tmpDir, `key_${Date.now()}.key`)
       fs.writeFileSync(cerPath, Buffer.from(cerBase64, 'base64'))
       fs.writeFileSync(keyPath, Buffer.from(keyBase64, 'base64'))
 
-      console.log('[v0] Navigating to SAT FIEL login...')
       await page.goto(
         'https://login.siat.sat.gob.mx/nidp/idff/sso?id=fiel_Aviso&sid=0&option=credential&sid=0',
-        { waitUntil: 'networkidle2', timeout: 30000 }
+        { waitUntil: 'networkidle', timeout: 30000 }
       )
 
-      // Accept notice if present
-      const acceptBtn = await page.$('input[value*="Aceptar"], button[id*="aceptar"], a[id*="aceptar"]')
-      if (acceptBtn) {
-        await acceptBtn.click()
-        await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 10000 }).catch(() => {})
+      // Aceptar aviso si aparece
+      const aceptarBtn = page.locator('input[value*="Aceptar" i], button:has-text("Aceptar"), a:has-text("Aceptar")').first()
+      if (await aceptarBtn.count()) {
+        await aceptarBtn.click()
+        await page.waitForLoadState('networkidle').catch(() => {})
       }
 
-      // Upload .cer file
-      const cerInput = await page.$('input[type="file"][accept*=".cer"], input[type="file"]:first-of-type')
-      if (cerInput) await cerInput.uploadFile(cerPath)
+      // Subir certificado .cer
+      const cerInputs = page.locator('input[type="file"]')
+      if (await cerInputs.count() > 0) {
+        await cerInputs.nth(0).setInputFiles(cerPath)
+      }
 
-      // Upload .key file
-      const keyInput = await page.$('input[type="file"][accept*=".key"], input[type="file"]:nth-of-type(2)')
-      if (keyInput) await keyInput.uploadFile(keyPath)
+      // Subir llave .key
+      if (await cerInputs.count() > 1) {
+        await cerInputs.nth(1).setInputFiles(keyPath)
+      }
 
-      // Fill key password
-      const pwdInput = await page.$('input[type="password"]')
-      if (pwdInput) await pwdInput.type(keyPassword, { delay: 40 })
+      // Contraseña de clave privada
+      await page.fill('input[type="password"]', keyPassword)
 
-      // Submit FIEL form
-      const submitBtn = await page.$('input[type="submit"], button[type="submit"]')
-      if (submitBtn) await submitBtn.click()
-      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 20000 }).catch(() => {})
+      // Submit
+      await page.click('input[type="submit"], button[type="submit"]')
+      await page.waitForLoadState('networkidle').catch(() => {})
 
-      // Check for errors
-      const pageText = await page.evaluate(() => document.body.innerText)
-      if (
-        pageText.includes('error') ||
-        pageText.includes('incorrecto') ||
-        pageText.includes('no válido')
-      ) {
+      // Validar autenticación
+      const bodyText = await page.innerText('body').catch(() => '')
+      if (/error|incorrecto|no válido|vencid/i.test(bodyText)) {
         fs.unlinkSync(cerPath)
         fs.unlinkSync(keyPath)
         await browser.close()
-        return NextResponse.json({ error: 'e.Firma incorrecta o vencida. Verifica tus archivos.' }, { status: 400 })
+        return NextResponse.json(
+          { error: 'e.Firma incorrecta o vencida. Verifica tus archivos.' },
+          { status: 400 }
+        )
       }
 
-      // Navigate to Constancia de Situación Fiscal
-      console.log('[v0] FIEL authenticated, navigating to constancia...')
+      // Navegar a Constancia de Situación Fiscal
       await page.goto('https://servicios.sat.gob.mx/servicio/csf/index.xhtml', {
-        waitUntil: 'networkidle2',
+        waitUntil: 'networkidle',
         timeout: 20000,
       })
 
-      const btn = await page.$(
-        'input[value*="Generar"], input[value*="generar"], button[id*="generar"], ' +
-        'a[id*="generar"], input[id*="generar"]'
-      )
-      if (btn) await btn.click()
-      await new Promise(r => setTimeout(r, 8000))
+      const btnSel = 'input[value*="Generar" i], button[id*="generar" i], a[id*="generar" i]'
+      const btn = page.locator(btnSel).first()
+      if (await btn.count()) await btn.click()
 
-      // Cleanup temp files
+      await page.waitForTimeout(15000)
+
+      // Limpiar temporales
       fs.unlinkSync(cerPath)
       fs.unlinkSync(keyPath)
+
+    } else {
+      await browser.close()
+      return NextResponse.json({ error: 'Método inválido' }, { status: 400 })
     }
 
     await browser.close()
 
     if (!pdfBuffer) {
       return NextResponse.json(
-        { error: 'No se pudo descargar el PDF. El portal del SAT puede estar lento, intenta de nuevo.' },
+        { error: 'No se pudo obtener el PDF. El portal del SAT puede estar lento, intenta de nuevo.' },
         { status: 500 }
       )
     }
 
-    // Extract regime from PDF text
+    // ── Extraer régimen del texto del PDF ─────────────────────────────────────
     let regime: string | null = null
     try {
       const pdfParse = (await import('pdf-parse')).default
       const pdfData = await pdfParse(pdfBuffer)
       const text = pdfData.text
 
-      const patterns = [
-        { label: 'Régimen Simplificado de Confianza', regex: /RÉGIMEN SIMPLIFICADO DE CONFIANZA|RESICO/i },
-        { label: 'Régimen de Incorporación Fiscal', regex: /RÉGIMEN DE INCORPORACIÓN FISCAL|RIF/i },
+      const patrones = [
+        { label: 'Régimen Simplificado de Confianza',       regex: /RÉGIMEN SIMPLIFICADO DE CONFIANZA|RESICO/i },
+        { label: 'Régimen de Incorporación Fiscal',         regex: /RÉGIMEN DE INCORPORACIÓN FISCAL|RIF/i },
         { label: 'Actividades Empresariales y Profesionales', regex: /ACTIVIDADES EMPRESARIALES Y PROFESIONALES/i },
-        { label: 'Sueldos y Salarios', regex: /SUELDOS Y SALARIOS/i },
-        { label: 'Arrendamiento', regex: /ARRENDAMIENTO/i },
-        { label: 'Personas Morales Régimen General', regex: /PERSONAS MORALES.*GENERAL/i },
+        { label: 'Sueldos y Salarios',                      regex: /SUELDOS Y SALARIOS/i },
+        { label: 'Arrendamiento',                           regex: /ARRENDAMIENTO/i },
+        { label: 'Personas Morales Régimen General',        regex: /PERSONAS MORALES.*GENERAL/i },
       ]
-      for (const p of patterns) {
+      for (const p of patrones) {
         if (p.regex.test(text)) { regime = p.label; break }
       }
-    } catch { /* pdf-parse failure is non-fatal */ }
+    } catch { /* no fatal */ }
 
-    const pdfBase64 = pdfBuffer.toString('base64')
+    // Guardar referencia en Supabase
+    await supabase.from('user_credentials').upsert(
+      { user_id: user.id, verified_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    )
 
-    // Save reference in DB
-    await supabase.from('user_credentials').upsert({
-      user_id: user.id,
-      verified_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'user_id' })
-
-    return NextResponse.json({ success: true, regime, pdfBase64 })
+    return NextResponse.json({
+      success: true,
+      regime,
+      pdfBase64: pdfBuffer.toString('base64'),
+    })
 
   } catch (err: unknown) {
-    console.error('[v0] SAT scraper error:', err)
+    console.error('[v0] SAT Playwright scraper error:', err)
     await browser.close().catch(() => {})
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Error al conectar con el SAT' },
