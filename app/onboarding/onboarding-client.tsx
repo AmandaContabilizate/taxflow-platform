@@ -117,6 +117,7 @@ export default function OnboardingClient({ regimes, existingRfc, hasCredentials 
               </div>
             ))}
           </div>
+        </div>
 
         <p className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.35)' }}>
           © 2025 Contabilízate. Plataforma fiscal con IA.
