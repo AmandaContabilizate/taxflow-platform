@@ -4,7 +4,11 @@ import { headers } from 'next/headers'
 import { stripe } from '@/lib/stripe'
 import { PRODUCTS } from '@/lib/products'
 
-export async function startCheckoutSession(productId: string) {
+export async function startCheckoutSession(productId: string): Promise<string> {
+  const headersList = await headers()
+  const origin = headersList.get('origin') ?? headersList.get('x-forwarded-host') ?? 'http://localhost:3000'
+  const baseUrl = origin.startsWith('http') ? origin : `https://${origin}`
+
   const product = PRODUCTS.find(p => p.id === productId)
   if (!product) {
     throw new Error(`Producto con id "${productId}" no encontrado`)
@@ -12,7 +16,7 @@ export async function startCheckoutSession(productId: string) {
 
   const session = await stripe.checkout.sessions.create({
     ui_mode: 'embedded',
-    redirect_on_completion: 'never',
+    return_url: `${baseUrl}/pago-exitoso?session_id={CHECKOUT_SESSION_ID}`,
     line_items: [
       {
         price_data: {
@@ -28,6 +32,10 @@ export async function startCheckoutSession(productId: string) {
     ],
     mode: 'payment',
   })
+
+  if (!session.client_secret) {
+    throw new Error('No se pudo crear la sesión de pago')
+  }
 
   return session.client_secret
 }

@@ -12,7 +12,8 @@ import { startCheckoutSession } from '@/app/actions/stripe'
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 export function Checkout({ productId }: { productId: string }) {
-  const startCheckoutSessionForProduct = useCallback(
+  // fetchClientSecret is the correct prop for @stripe/react-stripe-js v3+
+  const fetchClientSecret = useCallback(
     () => startCheckoutSession(productId),
     [productId],
   )
@@ -21,7 +22,7 @@ export function Checkout({ productId }: { productId: string }) {
     <div id="checkout">
       <EmbeddedCheckoutProvider
         stripe={stripePromise}
-        options={{ clientSecret: startCheckoutSessionForProduct }}
+        options={{ fetchClientSecret }}
       >
         <EmbeddedCheckout />
       </EmbeddedCheckoutProvider>
