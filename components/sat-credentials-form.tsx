@@ -390,13 +390,21 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
 
       {/* Step 2: FIEL */}
       {step === 'fiel' && (
-        <form onSubmit={handleFiel} className="flex flex-col">
-          <h2 style={{ fontSize: '32px', fontWeight: 900, color: 'var(--foreground)', marginBottom: '16px', letterSpacing: '-0.5px', lineHeight: 1.1 }}>
-            Acceso con e.firma
-          </h2>
+        <form onSubmit={handleFiel} className="flex flex-col gap-4">
+          <div>
+            <h2
+              className="text-xl font-black mb-1"
+              style={{ fontFamily: 'var(--font-display)', color: 'var(--foreground)' }}
+            >
+              e.Firma (FIEL)
+            </h2>
+            <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+              Sube tu certificado y llave privada del SAT
+            </p>
+          </div>
 
-          {/* Method selector — also shown on FIEL step so user can switch to CIEC */}
-          <div className="grid grid-cols-2 gap-3 mb-8">
+          {/* Method selector */}
+          <div className="grid grid-cols-2 gap-3">
             {([
               { id: 'ciec' as AuthMethod, title: 'Con CIEC', desc: 'Contraseña del portal del SAT' },
               { id: 'fiel' as AuthMethod, title: 'Con e.Firma', desc: 'Certificado .cer y llave .key' },
@@ -412,6 +420,7 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
                     background: active ? 'var(--ink-900)' : 'var(--muted)',
                     border: active ? '2px solid var(--ink-700)' : '2px solid transparent',
                     color: active ? '#fff' : 'var(--foreground)',
+                    boxShadow: active ? '0 4px 20px rgba(21,17,63,0.20)' : 'none',
                   }}
                 >
                   <p className="text-sm font-black leading-tight">{m.title}</p>
@@ -421,6 +430,128 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
                 </button>
               )
             })}
+          </div>
+
+          {/* Certificado (.cer) */}
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-bold" style={{ color: 'var(--foreground)' }}>
+              Certificado (.cer)
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                readOnly
+                value={cerFile ? cerFile.name : ''}
+                placeholder="Selecciona tu archivo .cer"
+                onClick={() => cerRef.current?.click()}
+                className="flex-1 px-4 py-3 rounded-xl text-sm outline-none cursor-pointer transition-all"
+                style={{
+                  background: 'var(--muted)',
+                  border: '1.5px solid var(--border)',
+                  color: cerFile ? 'var(--foreground)' : 'var(--muted-foreground)',
+                }}
+              />
+              <input ref={cerRef} type="file" accept=".cer" className="hidden" onChange={e => setCerFile(e.target.files?.[0] ?? null)} />
+              <button
+                type="button"
+                onClick={() => cerRef.current?.click()}
+                className="px-5 py-3 rounded-xl text-sm font-bold transition-all active:scale-95 whitespace-nowrap"
+                style={{
+                  background: 'var(--card)',
+                  color: 'var(--foreground)',
+                  border: '1.5px solid var(--border)',
+                }}
+              >
+                Buscar
+              </button>
+            </div>
+          </div>
+
+          {/* Clave privada (.key) */}
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-bold" style={{ color: 'var(--foreground)' }}>
+              Clave privada (.key)
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                readOnly
+                value={keyFile ? keyFile.name : ''}
+                placeholder="Selecciona tu archivo .key"
+                onClick={() => keyRef.current?.click()}
+                className="flex-1 px-4 py-3 rounded-xl text-sm outline-none cursor-pointer transition-all"
+                style={{
+                  background: 'var(--muted)',
+                  border: '1.5px solid var(--border)',
+                  color: keyFile ? 'var(--foreground)' : 'var(--muted-foreground)',
+                }}
+              />
+              <input ref={keyRef} type="file" accept=".key" className="hidden" onChange={e => setKeyFile(e.target.files?.[0] ?? null)} />
+              <button
+                type="button"
+                onClick={() => keyRef.current?.click()}
+                className="px-5 py-3 rounded-xl text-sm font-bold transition-all active:scale-95 whitespace-nowrap"
+                style={{
+                  background: 'var(--card)',
+                  color: 'var(--foreground)',
+                  border: '1.5px solid var(--border)',
+                }}
+              >
+                Buscar
+              </button>
+            </div>
+          </div>
+
+          {/* Contraseña de clave privada */}
+          <div className="flex flex-col gap-1">
+            <label className="flex items-center gap-1.5 text-sm font-bold" style={{ color: 'var(--foreground)' }}>
+              Contraseña de clave privada
+              <span
+                title="Es la contraseña que asignaste al generar tu e.Firma en el SAT"
+                className="inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-black cursor-help select-none flex-shrink-0"
+                style={{ background: 'var(--ink-900)', color: '#fff', fontSize: '11px' }}
+              >
+                ?
+              </span>
+            </label>
+            <div className="relative">
+              <input
+                type={showCiec ? 'text' : 'password'}
+                value={fielPassword}
+                onChange={e => setFielPassword(e.target.value)}
+                placeholder="Contraseña de tu e.Firma"
+                className="w-full px-4 py-3 pr-12 rounded-xl text-sm font-semibold outline-none transition-all"
+                style={{
+                  background: 'var(--muted)',
+                  border: '1.5px solid var(--border)',
+                  color: 'var(--foreground)',
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowCiec(!showCiec)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 transition-opacity opacity-50 hover:opacity-100"
+                style={{ color: 'var(--muted-foreground)' }}
+                aria-label={showCiec ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              >
+                {showCiec ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Security note */}
+          <div
+            className="flex items-start gap-3 p-3 rounded-xl"
+            style={{ background: 'var(--brand-50)', border: '1px solid var(--brand-200)' }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand-700)" strokeWidth="2" className="mt-0.5 flex-shrink-0"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <p className="text-xs font-semibold" style={{ color: 'var(--brand-700)' }}>
+              Tus archivos se procesan de forma segura y nunca se almacenan en nuestros servidores.
+            </p>
           </div>
 
           {/* Certificado (.cer) */}
