@@ -68,34 +68,28 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
 
   async function handleRfcFiel(e: React.FormEvent) {
     e.preventDefault()
-    if (rfc.length < 12 || rfc.length > 13) {
+    const trimmed = rfc.trim()
+    if (trimmed.length < 12 || trimmed.length > 13) {
       setError('El RFC debe tener entre 12 y 13 caracteres')
       return
     }
-    setLoading(true)
     setError(null)
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('No hay sesión activa')
-      const { error: upsertError } = await supabase.from('user_credentials').upsert({
-        user_id: user.id,
-        rfc: rfc.toUpperCase(),
-        ciec_encrypted: 'fiel-auth', // No CIEC when using FIEL method
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id' })
-      if (upsertError) throw upsertError
-      setStep('fiel')
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error al guardar RFC')
-    } finally {
-      setLoading(false)
-    }
+    // Just advance to the FIEL step — we save everything together there
+    setStep('fiel')
   }
 
   async function handleFiel(e: React.FormEvent) {
     e.preventDefault()
-    if (!cerFile || !keyFile || !fielPassword) {
-      setError('Por favor sube ambos archivos de la FIEL y la contraseña')
+    if (!cerFile) {
+      setError('Por favor selecciona tu certificado (.cer)')
+      return
+    }
+    if (!keyFile) {
+      setError('Por favor selecciona tu clave privada (.key)')
+      return
+    }
+    if (!fielPassword.trim()) {
+      setError('Por favor ingresa la contraseña de tu clave privada')
       return
     }
     setLoading(true)
@@ -103,18 +97,20 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('No hay sesión activa')
-      // Upload FIEL files to Supabase Storage (if bucket exists) or just mark as received
       const timestamp = Date.now()
       const fielPath = `fiel/${user.id}/${timestamp}`
-      // Update credentials with FIEL stored reference
-      const { error: updateError } = await supabase.from('user_credentials').update({
+      // Save RFC + FIEL reference together in one upsert
+      const { error: upsertError } = await supabase.from('user_credentials').upsert({
+        user_id: user.id,
+        rfc: rfc.toUpperCase(),
+        ciec_encrypted: 'fiel-auth',
         fiel_stored_at: fielPath,
         updated_at: new Date().toISOString(),
-      }).eq('user_id', user.id)
-      if (updateError) throw updateError
+      }, { onConflict: 'user_id' })
+      if (upsertError) throw upsertError
       setStep('constancia')
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error al procesar la FIEL')
+      setError(err instanceof Error ? err.message : 'Error al procesar la e.Firma')
     } finally {
       setLoading(false)
     }
@@ -373,7 +369,11 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
             className="w-full py-3.5 rounded-2xl font-bold text-sm transition-all active:scale-95 disabled:opacity-60 mt-2"
             style={{ background: 'var(--ink-900)', color: '#fff' }}
           >
-            {loading ? 'Verificando...' : 'Continuar'}
+            {loading
+              ? 'Verificando...'
+              : authMethod === 'fiel'
+              ? 'Subir e.Firma'
+              : 'Continuar'}
           </button>
         </form>
       )}
