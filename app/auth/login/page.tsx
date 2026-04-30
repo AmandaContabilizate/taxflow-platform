@@ -60,24 +60,43 @@ export default function LoginPage() {
     }
     setLoading('email')
     setError(null)
-    const { error } = await supabase.auth.signUp({
+
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { full_name: fullName },
-        emailRedirectTo:
-          process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ??
-          `${window.location.origin}/auth/callback`,
       },
     })
-    if (error) {
-      setError(error.message)
+
+    if (signUpError) {
+      setError(
+        signUpError.message.includes('already registered')
+          ? 'Este correo ya está registrado. Intenta iniciar sesión.'
+          : signUpError.message
+      )
       setLoading(null)
       return
     }
-    setSuccess('Revisa tu correo para confirmar tu cuenta y luego inicia sesión.')
-    setLoading(null)
-    setTab('login')
+
+    // If Supabase returns a session directly (email confirmation disabled),
+    // redirect right away. Otherwise sign in with password to force a session.
+    if (signUpData.session) {
+      router.push('/onboarding')
+      return
+    }
+
+    // Attempt immediate sign-in so the user doesn't need to confirm email
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+    if (signInError) {
+      // Confirmation email required — tell user clearly
+      setSuccess('Cuenta creada. Revisa tu correo para confirmarla y luego inicia sesión.')
+      setLoading(null)
+      setTab('login')
+      return
+    }
+
+    router.push('/onboarding')
   }
 
   const busy = loading !== null
