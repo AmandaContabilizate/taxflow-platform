@@ -59,14 +59,14 @@ export default function LoginPage() {
             >
               <span
                 className="text-2xl font-black"
-                style={{ fontFamily: 'var(--font-display)', color: 'var(--brand-400)' }}
+                style={{ color: 'var(--brand-400)' }}
               >
                 C
               </span>
             </div>
             <h1
               className="text-2xl font-black tracking-tight text-center"
-              style={{ fontFamily: 'var(--font-display)', color: 'var(--foreground)' }}
+              style={{ color: 'var(--foreground)' }}
             >
               Contabilízate
             </h1>
@@ -79,7 +79,7 @@ export default function LoginPage() {
           <div className="text-center mb-6">
             <h2
               className="text-xl font-bold"
-              style={{ fontFamily: 'var(--font-display)', color: 'var(--foreground)' }}
+              style={{ color: 'var(--foreground)' }}
             >
               Inicia sesión
             </h2>

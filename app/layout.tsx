@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es" className={`${montserrat.variable} ${assistant.variable} bg-background`}>
-      <body className="font-ui antialiased text-foreground min-h-screen">{children}</body>
+      <body className="font-sans antialiased text-foreground min-h-screen">{children}</body>
     </html>
   )
 }

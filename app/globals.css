@@ -68,9 +68,10 @@
 }
 
 @theme inline {
+  /* font-sans maps to the UI/body font (Assistant) */
   --font-sans: var(--font-ui), 'Assistant', system-ui, sans-serif;
-  --font-display: var(--font-display);
-  --font-ui: var(--font-ui);
+  /* font-serif maps to the display/heading font (Montserrat) */
+  --font-serif: var(--font-display), 'Montserrat', system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
