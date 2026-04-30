@@ -8,9 +8,10 @@ interface Props {
   detectedRegimeName?: string | null
   regimes: FiscalRegime[]
   onSelectPlan?: (productId: string, planName: string, price: number) => void
+  loadingProductId?: string | null
 }
 
-export default function PricingPlans({ detectedRegimeName, regimes, onSelectPlan }: Props) {
+export default function PricingPlans({ detectedRegimeName, regimes, onSelectPlan, loadingProductId }: Props) {
   const initialRegime = (detectedRegimeName as RegimeName) ?? 'Plataformas Tecnológicas'
   const [selectedRegime, setSelectedRegime] = useState<RegimeName>(
     REGIMES.includes(initialRegime as RegimeName) ? initialRegime : REGIMES[0]
@@ -282,6 +283,11 @@ export default function PricingPlans({ detectedRegimeName, regimes, onSelectPlan
                 </ul>
 
                 {/* CTA */}
+                {(() => {
+                  const productId = plan.enterprise ? 'enterprise' : plan.free ? 'free' : getStripeProductId(plan.id, billingPeriod)
+                  const isLoading = loadingProductId === productId
+                  return null // rendered below
+                })()}
                 <button
                   onClick={() => {
                     if (plan.enterprise) {
@@ -295,7 +301,8 @@ export default function PricingPlans({ detectedRegimeName, regimes, onSelectPlan
                     const productId = getStripeProductId(plan.id, billingPeriod)
                     onSelectPlan?.(productId, plan.name, price)
                   }}
-                  className="w-full py-3.5 rounded-2xl font-bold text-sm transition-all active:scale-95"
+                  disabled={!!loadingProductId}
+                  className="w-full py-3.5 rounded-2xl font-bold text-sm transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
                   style={
                     plan.highlighted
                       ? {

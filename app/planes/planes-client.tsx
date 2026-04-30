@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import PricingPlans from '@/components/pricing-plans'
-import { Checkout } from '@/components/checkout'
+import { startCheckoutSession } from '@/app/actions/stripe'
 import type { FiscalRegime } from '@/lib/types'
 
 interface Props {
@@ -11,18 +11,24 @@ interface Props {
 }
 
 export default function PlanesClient({ regimes, detectedRegimeName }: Props) {
-  const [selectedProduct, setSelectedProduct] = useState<{
-    id: string
-    name: string
-    price: number
-  } | null>(null)
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
+  const [checkoutError, setCheckoutError] = useState<string | null>(null)
 
-  function handleSelectPlan(productId: string, planName: string, price: number) {
+  async function handleSelectPlan(productId: string, planName: string, price: number) {
     if (productId === 'free') {
       window.location.href = '/dashboard'
       return
     }
-    setSelectedProduct({ id: productId, name: planName, price })
+    setCheckoutLoading(productId)
+    setCheckoutError(null)
+    try {
+      // Get Stripe hosted checkout URL and redirect — no embedded iframe issues
+      const url = await startCheckoutSession(productId)
+      window.location.href = url
+    } catch (err: unknown) {
+      setCheckoutError(err instanceof Error ? err.message : 'Error al iniciar el pago')
+      setCheckoutLoading(null)
+    }
   }
 
   return (
@@ -65,46 +71,24 @@ export default function PlanesClient({ regimes, detectedRegimeName }: Props) {
         </a>
       </header>
 
+      {/* Error banner */}
+      {checkoutError && (
+        <div
+          className="mx-auto max-w-lg mt-4 px-4 py-3 rounded-xl text-sm font-semibold text-center"
+          style={{ background: '#FCDCDC', color: 'var(--destructive)' }}
+        >
+          {checkoutError}
+        </div>
+      )}
+
       {/* Content */}
       <div className="py-16 px-4">
-        {selectedProduct ? (
-          <div className="max-w-2xl mx-auto">
-            <div className="text-center mb-8">
-              <h2
-                className="text-2xl font-black mb-1"
-                style={{ fontFamily: 'var(--font-display)', color: 'var(--foreground)' }}
-              >
-                Completa tu pago
-              </h2>
-              <p className="text-sm font-semibold" style={{ color: 'var(--muted-foreground)' }}>
-                Plan <strong>{selectedProduct.name}</strong> — ${selectedProduct.price.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN/mes
-              </p>
-            </div>
-            <div
-              className="rounded-3xl p-6"
-              style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
-            >
-              <Checkout productId={selectedProduct.id} />
-            </div>
-            <button
-              onClick={() => setSelectedProduct(null)}
-              className="mt-4 w-full py-3 rounded-2xl text-sm font-bold transition-all"
-              style={{
-                background: 'var(--muted)',
-                color: 'var(--muted-foreground)',
-                border: '1px solid var(--border)',
-              }}
-            >
-              Cambiar plan
-            </button>
-          </div>
-        ) : (
-          <PricingPlans
-            detectedRegimeName={detectedRegimeName}
-            regimes={regimes}
-            onSelectPlan={handleSelectPlan}
-          />
-        )}
+        <PricingPlans
+          detectedRegimeName={detectedRegimeName}
+          regimes={regimes}
+          onSelectPlan={handleSelectPlan}
+          loadingProductId={checkoutLoading}
+        />
       </div>
     </div>
   )
