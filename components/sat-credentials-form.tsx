@@ -403,35 +403,6 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
             </p>
           </div>
 
-          {/* Method selector */}
-          <div className="grid grid-cols-2 gap-3">
-            {([
-              { id: 'ciec' as AuthMethod, title: 'Con CIEC', desc: 'Contraseña del portal del SAT' },
-              { id: 'fiel' as AuthMethod, title: 'Con e.Firma', desc: 'Certificado .cer y llave .key' },
-            ] as const).map((m) => {
-              const active = authMethod === m.id
-              return (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => handleMethodChange(m.id)}
-                  className="flex flex-col items-start gap-1.5 p-3 rounded-2xl text-left transition-all"
-                  style={{
-                    background: active ? 'var(--ink-900)' : 'var(--muted)',
-                    border: active ? '2px solid var(--ink-700)' : '2px solid transparent',
-                    color: active ? '#fff' : 'var(--foreground)',
-                    boxShadow: active ? '0 4px 20px rgba(21,17,63,0.20)' : 'none',
-                  }}
-                >
-                  <p className="text-sm font-black leading-tight">{m.title}</p>
-                  <p className="text-xs" style={{ color: active ? 'rgba(255,255,255,0.6)' : 'var(--muted-foreground)' }}>
-                    {m.desc}
-                  </p>
-                </button>
-              )
-            })}
-          </div>
-
           {/* Certificado (.cer) */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-bold" style={{ color: 'var(--foreground)' }}>
