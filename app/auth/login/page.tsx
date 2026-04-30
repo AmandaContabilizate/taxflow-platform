@@ -2,41 +2,90 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+
+type Tab = 'login' | 'register'
+type OAuthProvider = 'google' | 'facebook'
+type LoadingState = OAuthProvider | 'email' | null
 
 export default function LoginPage() {
   const supabase = createClient()
-  const [loading, setLoading] = useState<'google' | 'facebook' | null>(null)
+  const router = useRouter()
+  const [tab, setTab] = useState<Tab>('login')
+  const [loading, setLoading] = useState<LoadingState>(null)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
 
-  async function handleOAuth(provider: 'google' | 'facebook') {
+  // Form fields
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [fullName, setFullName] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+
+  async function handleOAuth(provider: OAuthProvider) {
     setLoading(provider)
     setError(null)
-
-    // Build the callback URL from the current origin so it always points
-    // to the running preview regardless of environment
     const redirectTo =
       process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ??
       `${window.location.origin}/auth/callback`
-
-    console.log('[v0] OAuth redirectTo:', redirectTo)
-
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: { redirectTo },
-    })
+    const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } })
     if (error) {
       setError(error.message)
       setLoading(null)
     }
   }
 
+  async function handleEmailLogin(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading('email')
+    setError(null)
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) {
+      setError(
+        error.message === 'Invalid login credentials'
+          ? 'Correo o contraseña incorrectos'
+          : error.message
+      )
+      setLoading(null)
+      return
+    }
+    router.push('/onboarding')
+  }
+
+  async function handleEmailRegister(e: React.FormEvent) {
+    e.preventDefault()
+    if (password.length < 8) {
+      setError('La contraseña debe tener al menos 8 caracteres')
+      return
+    }
+    setLoading('email')
+    setError(null)
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: fullName },
+        emailRedirectTo:
+          process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ??
+          `${window.location.origin}/auth/callback`,
+      },
+    })
+    if (error) {
+      setError(error.message)
+      setLoading(null)
+      return
+    }
+    setSuccess('Revisa tu correo para confirmar tu cuenta y luego inicia sesión.')
+    setLoading(null)
+    setTab('login')
+  }
+
+  const busy = loading !== null
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--background)' }}>
       {/* Background decoration */}
-      <div
-        className="absolute inset-0 pointer-events-none overflow-hidden"
-        aria-hidden="true"
-      >
+      <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
         <div
           className="absolute -top-40 -right-40 w-[600px] h-[600px] rounded-full opacity-10"
           style={{ background: 'radial-gradient(circle, var(--brand-400) 0%, transparent 70%)' }}
@@ -48,31 +97,14 @@ export default function LoginPage() {
       </div>
 
       <div className="relative w-full max-w-md">
-        {/* Card */}
-        <div
-          className="rounded-3xl p-8 shadow-2xl"
-          style={{
-            background: 'var(--card)',
-            border: '1px solid var(--border)',
-          }}
-        >
+        <div className="rounded-3xl p-8 shadow-2xl" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
+
           {/* Logo */}
-          <div className="flex flex-col items-center mb-8">
-            <div
-              className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 shadow-lg"
-              style={{ background: 'var(--ink-900)' }}
-            >
-              <span
-                className="text-2xl font-black"
-                style={{ color: 'var(--brand-400)' }}
-              >
-                C
-              </span>
+          <div className="flex flex-col items-center mb-6">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3 shadow-lg" style={{ background: 'var(--ink-900)' }}>
+              <span className="text-2xl font-black" style={{ color: 'var(--brand-400)' }}>C</span>
             </div>
-            <h1
-              className="text-2xl font-black tracking-tight text-center"
-              style={{ color: 'var(--foreground)' }}
-            >
+            <h1 className="text-2xl font-black tracking-tight" style={{ color: 'var(--foreground)' }}>
               Contabilízate
             </h1>
             <p className="text-sm mt-1 text-center" style={{ color: 'var(--muted-foreground)' }}>
@@ -80,109 +112,188 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Heading */}
-          <div className="text-center mb-6">
-            <h2
-              className="text-xl font-bold"
-              style={{ color: 'var(--foreground)' }}
-            >
-              Inicia sesión
-            </h2>
-            <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
-              Elige tu método de acceso preferido
-            </p>
+          {/* Tabs */}
+          <div className="flex rounded-2xl p-1 mb-6" style={{ background: 'var(--muted)' }}>
+            {(['login', 'register'] as Tab[]).map((t) => (
+              <button
+                key={t}
+                onClick={() => { setTab(t); setError(null); setSuccess(null) }}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all duration-200"
+                style={
+                  tab === t
+                    ? { background: 'var(--card)', color: 'var(--foreground)', boxShadow: '0 1px 4px rgba(21,17,63,0.10)' }
+                    : { background: 'transparent', color: 'var(--muted-foreground)' }
+                }
+              >
+                {t === 'login' ? 'Iniciar sesión' : 'Registrarse'}
+              </button>
+            ))}
           </div>
 
-          {/* Error */}
+          {/* Alerts */}
           {error && (
-            <div
-              className="rounded-xl p-3 mb-4 text-sm font-semibold text-center"
-              style={{ background: '#FCDCDC', color: 'var(--destructive)' }}
-            >
+            <div className="rounded-xl p-3 mb-4 text-sm font-semibold text-center" style={{ background: '#FCDCDC', color: 'var(--destructive)' }}>
               {error}
             </div>
           )}
+          {success && (
+            <div className="rounded-xl p-3 mb-4 text-sm font-semibold text-center" style={{ background: '#D6FAE8', color: 'var(--brand-700)' }}>
+              {success}
+            </div>
+          )}
+
+          {/* Email/password form */}
+          <form onSubmit={tab === 'login' ? handleEmailLogin : handleEmailRegister} className="flex flex-col gap-3 mb-4">
+            {tab === 'register' && (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold" style={{ color: 'var(--muted-foreground)' }}>
+                  Nombre completo
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Juan García López"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  disabled={busy}
+                  className="w-full px-4 py-3 rounded-2xl text-sm font-medium outline-none transition-all disabled:opacity-60"
+                  style={{
+                    background: 'var(--muted)',
+                    border: '1.5px solid var(--border)',
+                    color: 'var(--foreground)',
+                  }}
+                />
+              </div>
+            )}
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold" style={{ color: 'var(--muted-foreground)' }}>
+                Correo electrónico
+              </label>
+              <input
+                type="email"
+                required
+                placeholder="tu@correo.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={busy}
+                className="w-full px-4 py-3 rounded-2xl text-sm font-medium outline-none transition-all disabled:opacity-60"
+                style={{
+                  background: 'var(--muted)',
+                  border: '1.5px solid var(--border)',
+                  color: 'var(--foreground)',
+                }}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold" style={{ color: 'var(--muted-foreground)' }}>
+                Contraseña {tab === 'register' && <span className="font-normal opacity-70">(mínimo 8 caracteres)</span>}
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={busy}
+                  className="w-full px-4 py-3 pr-12 rounded-2xl text-sm font-medium outline-none transition-all disabled:opacity-60"
+                  style={{
+                    background: 'var(--muted)',
+                    border: '1.5px solid var(--border)',
+                    color: 'var(--foreground)',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg transition-opacity opacity-50 hover:opacity-100"
+                  tabIndex={-1}
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                >
+                  {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={busy}
+              className="w-full py-3.5 rounded-2xl font-bold text-sm transition-all duration-150 active:scale-95 disabled:opacity-60 mt-1"
+              style={{
+                background: 'var(--accent)',
+                color: '#fff',
+                boxShadow: '0 4px 18px rgba(14,209,138,0.35)',
+              }}
+            >
+              {loading === 'email' ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Spinner light /> {tab === 'login' ? 'Entrando...' : 'Creando cuenta...'}
+                </span>
+              ) : tab === 'login' ? 'Entrar' : 'Crear cuenta'}
+            </button>
+          </form>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3 my-5">
+            <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+            <span className="text-xs font-semibold" style={{ color: 'var(--muted-foreground)' }}>O CONTINÚA CON</span>
+            <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+          </div>
 
           {/* OAuth Buttons */}
           <div className="flex flex-col gap-3">
             <button
               onClick={() => handleOAuth('google')}
-              disabled={loading !== null}
-              className="flex items-center justify-center gap-3 w-full py-3.5 px-4 rounded-2xl font-semibold text-sm transition-all duration-150 active:scale-95 disabled:opacity-60"
-              style={{
-                background: 'var(--card)',
-                border: '1.5px solid var(--border)',
-                color: 'var(--foreground)',
-                boxShadow: '0 1px 3px rgba(21,17,63,0.06)',
-              }}
+              disabled={busy}
+              className="flex items-center justify-center gap-3 w-full py-3 px-4 rounded-2xl font-semibold text-sm transition-all duration-150 active:scale-95 disabled:opacity-60"
+              style={{ background: 'var(--card)', border: '1.5px solid var(--border)', color: 'var(--foreground)' }}
             >
-              {loading === 'google' ? (
-                <Spinner />
-              ) : (
-                <GoogleIcon />
-              )}
-              {loading === 'google' ? 'Conectando...' : 'Continuar con Google'}
+              {loading === 'google' ? <Spinner /> : <GoogleIcon />}
+              {loading === 'google' ? 'Conectando...' : 'Google'}
             </button>
 
             <button
               onClick={() => handleOAuth('facebook')}
-              disabled={loading !== null}
-              className="flex items-center justify-center gap-3 w-full py-3.5 px-4 rounded-2xl font-semibold text-sm transition-all duration-150 active:scale-95 disabled:opacity-60"
-              style={{
-                background: '#1877F2',
-                color: '#fff',
-                border: 'none',
-                boxShadow: '0 4px 18px rgba(24,119,242,0.3)',
-              }}
+              disabled={busy}
+              className="flex items-center justify-center gap-3 w-full py-3 px-4 rounded-2xl font-semibold text-sm transition-all duration-150 active:scale-95 disabled:opacity-60"
+              style={{ background: '#1877F2', color: '#fff', border: 'none' }}
             >
-              {loading === 'facebook' ? (
-                <Spinner light />
-              ) : (
-                <FacebookIcon />
-              )}
-              {loading === 'facebook' ? 'Conectando...' : 'Continuar con Facebook'}
+              {loading === 'facebook' ? <Spinner light /> : <FacebookIcon />}
+              {loading === 'facebook' ? 'Conectando...' : 'Facebook'}
             </button>
           </div>
 
-          {/* Divider */}
-          <div className="flex items-center gap-3 my-6">
-            <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
-            <span className="text-xs font-semibold" style={{ color: 'var(--muted-foreground)' }}>
-              SEGURO Y ENCRIPTADO
-            </span>
-            <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
-          </div>
-
-          {/* Trust badges */}
-          <div className="flex items-center justify-center gap-6">
-            {[
-              { icon: '🔒', text: 'Datos cifrados' },
-              { icon: '🤖', text: 'IA Fiscal' },
-              { icon: '🇲🇽', text: 'SAT México' },
-            ].map((badge) => (
-              <div key={badge.text} className="flex flex-col items-center gap-1">
-                <span className="text-xl">{badge.icon}</span>
-                <span className="text-xs font-semibold" style={{ color: 'var(--muted-foreground)' }}>
-                  {badge.text}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {/* Footer note */}
+          {/* Footer */}
           <p className="text-center text-xs mt-6" style={{ color: 'var(--muted-foreground)' }}>
             Al continuar aceptas nuestros{' '}
-            <a href="#" style={{ color: 'var(--brand-600)' }} className="font-semibold hover:underline">
-              Términos de servicio
-            </a>{' '}
+            <a href="#" style={{ color: 'var(--brand-600)' }} className="font-semibold hover:underline">Términos</a>{' '}
             y{' '}
-            <a href="#" style={{ color: 'var(--brand-600)' }} className="font-semibold hover:underline">
-              Política de privacidad
-            </a>
+            <a href="#" style={{ color: 'var(--brand-600)' }} className="font-semibold hover:underline">Privacidad</a>
           </p>
         </div>
       </div>
     </div>
+  )
+}
+
+function EyeIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  )
+}
+
+function EyeOffIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+      <line x1="1" y1="1" x2="23" y2="23" />
+    </svg>
   )
 }
 
