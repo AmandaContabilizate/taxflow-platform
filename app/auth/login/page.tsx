@@ -28,7 +28,16 @@ export default function LoginPage() {
     const redirectTo =
       process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ??
       `${window.location.origin}/auth/callback`
-    const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } })
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+      },
+    })
     if (error) {
       setError(error.message)
       setLoading(null)
