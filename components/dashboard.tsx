@@ -186,29 +186,33 @@ export default function Dashboard({ profile, credentials, declarations, regime }
       </Sidebar>
 
       <SidebarInset>
-        <div className="flex items-center gap-3 px-4 py-2 md:hidden">
-          <SidebarTrigger />
-          <span className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Menú</span>
+        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
+          <div className="flex items-center gap-3">
+            <SidebarTrigger className="hover:bg-muted transition-colors" />
+            <span className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
+              {navItems.find(n => n.id === activeNav)?.label || 'Dashboard'}
+            </span>
+          </div>
         </div>
 
         <main className="flex-1 p-6 md:p-8 max-w-5xl">
-        {activeNav === 'dashboard' && (
-          <DashboardHome
+          {activeNav === 'dashboard' && (
+            <DashboardHome
             profile={profile}
             credentials={credentials}
             regime={regime}
             pendingDeclarations={pendingDeclarations}
-            completedDeclarations={completedDeclarations}
-          />
-        )}
-        {activeNav === 'declarations' && (
-          <DeclarationsView declarations={declarations} />
-        )}
-        {activeNav === 'fiscal' && (
-          <FiscalDataView credentials={credentials} regime={regime} />
-        )}
-        {activeNav === 'planes' && (
-          <div className="text-center py-12">
+              completedDeclarations={completedDeclarations}
+            />
+          )}
+          {activeNav === 'declarations' && (
+            <DeclarationsView declarations={declarations} />
+          )}
+          {activeNav === 'fiscal' && (
+            <FiscalDataView credentials={credentials} regime={regime} />
+          )}
+          {activeNav === 'planes' && (
+            <div className="text-center py-12">
             <a
               href="/planes"
               className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm"
