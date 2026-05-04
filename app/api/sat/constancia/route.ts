@@ -6,17 +6,26 @@ import * as os from 'os'
 
 export const maxDuration = 60
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helper: launch Playwright browser
-// ─────────────────────────────────────────────────────────────────────────────
 async function launchBrowser() {
   const chromium = (await import('@sparticuz/chromium')).default
   const { chromium: playwrightChromium } = await import('playwright-core')
 
   return playwrightChromium.launch({
-    args: chromium.args,
+    args: [...chromium.args, '--disable-blink-features=AutomationControlled'],
     executablePath: await chromium.executablePath(),
     headless: true,
+  })
+}
+
+async function createContextWithUserAgent(browser: any) {
+  return browser.newContext({
+    acceptDownloads: true,
+    viewport: { width: 1920, height: 1080 },
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    extraHTTPHeaders: {
+      'Accept-Language': 'es-MX,es;q=0.9',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    },
   })
 }
 
@@ -38,11 +47,14 @@ export async function POST(req: NextRequest) {
   }
 
   const browser = await launchBrowser()
-  const context = await browser.newContext({
-    acceptDownloads: true,
-    viewport: { width: 1280, height: 800 },
-  })
+  const context = await createContextWithUserAgent(browser)
   const page = await context.newPage()
+
+  // Evasión anti-bot
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => undefined })
+    Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] })
+  })
 
   // Block images / fonts to speed things up
   await page.route('**/*', (route) => {
@@ -73,41 +85,57 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'RFC y CIEC son requeridos' }, { status: 400 })
       }
 
-      await page.goto('https://idcsc.sat.gob.mx/', { waitUntil: 'networkidle', timeout: 30000 })
+      await page.goto('https://idcsc.sat.gob.mx/', { waitUntil: 'domcontentloaded', timeout: 30000 })
+      await page.waitForTimeout(1000) // Pequeño delay para que cargue todo
 
       // RFC
       await page.waitForSelector('#id_usuario', { timeout: 10000 })
       await page.fill('#id_usuario', rfc.toUpperCase().trim())
+      await page.waitForTimeout(500)
 
       // Contraseña CIEC
       const pwdSel = '#usu_contraseña, input[type="password"]'
       await page.waitForSelector(pwdSel, { timeout: 10000 })
       await page.fill(pwdSel, ciec)
+      await page.waitForTimeout(500)
 
       // Submit
       await page.click('#submit, button[type="submit"], input[type="submit"]')
-      await page.waitForLoadState('networkidle').catch(() => {})
+      await page.waitForLoadState('load').catch(() => {})
+      await page.waitForTimeout(2000)
 
-      // Validar credenciales
+      // Validar credenciales y contenido bloqueado
       const bodyText = await page.innerText('body').catch(() => '')
+      if (/contenido está bloqueado|Este sitio no está disponible|acceso denegado/i.test(bodyText)) {
+        await browser.close()
+        return NextResponse.json(
+          { error: 'El portal del SAT bloqueó el acceso. Por favor, intenta desde la web del SAT directamente o contacta soporte.' },
+          { status: 403 }
+        )
+      }
       if (/RFC o contraseña incorrectos|contraseña no es correcta|datos incorrectos|Error de autenticación/i.test(bodyText)) {
         await browser.close()
         return NextResponse.json({ error: 'RFC o CIEC incorrectos. Verifica tus datos.' }, { status: 400 })
       }
 
-      // Navegar a Constancia de Situación Fiscal
-      await page.goto('https://servicios.sat.gob.mx/servicio/csf/index.xhtml', {
-        waitUntil: 'networkidle',
+      // Navegar a Constancia — usar la URL del portal correcto (wwwmat.sat.gob.mx después de FIEL)
+      // Para CIEC, la constancia es directa en servicios.sat.gob.mx
+      await page.goto('https://www.sat.gob.mx/fichas/16614/constancia-de-situacion-fiscal', {
+        waitUntil: 'domcontentloaded',
         timeout: 20000,
       })
+      await page.waitForTimeout(1500)
 
-      // Generar / descargar constancia
-      const btnSel = 'input[value*="Generar" i], button[id*="generar" i], a[id*="generar" i]'
+      // Buscar botón "Generar" o descargar directamente
+      const btnSel = 'input[value*="Generar" i], button:has-text("Generar"), a:has-text("Generar"), input[value*="Descargar" i]'
       const btn = page.locator(btnSel).first()
-      if (await btn.count()) await btn.click()
+      if (await btn.count()) {
+        await btn.click()
+        await page.waitForTimeout(3000)
+      }
 
       // Esperar a que llegue el PDF (máx 15 s)
-      await page.waitForTimeout(15000)
+      await page.waitForTimeout(8000)
 
     // ── FLUJO FIEL ────────────────────────────────────────────────────────────
     } else if (method === 'fiel') {
@@ -128,57 +156,91 @@ export async function POST(req: NextRequest) {
 
       await page.goto(
         'https://login.siat.sat.gob.mx/nidp/idff/sso?id=fiel_Aviso&sid=0&option=credential&sid=0',
-        { waitUntil: 'networkidle', timeout: 30000 }
+        { waitUntil: 'domcontentloaded', timeout: 30000 }
       )
+      await page.waitForTimeout(1500)
 
-      // Aceptar aviso si aparece
-      const aceptarBtn = page.locator('input[value*="Aceptar" i], button:has-text("Aceptar"), a:has-text("Aceptar")').first()
-      if (await aceptarBtn.count()) {
-        await aceptarBtn.click()
-        await page.waitForLoadState('networkidle').catch(() => {})
-      }
-
-      // Subir certificado .cer
-      const cerInputs = page.locator('input[type="file"]')
-      if (await cerInputs.count() > 0) {
-        await cerInputs.nth(0).setInputFiles(cerPath)
-      }
-
-      // Subir llave .key
-      if (await cerInputs.count() > 1) {
-        await cerInputs.nth(1).setInputFiles(keyPath)
-      }
-
-      // Contraseña de clave privada
-      await page.fill('input[type="password"]', keyPassword)
-
-      // Submit
-      await page.click('input[type="submit"], button[type="submit"]')
-      await page.waitForLoadState('networkidle').catch(() => {})
-
-      // Validar autenticación
-      const bodyText = await page.innerText('body').catch(() => '')
-      if (/error|incorrecto|no válido|vencid/i.test(bodyText)) {
+      // Detectar bloqueo de contenido
+      const blockedText = await page.innerText('body').catch(() => '')
+      if (/contenido está bloqueado|Este sitio no está disponible|acceso denegado/i.test(blockedText)) {
         fs.unlinkSync(cerPath)
         fs.unlinkSync(keyPath)
         await browser.close()
         return NextResponse.json(
-          { error: 'e.Firma incorrecta o vencida. Verifica tus archivos.' },
+          { error: 'El portal del SAT bloqueó el acceso. Por favor, intenta desde la web del SAT directamente.' },
+          { status: 403 }
+        )
+      }
+
+      // Aceptar aviso si aparece
+      const aceptarBtn = page.locator('input[value*="Aceptar" i], button:has-text("Aceptar")').first()
+      if (await aceptarBtn.count()) {
+        await aceptarBtn.click()
+        await page.waitForLoadState('load').catch(() => {})
+        await page.waitForTimeout(1500)
+      }
+
+      // Subir certificado .cer
+      const cerInputs = page.locator('input[type="file"]')
+      const inputCount = await cerInputs.count()
+      
+      if (inputCount > 0) {
+        await cerInputs.nth(0).setInputFiles(cerPath)
+        await page.waitForTimeout(500)
+      }
+
+      // Subir llave .key
+      if (inputCount > 1) {
+        await cerInputs.nth(1).setInputFiles(keyPath)
+        await page.waitForTimeout(500)
+      }
+
+      // Contraseña de clave privada
+      await page.fill('input[type="password"]', keyPassword)
+      await page.waitForTimeout(500)
+
+      // Submit
+      await page.click('input[type="submit"], button[type="submit"]')
+      await page.waitForLoadState('load').catch(() => {})
+      await page.waitForTimeout(2500)
+
+      // Validar autenticación y bloqueos
+      const bodyText = await page.innerText('body').catch(() => '')
+      if (/contenido está bloqueado|Este sitio no está disponible/i.test(bodyText)) {
+        fs.unlinkSync(cerPath)
+        fs.unlinkSync(keyPath)
+        await browser.close()
+        return NextResponse.json(
+          { error: 'El portal del SAT bloqueó el acceso con e.Firma. Intenta de nuevo más tarde.' },
+          { status: 403 }
+        )
+      }
+      if (/error|incorrecto|no válido|vencid|rechazad/i.test(bodyText)) {
+        fs.unlinkSync(cerPath)
+        fs.unlinkSync(keyPath)
+        await browser.close()
+        return NextResponse.json(
+          { error: 'e.Firma incorrecta, vencida o rechazada. Verifica tus certificados.' },
           { status: 400 }
         )
       }
 
-      // Navegar a Constancia de Situación Fiscal
-      await page.goto('https://servicios.sat.gob.mx/servicio/csf/index.xhtml', {
-        waitUntil: 'networkidle',
+      // Navegar a Constancia — el flujo FIEL redirige a wwwmat.sat.gob.mx
+      await page.goto('https://wwwmat.sat.gob.mx/operacion/43824/reimprime-tus-acuses-del-rfc', {
+        waitUntil: 'domcontentloaded',
         timeout: 20000,
       })
+      await page.waitForTimeout(1500)
 
-      const btnSel = 'input[value*="Generar" i], button[id*="generar" i], a[id*="generar" i]'
-      const btn = page.locator(btnSel).first()
-      if (await btn.count()) await btn.click()
+      // Buscar y clickear el botón "Generar Constancia"
+      const genBtn = page.locator('button:has-text("Generar Constancia"), input[value*="Generar" i]').first()
+      if (await genBtn.count()) {
+        await genBtn.click()
+        await page.waitForTimeout(3000)
+      }
 
-      await page.waitForTimeout(15000)
+      // Esperar PDF
+      await page.waitForTimeout(8000)
 
       // Limpiar temporales
       fs.unlinkSync(cerPath)
