@@ -159,7 +159,11 @@ export default function LoginPage() {
               { icon: '📊', text: 'Dashboard en tiempo real' },
               { icon: '🔒', text: 'Tus datos protegidos' },
             ].map((item, idx) => (
-              <div key={idx} className="flex items-center gap-3">
+              <div 
+                key={idx} 
+                className="flex items-center gap-3 benefit-item animate-slide-in-left"
+                style={{ opacity: 0 }}
+              >
                 <span
                   className="w-6 h-6 rounded-lg flex items-center justify-center text-sm flex-shrink-0 font-bold"
                   style={{ background: 'rgba(14,209,138,0.15)', color: 'var(--brand-400)' }}
