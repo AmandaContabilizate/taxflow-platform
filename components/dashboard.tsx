@@ -191,7 +191,7 @@ export default function Dashboard({ profile, credentials, declarations, regime }
           <span className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Menú</span>
         </div>
 
-        <main className="flex-1 p-6 md:p-8 max-w-5xl"
+        <main className="flex-1 p-6 md:p-8 max-w-5xl">
         {activeNav === 'dashboard' && (
           <DashboardHome
             profile={profile}
