@@ -360,6 +360,7 @@ export default function LoginPage() {
             y{' '}
             <a href="#" style={{ color: 'var(--brand-600)' }} className="font-semibold hover:underline">Privacidad</a>
           </p>
+          </div>
         </div>
       </div>
     </div>
