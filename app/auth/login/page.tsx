@@ -161,20 +161,16 @@ export default function LoginPage() {
             ].map((item, idx) => (
               <div 
                 key={idx} 
-                className="flex items-center gap-3 benefit-item animate-slide-in-left animate-float-3d animate-glow-3d p-2.5 rounded-xl"
-                style={{ 
-                  opacity: 0,
-                  background: 'rgba(14,209,138,0.08)',
-                  perspective: '1000px'
-                }}
+                className="flex items-center gap-3 benefit-item animate-slide-in-left"
+                style={{ opacity: 0 }}
               >
                 <span
                   className="w-6 h-6 rounded-lg flex items-center justify-center text-sm flex-shrink-0 font-bold"
-                  style={{ background: 'rgba(14,209,138,0.3)', color: '#fff' }}
+                  style={{ background: 'rgba(14,209,138,0.15)', color: 'var(--brand-400)' }}
                 >
                   {item.icon}
                 </span>
-                <p className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                <p className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>
                   {item.text}
                 </p>
               </div>
