@@ -111,24 +111,84 @@ export default function LoginPage() {
   const busy = loading !== null
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--background)' }}>
-      {/* Background decoration */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-        <div
-          className="absolute -top-40 -right-40 w-[600px] h-[600px] rounded-full opacity-10"
-          style={{ background: 'radial-gradient(circle, var(--brand-400) 0%, transparent 70%)' }}
-        />
-        <div
-          className="absolute -bottom-40 -left-40 w-[500px] h-[500px] rounded-full opacity-10"
-          style={{ background: 'radial-gradient(circle, var(--ink-400) 0%, transparent 70%)' }}
-        />
+    <div className="min-h-screen flex" style={{ background: 'var(--background)' }}>
+      {/* Left panel — decorative (dark blue/ink-900) */}
+      <div
+        className="hidden lg:flex flex-col justify-between p-10 w-[420px] flex-shrink-0"
+        style={{ background: 'var(--ink-900)' }}
+      >
+        <div>
+          <div className="flex items-center gap-2.5 mb-16">
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center"
+              style={{ background: 'var(--brand-500)' }}
+            >
+              <span
+                className="text-lg font-black text-white"
+                style={{ fontFamily: 'var(--font-display)' }}
+              >
+                C
+              </span>
+            </div>
+            <span
+              className="text-base font-black text-white"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
+              Contabilízate
+            </span>
+          </div>
+
+          <h2
+            className="text-3xl font-black text-white leading-tight mb-3"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            Tu contador fiscal con IA
+          </h2>
+          <p className="text-sm font-semibold mb-12" style={{ color: 'rgba(255,255,255,0.6)' }}>
+            Gestiona tus impuestos, declaraciones y cumplimiento fiscal de forma automática.
+          </p>
+
+          {/* Benefits */}
+          <div className="flex flex-col gap-4">
+            <p className="text-xs font-black uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.35)' }}>
+              Beneficios
+            </p>
+            {[
+              { icon: '✓', text: 'Conexión segura con el SAT' },
+              { icon: '⚡', text: 'Declaraciones automáticas' },
+              { icon: '📊', text: 'Dashboard en tiempo real' },
+              { icon: '🔒', text: 'Tus datos protegidos' },
+            ].map((item, idx) => (
+              <div key={idx} className="flex items-center gap-3">
+                <span
+                  className="w-6 h-6 rounded-lg flex items-center justify-center text-sm flex-shrink-0 font-bold"
+                  style={{ background: 'rgba(14,209,138,0.15)', color: 'var(--brand-400)' }}
+                >
+                  {item.icon}
+                </span>
+                <p className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                  {item.text}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div>
+          <p className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.4)' }}>
+            Confían en nosotros miles de emprendedores en México
+          </p>
+        </div>
       </div>
 
-      <div className="relative w-full max-w-md">
-        <div className="rounded-3xl p-8 shadow-2xl" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
+      {/* Right panel — form */}
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="rounded-3xl p-8 shadow-2xl" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
 
-          {/* Logo */}
-          <div className="flex flex-col items-center mb-6">
+          {/* Logo — desktop hidden */}
+          <div className="lg:hidden flex flex-col items-center mb-6">
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3 shadow-lg" style={{ background: 'var(--ink-900)' }}>
               <span className="text-2xl font-black" style={{ color: 'var(--brand-400)' }}>C</span>
             </div>
@@ -136,7 +196,7 @@ export default function LoginPage() {
               Contabilízate
             </h1>
             <p className="text-sm mt-1 text-center" style={{ color: 'var(--muted-foreground)' }}>
-              Tu contador fiscal con inteligencia artificial
+              Tu contador fiscal con IA
             </p>
           </div>
 
