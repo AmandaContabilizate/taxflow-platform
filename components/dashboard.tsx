@@ -4,6 +4,18 @@ import { useState } from 'react'
 import type { Profile, UserCredentials, Declaration, FiscalRegime } from '@/lib/types'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+} from '@/components/ui/sidebar'
 
 interface Props {
   profile: Profile
@@ -72,109 +84,114 @@ export default function Dashboard({ profile, credentials, declarations, regime }
   ]
 
   return (
-    <div className="flex min-h-screen" style={{ background: 'var(--background)' }}>
-      {/* Sidebar */}
-      <aside
-        className="w-64 flex-shrink-0 flex flex-col p-4 gap-1 sticky top-0 h-screen"
-        style={{ background: 'var(--card)', borderRight: '1px solid var(--border)' }}
-      >
-        {/* Logo */}
-        <div
-          className="flex items-center gap-2.5 px-2 pb-5 mb-2"
-          style={{ borderBottom: '1px solid var(--border)' }}
-        >
+    <SidebarProvider>
+      <Sidebar>
+        <SidebarHeader>
           <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: 'var(--ink-900)' }}
+            className="flex items-center gap-2.5 px-2 pb-2"
+            style={{ borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}
           >
-            <span
-              className="text-lg font-black"
-              style={{ fontFamily: 'var(--font-display)', color: 'var(--brand-400)' }}
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: 'var(--ink-900)' }}
             >
-              C
+              <span
+                className="text-lg font-black"
+                style={{ fontFamily: 'var(--font-display)', color: 'var(--brand-400)' }}
+              >
+                C
+              </span>
+            </div>
+            <span
+              className="text-base font-black tracking-tight"
+              style={{ fontFamily: 'var(--font-display)', color: 'var(--foreground)' }}
+            >
+              Contabilízate
             </span>
           </div>
-          <span
-            className="text-base font-black tracking-tight"
-            style={{ fontFamily: 'var(--font-display)', color: 'var(--foreground)' }}
-          >
-            Contabilízate
-          </span>
-        </div>
+        </SidebarHeader>
 
-        {/* Nav */}
-        <nav className="flex flex-col gap-1 flex-1">
-          {navItems.map(item => (
-            <button
-              key={item.id}
-              onClick={() => setActiveNav(item.id)}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-left transition-all w-full"
-              style={{
-                background: activeNav === item.id ? 'var(--ink-900)' : 'transparent',
-                color: activeNav === item.id ? '#fff' : 'var(--muted-foreground)',
-              }}
-            >
-              <span style={{ color: activeNav === item.id ? 'var(--brand-300)' : 'currentColor' }}>
-                {item.icon}
-              </span>
-              <span className="flex-1">{item.label}</span>
-              {item.badge && (
-                <span
-                  className="px-2 py-0.5 rounded-full text-xs font-black"
+        <SidebarContent>
+          <SidebarMenu>
+            {navItems.map(item => (
+              <SidebarMenuItem key={item.id}>
+                <SidebarMenuButton
+                  onClick={() => setActiveNav(item.id)}
+                  isActive={activeNav === item.id}
                   style={{
-                    background: activeNav === item.id ? 'rgba(14,209,138,0.2)' : 'var(--brand-100)',
-                    color: activeNav === item.id ? 'var(--brand-300)' : 'var(--brand-700)',
+                    background: activeNav === item.id ? 'var(--ink-900)' : 'transparent',
+                    color: activeNav === item.id ? '#fff' : 'var(--muted-foreground)',
                   }}
                 >
-                  {item.badge}
-                </span>
-              )}
-            </button>
-          ))}
-        </nav>
+                  <span style={{ color: activeNav === item.id ? 'var(--brand-300)' : 'currentColor' }}>
+                    {item.icon}
+                  </span>
+                  <span>{item.label}</span>
+                  {item.badge && (
+                    <span
+                      className="ml-auto px-2 py-0.5 rounded-full text-xs font-black"
+                      style={{
+                        background: activeNav === item.id ? 'rgba(14,209,138,0.2)' : 'var(--brand-100)',
+                        color: activeNav === item.id ? 'var(--brand-300)' : 'var(--brand-700)',
+                      }}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarContent>
 
-        {/* User */}
-        <div
-          className="flex items-center gap-2.5 p-3.5 rounded-2xl mt-auto"
-          style={{ border: '1px solid var(--border)', background: 'var(--muted)' }}
-        >
+        <SidebarFooter>
           <div
-            className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-black"
-            style={{ background: 'linear-gradient(135deg,#10DA92,#00B073)', color: '#fff' }}
+            className="flex items-center gap-2.5 p-3.5 rounded-2xl"
+            style={{ border: '1px solid var(--border)', background: 'var(--muted)' }}
           >
-            {profile.photo_url ? (
-              <img
-                src={profile.photo_url}
-                alt={profile.full_name ?? ''}
-                className="w-full h-full rounded-full object-cover"
-              />
-            ) : (
-              initials
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold truncate" style={{ color: 'var(--foreground)' }}>
-              {profile.full_name ?? profile.email}
-            </p>
-            {regime && (
-              <p className="text-xs font-semibold truncate" style={{ color: 'var(--brand-700)' }}>
-                {regime.name}
+            <div
+              className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-black"
+              style={{ background: 'linear-gradient(135deg,#10DA92,#00B073)', color: '#fff' }}
+            >
+              {profile.photo_url ? (
+                <img
+                  src={profile.photo_url}
+                  alt={profile.full_name ?? ''}
+                  className="w-full h-full rounded-full object-cover"
+                />
+              ) : (
+                initials
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold truncate" style={{ color: 'var(--foreground)' }}>
+                {profile.full_name ?? profile.email}
               </p>
-            )}
+              {regime && (
+                <p className="text-xs font-semibold truncate" style={{ color: 'var(--brand-700)' }}>
+                  {regime.name}
+                </p>
+              )}
+            </div>
+            <button
+              onClick={handleSignOut}
+              className="p-1.5 rounded-lg transition-all"
+              style={{ color: 'var(--muted-foreground)' }}
+              title="Cerrar sesión"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            </button>
           </div>
-          <button
-            onClick={handleSignOut}
-            className="p-1.5 rounded-lg transition-all"
-            style={{ color: 'var(--muted-foreground)' }}
-            title="Cerrar sesión"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          </button>
-        </div>
-      </aside>
+        </SidebarFooter>
+      </Sidebar>
 
-      {/* Main content */}
-      <main className="flex-1 min-w-0 p-8 max-w-5xl">
+      <SidebarInset>
+        <div className="flex items-center gap-3 px-4 py-2 md:hidden">
+          <SidebarTrigger />
+          <span className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Menú</span>
+        </div>
+
+        <main className="flex-1 p-6 md:p-8 max-w-5xl"
         {activeNav === 'dashboard' && (
           <DashboardHome
             profile={profile}
@@ -201,8 +218,9 @@ export default function Dashboard({ profile, credentials, declarations, regime }
             </a>
           </div>
         )}
-      </main>
-    </div>
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }
 
