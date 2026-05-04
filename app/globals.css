@@ -142,6 +142,24 @@
   }
 }
 
+@keyframes float3D {
+  0%, 100% {
+    transform: translateY(0px) rotateX(0deg) rotateY(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotateX(2deg) rotateY(-2deg);
+  }
+}
+
+@keyframes glow3D {
+  0%, 100% {
+    box-shadow: 0 4px 20px rgba(14, 209, 138, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+  50% {
+    box-shadow: 0 12px 40px rgba(14, 209, 138, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  }
+}
+
 @layer utilities {
   .animate-slide-in-left {
     animation: slideInLeft 0.6s ease-out forwards;
@@ -150,10 +168,28 @@
   .animate-fade-in-up {
     animation: fadeInUp 0.6s ease-out forwards;
   }
+  
+  .animate-float-3d {
+    animation: float3D 4s ease-in-out infinite;
+    perspective: 1000px;
+    transform-style: preserve-3d;
+  }
+  
+  .animate-glow-3d {
+    animation: glow3D 4s ease-in-out infinite;
+  }
 }
 
 /* Staggered animation delays for benefits */
-.benefit-item:nth-child(1) { animation-delay: 0.1s; }
-.benefit-item:nth-child(2) { animation-delay: 0.2s; }
-.benefit-item:nth-child(3) { animation-delay: 0.3s; }
-.benefit-item:nth-child(4) { animation-delay: 0.4s; }
+.benefit-item:nth-child(1) { 
+  animation-delay: 0s;
+}
+.benefit-item:nth-child(2) { 
+  animation-delay: 0.2s;
+}
+.benefit-item:nth-child(3) { 
+  animation-delay: 0.4s;
+}
+.benefit-item:nth-child(4) { 
+  animation-delay: 0.6s;
+}
