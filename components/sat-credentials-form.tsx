@@ -795,6 +795,7 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
                 </div>
               )}
             </div>
+          ) : null}
 
           {/* Confirm regime selector — only if needed */}
           {detectedRegimes.length > 0 && (
