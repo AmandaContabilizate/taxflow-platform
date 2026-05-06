@@ -49,6 +49,7 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
   const [detectedRegime, setDetectedRegime] = useState<string | null>(null)
   const [detectedRegimes, setDetectedRegimes] = useState<{ regime: string; activities: string[] }[]>([])
   const [selectedRegimeId, setSelectedRegimeId] = useState('')
+  const [showManualOptions, setShowManualOptions] = useState(false)
 
   // Auto-trigger download when constancia step is reached
   useEffect(() => {
@@ -728,21 +729,72 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
               </div>
             </div>
           ) : error ? (
-            <div
-              className="p-4 rounded-xl text-sm font-semibold text-center"
-              style={{ background: '#FCDCDC', color: 'var(--destructive)' }}
-            >
-              {error}
-              <button
-                type="button"
-                onClick={simulateAutoDownload}
-                className="block w-full mt-3 px-4 py-2 rounded-lg text-sm font-bold"
-                style={{ background: 'var(--destructive)', color: '#fff' }}
+            <div className="flex flex-col gap-3">
+              <div
+                className="p-4 rounded-xl text-sm font-semibold text-center"
+                style={{ background: '#FCDCDC', color: 'var(--destructive)' }}
               >
-                Reintentar
-              </button>
+                {error}
+              </div>
+
+              {/* Options: Retry or Add Manually */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowManualOptions(false)
+                    simulateAutoDownload()
+                  }}
+                  className="py-2.5 rounded-xl text-sm font-bold transition-all active:scale-95"
+                  style={{ background: 'var(--brand-500)', color: '#fff' }}
+                >
+                  Reintentar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowManualOptions(true)}
+                  className="py-2.5 rounded-xl text-sm font-bold transition-all active:scale-95"
+                  style={{ background: 'var(--muted)', color: 'var(--foreground)', border: '1.5px solid var(--border)' }}
+                >
+                  Agregar manualmente
+                </button>
+              </div>
+
+              {/* Manual options */}
+              {showManualOptions && (
+                <div className="flex flex-col gap-2 pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
+                  <p className="text-xs font-bold uppercase" style={{ color: 'var(--muted-foreground)' }}>
+                    ¿Cómo deseas continuar?
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setStep('rfc-ciec')}
+                    className="flex items-center gap-2 p-3 rounded-xl text-left font-semibold text-sm transition-all hover:bg-opacity-80"
+                    style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="1"/><path d="M12 9v6"/><path d="M9 12h6"/><circle cx="12" cy="12" r="10"/></svg>
+                    <div className="flex-1">
+                      <p style={{ color: 'var(--foreground)' }}>Usar CIEC</p>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Tu contraseña del portal del SAT</p>
+                    </div>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStep('rfc-fiel')}
+                    className="flex items-center gap-2 p-3 rounded-xl text-left font-semibold text-sm transition-all hover:bg-opacity-80"
+                    style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
+                    <div className="flex-1">
+                      <p style={{ color: 'var(--foreground)' }}>Usar e.Firma</p>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Tu certificado digital .cer y .key</p>
+                    </div>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
+                  </button>
+                </div>
+              )}
             </div>
-          ) : null}
 
           {/* Confirm regime selector — only if needed */}
           {detectedRegimes.length > 0 && (
