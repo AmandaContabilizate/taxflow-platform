@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { FiscalRegime } from '@/lib/types'
 
@@ -43,12 +43,19 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
   const [keyFile, setKeyFile] = useState<File | null>(null)
   const [fielPassword, setFielPassword] = useState('')
 
-  // Constancia step
   const [constanciaMode, setConstanciaMode] = useState<'upload' | 'auto'>('auto')
   const constanciaRef = useRef<HTMLInputElement>(null)
   const [constanciaFile, setConstanciaFile] = useState<File | null>(null)
   const [detectedRegime, setDetectedRegime] = useState<string | null>(null)
+  const [detectedRegimes, setDetectedRegimes] = useState<{ regime: string; activities: string[] }[]>([])
   const [selectedRegimeId, setSelectedRegimeId] = useState('')
+
+  // Auto-trigger download when constancia step is reached
+  useEffect(() => {
+    if (step === 'constancia' && !detectedRegime && !loading) {
+      simulateAutoDownload()
+    }
+  }, [step])
 
   async function handleRfcCiec(e: React.FormEvent) {
     e.preventDefault()
@@ -605,7 +612,7 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
         </form>
       )}
 
-      {/* Step 3: Constancia de Situación Fiscal */}
+      {/* Step 3: Constancia de Situación Fiscal — Auto-download */}
       {step === 'constancia' && (
         <form onSubmit={handleConstancia} className="flex flex-col gap-4">
           <div>
@@ -616,115 +623,151 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
               Constancia de Situación Fiscal
             </h2>
             <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-              Necesitamos tu constancia para identificar tu régimen y presentarte los planes correctos
+              Detectando automáticamente tu régimen fiscal...
             </p>
           </div>
 
-          {/* Mode toggle */}
-          <div
-            className="flex rounded-xl p-1 gap-1"
-            style={{ background: 'var(--muted)' }}
-          >
-            {(['auto', 'upload'] as const).map(mode => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setConstanciaMode(mode)}
-                className="flex-1 py-2 rounded-lg text-sm font-bold transition-all"
-                style={{
-                  background: constanciaMode === mode ? 'var(--card)' : 'transparent',
-                  color: constanciaMode === mode ? 'var(--foreground)' : 'var(--muted-foreground)',
-                  boxShadow: constanciaMode === mode ? '0 1px 3px rgba(21,17,63,0.08)' : 'none',
-                }}
-              >
-                {mode === 'auto' ? 'Descarga automática' : 'Subir PDF'}
-              </button>
-            ))}
-          </div>
-
-          {constanciaMode === 'auto' ? (
-            <div className="flex flex-col gap-3">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center gap-4 py-12">
               <div
-                className="p-4 rounded-xl"
-                style={{ background: 'var(--brand-50)', border: '1px solid var(--brand-200)' }}
-              >
-                <p className="text-sm font-semibold" style={{ color: 'var(--brand-700)' }}>
-                  Descargamos tu constancia directamente del SAT usando tu RFC y CIEC. El proceso tarda aproximadamente 5 segundos.
-                </p>
-              </div>
-              {detectedRegime ? (
-                <div
-                  className="flex items-center gap-3 p-4 rounded-xl"
-                  style={{ background: 'var(--brand-50)', border: '1.5px solid var(--brand-400)' }}
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--brand-600)" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                  <div>
-                    <p className="text-xs font-bold uppercase" style={{ color: 'var(--brand-700)' }}>Régimen detectado</p>
-                    <p className="text-sm font-black" style={{ color: 'var(--foreground)' }}>{detectedRegime}</p>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={simulateAutoDownload}
-                  disabled={loading}
-                  className="w-full py-3.5 rounded-2xl font-bold text-sm transition-all active:scale-95 disabled:opacity-60"
-                  style={{ background: 'var(--brand-500)', color: '#fff', boxShadow: '0 14px 34px -10px rgba(14,209,138,0.45)' }}
-                >
-                  {loading ? 'Descargando del SAT...' : 'Descargar Constancia del SAT'}
-                </button>
-              )}
-            </div>
-          ) : (
-            <div
-              className="flex flex-col items-center justify-center gap-2 py-8 rounded-xl cursor-pointer"
-              style={{
-                border: '2px dashed var(--border)',
-                background: constanciaFile ? 'var(--brand-50)' : 'var(--muted)',
-              }}
-              onClick={() => constanciaRef.current?.click()}
-            >
-              <input
-                ref={constanciaRef}
-                type="file"
-                accept=".pdf"
-                className="hidden"
-                onChange={e => {
-                  const file = e.target.files?.[0] ?? null
-                  setConstanciaFile(file)
-                  // Auto-detect regime from filename or set first as default
-                  if (file && regimes.length > 0) setSelectedRegimeId(regimes[0].id)
+                className="w-12 h-12 rounded-full border-4 border-transparent"
+                style={{
+                  borderTopColor: 'var(--brand-500)',
+                  borderRightColor: 'var(--brand-500)',
+                  animation: 'spin 1s linear infinite'
                 }}
               />
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={constanciaFile ? 'var(--brand-600)' : 'var(--muted-foreground)'} strokeWidth="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-              <span className="text-sm font-semibold" style={{ color: constanciaFile ? 'var(--brand-700)' : 'var(--muted-foreground)' }}>
-                {constanciaFile ? constanciaFile.name : 'Seleccionar PDF de la Constancia de Situación Fiscal'}
-              </span>
+              <div className="text-center">
+                <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
+                  Descargando tu Constancia...
+                </p>
+                <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>
+                  Conectando con el SAT. Esto tarda aprox. 5 segundos.
+                </p>
+              </div>
+            </div>
+          ) : detectedRegimes.length > 0 ? (
+            <div className="flex flex-col gap-4">
+              {/* Detected regimes */}
+              <div
+                className="p-4 rounded-xl"
+                style={{ background: 'var(--brand-50)', border: '1.5px solid var(--brand-400)' }}
+              >
+                <div className="flex items-start gap-3">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--brand-600)" strokeWidth="2.5" className="mt-0.5 flex-shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
+                  <div className="flex-1">
+                    <p className="text-xs font-bold uppercase" style={{ color: 'var(--brand-700)' }}>Régimenes detectados</p>
+                    <div className="mt-2 space-y-2">
+                      {detectedRegimes.map((item, idx) => (
+                        <div key={idx}>
+                          <p className="text-sm font-black" style={{ color: 'var(--foreground)' }}>{item.regime}</p>
+                          {item.activities.length > 0 && (
+                            <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+                              {item.activities.slice(0, 2).join(', ')}
+                              {item.activities.length > 2 && ' +' + (item.activities.length - 2) + ' más'}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Purchase options — Plans, Trámites, Regularizaciones */}
+              <div className="space-y-2">
+                <p className="text-xs font-bold uppercase" style={{ color: 'var(--muted-foreground)' }}>
+                  Qué deseas hacer
+                </p>
+                <div className="grid grid-cols-1 gap-2">
+                  {[
+                    {
+                      id: 'planes',
+                      title: '📊 Planes',
+                      desc: 'Contabilidad y declaraciones automáticas',
+                      action: 'Ver planes',
+                    },
+                    {
+                      id: 'tramites',
+                      title: '📋 Trámites',
+                      desc: 'Solicitudes y gestiones ante el SAT',
+                      action: 'Explorar trámites',
+                    },
+                    {
+                      id: 'regularizaciones',
+                      title: '✔️ Regularizaciones',
+                      desc: 'Arregla tu situación fiscal',
+                      action: 'Ver opciones',
+                    },
+                  ].map(option => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => {
+                        // Navigate to respective page
+                        window.location.href = `/${option.id}`
+                      }}
+                      className="flex items-start gap-3 p-3.5 rounded-xl text-left transition-all hover:bg-opacity-80"
+                      style={{
+                        background: 'var(--muted)',
+                        border: '1px solid var(--border)',
+                      }}
+                    >
+                      <div className="flex-1">
+                        <p className="text-sm font-black" style={{ color: 'var(--foreground)' }}>
+                          {option.title}
+                        </p>
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+                          {option.desc}
+                        </p>
+                      </div>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mt-1 flex-shrink-0" style={{ color: 'var(--brand-500)' }}><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : error ? (
+            <div
+              className="p-4 rounded-xl text-sm font-semibold text-center"
+              style={{ background: '#FCDCDC', color: 'var(--destructive)' }}
+            >
+              {error}
+              <button
+                type="button"
+                onClick={simulateAutoDownload}
+                className="block w-full mt-3 px-4 py-2 rounded-lg text-sm font-bold"
+                style={{ background: 'var(--destructive)', color: '#fff' }}
+              >
+                Reintentar
+              </button>
+            </div>
+          ) : null}
+
+          {/* Confirm regime selector — only if needed */}
+          {detectedRegimes.length > 0 && (
+            <div className="flex flex-col gap-1 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
+              <label className="text-sm font-bold" style={{ color: 'var(--foreground)' }}>
+                Confirma tu régimen fiscal principal
+              </label>
+              <select
+                value={selectedRegimeId}
+                onChange={e => setSelectedRegimeId(e.target.value)}
+                required
+                className="w-full px-4 py-3 rounded-xl text-sm font-semibold outline-none appearance-none"
+                style={{
+                  background: 'var(--muted)',
+                  border: '1.5px solid var(--border)',
+                  color: 'var(--foreground)',
+                }}
+              >
+                <option value="">Selecciona tu régimen principal</option>
+                {regimes.map(regime => (
+                  <option key={regime.id} value={regime.id}>{regime.name}</option>
+                ))}
+              </select>
             </div>
           )}
-
-          {/* Regime selector */}
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-bold" style={{ color: 'var(--foreground)' }}>
-              Confirma tu régimen fiscal
-            </label>
-            <select
-              value={selectedRegimeId}
-              onChange={e => setSelectedRegimeId(e.target.value)}
-              required
-              className="w-full px-4 py-3 rounded-xl text-sm font-semibold outline-none appearance-none"
-              style={{
-                background: 'var(--muted)',
-                border: '1.5px solid var(--border)',
-                color: 'var(--foreground)',
-              }}
-            >
-              <option value="">Selecciona tu régimen</option>
-              {regimes.map(regime => (
-                <option key={regime.id} value={regime.id}>{regime.name}</option>
-              ))}
-            </select>
-          </div>
 
           <button
             type="submit"
@@ -732,7 +775,7 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
             className="w-full py-3.5 rounded-2xl font-bold text-sm transition-all active:scale-95 disabled:opacity-60 mt-2"
             style={{ background: 'var(--brand-500)', color: '#fff', boxShadow: '0 14px 34px -10px rgba(14,209,138,0.45)' }}
           >
-            {loading ? 'Guardando...' : 'Ver mis planes'}
+            {loading ? 'Guardando...' : 'Continuar'}
           </button>
         </form>
       )}
