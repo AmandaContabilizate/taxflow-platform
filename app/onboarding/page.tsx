@@ -1,25 +1,27 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
 import OnboardingClient from './onboarding-client'
+import { getCurrentUser } from '@/features/auth/actions'
+import type { FiscalRegime } from '@/lib/types'
 
+/**
+ * Onboarding tras migración a backend Bearer.
+ *
+ * TODO(backend):
+ *   regimes     ← GET /api/catalogs/fiscal-regimes
+ *   credentials ← GET /api/taxpayers/me  (para precargar RFC si ya existe)
+ */
 export default async function OnboardingPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
+  if (!user) redirect('/auth/login')
 
-  if (!user) {
-    redirect('/auth/login')
-  }
-
-  const [{ data: regimes }, { data: credentials }] = await Promise.all([
-    supabase.from('fiscal_regimes').select('*').order('name'),
-    supabase.from('user_credentials').select('*').eq('user_id', user.id).single(),
-  ])
+  // TODO: reemplazar por fetchGet a /api/catalogs/fiscal-regimes (apiType "catalogs").
+  const regimes: FiscalRegime[] = []
 
   return (
     <OnboardingClient
-      regimes={regimes ?? []}
-      existingRfc={credentials?.rfc ?? undefined}
-      hasCredentials={!!credentials}
+      regimes={regimes}
+      existingRfc={user.rfc ?? undefined}
+      hasCredentials={false}
     />
   )
 }

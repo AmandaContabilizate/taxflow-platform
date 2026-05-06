@@ -1,24 +1,53 @@
-import { type NextRequest, NextResponse } from 'next/server'
-import { updateSession } from '@/lib/supabase/middleware'
+import { NextResponse, type NextRequest } from "next/server";
+import {
+  PROTECTED_ROUTES,
+  PUBLIC_ROUTES,
+  isPublicRoute,
+  shouldRedirectIfAuthenticated,
+} from "@/lib/routes";
 
-export async function middleware(request: NextRequest) {
-  // Only run Supabase session refresh when env vars are present
+/**
+ * Middleware Bearer (kit ContaboxPro core2).
+ *
+ * - Si NO hay cookie `auth_token` y la ruta es protegida → redirige a /auth/login.
+ * - Si HAY token y entra a /auth/login → redirige al dashboard.
+ *
+ * Solo verifica PRESENCIA de la cookie (rápido, edge).
+ * La validación real del token la hace `getCurrentUser` en server actions.
+ */
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
   if (
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/api/webhooks") || // Stripe webhooks (sin auth)
+    pathname.startsWith("/favicon") ||
+    /\.(svg|png|jpg|jpeg|gif|webp|ico|css|js|woff2?)$/.test(pathname)
   ) {
-    try {
-      return await updateSession(request)
-    } catch {
-      // If Supabase fails (e.g. invalid config), let the request through
-      return NextResponse.next()
-    }
+    return NextResponse.next();
   }
-  return NextResponse.next()
+
+  const isAuthenticated = Boolean(request.cookies.get("auth_token"));
+
+  if (isAuthenticated && shouldRedirectIfAuthenticated(pathname)) {
+    return NextResponse.redirect(new URL(PROTECTED_ROUTES.DASHBOARD, request.url));
+  }
+
+  if (isPublicRoute(pathname)) {
+    return NextResponse.next();
+  }
+
+  if (!isAuthenticated) {
+    const url = new URL(PUBLIC_ROUTES.LOGIN, request.url);
+    url.searchParams.set("from", pathname);
+    return NextResponse.redirect(url);
+  }
+
+  return NextResponse.next();
 }
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|api/webhooks|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    "/((?!_next/static|_next/image|favicon.ico|api/webhooks|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
-}
+};

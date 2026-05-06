@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import type { Profile, UserCredentials, Declaration, FiscalRegime } from '@/lib/types'
-import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { signOut } from '@/features/auth/actions'
 
 interface Props {
   profile: Profile
@@ -21,7 +21,6 @@ const STATUS_STYLES: Record<string, { bg: string; color: string; label: string }
 
 export default function Dashboard({ profile, credentials, declarations, regime }: Props) {
   const router = useRouter()
-  const supabase = createClient()
   const [activeNav, setActiveNav] = useState('dashboard')
 
   const initials = (profile.full_name ?? profile.email)
@@ -35,8 +34,9 @@ export default function Dashboard({ profile, credentials, declarations, regime }
   const completedDeclarations = declarations.filter(d => d.status === 'completed' || d.status === 'submitted').length
 
   async function handleSignOut() {
-    await supabase.auth.signOut()
-    router.push('/auth/login')
+    // signOut server action limpia cookies y redirige a /auth/login
+    await signOut()
+    router.refresh()
   }
 
   const navItems = [

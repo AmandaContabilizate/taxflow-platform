@@ -1,47 +1,48 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
 import Dashboard from '@/components/dashboard'
+import { getCurrentUser } from '@/features/auth/actions'
+import type { Declaration, Profile } from '@/lib/types'
 
+/**
+ * Dashboard tras migración a backend Bearer (ContaboxPro core2).
+ *
+ * TODO(backend): los datos abajo eran queries a Supabase. Hay que exponer
+ * endpoints en el backend y reemplazar los stubs:
+ *
+ *   profile      ← GET /api/users/me           (o adaptar /api/auth/validate)
+ *   credentials  ← GET /api/taxpayers/me        (rfc, ciec, fiel, regimen_id)
+ *   regime       ← GET /api/catalogs/fiscal-regimes/{id}
+ *   declarations ← GET /api/declaration?userId=…
+ *
+ * Mientras tanto, el dashboard se renderiza con datos mínimos derivados del
+ * token (email, nombre, rfc) y los demás como null/[].
+ */
 export default async function DashboardPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
+  if (!user) redirect('/auth/login')
 
-  if (!user) {
-    redirect('/auth/login')
+  const now = new Date().toISOString()
+  const profile: Profile = {
+    id: user.userId,
+    email: user.email ?? '',
+    full_name: user.fullName ?? null,
+    role: 'user',
+    photo_url: null,
+    oauth_provider: null,
+    created_at: now,
+    updated_at: now,
   }
 
-  const [
-    { data: profile },
-    { data: credentials },
-    { data: declarations },
-  ] = await Promise.all([
-    supabase.from('profiles').select('*').eq('id', user.id).single(),
-    supabase
-      .from('user_credentials')
-      .select('*, fiscal_regime:fiscal_regimes(*)')
-      .eq('user_id', user.id)
-      .single(),
-    supabase
-      .from('declarations')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false }),
-  ])
-
-  if (!profile) {
-    redirect('/auth/login')
-  }
-
-  const regime = (credentials as any)?.fiscal_regime ?? null
-  const credentialsClean = credentials
-    ? { ...credentials, fiscal_regime: undefined }
-    : null
+  // TODO: reemplazar con llamadas al backend.
+  const credentials = null
+  const declarations: Declaration[] = []
+  const regime = null
 
   return (
     <Dashboard
       profile={profile}
-      credentials={credentialsClean as any}
-      declarations={declarations ?? []}
+      credentials={credentials}
+      declarations={declarations}
       regime={regime}
     />
   )

@@ -1,22 +1,15 @@
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { getCurrentUser } from '@/features/auth/actions'
 
 export default async function Home() {
-  try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (user) {
-      const { data: creds } = await supabase
-        .from('user_credentials')
-        .select('id')
-        .eq('user_id', user.id)
-        .single()
-      redirect(creds ? '/dashboard' : '/onboarding')
-    }
-  } catch {
-    // If Supabase is not configured, show the landing page
+  // Si hay sesión Bearer válida, mandar al dashboard.
+  // TODO(backend): el flag de "ya completó onboarding" debe venir del backend
+  // (antes era una query a Supabase user_credentials). Mientras no exista ese
+  // endpoint, todos los usuarios autenticados van directo al dashboard.
+  const user = await getCurrentUser()
+  if (user) {
+    redirect('/dashboard')
   }
 
   return (
