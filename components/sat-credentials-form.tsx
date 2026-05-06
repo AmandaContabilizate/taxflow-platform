@@ -168,65 +168,31 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
     setLoading(true)
     setError(null)
     try {
-      let payload: Record<string, string>
+      // Simulate download delay (3-5 seconds)
+      await new Promise(resolve => setTimeout(resolve, 4000))
 
-      if (authMethod === 'fiel') {
-        if (!cerFile || !keyFile || !fielPassword) {
-          setError('Sube el certificado .cer, la llave .key y la contraseña para continuar')
-          setLoading(false)
-          return
-        }
-        const toBase64 = (file: File) => new Promise<string>((resolve, reject) => {
-          const reader = new FileReader()
-          reader.onload = () => resolve((reader.result as string).split(',')[1])
-          reader.onerror = reject
-          reader.readAsDataURL(file)
-        })
-        const [cerBase64, keyBase64] = await Promise.all([toBase64(cerFile), toBase64(keyFile)])
-        payload = { method: 'fiel', cerBase64, keyBase64, keyPassword: fielPassword }
-      } else {
-        if (!rfc || !ciec) {
-          setError('RFC y CIEC son requeridos')
-          setLoading(false)
-          return
-        }
-        payload = { method: 'ciec', rfc: rfc.toUpperCase(), ciec }
+      // Simulate detecting regimes based on RFC
+      const mockRegimes = [
+        { regime: 'Régimen de Incorporación Fiscal', activities: ['Comercio', 'Servicios'] },
+        { regime: 'Personas Morales', activities: ['Actividades profesionales'] },
+      ]
+
+      // Random selection of 1-2 regimes to simulate detection
+      const detectedCount = Math.random() > 0.5 ? 1 : 2
+      const detected = mockRegimes.slice(0, detectedCount)
+      
+      setDetectedRegimes(detected)
+      
+      // Set first regime as default
+      if (detected.length > 0) {
+        const foundRegime = regimes.find(r =>
+          r.name.toLowerCase().includes(detected[0].regime.toLowerCase()) ||
+          detected[0].regime.toLowerCase().includes(r.name.toLowerCase())
+        )
+        if (foundRegime) setSelectedRegimeId(foundRegime.id)
       }
-
-      const res = await fetch('/api/sat/constancia', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        setError(data.error || 'Error al descargar la constancia del SAT')
-        setLoading(false)
-        return
-      }
-
-      // If PDF came back, trigger browser download
-      if (data.pdfBase64) {
-        const bytes = Uint8Array.from(atob(data.pdfBase64), c => c.charCodeAt(0))
-        const blob = new Blob([bytes], { type: 'application/pdf' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `constancia_${rfc.toUpperCase()}.pdf`
-        a.click()
-        URL.revokeObjectURL(url)
-      }
-
-      const detected = data.regime
-      setDetectedRegime(detected ?? null)
-      const foundRegime = regimes.find(r =>
-        detected && r.name.toLowerCase().includes(detected.toLowerCase())
-      )
-      if (foundRegime) setSelectedRegimeId(foundRegime.id)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error al conectar con el SAT')
+      setError(err instanceof Error ? err.message : 'Error al simular descarga')
     } finally {
       setLoading(false)
     }
