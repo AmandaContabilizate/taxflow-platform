@@ -65,6 +65,25 @@
   --sidebar-accent-foreground: #15113F;
   --sidebar-border: rgba(21,17,63,0.08);
   --sidebar-ring: #0ED18A;
+
+  /* Extra accent colors (dashboard mockup) */
+  --coral: #FF8862;
+  --coral-soft: #FFE3D4;
+  --amber: #F5B037;
+  --amber-soft: #FFF1D6;
+  --sky: #5EA8FF;
+  --sky-soft: #DDEBFF;
+  --violet: #8B7CFF;
+  --violet-soft: #E6E1FF;
+  --danger: #E84D4D;
+  --danger-soft: #FCDCDC;
+  --card-muted: #F7F8FB;
+  --border-strong: rgba(21,17,63,0.12);
+  --sh-1: 0 1px 2px rgba(21,17,63,0.04), 0 1px 3px rgba(21,17,63,0.04);
+  --sh-2: 0 4px 18px rgba(21,17,63,0.06), 0 2px 4px rgba(21,17,63,0.04);
+  --sh-3: 0 14px 40px rgba(21,17,63,0.10), 0 4px 10px rgba(21,17,63,0.06);
+  --sh-brand: 0 14px 34px -10px rgba(14,209,138,0.45);
+  --sh-ink: 0 14px 34px -10px rgba(21,17,63,0.5);
 }
 
 @theme inline {
