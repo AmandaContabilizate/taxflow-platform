@@ -11,6 +11,9 @@ export const API_ROUTES = {
   USERS: {
     ROOT: "",                       // GET    apiType "users" → /api/users
     GET: (id: string) => `/${id}`,
+    SEND_CODE: "/SendCode",         // POST   apiType "users" → /api/users/SendCode
+    VALIDATE_CODE: "/ValidateConfirmationCode", // POST apiType "users"
+    COMPLETE_PROFILE: "/CompleteUserProfile",   // POST apiType "users" (auth)
   },
   TAXPAYERS: {
     ROOT: "",

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
-import { createClient } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
   const body = await request.text()
@@ -24,21 +23,16 @@ export async function POST(request: NextRequest) {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as any
-    const supabase = await createClient()
-
-    // The subscription is linked via metadata — in production, pass user_id and plan_id as metadata
     const userId = session.metadata?.user_id
     const planId = session.metadata?.plan_id
 
     if (userId && planId) {
-      await supabase.from('subscriptions').insert({
-        user_id: userId,
-        plan_id: planId,
-        stripe_customer_id: session.customer,
-        stripe_subscription_id: session.subscription ?? session.id,
-        status: 'active',
-        start_date: new Date().toISOString(),
-        end_date: session.metadata?.end_date ?? null,
+      // TODO(backend): registrar suscripción vía Identity/Subscriptions API.
+      console.warn('[stripe-webhook] TODO wire subscription create to backend', {
+        userId,
+        planId,
+        stripeCustomerId: session.customer,
+        stripeSubscriptionId: session.subscription ?? session.id,
       })
     }
   }

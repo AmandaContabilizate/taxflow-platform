@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import type { FiscalRegime } from '@/lib/types'
 
 interface Props {
@@ -14,7 +13,6 @@ type Step = 'rfc-ciec' | 'fiel' | 'constancia'
 type AuthMethod = 'ciec' | 'fiel'
 
 export default function SatCredentialsForm({ regimes, existingRfc, onComplete }: Props) {
-  const supabase = createClient()
   const [step, setStep] = useState<Step>(existingRfc ? 'constancia' : 'rfc-ciec')
 
   // When user switches to FIEL method, skip directly to the fiel step
@@ -60,15 +58,8 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
     setLoading(true)
     setError(null)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('No hay sesión activa')
-      const { error: upsertError } = await supabase.from('user_credentials').upsert({
-        user_id: user.id,
-        rfc: rfc.toUpperCase(),
-        ciec_encrypted: btoa(ciec),
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id' })
-      if (upsertError) throw upsertError
+      // TODO(backend): persistir RFC + CIEC cifrada vía Credentials API.
+      console.warn('[sat-credentials-form] TODO wire user_credentials upsert (CIEC) to backend')
       setStep('constancia')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error al guardar credenciales')
@@ -106,19 +97,8 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
     setLoading(true)
     setError(null)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('No hay sesión activa')
-      const timestamp = Date.now()
-      const fielPath = `fiel/${user.id}/${timestamp}`
-      // Save RFC + FIEL reference together in one upsert
-      const { error: upsertError } = await supabase.from('user_credentials').upsert({
-        user_id: user.id,
-        rfc: rfc.toUpperCase(),
-        ciec_encrypted: 'fiel-auth',
-        fiel_stored_at: fielPath,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id' })
-      if (upsertError) throw upsertError
+      // TODO(backend): persistir referencia FIEL + RFC vía Credentials API.
+      console.warn('[sat-credentials-form] TODO wire user_credentials upsert (FIEL) to backend')
       setStep('constancia')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error al procesar la e.Firma')
@@ -140,14 +120,8 @@ export default function SatCredentialsForm({ regimes, existingRfc, onComplete }:
     setLoading(true)
     setError(null)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('No hay sesión activa')
-      const { error: updateError } = await supabase.from('user_credentials').update({
-        fiscal_regime_id: selectedRegimeId,
-        verified_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }).eq('user_id', user.id)
-      if (updateError) throw updateError
+      // TODO(backend): guardar régimen fiscal del usuario vía Identity/Taxpayers API.
+      console.warn('[sat-credentials-form] TODO wire user fiscal regime save to backend', selectedRegimeId)
       onComplete()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error al guardar régimen')

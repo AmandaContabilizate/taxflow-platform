@@ -1,0 +1,45 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "npm ci taxflow-platform",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"ci"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "check next version",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"exec",
+				"next",
+				"--version"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "check local next binary",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				".\\node_modules\\next\\dist\\bin\\next",
+				"--version"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "run next dev",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"dev"
+			],
+			"isBackground": true
+		}
+	]
+}
