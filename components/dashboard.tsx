@@ -936,7 +936,7 @@ function AprendeScreen({ go }: { go: (s: Screen) => void }) {
       </div>
 
       <HelpBox>
-        Cada lección dura entre 2 y 4 minutos. Puedes leerlas, verlas en video, o preguntar dudas a tu contador al final.
+        Cada lección dura entre 2 y 5 minutos. Puedes leerlas, verlas en video, o preguntar dudas a tu contador al final.
       </HelpBox>
 
       {/* Filtros */}
