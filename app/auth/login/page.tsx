@@ -258,10 +258,10 @@ export default function LoginPage() {
                 style={
                   mode === "login"
                     ? {
-                        background: "var(--card)",
-                        color: "var(--foreground)",
-                        boxShadow: "0 1px 2px rgba(21,17,63,0.06)",
-                      }
+                      background: "var(--card)",
+                      color: "var(--foreground)",
+                      boxShadow: "0 1px 2px rgba(21,17,63,0.06)",
+                    }
                     : { color: "var(--muted-foreground)", background: "transparent" }
                 }
               >
@@ -274,10 +274,10 @@ export default function LoginPage() {
                 style={
                   mode === "register"
                     ? {
-                        background: "var(--card)",
-                        color: "var(--foreground)",
-                        boxShadow: "0 1px 2px rgba(21,17,63,0.06)",
-                      }
+                      background: "var(--card)",
+                      color: "var(--foreground)",
+                      boxShadow: "0 1px 2px rgba(21,17,63,0.06)",
+                    }
                     : { color: "var(--muted-foreground)", background: "transparent" }
                 }
               >

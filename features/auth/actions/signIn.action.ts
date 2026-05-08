@@ -8,14 +8,6 @@ import type { SignInSchema } from "../schemas/signIn.schema";
 import type { LoginResponse, SignInError } from "../types";
 import { setSessionCookies } from "./setSessionCookies.action";
 
-/**
- * Server Action de inicio de sesión.
- * Llama POST /api/auth/login en el backend Identity y guarda token httpOnly.
- *
- * Devuelve Result<string, SignInError>:
- *   - success → string con la ruta a la que redirigir
- *   - error   → fieldErrors para mostrar en el form
- */
 export async function signIn(
   credentials: SignInSchema,
   redirectPath: string = PROTECTED_ROUTES.DASHBOARD,
