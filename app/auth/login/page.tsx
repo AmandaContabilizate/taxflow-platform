@@ -145,16 +145,16 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen" style={{ background: "var(--background)", color: "var(--foreground)" }}>
+    <main className="min-h-screen" style={{ background: "#F6F7FB", color: "#15113F" }}>
       <div className="grid min-h-screen lg:grid-cols-[370px_1fr]">
         <aside
           className="hidden lg:flex flex-col text-white px-8 py-10"
-          style={{ background: "var(--ink-900)" }}
+          style={{ background: "#15113F" }}
         >
           <Link href="/" className="inline-flex items-center gap-2.5">
             <div
               className="w-9 h-9 rounded-xl flex items-center justify-center"
-              style={{ background: "var(--brand-500)" }}
+              style={{ background: "#0ED18A" }}
             >
               <span className="text-base font-black text-white" style={DISPLAY_FONT}>
                 C
@@ -194,7 +194,7 @@ export default function LoginPage() {
                     className="w-6 h-6 rounded-lg flex items-center justify-center text-sm flex-shrink-0 font-bold"
                     style={{
                       background: "rgba(14, 209, 138, 0.15)",
-                      color: "var(--brand-400)",
+                      color: "#3AE3A4",
                     }}
                   >
                     {symbol}
@@ -219,37 +219,37 @@ export default function LoginPage() {
           <div
             className="w-full max-w-[460px] rounded-3xl px-6 py-8 sm:px-8 sm:py-9"
             style={{
-              background: "var(--card)",
+              background: "#FFFFFF",
               boxShadow: "0 24px 45px rgba(21,17,63,0.10)",
-              border: "1px solid var(--border)",
+              border: "1px solid rgba(21,17,63,0.08)",
             }}
           >
             <div className="flex flex-col items-center text-center mb-6">
               <div
                 className="w-14 h-14 rounded-xl flex items-center justify-center"
-                style={{ background: "var(--ink-900)" }}
+                style={{ background: "#15113F" }}
               >
                 <span
                   className="text-2xl font-black"
-                  style={{ ...DISPLAY_FONT, color: "var(--brand-400)" }}
+                  style={{ ...DISPLAY_FONT, color: "#3AE3A4" }}
                 >
                   C
                 </span>
               </div>
               <h2
                 className="mt-3 text-2xl font-black"
-                style={{ ...DISPLAY_FONT, color: "var(--foreground)" }}
+                style={{ ...DISPLAY_FONT, color: "#15113F" }}
               >
                 Contabilízate
               </h2>
-              <p className="mt-1 text-sm font-semibold" style={{ color: "var(--muted-foreground)" }}>
+              <p className="mt-1 text-sm font-semibold" style={{ color: "#8982BC" }}>
                 Tu contador fiscal con inteligencia artificial
               </p>
             </div>
 
             <div
               className="rounded-2xl p-1 grid grid-cols-2 gap-1"
-              style={{ background: "var(--secondary)" }}
+              style={{ background: "#F4F2F9" }}
             >
               <button
                 type="button"
@@ -258,11 +258,11 @@ export default function LoginPage() {
                 style={
                   mode === "login"
                     ? {
-                      background: "var(--card)",
-                      color: "var(--foreground)",
+                      background: "#FFFFFF",
+                      color: "#15113F",
                       boxShadow: "0 1px 2px rgba(21,17,63,0.06)",
                     }
-                    : { color: "var(--muted-foreground)", background: "transparent" }
+                    : { color: "#8982BC", background: "transparent" }
                 }
               >
                 Iniciar sesión
@@ -274,11 +274,11 @@ export default function LoginPage() {
                 style={
                   mode === "register"
                     ? {
-                      background: "var(--card)",
-                      color: "var(--foreground)",
+                      background: "#FFFFFF",
+                      color: "#15113F",
                       boxShadow: "0 1px 2px rgba(21,17,63,0.06)",
                     }
-                    : { color: "var(--muted-foreground)", background: "transparent" }
+                    : { color: "#8982BC", background: "transparent" }
                 }
               >
                 Registrarse
@@ -288,7 +288,7 @@ export default function LoginPage() {
             {error && (
               <div
                 className="mt-5 rounded-xl px-4 py-3 text-sm font-semibold"
-                style={{ background: "#FCDCDC", color: "var(--destructive)" }}
+                style={{ background: "#FCDCDC", color: "#E84D4D" }}
               >
                 {error}
               </div>
@@ -300,7 +300,7 @@ export default function LoginPage() {
                   <label
                     htmlFor="email"
                     className="mb-2 block text-sm font-bold"
-                    style={{ color: "var(--foreground)" }}
+                    style={{ color: "#15113F" }}
                   >
                     Correo electrónico
                   </label>
@@ -314,9 +314,9 @@ export default function LoginPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     className="h-11 w-full rounded-xl px-4 text-sm outline-none transition"
                     style={{
-                      background: "var(--secondary)",
-                      border: "1px solid var(--border)",
-                      color: "var(--foreground)",
+                      background: "#F4F2F9",
+                      border: "1px solid rgba(21,17,63,0.08)",
+                      color: "#15113F",
                     }}
                   />
                 </div>
@@ -325,7 +325,7 @@ export default function LoginPage() {
                   <label
                     htmlFor="password"
                     className="mb-2 block text-sm font-bold"
-                    style={{ color: "var(--foreground)" }}
+                    style={{ color: "#15113F" }}
                   >
                     Contraseña
                   </label>
@@ -341,16 +341,16 @@ export default function LoginPage() {
                       onChange={(e) => setPassword(e.target.value)}
                       className="h-11 w-full rounded-xl px-4 pr-11 text-sm outline-none transition"
                       style={{
-                        background: "var(--secondary)",
-                        border: "1px solid var(--border)",
-                        color: "var(--foreground)",
+                        background: "#F4F2F9",
+                        border: "1px solid rgba(21,17,63,0.08)",
+                        color: "#15113F",
                       }}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword((s) => !s)}
                       className="absolute inset-y-0 right-3 inline-flex items-center"
-                      style={{ color: "var(--muted-foreground)" }}
+                      style={{ color: "#8982BC" }}
                       aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                     >
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -362,7 +362,7 @@ export default function LoginPage() {
                   type="submit"
                   disabled={loading}
                   className="h-11 w-full rounded-xl text-sm font-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
-                  style={{ background: "var(--brand-500)", color: "#FFFFFF" }}
+                  style={{ background: "#0ED18A", color: "#FFFFFF" }}
                 >
                   {loading ? "Iniciando..." : "Entrar"}
                 </button>
@@ -373,7 +373,7 @@ export default function LoginPage() {
                   <label
                     htmlFor="fullName"
                     className="mb-2 block text-sm font-bold"
-                    style={{ color: "var(--foreground)" }}
+                    style={{ color: "#15113F" }}
                   >
                     Nombre completo
                   </label>
@@ -387,9 +387,9 @@ export default function LoginPage() {
                     onChange={(e) => setFullName(e.target.value)}
                     className="h-11 w-full rounded-xl px-4 text-sm outline-none transition"
                     style={{
-                      background: "var(--secondary)",
-                      border: "1px solid var(--border)",
-                      color: "var(--foreground)",
+                      background: "#F4F2F9",
+                      border: "1px solid rgba(21,17,63,0.08)",
+                      color: "#15113F",
                     }}
                   />
                 </div>
@@ -398,7 +398,7 @@ export default function LoginPage() {
                   <label
                     htmlFor="email-register"
                     className="mb-2 block text-sm font-bold"
-                    style={{ color: "var(--foreground)" }}
+                    style={{ color: "#15113F" }}
                   >
                     Correo electrónico
                   </label>
@@ -412,9 +412,9 @@ export default function LoginPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     className="h-11 w-full rounded-xl px-4 text-sm outline-none transition"
                     style={{
-                      background: "var(--secondary)",
-                      border: "1px solid var(--border)",
-                      color: "var(--foreground)",
+                      background: "#F4F2F9",
+                      border: "1px solid rgba(21,17,63,0.08)",
+                      color: "#15113F",
                     }}
                   />
                 </div>
@@ -423,9 +423,9 @@ export default function LoginPage() {
                   <label
                     htmlFor="password-register"
                     className="mb-2 block text-sm font-bold"
-                    style={{ color: "var(--foreground)" }}
+                    style={{ color: "#15113F" }}
                   >
-                    Contraseña <span className="font-semibold" style={{ color: "var(--muted-foreground)" }}>(mínimo 8 caracteres)</span>
+                    Contraseña <span className="font-semibold" style={{ color: "#8982BC" }}>(mínimo 8 caracteres)</span>
                   </label>
                   <div className="relative">
                     <input
@@ -439,16 +439,16 @@ export default function LoginPage() {
                       onChange={(e) => setPassword(e.target.value)}
                       className="h-11 w-full rounded-xl px-4 pr-11 text-sm outline-none transition"
                       style={{
-                        background: "var(--secondary)",
-                        border: "1px solid var(--border)",
-                        color: "var(--foreground)",
+                        background: "#F4F2F9",
+                        border: "1px solid rgba(21,17,63,0.08)",
+                        color: "#15113F",
                       }}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword((s) => !s)}
                       className="absolute inset-y-0 right-3 inline-flex items-center"
-                      style={{ color: "var(--muted-foreground)" }}
+                      style={{ color: "#8982BC" }}
                       aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                     >
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -460,7 +460,7 @@ export default function LoginPage() {
                   <label
                     htmlFor="confirm-password"
                     className="mb-2 block text-sm font-bold"
-                    style={{ color: "var(--foreground)" }}
+                    style={{ color: "#15113F" }}
                   >
                     Confirmar contraseña
                   </label>
@@ -475,9 +475,9 @@ export default function LoginPage() {
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className="h-11 w-full rounded-xl px-4 text-sm outline-none transition"
                     style={{
-                      background: "var(--secondary)",
-                      border: "1px solid var(--border)",
-                      color: "var(--foreground)",
+                      background: "#F4F2F9",
+                      border: "1px solid rgba(21,17,63,0.08)",
+                      color: "#15113F",
                     }}
                   />
                 </div>
@@ -486,7 +486,7 @@ export default function LoginPage() {
                   type="submit"
                   disabled={loading}
                   className="h-11 w-full rounded-xl text-sm font-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
-                  style={{ background: "var(--brand-500)", color: "#FFFFFF" }}
+                  style={{ background: "#0ED18A", color: "#FFFFFF" }}
                 >
                   {loading ? "Enviando código..." : "Crear cuenta"}
                 </button>
@@ -494,18 +494,18 @@ export default function LoginPage() {
             ) : (
               <form onSubmit={handleVerifyCode} className="mt-6 space-y-4">
                 <div className="text-center">
-                  <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+                  <p className="text-sm font-semibold" style={{ color: "#15113F" }}>
                     Te enviamos un código a
                   </p>
                   <p
                     className="text-sm font-black break-all"
-                    style={{ color: "var(--brand-600)" }}
+                    style={{ color: "#00B073" }}
                   >
                     {email}
                   </p>
                   <p
                     className="mt-2 text-xs font-semibold"
-                    style={{ color: "var(--muted-foreground)" }}
+                    style={{ color: "#8982BC" }}
                   >
                     Ingresa el código de 6 dígitos para confirmar tu cuenta.
                   </p>
@@ -515,7 +515,7 @@ export default function LoginPage() {
                   <label
                     htmlFor="code"
                     className="mb-2 block text-sm font-bold"
-                    style={{ color: "var(--foreground)" }}
+                    style={{ color: "#15113F" }}
                   >
                     Código de verificación
                   </label>
@@ -532,9 +532,9 @@ export default function LoginPage() {
                     onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
                     className="h-12 w-full rounded-xl px-4 text-center text-lg font-black tracking-[0.5em] outline-none transition"
                     style={{
-                      background: "var(--secondary)",
-                      border: "1px solid var(--border)",
-                      color: "var(--foreground)",
+                      background: "#F4F2F9",
+                      border: "1px solid rgba(21,17,63,0.08)",
+                      color: "#15113F",
                     }}
                   />
                 </div>
@@ -543,7 +543,7 @@ export default function LoginPage() {
                   type="submit"
                   disabled={loading || code.length !== 6}
                   className="h-11 w-full rounded-xl text-sm font-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
-                  style={{ background: "var(--brand-500)", color: "#FFFFFF" }}
+                  style={{ background: "#0ED18A", color: "#FFFFFF" }}
                 >
                   {loading ? "Verificando..." : "Confirmar cuenta"}
                 </button>
@@ -556,7 +556,7 @@ export default function LoginPage() {
                       setCode("");
                       setError(null);
                     }}
-                    style={{ color: "var(--muted-foreground)" }}
+                    style={{ color: "#8982BC" }}
                     className="hover:underline"
                   >
                     ← Cambiar correo
@@ -565,7 +565,7 @@ export default function LoginPage() {
                     type="button"
                     onClick={handleResendCode}
                     disabled={loading}
-                    style={{ color: "var(--brand-600)" }}
+                    style={{ color: "#00B073" }}
                     className="hover:underline disabled:opacity-50"
                   >
                     Reenviar código
@@ -576,11 +576,11 @@ export default function LoginPage() {
 
             <div
               className="mt-6 flex items-center gap-3 text-xs font-black uppercase tracking-widest"
-              style={{ color: "var(--muted-foreground)" }}
+              style={{ color: "#8982BC" }}
             >
-              <div className="h-px flex-1" style={{ background: "var(--border)" }} />
+              <div className="h-px flex-1" style={{ background: "rgba(21,17,63,0.08)" }} />
               O continúa con
-              <div className="h-px flex-1" style={{ background: "var(--border)" }} />
+              <div className="h-px flex-1" style={{ background: "rgba(21,17,63,0.08)" }} />
             </div>
 
             <div className="mt-5 space-y-3">
@@ -589,9 +589,9 @@ export default function LoginPage() {
                 onClick={() => setError("El acceso con Google estará disponible próximamente.")}
                 className="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-bold transition hover:opacity-90"
                 style={{
-                  background: "var(--card)",
-                  border: "1px solid var(--border)",
-                  color: "var(--foreground)",
+                  background: "#FFFFFF",
+                  border: "1px solid rgba(21,17,63,0.08)",
+                  color: "#15113F",
                 }}
               >
                 <GoogleIcon />
@@ -610,11 +610,11 @@ export default function LoginPage() {
 
             <p
               className="mt-6 text-center text-xs font-semibold"
-              style={{ color: "var(--muted-foreground)" }}
+              style={{ color: "#8982BC" }}
             >
               Al continuar aceptas nuestros{" "}
-              <span style={{ color: "var(--foreground)" }}>Términos</span> y{" "}
-              <span style={{ color: "var(--brand-600)" }}>Privacidad</span>
+              <span style={{ color: "#15113F" }}>Términos</span> y{" "}
+              <span style={{ color: "#00B073" }}>Privacidad</span>
             </p>
           </div>
         </section>

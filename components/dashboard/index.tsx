@@ -1,0 +1,199 @@
+'use client'
+
+import { useState, useTransition } from 'react'
+import { Menu } from 'lucide-react'
+import { signOut } from '@/features/auth/actions'
+import SatConnectScreen from '@/components/sat-connect-screen'
+import { DISPLAY, TITLES, normalizeRole } from './constants'
+import { Sidebar } from './sidebar'
+import type { DashboardProps, Screen } from './types'
+import {
+  AprendeScreen,
+  AyudaScreen,
+  CuentaScreen,
+  DeclaracionesScreen,
+  DiagnosticoScreen,
+  DocumentosScreen,
+  FacturasScreen,
+  HomeScreen,
+  PermisosScreen,
+  PlaceholderScreen,
+  PlanScreen,
+  TipDetailScreen,
+  TramitesScreen,
+} from './screens'
+
+export default function Dashboard({ fullName, email, rfc, role, permissions }: DashboardProps) {
+  const [screen, setScreen] = useState<Screen>('home')
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [signingOut, startSignOut] = useTransition()
+
+  const initials =
+    (fullName || email)
+      .split(' ')
+      .slice(0, 2)
+      .map(w => w[0]?.toUpperCase())
+      .join('') || 'U'
+  const firstName = fullName.split(' ')[0] || 'Usuario'
+
+  const go = (s: Screen) => {
+    setScreen(s)
+    setMobileOpen(false)
+    if (typeof window !== 'undefined') window.scrollTo(0, 0)
+  }
+  const handleLogout = () => {
+    startSignOut(() => {
+      signOut()
+    })
+  }
+
+  return (
+    <div
+      className="grid min-h-screen lg:grid-cols-[260px_1fr]"
+      style={{ background: 'var(--background)', color: 'var(--foreground)' }}
+    >
+      <Sidebar
+        screen={screen}
+        mobileOpen={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        go={go}
+        initials={initials}
+        firstName={firstName}
+        onLogout={handleLogout}
+        signingOut={signingOut}
+        role={role}
+      />
+
+      <main className="min-w-0 px-5 py-6 lg:px-10 lg:py-7 pb-20 max-w-[1280px]">
+        <div className="flex items-center justify-between gap-4 mb-7">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setMobileOpen(true)}
+              aria-label="Abrir menú"
+              className="lg:hidden w-10 h-10 rounded-full flex items-center justify-center"
+              style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+            >
+              <Menu size={18} />
+            </button>
+            <div>
+              <div
+                className="text-[26px] lg:text-[32px] font-extrabold tracking-tight leading-tight"
+                style={{ ...DISPLAY, color: 'var(--ink-900)' }}
+              >
+                {screen === 'home' ? `Hola, ${firstName} 👋` : TITLES[screen][0]}
+              </div>
+              <div className="text-[14px] font-semibold mt-1" style={{ color: 'var(--ink-500)' }}>
+                {TITLES[screen][1]}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <ScreenRouter
+          screen={screen}
+          go={go}
+          rfc={rfc}
+          fullName={fullName}
+          email={email}
+          firstName={firstName}
+          initials={initials}
+          onLogout={handleLogout}
+          signingOut={signingOut}
+          role={role}
+          permissions={permissions}
+        />
+      </main>
+    </div>
+  )
+}
+
+interface RouterProps {
+  screen: Screen
+  go: (s: Screen) => void
+  rfc: string | null
+  fullName: string
+  email: string
+  firstName: string
+  initials: string
+  onLogout: () => void
+  signingOut: boolean
+  role: string | null
+  permissions: string[]
+}
+
+function ScreenRouter({
+  screen,
+  go,
+  rfc,
+  fullName,
+  email,
+  firstName,
+  initials,
+  onLogout,
+  signingOut,
+  role,
+  permissions,
+}: RouterProps) {
+  const roleKey = normalizeRole(role)
+  const isGuest = roleKey === 'guest'
+
+  // Pantallas compartidas por todos los roles
+  if (screen === 'cuenta') {
+    return (
+      <CuentaScreen
+        fullName={fullName}
+        email={email}
+        rfc={rfc}
+        initials={initials}
+        onLogout={onLogout}
+        signingOut={signingOut}
+      />
+    )
+  }
+  if (screen === 'permisos') {
+    return <PermisosScreen initialPermissions={permissions} role={role} />
+  }
+  if (screen === 'estatus-sat') {
+    return <SatConnectScreen />
+  }
+
+  // Para roles operativos, todo es placeholder por ahora (Dashboard incluido).
+  if (!isGuest) {
+    if (screen === 'home') {
+      return (
+        <PlaceholderScreen
+          title="Dashboard"
+          description="Aquí verás tus indicadores y accesos directos según tu rol."
+        />
+      )
+    }
+    const [title, hint] = TITLES[screen] ?? ['Próximamente', '']
+    return <PlaceholderScreen title={title} description={hint || undefined} />
+  }
+
+  // Flujo Guest existente
+  switch (screen) {
+    case 'home':
+      return <HomeScreen go={go} rfc={rfc} firstName={firstName} />
+    case 'declaraciones':
+      return <DeclaracionesScreen rfc={rfc} go={go} />
+    case 'facturas':
+      return <FacturasScreen rfc={rfc} go={go} />
+    case 'documentos':
+      return <DocumentosScreen rfc={rfc} go={go} />
+    case 'diagnostico':
+      return <DiagnosticoScreen rfc={rfc} go={go} />
+    case 'aprende':
+      return <AprendeScreen go={go} />
+    case 'tip-detail':
+      return <TipDetailScreen go={go} />
+    case 'tramites':
+      return <TramitesScreen />
+    case 'plan':
+      return <PlanScreen />
+    case 'ayuda':
+      return <AyudaScreen />
+    default:
+      return null
+  }
+}

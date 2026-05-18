@@ -3,7 +3,11 @@
 
 @custom-variant dark (&:is(.dark *));
 
-:root {
+/* `.force-light` ancla todas las variables a sus valores claros, ignorando
+   el .dark del <html>. Útil para pantallas que NO deben seguir el tema
+   global (ej. login, landing, checkouts públicos). */
+:root,
+.force-light {
   /* Brand — verde Contabilízate */
   --brand-50: #EEFEF6;
   --brand-100: #D6FAE8;
@@ -84,6 +88,110 @@
   --sh-3: 0 14px 40px rgba(21,17,63,0.10), 0 4px 10px rgba(21,17,63,0.06);
   --sh-brand: 0 14px 34px -10px rgba(14,209,138,0.45);
   --sh-ink: 0 14px 34px -10px rgba(21,17,63,0.5);
+
+  /* Hero / accent surfaces (themed) */
+  --hero-info: linear-gradient(135deg,#DDEBFF 0%,#F4F7FB 100%);
+  --hero-info-border: #BFDBFF;
+  --hero-info-icon-bg: #1C4C96;
+  --hero-amber: linear-gradient(160deg,#FFF8EE 0%,#FFFAF4 100%);
+  --hero-amber-border: #FFE5B4;
+  --hero-amber-icon-bg: #FFE5B4;
+  --hero-brand-soft: linear-gradient(135deg,#EEFEF6 0%,#F9FAFB 100%);
+  --hero-ink-soft: linear-gradient(140deg,#F4F2F9 0%,#E8E5F1 100%);
+  --hero-coral-soft-bg: linear-gradient(160deg,#FFFAF4 0%,#FFF1E6 100%);
+  --helpbox-bg: #F4F8FF;
+  --helpbox-border: #DDEBFF;
+  --helpbox-accent-bg: #DDEBFF;
+  --helpbox-text: #1C4C96;
+
+  /* Sidebar navigation active state */
+  --nav-active-bg: #15113F;
+  --nav-active-fg: #FFFFFF;
+  --nav-active-icon-bg: rgba(14,209,138,0.15);
+  --nav-active-icon-fg: #74EFC0;
+  --nav-active-hint: rgba(255,255,255,0.65);
+}
+
+.dark {
+  /* Brand stays the same — only neutrals flip */
+  --background: #0F0C30;
+  --foreground: #E8E5F1;
+  --card: #1A1547;
+  --card-foreground: #E8E5F1;
+  --popover: #1A1547;
+  --popover-foreground: #E8E5F1;
+  --primary: #FFFFFF;
+  --primary-foreground: #15113F;
+  --secondary: #221C5C;
+  --secondary-foreground: #E8E5F1;
+  --muted: #221C5C;
+  --muted-foreground: #B3ACD4;
+  --accent: #0ED18A;
+  --accent-foreground: #0F0C30;
+  --destructive: #E84D4D;
+  --destructive-foreground: #FFFFFF;
+  --border: rgba(255,255,255,0.08);
+  --input: rgba(255,255,255,0.10);
+  --ring: #0ED18A;
+
+  /* Ink scale inverted: small numbers = dark surfaces, big = light text */
+  --ink-50: #221C5C;
+  --ink-100: #2A2466;
+  --ink-200: #3E3783;
+  --ink-300: #5A52A1;
+  --ink-400: #8982BC;
+  --ink-500: #B3ACD4;
+  --ink-600: #D5D0E7;
+  --ink-700: #E8E5F1;
+  --ink-800: #F4F2F9;
+  --ink-900: #FFFFFF;
+
+  /* Sidebar */
+  --sidebar: #14103D;
+  --sidebar-foreground: #E8E5F1;
+  --sidebar-primary: #FFFFFF;
+  --sidebar-primary-foreground: #15113F;
+  --sidebar-accent: #221C5C;
+  --sidebar-accent-foreground: #E8E5F1;
+  --sidebar-border: rgba(255,255,255,0.08);
+  --sidebar-ring: #0ED18A;
+
+  /* Soft accent backgrounds — semi-transparent so they read as tinted on dark */
+  --coral-soft: rgba(255,136,98,0.18);
+  --amber-soft: rgba(245,176,55,0.18);
+  --sky-soft: rgba(94,168,255,0.18);
+  --violet-soft: rgba(139,124,255,0.22);
+  --danger-soft: rgba(232,77,77,0.20);
+  --card-muted: #221C5C;
+  --border-strong: rgba(255,255,255,0.14);
+
+  --sh-1: 0 1px 2px rgba(0,0,0,0.40), 0 1px 3px rgba(0,0,0,0.30);
+  --sh-2: 0 4px 18px rgba(0,0,0,0.45), 0 2px 4px rgba(0,0,0,0.30);
+  --sh-3: 0 14px 40px rgba(0,0,0,0.55), 0 4px 10px rgba(0,0,0,0.40);
+  --sh-brand: 0 14px 34px -10px rgba(14,209,138,0.55);
+  --sh-ink: 0 14px 34px -10px rgba(0,0,0,0.65);
+
+  /* Hero surfaces re-tinted for dark */
+  --hero-info: linear-gradient(135deg,rgba(94,168,255,0.20) 0%,rgba(94,168,255,0.06) 100%);
+  --hero-info-border: rgba(94,168,255,0.28);
+  --hero-info-icon-bg: #5EA8FF;
+  --hero-amber: linear-gradient(160deg,rgba(245,176,55,0.18) 0%,rgba(245,176,55,0.06) 100%);
+  --hero-amber-border: rgba(245,176,55,0.30);
+  --hero-amber-icon-bg: rgba(245,176,55,0.30);
+  --hero-brand-soft: linear-gradient(135deg,rgba(14,209,138,0.18) 0%,rgba(14,209,138,0.05) 100%);
+  --hero-ink-soft: linear-gradient(140deg,#221C5C 0%,#1A1547 100%);
+  --hero-coral-soft-bg: linear-gradient(160deg,rgba(255,136,98,0.18) 0%,rgba(255,136,98,0.06) 100%);
+  --helpbox-bg: rgba(94,168,255,0.10);
+  --helpbox-border: rgba(94,168,255,0.22);
+  --helpbox-accent-bg: rgba(94,168,255,0.22);
+  --helpbox-text: #B6D2FF;
+
+  /* Nav active in dark — keep dark/inked feel, brand-tinted glow */
+  --nav-active-bg: #2A2466;
+  --nav-active-fg: #FFFFFF;
+  --nav-active-icon-bg: rgba(14,209,138,0.22);
+  --nav-active-icon-fg: #74EFC0;
+  --nav-active-hint: rgba(255,255,255,0.70);
 }
 
 @theme inline {

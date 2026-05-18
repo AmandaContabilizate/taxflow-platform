@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Montserrat, Assistant } from 'next/font/google'
+import { ThemeProvider } from '@/components/theme-provider'
 import './globals.css'
 
 const montserrat = Montserrat({
@@ -24,8 +25,21 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={`${montserrat.variable} ${assistant.variable} bg-background`}>
-      <body className="font-sans antialiased text-foreground min-h-screen">{children}</body>
+    <html
+      lang="es"
+      suppressHydrationWarning
+      className={`${montserrat.variable} ${assistant.variable} bg-background`}
+    >
+      <body className="font-sans antialiased text-foreground min-h-screen">
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem={false}
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
+      </body>
     </html>
   )
 }
