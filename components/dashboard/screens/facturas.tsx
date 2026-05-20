@@ -1,17 +1,18 @@
 import { FilePlus, FileText } from 'lucide-react'
+import { useHasRfc } from '@/features/taxpayers/stores/rfcStore'
 import { DISPLAY, MONO } from '../constants'
 import type { GoFn } from '../types'
 import { Btn, Card, Divider, HelpBox, SummaryStat, Tabs, VideoSlot } from '../ui'
 import { NeedsSatConnect } from './needs-sat-connect'
 
 interface Props {
-  rfc: string | null
   go: GoFn
 }
 
-export function FacturasScreen({ rfc, go }: Props) {
-  const hasCsf = Boolean(rfc && rfc.length >= 12)
-  if (!hasCsf) return <NeedsSatConnect go={go} feature="emitir facturas" />
+export function FacturasScreen({ go }: Props) {
+  const { hasRfc, loading } = useHasRfc()
+  if (loading) return null
+  if (!hasRfc) return <NeedsSatConnect go={go} feature="emitir facturas" />
 
   const facturas = [
     { t: 'Empresa ABC S.A.', s: '15 abr · Servicios profesionales', a: '$35,000', paid: true },

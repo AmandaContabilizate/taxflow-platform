@@ -1,17 +1,19 @@
 import { BadgeCheck, Check, Eye, FileDown } from 'lucide-react'
+import { useHasRfc, useSelectedRfc } from '@/features/taxpayers/stores/rfcStore'
 import { DISPLAY, MONO } from '../constants'
 import type { GoFn } from '../types'
 import { Btn, Card, Divider, HelpBox } from '../ui'
 import { NeedsSatConnect } from './needs-sat-connect'
 
 interface Props {
-  rfc: string | null
   go: GoFn
 }
 
-export function DocumentosScreen({ rfc, go }: Props) {
-  const hasCsf = Boolean(rfc && rfc.length >= 12)
-  if (!hasCsf) return <NeedsSatConnect go={go} feature="ver tus documentos" />
+export function DocumentosScreen({ go }: Props) {
+  const { hasRfc, loading } = useHasRfc()
+  const rfc = useSelectedRfc()
+  if (loading) return null
+  if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tus documentos" />
 
   const status = [
     { t: 'Estás al corriente con tus obligaciones', s: 'No debes nada al SAT' },

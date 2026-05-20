@@ -1,9 +1,10 @@
 'use client'
 
 import type { ComponentType } from 'react'
-import { LogOut, Moon, Sun } from 'lucide-react'
+import { ChevronDown, LogOut, Moon, Sun } from 'lucide-react'
 import { useTheme } from 'next-themes'
-import { DISPLAY, PERMISOS_NAV, ROLE_NAV, normalizeRole } from './constants'
+import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
+import { DISPLAY, MONO, PERMISOS_NAV, ROLE_NAV, normalizeRole } from './constants'
 import type { GoFn, NavDef, Screen } from './types'
 
 interface SidebarProps {
@@ -35,6 +36,15 @@ export function Sidebar({
 
   const roleKey = normalizeRole(role)
   const baseNav = ROLE_NAV[roleKey] ?? ROLE_NAV.guest
+
+  const {
+    rfcs,
+    selectedRfc,
+    selectedRfcInfo,
+    loading: loadingRfcs,
+    error: rfcsError,
+    setSelectedRfc,
+  } = useRfcStore()
   // Mientras estamos en pruebas, el modificador de permisos sólo se muestra
   // a Guest. Cuando exista el rol "Master" se cambia aquí.
   const navItems: NavDef[] = roleKey === 'guest' ? [...baseNav, PERMISOS_NAV] : baseNav
@@ -72,6 +82,63 @@ export function Sidebar({
           <span className="text-[18px] font-extrabold tracking-tight" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
             contabilízate
           </span>
+        </div>
+
+        <div className="px-1 mb-3">
+          <label
+            className="block text-[10.5px] font-bold uppercase tracking-wider mb-1.5 px-1"
+            style={{ color: 'var(--ink-500)' }}
+          >
+            RFC activo
+          </label>
+          <div
+            className="relative rounded-2xl"
+            style={{
+              background: 'var(--sidebar-accent)',
+              border: '1px solid var(--sidebar-border)',
+            }}
+          >
+            <select
+              value={selectedRfc ?? ''}
+              onChange={e => setSelectedRfc(e.target.value)}
+              disabled={loadingRfcs || rfcs.length === 0}
+              aria-label="Seleccionar RFC"
+              className="w-full appearance-none bg-transparent pl-3 pr-9 py-2.5 text-[13px] font-bold leading-tight outline-none disabled:opacity-60 cursor-pointer"
+              style={{ ...MONO, color: 'var(--sidebar-accent-foreground)' }}
+            >
+              {loadingRfcs && <option value="">Cargando…</option>}
+              {!loadingRfcs && rfcs.length === 0 && (
+                <option value="">Sin RFC disponibles</option>
+              )}
+              {rfcs.map(r => (
+                <option key={r.rfc} value={r.rfc} title={r.legalName}>
+                  {r.rfc}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              size={16}
+              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
+              style={{ color: 'var(--ink-500)' }}
+            />
+          </div>
+          {selectedRfcInfo && (
+            <div
+              className="text-[11px] font-semibold mt-1.5 px-1 truncate"
+              style={{ color: 'var(--ink-500)' }}
+              title={selectedRfcInfo.legalName}
+            >
+              {selectedRfcInfo.legalName}
+            </div>
+          )}
+          {rfcsError && (
+            <div
+              className="text-[11px] font-semibold mt-1.5 px-1"
+              style={{ color: '#8B1E1E' }}
+            >
+              {rfcsError}
+            </div>
+          )}
         </div>
 
         <nav className="flex flex-col gap-1.5 py-1">

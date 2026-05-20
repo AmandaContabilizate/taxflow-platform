@@ -1,17 +1,18 @@
 import { AlertCircle, Calendar, HelpCircle, Zap } from 'lucide-react'
+import { useHasRfc } from '@/features/taxpayers/stores/rfcStore'
 import { DISPLAY, MONO } from '../constants'
 import type { GoFn } from '../types'
 import { Badge, Btn, Card, Divider, HelpBox, Pill, SummaryStat, VideoSlot } from '../ui'
 import { NeedsSatConnect } from './needs-sat-connect'
 
 interface Props {
-  rfc: string | null
   go: GoFn
 }
 
-export function DiagnosticoScreen({ rfc, go }: Props) {
-  const hasCsf = Boolean(rfc && rfc.length >= 12)
-  if (!hasCsf) return <NeedsSatConnect go={go} feature="ver tu diagnóstico fiscal" />
+export function DiagnosticoScreen({ go }: Props) {
+  const { hasRfc, loading } = useHasRfc()
+  if (loading) return null
+  if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tu diagnóstico fiscal" />
 
   const adeudos = ['Noviembre 2025', 'Diciembre 2025', 'Enero 2026', 'Febrero 2026', 'Marzo 2026']
   const oportunidades = [

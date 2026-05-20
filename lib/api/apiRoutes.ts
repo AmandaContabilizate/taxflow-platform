@@ -18,6 +18,7 @@ export const API_ROUTES = {
   TAXPAYERS: {
     ROOT: "",
     GET: (id: string) => `/${id}`,
-    UPDATECIEC: "/updateCiec"
+    UPDATECIEC: "/updateCiec",
+    AVAILABLE_RFCS: "/available-rfcs",
   },
 } as const;

@@ -1,17 +1,18 @@
 import { FileText, MessageCircle } from 'lucide-react'
+import { useHasRfc } from '@/features/taxpayers/stores/rfcStore'
 import { DISPLAY } from '../constants'
 import type { GoFn } from '../types'
 import { Btn, Card, Divider, HelpBox, Tabs, VideoSlot } from '../ui'
 import { NeedsSatConnect } from './needs-sat-connect'
 
 interface Props {
-  rfc: string | null
   go: GoFn
 }
 
-export function DeclaracionesScreen({ rfc, go }: Props) {
-  const hasCsf = Boolean(rfc && rfc.length >= 12)
-  if (!hasCsf) return <NeedsSatConnect go={go} feature="ver tus declaraciones" />
+export function DeclaracionesScreen({ go }: Props) {
+  const { hasRfc, loading } = useHasRfc()
+  if (loading) return null
+  if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tus declaraciones" />
 
   return (
     <div className="flex flex-col gap-5 max-w-[920px]">

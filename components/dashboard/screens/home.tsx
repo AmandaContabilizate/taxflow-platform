@@ -8,20 +8,22 @@ import {
   Sparkles,
   Zap,
 } from 'lucide-react'
+import { useHasRfc } from '@/features/taxpayers/stores/rfcStore'
 import { DISPLAY } from '../constants'
 import type { GoFn } from '../types'
 import { Btn, Card, HelpBox, StatusDot, VideoSlot, Divider } from '../ui'
 
 interface Props {
   go: GoFn
-  rfc: string | null
   firstName: string
 }
 
-export function HomeScreen({ go, rfc }: Props) {
-  const hasCsf = Boolean(rfc && rfc.length >= 12)
+export function HomeScreen({ go }: Props) {
+  const { hasRfc, loading } = useHasRfc()
 
-  if (!hasCsf) {
+  if (loading) return null
+
+  if (!hasRfc) {
     return (
       <div className="flex flex-col gap-5 max-w-[760px]">
         <div

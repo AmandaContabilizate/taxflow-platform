@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { Menu } from 'lucide-react'
 import { signOut } from '@/features/auth/actions'
+import { RfcProvider } from '@/features/taxpayers/stores/rfcStore'
 import SatConnectScreen from '@/components/sat-connect-screen'
 import { DISPLAY, TITLES, normalizeRole } from './constants'
 import { Sidebar } from './sidebar'
@@ -48,6 +49,7 @@ export default function Dashboard({ fullName, email, rfc, role, permissions }: D
   }
 
   return (
+    <RfcProvider initialRfc={rfc}>
     <div
       className="grid min-h-screen lg:grid-cols-[260px_1fr]"
       style={{ background: 'var(--background)', color: 'var(--foreground)' }}
@@ -104,6 +106,7 @@ export default function Dashboard({ fullName, email, rfc, role, permissions }: D
         />
       </main>
     </div>
+    </RfcProvider>
   )
 }
 
@@ -174,15 +177,15 @@ function ScreenRouter({
   // Flujo Guest existente
   switch (screen) {
     case 'home':
-      return <HomeScreen go={go} rfc={rfc} firstName={firstName} />
+      return <HomeScreen go={go} firstName={firstName} />
     case 'declaraciones':
-      return <DeclaracionesScreen rfc={rfc} go={go} />
+      return <DeclaracionesScreen go={go} />
     case 'facturas':
-      return <FacturasScreen rfc={rfc} go={go} />
+      return <FacturasScreen go={go} />
     case 'documentos':
-      return <DocumentosScreen rfc={rfc} go={go} />
+      return <DocumentosScreen go={go} />
     case 'diagnostico':
-      return <DiagnosticoScreen rfc={rfc} go={go} />
+      return <DiagnosticoScreen go={go} />
     case 'aprende':
       return <AprendeScreen go={go} />
     case 'tip-detail':
