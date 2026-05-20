@@ -10,29 +10,25 @@
  * Configurables en .env.local con NEXT_PUBLIC_API_*.
  */
 
-const BASE_IDENTITY   = process.env.NEXT_PUBLIC_API_BASE_IDENTITY   || "https://localhost:7125";
+const BASE_IDENTITY = process.env.NEXT_PUBLIC_API_BASE_IDENTITY || "https://localhost:7125";
 const BASE_PROCEDURES = process.env.NEXT_PUBLIC_API_BASE_PROCEDURES || "https://localhost:7165";
-const BASE_REPORTS    = process.env.NEXT_PUBLIC_API_BASE_REPORTS    || "https://localhost:7126";
-const BASE_SCRAPPERS  = process.env.NEXT_PUBLIC_API_BASE_SCRAPPERS  || "https://localhost:7042";
+const BASE_REPORTS = process.env.NEXT_PUBLIC_API_BASE_REPORTS || "https://localhost:7126";
+const BASE_SCRAPPERS = process.env.NEXT_PUBLIC_API_BASE_SCRAPPERS || "https://localhost:7042";
+const DbOrigin = "/SQLServer";
 
 export const API_BASE_URLS = {
-  default:   BASE_IDENTITY,
+  default: BASE_IDENTITY,
   // Identity
-  auth:      `${BASE_IDENTITY}/api/auth`,
-  users:     `${BASE_IDENTITY}/api/users`,
-  taxpayers: `${BASE_IDENTITY}/api/taxpayers`,
-  catalogs:  `${BASE_IDENTITY}/api/catalogs`,
-  metadata:  `${BASE_IDENTITY}/api/metadata`,
-  roles:     `${BASE_IDENTITY}/api/roles`,
+  auth: `${BASE_IDENTITY}/api/auth${DbOrigin}`,
+  users: `${BASE_IDENTITY}/api/users${DbOrigin}`,
+  taxpayers: `${BASE_IDENTITY}/api/taxpayers${DbOrigin}`,
+  catalogs: `${BASE_IDENTITY}/api/catalogs${DbOrigin}`,
+  metadata: `${BASE_IDENTITY}/api/metadata${DbOrigin}`,
+  roles: `${BASE_IDENTITY}/api/roles${DbOrigin}`,
   // Procedures
-  declaration: `${BASE_PROCEDURES}/api/declaration`,
-  vault:       `${BASE_PROCEDURES}/api/vault`,
-  cfdi:        `${BASE_PROCEDURES}/api/cfdi`,
-  procedures:  BASE_PROCEDURES,
-  // Reports
-  reports:   BASE_REPORTS,
-  // Scrappers
-  scrappers: BASE_SCRAPPERS,
+  declaration: `${BASE_PROCEDURES}/api/declaration${DbOrigin}`,
+  vault: `${BASE_PROCEDURES}/api/vault${DbOrigin}`,
+  cfdi: `${BASE_PROCEDURES}/api/cfdi${DbOrigin}`,
 } as const;
 
 export type ApiType = keyof typeof API_BASE_URLS;

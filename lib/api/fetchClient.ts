@@ -1,20 +1,3 @@
-/**
- * Cliente HTTP para Next.js (App Router).
- *
- * - Wrapper de `fetch` nativo, sin axios.
- * - Lee cookie `auth_token` httpOnly desde el server con `next/headers`.
- * - Inyecta automáticamente `Authorization: Bearer <token>`.
- * - Tipa la respuesta con genérico <T>.
- *
- * IMPORTANTE: SOLO corre en el server (Server Components, Server Actions,
- * Route Handlers). Para llamarlo desde el cliente, envuélvelo en una Server Action.
- *
- * NOTA dev (HTTPS local con certificado autofirmado):
- * Si el backend corre en https://localhost:7125 con cert de dev de .NET,
- * Node rechazará la conexión. En .env.local pon:
- *   NODE_TLS_REJECT_UNAUTHORIZED=0
- * NUNCA hagas eso en producción.
- */
 import { cookies } from "next/headers";
 import { getBaseUrl, type ApiType } from "./apiUrls";
 
@@ -120,9 +103,9 @@ async function request<T>(
       typeof data === "string"
         ? data
         : (data as { message?: string; title?: string; detail?: string })?.message ??
-          (data as { title?: string })?.title ??
-          (data as { detail?: string })?.detail ??
-          response.statusText;
+        (data as { title?: string })?.title ??
+        (data as { detail?: string })?.detail ??
+        response.statusText;
     throw new ApiError({
       message: message || `HTTP ${response.status}`,
       status: response.status,

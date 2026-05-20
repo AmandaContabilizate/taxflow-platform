@@ -20,5 +20,10 @@ export const API_ROUTES = {
     GET: (id: string) => `/${id}`,
     UPDATECIEC: "/updateCiec",
     AVAILABLE_RFCS: "/available-rfcs",
+    RFC_STATUS: (rfc: string) => `/rfc-status?rfc=${encodeURIComponent(rfc)}`,
+    COMPLIANCE_OPINION: (rfc: string) =>
+      `/compliance-opinion?rfc=${encodeURIComponent(rfc)}`,
+    TAX_CERTIFICATE: (rfc: string) =>
+      `/taxcertificate?rfc=${encodeURIComponent(rfc)}`,
   },
 } as const;

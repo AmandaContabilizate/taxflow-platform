@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { useHasRfc } from '@/features/taxpayers/stores/rfcStore'
 import { DISPLAY } from '../constants'
+import { FiscalCredibility } from '../fiscal-credibility'
 import type { GoFn } from '../types'
 import { Btn, Card, HelpBox, StatusDot, VideoSlot, Divider } from '../ui'
 
@@ -117,37 +118,7 @@ export function HomeScreen({ go }: Props) {
         </div>
       </div>
 
-      <div>
-        <div className="text-[18px] font-bold mb-1" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
-          ¿Cómo vas con el SAT?
-        </div>
-        <div className="text-[13.5px] mb-4" style={{ color: 'var(--ink-500)' }}>
-          Aquí te explicamos en palabras simples cómo estás ante Hacienda.
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <StatusCard
-            ok
-            title="Estás al corriente"
-            desc="No apareces en listas negras del SAT y tu RFC está activo."
-            cta="Ver detalle"
-            onClick={() => go('documentos')}
-          />
-          <StatusCard
-            ok={false}
-            title="1 declaración pendiente"
-            desc="La declaración de marzo está casi lista. Tu contador la revisa."
-            cta="Ver declaración"
-            onClick={() => go('declaraciones')}
-          />
-          <StatusCard
-            ok
-            title="Tus documentos al día"
-            desc="Tu Constancia de Situación Fiscal está vigente y lista para usar."
-            cta="Ver documentos"
-            onClick={() => go('documentos')}
-          />
-        </div>
-      </div>
+      <FiscalCredibility go={go} />
 
       <div
         className="rounded-3xl p-6 lg:p-7"
