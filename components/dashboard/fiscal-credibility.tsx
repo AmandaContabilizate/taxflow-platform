@@ -75,7 +75,6 @@ export function FiscalCredibility({ go }: Props) {
         getComplianceOpinion(selectedRfc),
         getRfcStatus(selectedRfc),
       ])
-      console.log(statusRes);
       if (cancelled) return
       setCsf(
         csfRes.success

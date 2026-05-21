@@ -1,8 +1,6 @@
 import {
   AlertCircle,
   ArrowRight,
-  CheckCircle2,
-  ChevronRight,
   HelpCircle,
   PlayCircle,
   Sparkles,
@@ -11,8 +9,10 @@ import {
 import { useHasRfc } from '@/features/taxpayers/stores/rfcStore'
 import { DISPLAY } from '../constants'
 import { FiscalCredibility } from '../fiscal-credibility'
+import { FinancialSummary } from '../financial-summary'
 import type { GoFn } from '../types'
-import { Btn, Card, HelpBox, StatusDot, VideoSlot, Divider } from '../ui'
+import { Btn, HelpBox, VideoSlot } from '../ui'
+import { UpcomingDates } from '../upcoming-dates'
 
 interface Props {
   go: GoFn
@@ -120,6 +120,8 @@ export function HomeScreen({ go }: Props) {
 
       <FiscalCredibility go={go} />
 
+      <FinancialSummary />
+
       <div
         className="rounded-3xl p-6 lg:p-7"
         style={{ background: 'var(--hero-amber)', border: '1px solid var(--hero-amber-border)' }}
@@ -147,110 +149,7 @@ export function HomeScreen({ go }: Props) {
         </div>
       </div>
 
-      <div>
-        <div className="text-[18px] font-bold mb-1" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
-          Próximas fechas
-        </div>
-        <div className="text-[13.5px] mb-4" style={{ color: 'var(--ink-500)' }}>
-          Estas son las fechas importantes para que no se te pase nada.
-        </div>
-        <Card>
-          <div className="p-2">
-            <DateRow day="17" mo="Abr" title="Declaración mensual de marzo" sub="Mañana · tu contador la prepara" urgent />
-            <Divider />
-            <DateRow day="30" mo="Abr" title="Declaración anual 2025" sub="En 14 días · ya estamos trabajando en ella" />
-            <Divider />
-            <DateRow day="17" mo="May" title="Declaración mensual de abril" sub="En 25 días · todavía hay tiempo" muted />
-          </div>
-        </Card>
-      </div>
-    </div>
-  )
-}
-
-interface StatusCardProps {
-  ok: boolean
-  title: string
-  desc: string
-  cta: string
-  onClick: () => void
-}
-
-function StatusCard({ ok, title, desc, cta, onClick }: StatusCardProps) {
-  return (
-    <button
-      onClick={onClick}
-      className="rounded-3xl p-5 text-left transition hover:translate-y-[-2px] flex flex-col gap-3"
-      style={{ background: 'var(--card)', border: '1px solid var(--border)', boxShadow: 'var(--sh-1)' }}
-    >
-      <div className="flex items-center gap-2.5">
-        <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center"
-          style={{
-            background: ok ? 'var(--brand-50)' : 'var(--amber-soft)',
-            color: ok ? 'var(--brand-700)' : '#7B5312',
-          }}
-        >
-          {ok ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
-        </div>
-        <StatusDot ok={ok} />
-      </div>
-      <div>
-        <div className="font-bold text-[15.5px] leading-tight" style={{ color: 'var(--ink-900)' }}>
-          {title}
-        </div>
-        <div className="text-[13px] mt-1.5 leading-relaxed" style={{ color: 'var(--ink-500)' }}>
-          {desc}
-        </div>
-      </div>
-      <div
-        className="text-[13px] font-bold flex items-center gap-1 mt-1"
-        style={{ color: 'var(--brand-700)' }}
-      >
-        {cta} <ChevronRight size={14} />
-      </div>
-    </button>
-  )
-}
-
-interface DateRowProps {
-  day: string
-  mo: string
-  title: string
-  sub: string
-  urgent?: boolean
-  muted?: boolean
-}
-
-function DateRow({ day, mo, title, sub, urgent, muted }: DateRowProps) {
-  return (
-    <div className="flex items-center gap-4 px-4 py-3.5">
-      <div
-        className="w-14 text-center flex-shrink-0 rounded-xl py-2"
-        style={{ background: urgent ? 'var(--coral-soft)' : 'var(--ink-50)' }}
-      >
-        <div
-          className="text-[24px] font-extrabold leading-none"
-          style={{
-            ...DISPLAY,
-            color: urgent ? '#9E3A15' : muted ? 'var(--ink-400)' : 'var(--ink-900)',
-          }}
-        >
-          {day}
-        </div>
-        <div
-          className="text-[10px] tracking-widest uppercase font-extrabold mt-1"
-          style={{ color: urgent ? '#9E3A15' : 'var(--ink-400)' }}
-        >
-          {mo}
-        </div>
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className={`font-bold text-[14.5px] ${muted ? 'opacity-70' : ''}`}>{title}</div>
-        <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
-          {sub}
-        </div>
-      </div>
+      <UpcomingDates />
     </div>
   )
 }

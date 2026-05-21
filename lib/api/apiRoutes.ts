@@ -26,4 +26,10 @@ export const API_ROUTES = {
     TAX_CERTIFICATE: (rfc: string) =>
       `/taxcertificate?rfc=${encodeURIComponent(rfc)}`,
   },
+  REPORTS: {
+    MONTHLY_INCOME: "/monthly-income",
+    MONTHLY_BILLS: "/monthly-bills",
+    ISSUED_INVOICES: "/issued-invoices",
+    ACTIVE_CLIENTS: "/active-clients",
+  },
 } as const;
