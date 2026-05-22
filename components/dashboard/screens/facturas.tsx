@@ -1,105 +1,91 @@
-import { FilePlus, FileText } from 'lucide-react'
+import { Clock, MessageCircle, Sparkles } from 'lucide-react'
 import { useHasRfc } from '@/features/taxpayers/stores/rfcStore'
-import { DISPLAY, MONO } from '../constants'
+import { DISPLAY } from '../constants'
 import type { GoFn } from '../types'
-import { Btn, Card, Divider, HelpBox, SummaryStat, Tabs, VideoSlot } from '../ui'
+import { Badge, Btn, Card, HelpBox, Pill } from '../ui'
 import { NeedsSatConnect } from './needs-sat-connect'
 
 interface Props {
   go: GoFn
 }
 
+// Único color literal: el azul de marca Timbrame (identidad fija, no cambia con el tema)
+const TIMBRAME_BLUE = '#2541E8'
+
 export function FacturasScreen({ go }: Props) {
   const { hasRfc, loading } = useHasRfc()
   if (loading) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="emitir facturas" />
 
-  const facturas = [
-    { t: 'Empresa ABC S.A.', s: '15 abr · Servicios profesionales', a: '$35,000', paid: true },
-    { t: 'Juan Pérez López', s: '12 abr · Honorarios', a: '$15,000', paid: false },
-    { t: 'Tech Solutions MX', s: '10 abr · Consultoría', a: '$25,000', paid: true },
-    { t: 'Clínica del Norte', s: '5 abr · Asesoría', a: '$45,000', paid: false },
-    { t: 'María González', s: '1 abr · Servicios', a: '$8,000', paid: true },
-  ]
-
   return (
-    <div className="flex flex-col gap-5 max-w-[960px]">
+    <div className="flex flex-col gap-5 max-w-[760px]">
       <HelpBox>
-        <strong>¿Qué es una factura?</strong> Es un comprobante (CFDI) que le das a tus clientes cuando te pagan. El SAT
-        la usa para saber cuánto ganaste.
+        Estamos terminando la conexión con <strong>Timbrame</strong>, nuestro proveedor de facturación electrónica
+        autorizado por el SAT. En cuanto esté lista, podrás emitir tus CFDI directo desde aquí.
       </HelpBox>
 
-      <Tabs items={['Emitidas', 'Recibidas']} active={0} />
+      <Card>
+        <div className="p-8 lg:p-10 text-center relative overflow-hidden">
+          {/* Halo azul de marca — sutil, funciona en ambos temas */}
+          <div
+            className="absolute -top-24 -right-24 w-72 h-72 rounded-full pointer-events-none"
+            style={{ background: `radial-gradient(circle, ${TIMBRAME_BLUE}33 0%, transparent 70%)` }}
+          />
 
-      <div
-        className="rounded-3xl p-6 lg:p-7"
-        style={{ background: 'var(--hero-brand-soft)', border: '1px solid var(--brand-200)' }}
-      >
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <div className="text-[24px] font-extrabold tracking-tight" style={DISPLAY}>
-              ¿Le diste un servicio a alguien?
+          <div className="relative flex flex-col items-center gap-5">
+            <Pill kind="default">
+              <Clock size={12} /> Próximamente
+            </Pill>
+
+            {/* Wordmark estilizado tipo Timbrame */}
+            <div className="flex items-center gap-3 mt-1">
+              <span
+                className="text-[52px] lg:text-[64px] font-extrabold tracking-tight leading-none"
+                style={{ ...DISPLAY, color: 'var(--foreground)' }}
+              >
+                timb
+                <span style={{ color: TIMBRAME_BLUE }}>r</span>
+                ame
+              </span>
+              <img
+                src="/detecnoicon.png"
+                alt="Detecno"
+                className="w-12 h-12 lg:w-14 lg:h-14 flex-shrink-0"
+              />
             </div>
-            <div className="text-[14px] mt-2 max-w-[460px]" style={{ color: 'var(--ink-700)' }}>
-              Crea tu factura en un par de clics. Te guiamos paso a paso.
+            <div
+              className="text-[10.5px] font-extrabold tracking-[0.35em] -mt-2"
+              style={{ color: 'var(--ink-500)' }}
+            >
+              POWERED BY DETECNO
+            </div>
+
+            <div
+              className="text-[22px] lg:text-[26px] font-extrabold tracking-tight max-w-[520px] mt-4"
+              style={{ ...DISPLAY, color: 'var(--ink-900)' }}
+            >
+              Estamos conectando con Timbrame
+            </div>
+            <div className="text-[14px] max-w-[480px]" style={{ color: 'var(--ink-500)' }}>
+              Pronto vas a poder emitir, cancelar y consultar tus facturas (CFDI 4.0) sin salir de Contabilízate. Te
+              avisaremos en cuanto esté lista la integración.
+            </div>
+
+            <div className="flex flex-wrap gap-3 justify-center mt-3">
+              <Badge kind="brand">
+                <Sparkles size={10} /> CFDI 4.0
+              </Badge>
+              <Badge kind="default">PAC certificado por el SAT</Badge>
+            </div>
+
+            <div className="mt-5">
+              <Btn size="lg" kind="ghost">
+                <MessageCircle size={18} /> Avísame cuando esté listo
+              </Btn>
             </div>
           </div>
-          <Btn kind="brand" size="lg">
-            <FilePlus size={20} /> Crear nueva factura
-          </Btn>
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <SummaryStat label="Este mes" value="5 facturas" hint="Todas las que has emitido" />
-        <SummaryStat label="Ya te pagaron" value="3" hint="$68,000 cobrados" tone="ok" />
-        <SummaryStat label="Te deben" value="2" hint="$60,000 pendientes" tone="warn" />
-      </div>
-
-      <div>
-        <div className="text-[16px] font-bold mb-3" style={{ color: 'var(--ink-700)' }}>
-          Tus facturas de abril
-        </div>
-        <Card>
-          <div>
-            {facturas.map((r, i, arr) => (
-              <div key={r.t}>
-                <div className="flex items-center gap-3 px-4 py-3.5">
-                  <div
-                    className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
-                    style={{
-                      background: r.paid ? 'var(--brand-50)' : 'var(--amber-soft)',
-                      color: r.paid ? 'var(--brand-700)' : '#7B5312',
-                    }}
-                  >
-                    <FileText size={20} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-[14.5px] truncate">{r.t}</div>
-                    <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
-                      {r.s}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-[14.5px] font-extrabold" style={MONO}>
-                      {r.a}
-                    </div>
-                    <div
-                      className="text-[11.5px] font-bold mt-0.5"
-                      style={{ color: r.paid ? 'var(--brand-700)' : '#7B5312' }}
-                    >
-                      {r.paid ? '✓ Pagada' : 'Pendiente'}
-                    </div>
-                  </div>
-                </div>
-                {i < arr.length - 1 && <Divider />}
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-
-      <VideoSlot title="Cómo crear tu primera factura" duration="4 min" />
+      </Card>
     </div>
   )
 }

@@ -1,15 +1,75 @@
-import { Check, FileText, Lock, MessageCircle, Sparkles, Stethoscope } from 'lucide-react'
-import { DISPLAY } from '../constants'
+'use client'
+
+import { useState, useTransition } from 'react'
+import { Check, FileText, Loader2, Lock, MessageCircle, Sparkles, Stethoscope } from 'lucide-react'
+import { startPlanCheckout } from '@/app/actions/plan-checkout'
+import type { PlanTestId } from '@/lib/plan-test-catalog'
+import { DISPLAY, MONO } from '../constants'
 import { Badge, Btn, Card, Divider, HelpBox, Pill, VideoSlot } from '../ui'
 
+interface PlanOption {
+  id: PlanTestId
+  label: string
+  periodHint: string
+  amountMxn: number
+  perMonth: string
+  badge?: string
+  highlight?: boolean
+}
+
+const PLAN_OPTIONS: PlanOption[] = [
+  {
+    id: 'platinum-mensual',
+    label: 'Mensual',
+    periodHint: 'Cargo cada mes',
+    amountMxn: 470.25,
+    perMonth: '$470 / mes',
+  },
+  {
+    id: 'platinum-semestral',
+    label: 'Semestral',
+    periodHint: 'Un cargo cada 6 meses',
+    amountMxn: 1495,
+    perMonth: '$249 / mes',
+    badge: 'Ahorras 47%',
+    highlight: true,
+  },
+  {
+    id: 'platinum-anual',
+    label: 'Anual',
+    periodHint: 'Un solo cargo al año',
+    amountMxn: 2706,
+    perMonth: '$225 / mes',
+    badge: 'Ahorras 52%',
+  },
+]
+
+const INCLUYE = [
+  { i: Sparkles, t: '6 declaraciones al mes con apoyo de IA', s: 'Llevas 2 usadas este mes' },
+  { i: FileText, t: '300 facturas (CFDI) por semestre', s: 'Has emitido 24' },
+  { i: MessageCircle, t: 'Chat ilimitado con tu contador', s: 'Te responden en menos de 2 horas' },
+  { i: Lock, t: 'Monitoreo de listas negras del SAT', s: 'Vigilamos tu RFC todo el día' },
+  { i: Stethoscope, t: 'Diagnóstico fiscal con IA', s: 'Te avisamos cuando puedes ahorrar' },
+]
+
 export function PlanScreen() {
-  const incluye = [
-    { i: Sparkles, t: '6 declaraciones al mes con apoyo de IA', s: 'Llevas 2 usadas este mes' },
-    { i: FileText, t: '300 facturas (CFDI) por semestre', s: 'Has emitido 24' },
-    { i: MessageCircle, t: 'Chat ilimitado con tu contador', s: 'Te responden en menos de 2 horas' },
-    { i: Lock, t: 'Monitoreo de listas negras del SAT', s: 'Vigilamos tu RFC todo el día' },
-    { i: Stethoscope, t: 'Diagnóstico fiscal con IA', s: 'Te avisamos cuando puedes ahorrar' },
-  ]
+  const [pending, startTransition] = useTransition()
+  const [activePlan, setActivePlan] = useState<PlanTestId | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  function pay(planId: PlanTestId) {
+    setActivePlan(planId)
+    setError(null)
+    startTransition(async () => {
+      try {
+        const url = await startPlanCheckout(planId)
+        window.location.href = url
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error al iniciar el pago')
+        setActivePlan(null)
+      }
+    })
+  }
 
   return (
     <div className="flex flex-col gap-6 max-w-[1040px]">
@@ -62,7 +122,7 @@ export function PlanScreen() {
         </div>
         <Card>
           <div>
-            {incluye.map((it, i, arr) => (
+            {INCLUYE.map((it, i, arr) => (
               <div key={it.t}>
                 <div className="flex items-center gap-3 px-4 py-3.5">
                   <div
@@ -86,30 +146,73 @@ export function PlanScreen() {
         </Card>
       </div>
 
-      <div
-        className="rounded-3xl p-6 lg:p-7"
-        style={{
-          background: 'linear-gradient(160deg,var(--coral-soft) 0%,#FFFAF4 100%)',
-          border: '1px solid rgba(255,136,98,0.35)',
-        }}
-      >
-        <div className="flex items-center gap-3 flex-wrap mb-3">
-          <Badge kind="coral">Te ahorras 47%</Badge>
+      {/* Bloque Stripe: planes de prueba */}
+      <div>
+        <div className="text-[18px] font-bold mb-1" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
+          Cambia o renueva tu plan
         </div>
-        <div className="text-[26px] font-extrabold tracking-tight" style={DISPLAY}>
-          ¿Y si pagas 6 meses de una vez?
+        <div className="text-[13.5px] mb-4" style={{ color: 'var(--ink-500)' }}>
+          Pagos seguros con Stripe · Modo prueba activo (usa la tarjeta 4242 4242 4242 4242).
         </div>
-        <div className="text-[14px] mt-2 max-w-[520px] leading-relaxed" style={{ color: 'var(--ink-700)' }}>
-          En vez de pagar $470.25 cada mes (= $2,821.50 al semestre), pagas <strong>$1,495 una sola vez</strong> y
-          olvidas el cargo por 6 meses.
-        </div>
-        <div className="mt-5 flex flex-wrap gap-3">
-          <Btn kind="primary" size="lg">
-            Cambiar a plan semestral
-          </Btn>
-          <Btn kind="ghost" size="lg">
-            Comparar planes
-          </Btn>
+
+        {error && (
+          <div
+            className="text-[13px] font-semibold mb-3 px-4 py-2.5 rounded-xl"
+            style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}
+          >
+            {error}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {PLAN_OPTIONS.map((p) => {
+            const isLoading = pending && activePlan === p.id
+            return (
+              <Card
+                key={p.id}
+                style={
+                  p.highlight
+                    ? { border: '2px solid var(--brand-500)', boxShadow: 'var(--sh-brand)' }
+                    : undefined
+                }
+              >
+                <div className="p-5 flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[14px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--ink-700)' }}>
+                      {p.label}
+                    </div>
+                    {p.badge && <Badge kind={p.highlight ? 'brand' : 'coral'}>{p.badge}</Badge>}
+                  </div>
+                  <div>
+                    <div className="text-[32px] font-extrabold tracking-tight" style={{ ...DISPLAY, ...MONO, color: 'var(--ink-900)' }}>
+                      ${p.amountMxn.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                    </div>
+                    <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                      MXN · {p.periodHint}
+                    </div>
+                    <div className="text-[12.5px] font-bold mt-1" style={{ color: 'var(--brand-700)' }}>
+                      Equivale a {p.perMonth}
+                    </div>
+                  </div>
+                  <Btn
+                    block
+                    kind={p.highlight ? 'brand' : 'primary'}
+                    size="md"
+                    onClick={() => pay(p.id)}
+                    disabled={pending}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" /> Redirigiendo…
+                      </>
+                    ) : (
+                      'Pagar con Stripe'
+                    )}
+                  </Btn>
+                </div>
+              </Card>
+            )
+          })}
         </div>
       </div>
 

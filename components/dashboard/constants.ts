@@ -170,7 +170,7 @@ export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
     PIPELINES_ITEM,
     MIS_TAREAS_ITEM,
   ],
-  contador: [
+  accounter: [
     DASHBOARD_ITEM,
     MIS_CLIENTES_ITEM,
     REGULARIZACIONES_ITEM,
@@ -231,8 +231,8 @@ export function normalizeRole(raw: string | null | undefined): RoleKey {
     case 'atencion clientes':
     case 'sac':
       return 'atencion-clientes'
-    case 'contador':
-      return 'contador'
+    case 'accounter':
+      return 'accounter'
     case 'renovaciones':
       return 'renovaciones'
     case 'gerencia comercial':

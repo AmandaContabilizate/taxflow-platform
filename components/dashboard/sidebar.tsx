@@ -84,7 +84,7 @@ export function Sidebar({
           </span>
         </div>
 
-        <div className="px-1 mb-3">
+        {roleKey == 'guest' && (<div className="px-1 mb-3">
           <label
             className="block text-[10.5px] font-bold uppercase tracking-wider mb-1.5 px-1"
             style={{ color: 'var(--ink-500)' }}
@@ -140,6 +140,9 @@ export function Sidebar({
             </div>
           )}
         </div>
+
+        )}
+
 
         <nav className="flex flex-col gap-1.5 py-1">
           {navItems.map(n => (

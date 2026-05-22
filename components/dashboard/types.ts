@@ -37,7 +37,7 @@ export type RoleKey =
   | 'guest'
   | 'ventas'
   | 'atencion-clientes'
-  | 'contador'
+  | 'accounter'
   | 'renovaciones'
   | 'gerencia-comercial'
   | 'gerente-sac'
