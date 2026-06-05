@@ -17,6 +17,7 @@ import {
   DocumentosScreen,
   FacturasScreen,
   HomeScreen,
+  OperacionesScreen,
   PermisosScreen,
   PlaceholderScreen,
   PlanScreen,
@@ -169,6 +170,9 @@ function ScreenRouter({
           description="Aquí verás tus indicadores y accesos directos según tu rol."
         />
       )
+    }
+    if (screen === 'operaciones') {
+      return <OperacionesScreen />
     }
     const [title, hint] = TITLES[screen] ?? ['Próximamente', '']
     return <PlaceholderScreen title={title} description={hint || undefined} />

@@ -32,6 +32,7 @@ export type Screen =
   | 'asignaciones'
   | 'equipo'
   | 'reportes-ejecutivos'
+  | 'operaciones'
 
 export type RoleKey =
   | 'guest'

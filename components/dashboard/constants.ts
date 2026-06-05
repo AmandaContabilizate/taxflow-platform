@@ -67,6 +67,7 @@ export const TITLES: Record<Screen, [string, string]> = {
   asignaciones: ['Asignaciones', 'Reparto de cartera al equipo'],
   equipo: ['Equipo', 'Tu equipo de trabajo'],
   'reportes-ejecutivos': ['Reportes ejecutivos', 'KPIs y resultados del área'],
+  operaciones: ['Centro de Operaciones', 'Gestión y supervisión de declaraciones fiscales'],
 }
 
 const GUEST_NAV: NavDef[] = [
@@ -150,6 +151,12 @@ const REPORTES_ITEM: NavDef = {
   Icon: BarChart3,
   hint: 'KPIs y resultados',
 }
+const OPERACIONES_ITEM: NavDef = {
+  id: 'operaciones',
+  label: 'Centro de Operaciones',
+  Icon: Briefcase,
+  hint: 'Gestión de declaraciones',
+}
 
 export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
   guest: GUEST_NAV,
@@ -157,12 +164,14 @@ export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
     DASHBOARD_ITEM,
     USUARIOS_ITEM,
     CLIENTES_ITEM,
+    OPERACIONES_ITEM,
     ACTIVIDAD_ITEM,
     COMISIONES_ITEM,
     MIS_TAREAS_ITEM,
   ],
   'atencion-clientes': [
     DASHBOARD_ITEM,
+    OPERACIONES_ITEM,
     COMISIONES_ITEM,
     BANDEJA_ITEM,
     UPSELL_ITEM,
@@ -173,14 +182,16 @@ export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
   accounter: [
     DASHBOARD_ITEM,
     MIS_CLIENTES_ITEM,
+    OPERACIONES_ITEM,
     REGULARIZACIONES_ITEM,
     DECLARACIONES_ANUALES_ITEM,
     MIS_TAREAS_ITEM,
     CATALOGOS_ITEM,
   ],
-  renovaciones: [DASHBOARD_ITEM, COMISIONES_ITEM, RENOVACIONES_ITEM, MIS_TAREAS_ITEM],
+  renovaciones: [DASHBOARD_ITEM, OPERACIONES_ITEM, COMISIONES_ITEM, RENOVACIONES_ITEM, MIS_TAREAS_ITEM],
   'gerencia-comercial': [
     DASHBOARD_ITEM,
+    OPERACIONES_ITEM,
     USUARIOS_ITEM,
     CLIENTES_ITEM,
     ACTIVIDAD_ITEM,
@@ -192,6 +203,7 @@ export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
   ],
   'gerente-sac': [
     DASHBOARD_ITEM,
+    OPERACIONES_ITEM,
     COMISIONES_ITEM,
     BANDEJA_ITEM,
     UPSELL_ITEM,
@@ -204,6 +216,7 @@ export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
   'gerente-operaciones': [
     DASHBOARD_ITEM,
     MIS_CLIENTES_ITEM,
+    OPERACIONES_ITEM,
     REGULARIZACIONES_ITEM,
     DECLARACIONES_ANUALES_ITEM,
     MIS_TAREAS_ITEM,
