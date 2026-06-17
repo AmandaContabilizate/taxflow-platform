@@ -4,6 +4,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Download,
+  Eye,
   FileText,
   Loader2,
   ShieldCheck,
@@ -11,19 +12,35 @@ import {
   Zap,
 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { getComplianceOpinion } from '@/features/taxpayers/actions/getComplianceOpinion.action'
+import {
+  type DocumentMetadata,
+  getComplianceOpinionMetadata,
+  getTaxCertificateMetadata,
+} from '@/features/taxpayers/actions/getDocumentMetadata.action'
 import { getRfcStatus } from '@/features/taxpayers/actions/getRfcStatus.action'
-import { getTaxCertificate, type PdfDocument, } from '@/features/taxpayers/actions/getTaxCertificate.action'
+import { getTaxCertificate, type PdfDocument } from '@/features/taxpayers/actions/getTaxCertificate.action'
 import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import { DISPLAY } from './constants'
 import type { GoFn } from './types'
 import { Btn } from './ui'
 
 type DocState = 'loading' | 'available' | 'missing' | 'rfc-not-found' | 'error'
+type DocKind = 'csf' | 'opinion'
+type DocAction = 'view' | 'download'
 
 interface DocInfo {
   state: DocState
   errorMessage?: string
+  downloadDate?: string | null
+  statusText?: string | null
 }
 
 function classifyError(statusCode: number, message: string): DocState {
@@ -32,6 +49,38 @@ function classifyError(statusCode: number, message: string): DocState {
     return 'rfc-not-found'
   }
   return 'error'
+}
+
+// La metadata del backend puede traer la fecha/estatus bajo distintos nombres;
+// leemos la primera llave que exista y tenga valor. Si no viene, no mostramos nada.
+function pickString(meta: DocumentMetadata, keys: string[]): string | null {
+  for (const key of keys) {
+    const value = meta[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return null
+}
+
+const readDownloadDate = (meta: DocumentMetadata) =>
+  pickString(meta, [
+    'downloadDate',
+    'downloadedAt',
+    'lastDownloadDate',
+    'fechaDescarga',
+    'generatedAt',
+    'generationDate',
+    'createdAt',
+    'date',
+    'fecha',
+  ])
+
+const readComplianceStatus = (meta: DocumentMetadata) =>
+  pickString(meta, ['status', 'complianceStatus', 'opinionStatus', 'estatus'])
+
+function formatDate(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })
 }
 
 function downloadPdf(doc: PdfDocument) {
@@ -49,6 +98,14 @@ function downloadPdf(doc: PdfDocument) {
   URL.revokeObjectURL(url)
 }
 
+function pdfToBlobUrl(doc: PdfDocument): string {
+  const byteChars = atob(doc.base64)
+  const bytes = new Uint8Array(byteChars.length)
+  for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i)
+  const blob = new Blob([bytes], { type: doc.contentType || 'application/pdf' })
+  return URL.createObjectURL(blob)
+}
+
 interface Props {
   go: GoFn
 }
@@ -59,7 +116,8 @@ export function FiscalCredibility({ go }: Props) {
   const [csf, setCsf] = useState<DocInfo>({ state: 'loading' })
   const [opinion, setOpinion] = useState<DocInfo>({ state: 'loading' })
   const [blacklist, setBlacklist] = useState<DocInfo>({ state: 'loading' })
-  const [downloading, setDownloading] = useState<null | 'csf' | 'opinion'>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [viewer, setViewer] = useState<{ url: string; title: string } | null>(null)
 
   useEffect(() => {
     if (!selectedRfc) return
@@ -71,24 +129,28 @@ export function FiscalCredibility({ go }: Props) {
 
     void (async () => {
       const [csfRes, opRes, statusRes] = await Promise.all([
-        getTaxCertificate(selectedRfc),
-        getComplianceOpinion(selectedRfc),
+        getTaxCertificateMetadata(selectedRfc),
+        getComplianceOpinionMetadata(selectedRfc),
         getRfcStatus(selectedRfc),
       ])
       if (cancelled) return
       setCsf(
         csfRes.success
-          ? { state: 'available' }
+          ? { state: 'available', downloadDate: readDownloadDate(csfRes.value) }
           : { state: classifyError(csfRes.error.statusCode, csfRes.error.message), errorMessage: csfRes.error.message },
       )
       setOpinion(
         opRes.success
-          ? { state: 'available' }
+          ? {
+              state: 'available',
+              downloadDate: readDownloadDate(opRes.value),
+              statusText: readComplianceStatus(opRes.value),
+            }
           : { state: classifyError(opRes.error.statusCode, opRes.error.message), errorMessage: opRes.error.message },
       )
       setBlacklist(
         statusRes.success
-          ? { state: 'available' }
+          ? { state: 'available', statusText: statusRes.value.status69B ?? '' }
           : { state: classifyError(statusRes.error.statusCode, statusRes.error.message), errorMessage: statusRes.error.message },
       )
     })()
@@ -98,21 +160,32 @@ export function FiscalCredibility({ go }: Props) {
     }
   }, [selectedRfc])
 
-  const handleDownloadCsf = useCallback(async () => {
-    if (!selectedRfc) return
-    setDownloading('csf')
-    const res = await getTaxCertificate(selectedRfc)
-    setDownloading(null)
-    if (res.success) downloadPdf(res.value)
-  }, [selectedRfc])
+  const closeViewer = useCallback(() => {
+    setViewer((prev) => {
+      if (prev) URL.revokeObjectURL(prev.url)
+      return null
+    })
+  }, [])
 
-  const handleDownloadOpinion = useCallback(async () => {
-    if (!selectedRfc) return
-    setDownloading('opinion')
-    const res = await getComplianceOpinion(selectedRfc)
-    setDownloading(null)
-    if (res.success) downloadPdf(res.value)
-  }, [selectedRfc])
+  const runAction = useCallback(
+    async (kind: DocKind, action: DocAction) => {
+      if (!selectedRfc) return
+      setBusy(`${kind}:${action}`)
+      const res =
+        kind === 'csf'
+          ? await getTaxCertificate(selectedRfc)
+          : await getComplianceOpinion(selectedRfc)
+      setBusy(null)
+      if (!res.success) return
+
+      if (action === 'download') {
+        downloadPdf(res.value)
+      } else {
+        setViewer({ url: pdfToBlobUrl(res.value), title: res.value.filename })
+      }
+    },
+    [selectedRfc],
+  )
 
   const csfMissing = csf.state === 'missing'
   const csfErrored = csf.state === 'error'
@@ -177,24 +250,123 @@ export function FiscalCredibility({ go }: Props) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
         <CsfCard
           state={csf.state}
-          downloading={downloading === 'csf'}
+          downloadDate={csf.downloadDate}
+          busy={busy}
           onConnect={() => go('estatus-sat')}
           onUpload={() => go('documentos')}
-          onDownload={handleDownloadCsf}
+          onView={() => runAction('csf', 'view')}
+          onDownload={() => runAction('csf', 'download')}
         />
         <ComplianceCard
           state={opinion.state}
           blocked={allBlocked}
-          downloading={downloading === 'opinion'}
-          onDownload={handleDownloadOpinion}
+          downloadDate={opinion.downloadDate}
+          statusText={opinion.statusText}
+          busy={busy}
+          onView={() => runAction('opinion', 'view')}
+          onDownload={() => runAction('opinion', 'download')}
           onConnect={() => go('estatus-sat')}
         />
         <BlacklistCard
           state={blacklist.state}
+          statusText={blacklist.statusText}
           blocked={allBlocked}
           onConnect={() => go('estatus-sat')}
         />
       </div>
+
+      <Dialog
+        open={!!viewer}
+        onOpenChange={(open) => {
+          if (!open) closeViewer()
+        }}
+      >
+        <DialogContent className="flex flex-col p-0 gap-0 max-w-4xl sm:max-w-4xl w-[calc(100%-2rem)] h-[85vh] overflow-hidden">
+          <DialogHeader
+            className="px-5 py-3.5 border-b text-left"
+            style={{ borderColor: 'var(--border)' }}
+          >
+            <DialogTitle className="text-[15px] truncate pr-8" style={{ color: 'var(--ink-900)' }}>
+              {viewer?.title ?? 'Documento'}
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              Vista previa del documento en PDF
+            </DialogDescription>
+          </DialogHeader>
+          {viewer && (
+            <iframe
+              src={viewer.url}
+              title={viewer.title}
+              className="flex-1 w-full"
+              style={{ border: 'none', background: 'var(--muted)' }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+interface MetaLineProps {
+  date?: string | null
+  status?: string | null
+}
+
+/** Línea informativa con la metadata del documento. Oculta lo que no venga. */
+function MetaLine({ date, status }: MetaLineProps) {
+  if (!date && !status) return null
+  return (
+    <div className="flex flex-col gap-0.5 text-[12.5px]" style={{ color: 'var(--ink-500)' }}>
+      {date && <span>Descargado el {formatDate(date)}</span>}
+      {status && (
+        <span>
+          Estatus:{' '}
+          <span className="font-bold" style={{ color: 'var(--ink-700)' }}>
+            {status}
+          </span>
+        </span>
+      )}
+    </div>
+  )
+}
+
+interface DocActionsProps {
+  kind: DocKind
+  busy: string | null
+  onView: () => void
+  onDownload: () => void
+}
+
+/** Botones para un documento listo: "Ver" (modal) + "Descargar". */
+function DocActions({ kind, busy, onView, onDownload }: DocActionsProps) {
+  const viewing = busy === `${kind}:view`
+  const downloading = busy === `${kind}:download`
+  const anyBusy = !!busy && busy.startsWith(`${kind}:`)
+
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <Btn kind="brand" onClick={onView} disabled={anyBusy} block>
+        {viewing ? (
+          <>
+            <Loader2 size={16} className="animate-spin" /> Abriendo…
+          </>
+        ) : (
+          <>
+            <Eye size={16} /> Ver
+          </>
+        )}
+      </Btn>
+      <Btn kind="ghost" onClick={onDownload} disabled={anyBusy} block>
+        {downloading ? (
+          <>
+            <Loader2 size={16} className="animate-spin" /> Descargando…
+          </>
+        ) : (
+          <>
+            <Download size={16} /> Descargar
+          </>
+        )}
+      </Btn>
     </div>
   )
 }
@@ -310,15 +482,28 @@ function NotFoundBadge() {
   )
 }
 
+function FlaggedBadge() {
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-[10px] tracking-widest uppercase font-extrabold px-2 py-1 rounded-md"
+      style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}
+    >
+      <AlertCircle size={12} /> Revisar
+    </span>
+  )
+}
+
 interface CsfCardProps {
   state: DocState
-  downloading: boolean
+  downloadDate?: string | null
+  busy: string | null
   onConnect: () => void
   onUpload: () => void
+  onView: () => void
   onDownload: () => void
 }
 
-function CsfCard({ state, downloading, onConnect, onUpload, onDownload }: CsfCardProps) {
+function CsfCard({ state, downloadDate, busy, onConnect, onUpload, onView, onDownload }: CsfCardProps) {
   const available = state === 'available'
   const errored = state === 'error'
   const notFound = state === 'rfc-not-found'
@@ -353,7 +538,7 @@ function CsfCard({ state, downloading, onConnect, onUpload, onDownload }: CsfCar
       }
       desc={
         available
-          ? 'Tu Constancia de Situación Fiscal está vigente y disponible para descargar.'
+          ? 'Tu Constancia de Situación Fiscal está vigente y disponible.'
           : notFound
             ? 'Este RFC no está registrado en tu cuenta. Verifica que sea el correcto o regístralo primero.'
             : errored
@@ -372,17 +557,10 @@ function CsfCard({ state, downloading, onConnect, onUpload, onDownload }: CsfCar
           <Loader2 size={16} className="animate-spin" /> Cargando…
         </div>
       ) : available ? (
-        <Btn kind="brand" onClick={onDownload} disabled={downloading} block>
-          {downloading ? (
-            <>
-              <Loader2 size={18} className="animate-spin" /> Descargando…
-            </>
-          ) : (
-            <>
-              <Download size={18} /> Descargar CSF
-            </>
-          )}
-        </Btn>
+        <div className="flex flex-col gap-3">
+          <MetaLine date={downloadDate} />
+          <DocActions kind="csf" busy={busy} onView={onView} onDownload={onDownload} />
+        </div>
       ) : errored || notFound ? null : (
         <div className="flex gap-2 flex-wrap">
           <Btn kind="brand" onClick={onConnect}>
@@ -400,7 +578,10 @@ function CsfCard({ state, downloading, onConnect, onUpload, onDownload }: CsfCar
 interface ComplianceCardProps {
   state: DocState
   blocked: boolean
-  downloading: boolean
+  downloadDate?: string | null
+  statusText?: string | null
+  busy: string | null
+  onView: () => void
   onDownload: () => void
   onConnect: () => void
 }
@@ -408,7 +589,10 @@ interface ComplianceCardProps {
 function ComplianceCard({
   state,
   blocked,
-  downloading,
+  downloadDate,
+  statusText,
+  busy,
+  onView,
   onDownload,
   onConnect,
 }: ComplianceCardProps) {
@@ -429,7 +613,7 @@ function ComplianceCard({
           : state === 'loading'
             ? 'Buscando…'
             : available
-              ? 'Lista para descargar'
+              ? 'Lista para consultar'
               : notFound
                 ? 'No encontramos este RFC'
                 : errored
@@ -471,17 +655,10 @@ function ComplianceCard({
           <Loader2 size={16} className="animate-spin" /> Cargando…
         </div>
       ) : available ? (
-        <Btn kind="primary" onClick={onDownload} disabled={downloading} block>
-          {downloading ? (
-            <>
-              <Loader2 size={18} className="animate-spin" /> Descargando…
-            </>
-          ) : (
-            <>
-              <Download size={18} /> Descargar PDF
-            </>
-          )}
-        </Btn>
+        <div className="flex flex-col gap-3">
+          <MetaLine date={downloadDate} status={statusText} />
+          <DocActions kind="opinion" busy={busy} onView={onView} onDownload={onDownload} />
+        </div>
       ) : null}
     </DocCardShell>
   )
@@ -489,56 +666,66 @@ function ComplianceCard({
 
 interface BlacklistCardProps {
   state: DocState
+  statusText?: string | null
   blocked: boolean
   onConnect: () => void
 }
 
-function BlacklistCard({ state, blocked, onConnect }: BlacklistCardProps) {
+function BlacklistCard({ state, statusText, blocked, onConnect }: BlacklistCardProps) {
   const available = state === 'available' && !blocked
   const errored = state === 'error' && !blocked
   const notFound = state === 'rfc-not-found' && !blocked
+  // Cadena de resultado vacía ("") → el RFC no aparece en ninguna lista.
+  const clean = available && (statusText ?? '').trim() === ''
+  const flagged = available && (statusText ?? '').trim() !== ''
 
   return (
     <DocCardShell
       blocked={blocked}
       icon={<ShieldCheck size={22} />}
-      iconBg="var(--ink-50)"
-      iconColor="var(--ink-500)"
+      iconBg={flagged ? 'var(--coral-soft)' : 'var(--ink-50)'}
+      iconColor={flagged ? '#9E3A15' : 'var(--ink-500)'}
       eyebrow="Listas negras SAT"
       title={
         blocked
           ? 'Falta tu CSF'
           : state === 'loading'
             ? 'Verificando…'
-            : available
-              ? 'No apareces en listas'
-              : notFound
-                ? 'No encontramos este RFC'
-                : errored
-                  ? 'Servicio en pruebas'
-                  : 'Sin información'
+            : clean
+              ? 'Estatus limpio'
+              : flagged
+                ? 'Aparece en listas'
+                : notFound
+                  ? 'No encontramos este RFC'
+                  : errored
+                    ? 'Servicio en pruebas'
+                    : 'Sin información'
       }
       desc={
         blocked
           ? 'Necesitamos tu CSF para revisar si apareces en las listas del 69-B del SAT.'
-          : available
+          : clean
             ? 'Tu RFC no aparece en las listas del artículo 69-B del SAT. Estás al corriente.'
-            : notFound
-              ? 'Este RFC no está registrado en tu cuenta. Verifica que sea el correcto o regístralo primero.'
-              : errored
-                ? 'Estamos validando este flujo con el SAT en ambiente de pruebas. Vuelve a intentarlo más tarde.'
-                : 'Aún no podemos validar tu estatus en las listas negras del SAT.'
+            : flagged
+              ? `Tu RFC aparece con estatus "${statusText}" en las listas del artículo 69-B del SAT. Revisa tu situación.`
+              : notFound
+                ? 'Este RFC no está registrado en tu cuenta. Verifica que sea el correcto o regístralo primero.'
+                : errored
+                  ? 'Estamos validando este flujo con el SAT en ambiente de pruebas. Vuelve a intentarlo más tarde.'
+                  : 'Aún no podemos validar tu estatus en las listas negras del SAT.'
       }
       badge={
         blocked
           ? <BlockedBadge />
-          : available
+          : clean
             ? <ReadyBadge />
-            : notFound
-              ? <NotFoundBadge />
-              : errored
-                ? <TestingBadge />
-                : undefined
+            : flagged
+              ? <FlaggedBadge />
+              : notFound
+                ? <NotFoundBadge />
+                : errored
+                  ? <TestingBadge />
+                  : undefined
       }
     >
       {blocked && (

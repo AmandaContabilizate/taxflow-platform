@@ -26,10 +26,31 @@ export const API_ROUTES = {
     TAX_CERTIFICATE: (rfc: string) =>
       `/taxcertificate?rfc=${encodeURIComponent(rfc)}`,
   },
+  // Metadata de documentos fiscales (apiType "identity" → base /api)
+  METADATA: {
+    COMPLIANCE_OPINION: (rfc: string) =>
+      `/compliance-opinion/metadata?rfc=${encodeURIComponent(rfc)}`,
+    TAX_CERTIFICATE: (rfc: string) =>
+      `/taxcertificate/metadata?rfc=${encodeURIComponent(rfc)}`,
+  },
   REPORTS: {
     MONTHLY_INCOME: "/monthly-income",
     MONTHLY_BILLS: "/monthly-bills",
     ISSUED_INVOICES: "/issued-invoices",
     ACTIVE_CLIENTS: "/active-clients",
+  },
+  // Ventas / planes (microservicio Procedures)
+  CATALOGS: {
+    PLANS: (rfc: string) => `/plans?rfc=${encodeURIComponent(rfc)}`, // apiType "catalogs_procedures"
+  },
+  FINANCES: {
+    REGISTER_SALE_NEW: "/register-sale/new", // apiType "finances"
+  },
+  STRIPE: {
+    PAYMENT_SHEET: "/payment-sheet", // apiType "stripe"
+    PROMOTION_CODE_VALIDATE: "/promotion-code/validate",
+    SUBSCRIPTION_CURRENT: (rfc: string) =>
+      `/subscription/current?rfc=${encodeURIComponent(rfc)}`,
+    SUBSCRIPTION_CANCEL: "/subscription/cancel",
   },
 } as const;

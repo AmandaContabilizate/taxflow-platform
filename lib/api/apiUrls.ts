@@ -29,6 +29,10 @@ export const API_BASE_URLS = {
   declaration: `${BASE_PROCEDURES}/declaration${DbOrigin}`,
   vault: `${BASE_PROCEDURES}/vault${DbOrigin}`,
   cfdi: `${BASE_PROCEDURES}/cfdi${DbOrigin}`,
+  // Procedures · ventas / planes
+  catalogs_procedures: `${BASE_PROCEDURES}/catalogs${DbOrigin}`,
+  finances: `${BASE_PROCEDURES}/finances${DbOrigin}`,
+  stripe: `${BASE_PROCEDURES}/stripe`, // OJO: stripe NO lleva /SQLServer
   // Reports
   dashboard_reports: `${BASE_REPORTS}/dashboard/3`,
 } as const;
