@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { cancelSubscription } from '@/features/account/actions/cancelSubscription.action'
 import { getCurrentSubscription } from '@/features/account/actions/getCurrentSubscription.action'
 import { getPlans } from '@/features/account/actions/getPlans.action'
-import { formatMXN, periodLabel, type CurrentSubscription, type Plan } from '@/features/account/types'
+import { EMPTY_PLANS_CATALOG, formatMXN, periodLabel, type CurrentSubscription, type PlansCatalog } from '@/features/account/types'
 import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import { PlanPickerModal } from '../plan/plan-picker-modal'
 import { DISPLAY } from '../constants'
@@ -31,7 +31,7 @@ export function PlanScreen() {
 
   const [subscription, setSubscription] = useState<CurrentSubscription | null>(null)
   const [loadingSub, setLoadingSub] = useState(true)
-  const [plans, setPlans] = useState<Plan[]>([])
+  const [catalog, setCatalog] = useState<PlansCatalog>(EMPTY_PLANS_CATALOG)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [canceling, setCanceling] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -54,7 +54,7 @@ export function PlanScreen() {
     void loadSubscription()
     void (async () => {
       const res = await getPlans(selectedRfc)
-      if (!cancelled && res.success) setPlans(res.value)
+      if (!cancelled && res.success) setCatalog(res.value)
     })()
     return () => {
       cancelled = true
@@ -79,6 +79,8 @@ export function PlanScreen() {
 
   const hasSub = subscription?.hasSubscription === true
   const renewDate = formatRenewDate(subscription?.renewDate)
+  const planCount = catalog.futurePlans.length
+  const hasPlans = planCount > 0
 
   return (
     <div className="flex flex-col gap-6 max-w-[1040px]">
@@ -195,7 +197,7 @@ export function PlanScreen() {
           <div className="text-[18px] font-bold" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
             Cambia o renueva tu plan
           </div>
-          {plans.length > 0 && <Badge kind="brand">{plans.filter((p) => p.productType === 0).length} planes</Badge>}
+          {hasPlans && <Badge kind="brand">{planCount} planes</Badge>}
         </div>
         <div className="text-[13.5px] mb-4" style={{ color: 'var(--ink-500)' }}>
           Pagos seguros con Stripe. Elige plan, agrega trámites y paga sin salir de aquí.
@@ -210,8 +212,8 @@ export function PlanScreen() {
           </div>
         )}
 
-        <Btn kind="brand" size="md" onClick={() => setPickerOpen(true)} disabled={!selectedRfc || plans.length === 0}>
-          {plans.length === 0 ? 'Cargando planes…' : 'Ver planes y pagar'}
+        <Btn kind="brand" size="md" onClick={() => setPickerOpen(true)} disabled={!selectedRfc || !hasPlans}>
+          {!hasPlans ? 'Cargando planes…' : 'Ver planes y pagar'}
         </Btn>
       </div>
 
@@ -234,7 +236,7 @@ export function PlanScreen() {
           open={pickerOpen}
           onOpenChange={setPickerOpen}
           rfc={selectedRfc}
-          plans={plans}
+          catalog={catalog}
           onPaid={loadSubscription}
         />
       )}

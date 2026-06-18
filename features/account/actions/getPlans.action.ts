@@ -3,7 +3,7 @@
 import { ApiError, fetchGet } from "@/lib/api";
 import { API_ROUTES } from "@/lib/api/apiRoutes";
 import { type Result, err, ok } from "@/lib/common";
-import type { Plan } from "../types";
+import { type PlansCatalog, toPlansCatalog } from "../types";
 
 interface PlansError {
   statusCode: number;
@@ -12,14 +12,13 @@ interface PlansError {
 
 export async function getPlans(
   rfc: string,
-): Promise<Result<Plan[], PlansError>> {
+): Promise<Result<PlansCatalog, PlansError>> {
   try {
-    const data = await fetchGet<Plan[]>(
+    const data = await fetchGet<unknown>(
       API_ROUTES.CATALOGS.PLANS(rfc),
       "catalogs_procedures",
     );
-    const plans = Array.isArray(data) ? data.filter((p) => p.isActive) : [];
-    return ok(plans);
+    return ok(toPlansCatalog(data));
   } catch (e) {
     if (e instanceof ApiError) {
       return err({ statusCode: e.status, message: e.message });

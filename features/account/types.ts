@@ -24,6 +24,50 @@ export interface Plan {
   isActive: boolean;
 }
 
+/**
+ * Catálogo de venta tal como lo expone ahora el endpoint de planes.
+ * Antes era un `Plan[]` plano; ahora viene seccionado en tres listas.
+ * - `futurePlans`        → planes/suscripciones seleccionables.
+ * - `additionalProcedures` → trámites add-on (se agregan por cantidad).
+ * - `regularizations`    → regularizaciones add-on (se agregan por cantidad).
+ */
+export interface PlansCatalog {
+  futurePlans: Plan[];
+  additionalProcedures: Plan[];
+  regularizations: Plan[];
+}
+
+/** Catálogo vacío — útil como estado inicial y fallback. */
+export const EMPTY_PLANS_CATALOG: PlansCatalog = {
+  futurePlans: [],
+  additionalProcedures: [],
+  regularizations: [],
+};
+
+/** Normaliza la respuesta del endpoint a un `PlansCatalog` con activos. */
+export function toPlansCatalog(data: unknown): PlansCatalog {
+  const onlyActive = (arr: unknown): Plan[] =>
+    Array.isArray(arr) ? (arr as Plan[]).filter((p) => p?.isActive) : [];
+
+  // Compatibilidad: si llegara un arreglo plano (formato antiguo), lo
+  // repartimos por `productType` como se hacía antes.
+  if (Array.isArray(data)) {
+    const plans = onlyActive(data);
+    return {
+      futurePlans: plans.filter((p) => p.productType === 0),
+      additionalProcedures: plans.filter((p) => p.productType === 1),
+      regularizations: [],
+    };
+  }
+
+  const obj = (data ?? {}) as Record<string, unknown>;
+  return {
+    futurePlans: onlyActive(obj.futurePlans),
+    additionalProcedures: onlyActive(obj.additionalProcedures),
+    regularizations: onlyActive(obj.regularizations),
+  };
+}
+
 export interface RegisterSaleItem {
   subscriptionId: number; // = Plan.id (del plan o del add-on)
   quantity: number;
