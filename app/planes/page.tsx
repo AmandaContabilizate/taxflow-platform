@@ -1,4 +1,6 @@
 import { redirect } from 'next/navigation'
+import { getActivePlan } from '@/features/account/actions/getActivePlan.action'
+import type { ActivePlan } from '@/features/account/types'
 import { getCurrentUser } from '@/features/auth/actions'
 import type { FiscalRegime } from '@/lib/types'
 import PlanesClient from './planes-client'
@@ -23,10 +25,19 @@ export default async function PlanesPage() {
   // TODO(backend): leer credenciales/régimen del usuario desde el backend.
   const detectedRegimeName: string | null = null
 
+  // Plan activo del RFC en sesión (server-side; el RFC del usuario es la
+  // fuente canónica disponible aquí).
+  let activePlan: ActivePlan | null = null
+  if (user.rfc) {
+    const res = await getActivePlan(user.rfc)
+    if (res.success) activePlan = res.value
+  }
+
   return (
     <PlanesClient
       regimes={DEFAULT_REGIMES}
       detectedRegimeName={detectedRegimeName}
+      activePlan={activePlan}
     />
   )
 }

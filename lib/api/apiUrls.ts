@@ -35,6 +35,8 @@ export const API_BASE_URLS = {
   stripe: `${BASE_PROCEDURES}/stripe`, // OJO: stripe NO lleva /SQLServer
   // Reports
   dashboard_reports: `${BASE_REPORTS}/dashboard/3`,
+  declarations_reports: `${BASE_REPORTS}/declarations`,
+  sales_reports: `${BASE_REPORTS}/sales`,
 } as const;
 
 export type ApiType = keyof typeof API_BASE_URLS;

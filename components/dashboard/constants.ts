@@ -68,6 +68,7 @@ export const TITLES: Record<Screen, [string, string]> = {
   equipo: ['Equipo', 'Tu equipo de trabajo'],
   'reportes-ejecutivos': ['Reportes ejecutivos', 'KPIs y resultados del área'],
   operaciones: ['Centro de Operaciones', 'Gestión y supervisión de declaraciones fiscales'],
+  'tramites-adicionales': ['Trámites adicionales', 'Seguimiento de trámites vendidos a tus clientes'],
 }
 
 const GUEST_NAV: NavDef[] = [
@@ -131,6 +132,12 @@ const DECLARACIONES_ANUALES_ITEM: NavDef = {
   Icon: FileText,
   hint: 'Del ejercicio',
 }
+const TRAMITES_ADICIONALES_ITEM: NavDef = {
+  id: 'tramites-adicionales',
+  label: 'Trámites adicionales',
+  Icon: Receipt,
+  hint: 'Trámites vendidos',
+}
 const CATALOGOS_ITEM: NavDef = { id: 'catalogos', label: 'Catálogos', Icon: Layers, hint: 'Maestros del sistema' }
 const RENOVACIONES_ITEM: NavDef = {
   id: 'renovaciones',
@@ -184,6 +191,7 @@ export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
     MIS_CLIENTES_ITEM,
     OPERACIONES_ITEM,
     REGULARIZACIONES_ITEM,
+    TRAMITES_ADICIONALES_ITEM,
     DECLARACIONES_ANUALES_ITEM,
     MIS_TAREAS_ITEM,
     CATALOGOS_ITEM,
@@ -218,6 +226,7 @@ export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
     MIS_CLIENTES_ITEM,
     OPERACIONES_ITEM,
     REGULARIZACIONES_ITEM,
+    TRAMITES_ADICIONALES_ITEM,
     DECLARACIONES_ANUALES_ITEM,
     MIS_TAREAS_ITEM,
     EQUIPO_ITEM,

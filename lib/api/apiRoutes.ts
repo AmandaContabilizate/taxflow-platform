@@ -39,6 +39,17 @@ export const API_ROUTES = {
     ISSUED_INVOICES: "/issued-invoices",
     ACTIVE_CLIENTS: "/active-clients",
   },
+  // Operaciones (microservicio Reports)
+  DECLARATIONS_OPS: {
+    // kind: 2 = planes a futuro, 1 = regularizaciones. apiType "declarations_reports"
+    PAID_PENDING: (kind: number, skip = 0, take = 500) =>
+      `/paid-pending?kind=${kind}&skip=${skip}&take=${take}`,
+  },
+  SALES_OPS: {
+    // Trámites adicionales vendidos. apiType "sales_reports"
+    PROCEDURES: (skip = 0, take = 500) =>
+      `/procedures?skip=${skip}&take=${take}`,
+  },
   // Ventas / planes (microservicio Procedures)
   CATALOGS: {
     PLANS: (rfc: string) => `/plans?rfc=${encodeURIComponent(rfc)}`, // apiType "catalogs_procedures"
@@ -52,5 +63,7 @@ export const API_ROUTES = {
     SUBSCRIPTION_CURRENT: (rfc: string) =>
       `/subscription/current?rfc=${encodeURIComponent(rfc)}`,
     SUBSCRIPTION_CANCEL: "/subscription/cancel",
+    ACTIVE_PLAN: (rfc: string) =>
+      `/active-plan?rfc=${encodeURIComponent(rfc)}`, // apiType "stripe"
   },
 } as const;

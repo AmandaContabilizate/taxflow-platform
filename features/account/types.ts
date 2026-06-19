@@ -22,6 +22,26 @@ export interface Plan {
   featuresJson: string | null;
   features: string[] | null;
   isActive: boolean;
+  /**
+   * Solo presente en items de `regularizations`: id de la declaración que se
+   * regulariza. Se reenvía al backend como `regularizationDeclarationIds`.
+   */
+  declarationId?: number | null;
+}
+
+/**
+ * Declaración pendiente de pago + el plan de regularización que le corresponde.
+ * Espejo de `RegularizationPlanDto` del backend. El producto vendible es `plan`
+ * (puede venir null si no existe un plan para el régimen de la declaración).
+ */
+export interface RegularizationPlan {
+  declarationId: number;
+  year: number;
+  month: string | null;
+  taxRegimeId: number | null;
+  taxRegimeName: string | null;
+  satCode: string | null;
+  plan: Plan | null;
 }
 
 /**
@@ -29,12 +49,13 @@ export interface Plan {
  * Antes era un `Plan[]` plano; ahora viene seccionado en tres listas.
  * - `futurePlans`        → planes/suscripciones seleccionables.
  * - `additionalProcedures` → trámites add-on (se agregan por cantidad).
- * - `regularizations`    → regularizaciones add-on (se agregan por cantidad).
+ * - `regularizations`    → declaraciones pendientes a regularizar (cada una
+ *   trae su `plan` de regularización; se eligen y se agrupan por producto).
  */
 export interface PlansCatalog {
   futurePlans: Plan[];
   additionalProcedures: Plan[];
-  regularizations: Plan[];
+  regularizations: RegularizationPlan[];
 }
 
 /** Catálogo vacío — útil como estado inicial y fallback. */
@@ -61,10 +82,14 @@ export function toPlansCatalog(data: unknown): PlansCatalog {
   }
 
   const obj = (data ?? {}) as Record<string, unknown>;
+  // Regularizaciones: solo las que traen un plan vendible y activo.
+  const regularizations = Array.isArray(obj.regularizations)
+    ? (obj.regularizations as RegularizationPlan[]).filter((r) => r?.plan?.isActive)
+    : [];
   return {
     futurePlans: onlyActive(obj.futurePlans),
     additionalProcedures: onlyActive(obj.additionalProcedures),
-    regularizations: onlyActive(obj.regularizations),
+    regularizations,
   };
 }
 
@@ -72,6 +97,12 @@ export interface RegisterSaleItem {
   subscriptionId: number; // = Plan.id (del plan o del add-on)
   quantity: number;
   paymentMode: PaymentMode;
+  /**
+   * Solo se manda en items que son planes de regularización. Lista de
+   * `declarationId` (de `regularizations[]` en /plans) que cubre el item.
+   * Si el item no es regularización, se omite y el request queda igual que antes.
+   */
+  regularizationDeclarationIds?: number[];
 }
 
 export interface PaymentSheetRequest {
@@ -123,6 +154,30 @@ export interface CurrentSubscription {
 export interface CancelSubscriptionResponse {
   success: boolean;
   canceledAt?: string;
+}
+
+/**
+ * Plan activo del RFC (GET /api/stripe/active-plan?rfc=...). Cubre tanto
+ * suscripción (`type: "subscription"`) como pago único (`type: "one_time"`).
+ * Si `hasPlan` es false el resto de campos vienen en null.
+ */
+export interface ActivePlan {
+  hasPlan: boolean;
+  type: "one_time" | "subscription" | string | null;
+  saleId: number | null;
+  planId: number | null;
+  planKey: string | null;
+  planName: string | null;
+  price: number | null;
+  currency: string | null;
+  billingPeriod: BillingPeriod | null;
+  status: string | null;
+  subscriptionId: string | null;
+  renewDate: string | null;
+  nextChargeAmount: number | null;
+  paymentIntentId: string | null;
+  paidAmount: number | null;
+  paidAt: string | null;
 }
 
 // =============================================================

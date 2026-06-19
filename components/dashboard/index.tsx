@@ -21,8 +21,10 @@ import {
   PermisosScreen,
   PlaceholderScreen,
   PlanScreen,
+  RegularizacionesScreen,
   TipDetailScreen,
   TramitesScreen,
+  TramitesAdicionalesScreen,
 } from './screens'
 
 export default function Dashboard({ fullName, email, rfc, role, permissions }: DashboardProps) {
@@ -173,6 +175,12 @@ function ScreenRouter({
     }
     if (screen === 'operaciones') {
       return <OperacionesScreen />
+    }
+    if (screen === 'regularizaciones') {
+      return <RegularizacionesScreen />
+    }
+    if (screen === 'tramites-adicionales') {
+      return <TramitesAdicionalesScreen />
     }
     const [title, hint] = TITLES[screen] ?? ['Próximamente', '']
     return <PlaceholderScreen title={title} description={hint || undefined} />

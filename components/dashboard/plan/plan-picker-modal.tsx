@@ -1,7 +1,7 @@
 'use client'
 
 import { Elements } from '@stripe/react-stripe-js'
-import { CheckCircle2, Loader2, Minus, Plus } from 'lucide-react'
+import { Check, CheckCircle2, Loader2, Minus, Plus } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import {
   Dialog,
@@ -50,26 +50,16 @@ export function PlanPickerModal({
   const [paymentMode, setPaymentMode] = useState<PaymentMode>(0)
   const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null)
   const [qty, setQty] = useState<Record<number, number>>({})
+  // Regularizaciones seleccionadas, por declarationId.
+  const [selectedDecls, setSelectedDecls] = useState<Set<number>>(new Set())
   const [discountCode, setDiscountCode] = useState('')
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [processing, setProcessing] = useState(false)
 
   const planList = catalog.futurePlans
-  // Trámites y regularizaciones se muestran en secciones separadas pero
-  // comparten la misma mecánica de add-on (cantidad + suma al total).
-  const addonGroups = useMemo(
-    () =>
-      [
-        { title: 'Trámites adicionales', items: catalog.additionalProcedures },
-        { title: 'Regularizaciones', items: catalog.regularizations },
-      ].filter((g) => g.items.length > 0),
-    [catalog],
-  )
-  const addonList = useMemo(
-    () => [...catalog.additionalProcedures, ...catalog.regularizations],
-    [catalog],
-  )
+  const procedures = catalog.additionalProcedures
+  const regularizations = catalog.regularizations
 
   const selectedPlan = useMemo(
     () => planList.find((p) => p.id === selectedPlanId) ?? null,
@@ -84,6 +74,7 @@ export function PlanPickerModal({
     setPaymentMode(0)
     setSelectedPlanId(null)
     setQty({})
+    setSelectedDecls(new Set())
     setDiscountCode('')
     setClientSecret(null)
     setError(null)
@@ -97,27 +88,63 @@ export function PlanPickerModal({
     }
     setQty((prev) => {
       const next: Record<number, number> = {}
-      for (const addon of addonList) {
+      for (const addon of procedures) {
         if (isAvailableForMode(addon, paymentMode)) next[addon.id] = prev[addon.id] ?? 0
       }
       return next
     })
-  }, [paymentMode, selectedPlan, addonList])
+    setSelectedDecls((prev) => {
+      const next = new Set<number>()
+      for (const reg of regularizations) {
+        if (reg.plan && isAvailableForMode(reg.plan, paymentMode) && prev.has(reg.declarationId)) {
+          next.add(reg.declarationId)
+        }
+      }
+      return next
+    })
+  }, [paymentMode, selectedPlan, procedures, regularizations])
 
-  const addonsTotal = freeAddons
+  const proceduresTotal = freeAddons
     ? 0
-    : addonList.reduce((sum, a) => sum + a.price * (qty[a.id] ?? 0), 0)
-  const total = (selectedPlan?.price ?? 0) + addonsTotal
+    : procedures.reduce((sum, a) => sum + a.price * (qty[a.id] ?? 0), 0)
+  const regsTotal = freeAddons
+    ? 0
+    : regularizations.reduce(
+        (sum, r) => sum + (r.plan && selectedDecls.has(r.declarationId) ? r.plan.price : 0),
+        0,
+      )
+  const total = (selectedPlan?.price ?? 0) + proceduresTotal + regsTotal
 
   function buildItems(): RegisterSaleItem[] {
     if (!selectedPlan) return []
     const items: RegisterSaleItem[] = [
       { subscriptionId: selectedPlan.id, quantity: 1, paymentMode },
     ]
-    for (const addon of addonList) {
+
+    // Trámites adicionales — se mandan tal cual, por cantidad.
+    for (const addon of procedures) {
       const q = qty[addon.id] ?? 0
       if (q > 0) items.push({ subscriptionId: addon.id, quantity: q, paymentMode })
     }
+
+    // Regularizaciones — agrupamos los declarationId seleccionados bajo su
+    // producto (plan.id) y mandamos el campo opcional regularizationDeclarationIds.
+    const regGroups = new Map<number, number[]>()
+    for (const reg of regularizations) {
+      if (!reg.plan || !selectedDecls.has(reg.declarationId)) continue
+      const ids = regGroups.get(reg.plan.id) ?? []
+      ids.push(reg.declarationId)
+      regGroups.set(reg.plan.id, ids)
+    }
+    for (const [subscriptionId, declarationIds] of regGroups) {
+      items.push({
+        subscriptionId,
+        quantity: declarationIds.length,
+        paymentMode,
+        regularizationDeclarationIds: declarationIds,
+      })
+    }
+
     return items
   }
 
@@ -274,17 +301,17 @@ export function PlanPickerModal({
                 </div>
               </div>
 
-              {/* Add-ons / trámites — una sección por grupo del catálogo */}
-              {addonGroups.map((group) => (
-                <div key={group.title} className="flex flex-col gap-3">
+              {/* Trámites adicionales — por cantidad */}
+              {procedures.length > 0 && (
+                <div className="flex flex-col gap-3">
                   <div className="flex items-center justify-between">
                     <div className="text-[12px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
-                      {group.title}
+                      Trámites adicionales
                     </div>
                     {freeAddons && <Badge kind="brand">Gratis con tu plan</Badge>}
                   </div>
                   <div className="grid gap-2.5 sm:grid-cols-2">
-                    {group.items.map((addon) => {
+                    {procedures.map((addon) => {
                       const enabled = isAvailableForMode(addon, paymentMode)
                       const q = qty[addon.id] ?? 0
                       const inCart = q > 0
@@ -334,7 +361,69 @@ export function PlanPickerModal({
                     })}
                   </div>
                 </div>
-              ))}
+              )}
+
+              {/* Regularizaciones — declaraciones pendientes; se eligen (toggle) */}
+              {regularizations.length > 0 && (
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[12px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+                      Declaraciones por regularizar
+                    </div>
+                    {freeAddons && <Badge kind="brand">Gratis con tu plan</Badge>}
+                  </div>
+                  <div className="grid gap-2.5 sm:grid-cols-2">
+                    {regularizations.map((reg) => {
+                      const enabled = !!reg.plan && isAvailableForMode(reg.plan, paymentMode)
+                      const checked = selectedDecls.has(reg.declarationId)
+                      const periodo = [reg.month, reg.year].filter(Boolean).join(' ')
+                      const title =
+                        reg.taxRegimeName || reg.plan?.name || `Declaración ${reg.declarationId}`
+                      return (
+                        <button
+                          key={reg.declarationId}
+                          type="button"
+                          disabled={!enabled}
+                          onClick={() =>
+                            setSelectedDecls((prev) => {
+                              const next = new Set(prev)
+                              if (next.has(reg.declarationId)) next.delete(reg.declarationId)
+                              else next.add(reg.declarationId)
+                              return next
+                            })
+                          }
+                          className="text-left flex items-start justify-between gap-3 rounded-2xl p-3.5 transition disabled:opacity-45 disabled:cursor-not-allowed"
+                          style={{
+                            background: 'var(--card)',
+                            border: `1.5px solid ${checked ? 'var(--brand-500)' : 'var(--border)'}`,
+                          }}
+                        >
+                          <div className="min-w-0">
+                            <div className="font-bold text-[13.5px] leading-snug" style={{ color: 'var(--ink-900)' }}>
+                              {title}
+                            </div>
+                            <div className="text-[12px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                              {periodo || 'Declaración pendiente'}
+                              {reg.plan && !freeAddons ? ` · ${formatMXN(reg.plan.price)}` : ''}
+                              {freeAddons ? ' · Incluido' : ''}
+                            </div>
+                          </div>
+                          <div
+                            className="w-5 h-5 mt-0.5 rounded-md flex items-center justify-center flex-shrink-0"
+                            style={{
+                              background: checked ? 'var(--brand-500)' : 'transparent',
+                              border: `1.5px solid ${checked ? 'var(--brand-500)' : 'var(--border-strong)'}`,
+                              color: '#fff',
+                            }}
+                          >
+                            {checked && <Check size={13} />}
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Footer fijo: descuento + total + pagar (siempre visible) */}

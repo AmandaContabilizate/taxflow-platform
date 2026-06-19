@@ -3,9 +3,9 @@
 import { Check, FileText, Loader2, Lock, MessageCircle, Sparkles, Stethoscope } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { cancelSubscription } from '@/features/account/actions/cancelSubscription.action'
-import { getCurrentSubscription } from '@/features/account/actions/getCurrentSubscription.action'
+import { getActivePlan } from '@/features/account/actions/getActivePlan.action'
 import { getPlans } from '@/features/account/actions/getPlans.action'
-import { EMPTY_PLANS_CATALOG, formatMXN, periodLabel, type CurrentSubscription, type PlansCatalog } from '@/features/account/types'
+import { EMPTY_PLANS_CATALOG, formatMXN, periodLabel, type ActivePlan, type PlansCatalog } from '@/features/account/types'
 import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import { PlanPickerModal } from '../plan/plan-picker-modal'
 import { DISPLAY } from '../constants'
@@ -29,7 +29,7 @@ function formatRenewDate(value?: string): string | null {
 export function PlanScreen() {
   const { selectedRfc } = useRfcStore()
 
-  const [subscription, setSubscription] = useState<CurrentSubscription | null>(null)
+  const [activePlan, setActivePlan] = useState<ActivePlan | null>(null)
   const [loadingSub, setLoadingSub] = useState(true)
   const [catalog, setCatalog] = useState<PlansCatalog>(EMPTY_PLANS_CATALOG)
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -39,12 +39,12 @@ export function PlanScreen() {
   const loadSubscription = useCallback(async () => {
     if (!selectedRfc) return
     setLoadingSub(true)
-    const res = await getCurrentSubscription(selectedRfc)
+    const res = await getActivePlan(selectedRfc)
     setLoadingSub(false)
     if (res.success) {
-      setSubscription(res.value)
+      setActivePlan(res.value)
     } else {
-      setSubscription({ hasSubscription: false })
+      setActivePlan(null)
     }
   }, [selectedRfc])
 
@@ -62,23 +62,24 @@ export function PlanScreen() {
   }, [selectedRfc, loadSubscription])
 
   const handleCancel = useCallback(async () => {
-    if (!subscription?.subscriptionId) return
+    if (!activePlan?.subscriptionId) return
     if (!window.confirm('¿Cancelar tu suscripción? Conservarás el acceso hasta el final del periodo.')) {
       return
     }
     setCanceling(true)
     setError(null)
-    const res = await cancelSubscription(subscription.subscriptionId)
+    const res = await cancelSubscription(activePlan.subscriptionId)
     setCanceling(false)
     if (res.success) {
       void loadSubscription()
     } else {
       setError(res.error.message)
     }
-  }, [subscription, loadSubscription])
+  }, [activePlan, loadSubscription])
 
-  const hasSub = subscription?.hasSubscription === true
-  const renewDate = formatRenewDate(subscription?.renewDate)
+  const hasSub = activePlan?.hasPlan === true
+  const isSubscription = activePlan?.type === 'subscription'
+  const renewDate = formatRenewDate(activePlan?.renewDate ?? undefined)
   const planCount = catalog.futurePlans.length
   const hasPlans = planCount > 0
 
@@ -103,11 +104,15 @@ export function PlanScreen() {
         ) : hasSub ? (
           <>
             <div className="text-[44px] lg:text-[56px] font-extrabold tracking-tight leading-none mt-4" style={DISPLAY}>
-              {subscription?.planName ?? 'Tu plan'}
+              {activePlan?.planName ?? 'Tu plan'}
             </div>
             <div className="text-[14px] mt-2" style={{ color: 'rgba(255,255,255,0.8)' }}>
-              {periodLabel(subscription?.billingPeriod)}
-              {renewDate ? ` · se renueva el ${renewDate}` : ''}
+              {periodLabel(activePlan?.billingPeriod ?? undefined)}
+              {isSubscription
+                ? renewDate
+                  ? ` · se renueva el ${renewDate}`
+                  : ''
+                : ' · pago único'}
             </div>
             <div
               className="mt-5 pt-5 flex items-center justify-between flex-wrap gap-3"
@@ -118,15 +123,21 @@ export function PlanScreen() {
                   className="text-[11.5px] font-extrabold uppercase tracking-wider"
                   style={{ color: 'rgba(255,255,255,0.6)' }}
                 >
-                  Próximo cargo
+                  {isSubscription ? 'Próximo cargo' : 'Pagado'}
                 </div>
                 <div className="text-[32px] font-extrabold tracking-tight mt-1" style={DISPLAY}>
-                  {subscription?.nextChargeAmount != null
-                    ? formatMXN(subscription.nextChargeAmount)
-                    : '—'}
+                  {isSubscription
+                    ? activePlan?.nextChargeAmount != null
+                      ? formatMXN(activePlan.nextChargeAmount)
+                      : '—'
+                    : activePlan?.paidAmount != null
+                      ? formatMXN(activePlan.paidAmount)
+                      : activePlan?.price != null
+                        ? formatMXN(activePlan.price)
+                        : '—'}
                 </div>
                 <div className="text-[12.5px]" style={{ color: 'rgba(255,255,255,0.6)' }}>
-                  {subscription?.currency ?? 'MXN'} · IVA incluido
+                  {activePlan?.currency ?? 'MXN'} · IVA incluido
                 </div>
               </div>
               <Btn
@@ -217,7 +228,7 @@ export function PlanScreen() {
         </Btn>
       </div>
 
-      {hasSub && (
+      {isSubscription && activePlan?.subscriptionId && (
         <Btn block kind="ghost" style={{ color: '#B01F1F' }} disabled={canceling} onClick={handleCancel}>
           {canceling ? (
             <>
