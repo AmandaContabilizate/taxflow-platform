@@ -10,6 +10,7 @@ export default async function DashboardPage() {
   const cookieStore = await cookies()
   const role = cookieStore.get('claim_role')?.value ?? null
   const permissions = parsePermissions(cookieStore.get('claim_permission')?.value)
+  const userId = cookieStore.get('userId')?.value ?? null
 
   return (
     <Dashboard
@@ -18,6 +19,7 @@ export default async function DashboardPage() {
       rfc={user.rfc ?? null}
       role={role}
       permissions={permissions}
+      userId={userId}
     />
   )
 }

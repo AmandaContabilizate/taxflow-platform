@@ -17,6 +17,7 @@ export type Screen =
   // Roles operativos
   | 'usuarios'
   | 'clientes'
+  | 'contribuyentes'
   | 'actividad'
   | 'comisiones'
   | 'mis-tareas'
@@ -34,10 +35,13 @@ export type Screen =
   | 'reportes-ejecutivos'
   | 'operaciones'
   | 'tramites-adicionales'
+  | 'ventas'
+  | 'roles'
 
 export type RoleKey =
   | 'guest'
-  | 'ventas'
+  | 'developer'
+  | 'seller'
   | 'atencion-clientes'
   | 'accounter'
   | 'renovaciones'
@@ -58,6 +62,7 @@ export interface DashboardProps {
   rfc: string | null
   role: string | null
   permissions: string[]
+  userId?: string | null
 }
 
 export type GoFn = (s: Screen) => void

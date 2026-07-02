@@ -2,7 +2,16 @@
  * Contratos del Centro de Operaciones (microservicio Reports).
  * - Declaraciones pagadas pendientes (`/declarations/paid-pending`).
  * - Trámites adicionales vendidos (`/sales/procedures`).
+ * - Resumen de ventas (`/sales/summary`).
  */
+
+/** Respuesta paginada del backend (skip/take/total). */
+export interface Paged<T> {
+  items: T[];
+  total: number;
+  skip: number;
+  take: number;
+}
 
 /** Tipo de declaración pendiente. 2 = plan a futuro, 1 = regularización. */
 export const DECLARATION_KIND = {
@@ -50,4 +59,25 @@ export interface ProcedureSale {
   notes: string | null;
   completedAt: string | null;
   createdAt: string;
+}
+
+/** Producto incluido en una venta (`SaleItem` + plan). */
+export interface ProductoVenta {
+  subscriptionId: number;
+  nombre: string;
+  descripcion: string;
+  cantidad: number;
+}
+
+/** Item de `/sales/summary` (VentaResumenCuentaDto). */
+export interface VentaResumen {
+  saleId: number;
+  saleDate: string;
+  amount: number;
+  rfc: string;
+  taxpayerId: number;
+  userId: string;
+  userFullName: string;
+  userEmail: string;
+  productos: ProductoVenta[];
 }

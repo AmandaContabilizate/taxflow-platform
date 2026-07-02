@@ -14,6 +14,20 @@ export const API_ROUTES = {
     SEND_CODE: "/SendCode",         // POST   apiType "users" → /api/users/SendCode
     VALIDATE_CODE: "/ValidateConfirmationCode", // POST apiType "users"
     COMPLETE_PROFILE: "/CompleteUserProfile",   // POST apiType "users" (auth)
+    // Roles del usuario. apiType "users"
+    ASSIGN_ROLE: "/assign-role",    // POST   → /api/users/.../assign-role
+    REMOVE_ROLE: "/remove-role",    // POST   → /api/users/.../remove-role
+    ROLES: (userId: string) => `/${encodeURIComponent(userId)}/roles`, // GET|PUT
+    SWITCH_ROLE: "/switch-role",    // POST   (cambia rol activo, devuelve JWT nuevo)
+  },
+  // Administración de roles (microservicio Identity). apiType "roles"
+  ROLES: {
+    LIST: "/roles-list",                                   // GET
+    GET: (roleId: string) => `/roles/${encodeURIComponent(roleId)}`, // GET
+    CREATE: "/roles",                                      // POST
+    UPDATE: "/roles",                                      // PUT
+    DELETE: (roleId: string) => `/roles/${encodeURIComponent(roleId)}`, // DELETE
+    CLAIMS_CATALOG: "/claims-catalog",                     // GET
   },
   TAXPAYERS: {
     ROOT: "",
@@ -49,6 +63,30 @@ export const API_ROUTES = {
     // Trámites adicionales vendidos. apiType "sales_reports"
     PROCEDURES: (skip = 0, take = 500) =>
       `/procedures?skip=${skip}&take=${take}`,
+    // Resumen de ventas (cuenta + productos). apiType "sales_reports"
+    SUMMARY: (skip = 0, take = 100, rfc?: string) =>
+      `/summary?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}`,
+  },
+  // Padrón de contribuyentes / clientes (microservicio Reports)
+  TAXPAYERS_OPS: {
+    // Todos los contribuyentes. apiType "taxpayers_reports"
+    LIST: (skip = 0, take = 100, rfc?: string) =>
+      `?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}`,
+    // Contribuyentes con ventas pagadas (= clientes). apiType "taxpayers_reports"
+    WITH_PAID_SALES: (skip = 0, take = 100, rfc?: string) =>
+      `/with-paid-sales?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}`,
+    // Cartera del contador autenticado (o de otro vía accountantUserId). apiType "taxpayers_reports"
+    MY_CLIENTS: (skip = 0, take = 100, rfc?: string, accountantUserId?: string) =>
+      `/my-clients?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${
+        accountantUserId ? `&accountantUserId=${encodeURIComponent(accountantUserId)}` : ""
+      }`,
+  },
+  // Asignación de contador a contribuyente (microservicio Procedures). apiType "accountant_assignments"
+  ACCOUNTANT_ASSIGNMENTS: {
+    // Ver asignación actual + historial + pool de contadores.
+    GET: (taxpayerId: number) => `/${taxpayerId}`,
+    // Reasignar contribuyente a otro contador.
+    REASSIGN: "/reassign",
   },
   // Ventas / planes (microservicio Procedures)
   CATALOGS: {

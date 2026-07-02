@@ -75,7 +75,7 @@ export default function PlanesClient({ regimes, detectedRegimeName, activePlan }
           className="flex items-center gap-2 text-sm font-semibold transition-all"
           style={{ color: 'var(--muted-foreground)' }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6" /></svg>
           Volver al dashboard
         </a>
       </header>

@@ -22,6 +22,7 @@ import {
   RefreshCw,
   RotateCcw,
   ShieldCheck,
+  ShoppingCart,
   Sparkles,
   Stethoscope,
   Target,
@@ -39,7 +40,7 @@ export const TITLES: Record<Screen, [string, string]> = {
   home: ['Hola 👋', 'Aquí tienes lo importante de hoy'],
   declaraciones: ['Mis declaraciones', 'Tus impuestos mes con mes, sin complicarte'],
   facturas: ['Mis facturas', 'Las facturas que emites a tus clientes'],
-  documentos: ['Mis documentos', 'Todo lo que el SAT tiene de ti, en un solo lugar'],
+  documentos: ['Mi bóveda', 'Tus documentos y facturas del SAT, en un solo lugar'],
   diagnostico: ['Diagnóstico fiscal', 'Cómo estás y qué puedes mejorar'],
   aprende: ['Aprende', 'Lecciones cortas para entender tus impuestos'],
   'tip-detail': ['Lección', 'Aprende algo útil en pocos minutos'],
@@ -51,7 +52,8 @@ export const TITLES: Record<Screen, [string, string]> = {
   permisos: ['Modificador de permisos', 'Edita los permisos asignados a tu rol'],
   // Roles operativos
   usuarios: ['Usuarios', 'Administra usuarios del sistema'],
-  clientes: ['Clientes', 'Cartera de clientes'],
+  clientes: ['Clientes', 'Contribuyentes con ventas pagadas'],
+  contribuyentes: ['Contribuyentes', 'Padrón completo de contribuyentes'],
   actividad: ['Actividad', 'Movimientos y eventos recientes'],
   comisiones: ['Comisiones', 'Tus comisiones y liquidaciones'],
   'mis-tareas': ['Mis tareas', 'Pendientes asignados a ti'],
@@ -69,13 +71,15 @@ export const TITLES: Record<Screen, [string, string]> = {
   'reportes-ejecutivos': ['Reportes ejecutivos', 'KPIs y resultados del área'],
   operaciones: ['Centro de Operaciones', 'Gestión y supervisión de declaraciones fiscales'],
   'tramites-adicionales': ['Trámites adicionales', 'Seguimiento de trámites vendidos a tus clientes'],
+  ventas: ['Ventas', 'Resumen de ventas registradas por cuenta'],
+  roles: ['Roles y permisos', 'Administra roles, sus permisos y los roles de cada usuario'],
 }
 
 const GUEST_NAV: NavDef[] = [
   { id: 'home', label: 'Inicio', Icon: Home, hint: 'Tu resumen del día' },
   { id: 'declaraciones', label: 'Declaraciones', Icon: FileText, hint: 'Tus impuestos del mes' },
   { id: 'facturas', label: 'Facturas', Icon: FilePlus, hint: 'Emite y revisa facturas' },
-  { id: 'documentos', label: 'Documentos', Icon: FolderLock, hint: 'CFDI y constancias del SAT' },
+  { id: 'documentos', label: 'Bóveda', Icon: FolderLock, hint: 'Tu bóveda digital de CFDI y constancias' },
   { id: 'diagnostico', label: 'Diagnóstico', Icon: Stethoscope, hint: 'Tu situación fiscal' },
   { id: 'aprende', label: 'Aprende', Icon: Sparkles, hint: 'Lecciones cortas' },
   { id: 'tramites', label: 'Trámites', Icon: FilePlus2, hint: 'Servicios extra' },
@@ -120,6 +124,12 @@ const PIPELINE_ITEM: NavDef = {
   hint: 'Estado de oportunidades',
 }
 const MIS_CLIENTES_ITEM: NavDef = { id: 'mis-clientes', label: 'Mis clientes', Icon: Briefcase, hint: 'Tus clientes' }
+const CONTRIBUYENTES_ITEM: NavDef = {
+  id: 'contribuyentes',
+  label: 'Contribuyentes',
+  Icon: Users,
+  hint: 'Padrón completo',
+}
 const REGULARIZACIONES_ITEM: NavDef = {
   id: 'regularizaciones',
   label: 'Regularizaciones',
@@ -164,14 +174,35 @@ const OPERACIONES_ITEM: NavDef = {
   Icon: Briefcase,
   hint: 'Gestión de declaraciones',
 }
+const VENTAS_ITEM: NavDef = {
+  id: 'ventas',
+  label: 'Ventas',
+  Icon: ShoppingCart,
+  hint: 'Resumen de ventas',
+}
+const ROLES_ITEM: NavDef = {
+  id: 'roles',
+  label: 'Roles y permisos',
+  Icon: ShieldCheck,
+  hint: 'Administra roles y permisos',
+}
 
 export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
   guest: GUEST_NAV,
-  ventas: [
+  // Perfil administrativo / superusuario: administración de roles y padrones.
+  developer: [
+    DASHBOARD_ITEM,
+    USUARIOS_ITEM,
+    CONTRIBUYENTES_ITEM,
+    CLIENTES_ITEM,
+    ROLES_ITEM,
+  ],
+  seller: [
     DASHBOARD_ITEM,
     USUARIOS_ITEM,
     CLIENTES_ITEM,
     OPERACIONES_ITEM,
+    VENTAS_ITEM,
     ACTIVIDAD_ITEM,
     COMISIONES_ITEM,
     MIS_TAREAS_ITEM,
@@ -189,6 +220,8 @@ export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
   accounter: [
     DASHBOARD_ITEM,
     MIS_CLIENTES_ITEM,
+    CLIENTES_ITEM,
+    CONTRIBUYENTES_ITEM,
     OPERACIONES_ITEM,
     REGULARIZACIONES_ITEM,
     TRAMITES_ADICIONALES_ITEM,
@@ -247,8 +280,12 @@ export function normalizeRole(raw: string | null | undefined): RoleKey {
   switch (slug) {
     case 'guest':
       return 'guest'
+    case 'developer':
+    case 'dev':
+      return 'developer'
+    case 'seller':
     case 'ventas':
-      return 'ventas'
+      return 'seller'
     case 'atencion a clientes':
     case 'atencion clientes':
     case 'sac':

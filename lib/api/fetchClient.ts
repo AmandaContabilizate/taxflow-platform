@@ -99,12 +99,16 @@ async function request<T>(
   }
 
   if (!response.ok) {
+    // Distintos formatos de error del backend: `error` (respuestas custom),
+    // ProblemDetails `detail` (específico) y `title` (genérico, p. ej. "Not
+    // Found"). Preferimos el mensaje más específico disponible.
     const message =
       typeof data === "string"
         ? data
-        : (data as { message?: string; title?: string; detail?: string })?.message ??
-        (data as { title?: string })?.title ??
+        : (data as { message?: string; error?: string; detail?: string; title?: string })?.message ??
+        (data as { error?: string })?.error ??
         (data as { detail?: string })?.detail ??
+        (data as { title?: string })?.title ??
         response.statusText;
     throw new ApiError({
       message: message || `HTTP ${response.status}`,

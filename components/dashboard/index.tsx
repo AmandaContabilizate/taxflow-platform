@@ -11,23 +11,41 @@ import type { DashboardProps, Screen } from './types'
 import {
   AprendeScreen,
   AyudaScreen,
+  ClientesScreen,
+  ContribuyentesScreen,
   CuentaScreen,
   DeclaracionesScreen,
   DiagnosticoScreen,
   DocumentosScreen,
   FacturasScreen,
   HomeScreen,
+  MisClientesScreen,
   OperacionesScreen,
   PermisosScreen,
   PlaceholderScreen,
   PlanScreen,
   RegularizacionesScreen,
+  RolesScreen,
   TipDetailScreen,
   TramitesScreen,
   TramitesAdicionalesScreen,
+  VentasScreen,
 } from './screens'
 
-export default function Dashboard({ fullName, email, rfc, role, permissions }: DashboardProps) {
+// Pantallas de tablas/listados densos que aprovechan todo el ancho disponible.
+// El resto se mantiene en max-w-[1280px] para lectura cómoda.
+const WIDE_SCREENS = new Set<Screen>([
+  'operaciones',
+  'regularizaciones',
+  'tramites-adicionales',
+  'mis-clientes',
+  'clientes',
+  'contribuyentes',
+  'ventas',
+  'roles',
+])
+
+export default function Dashboard({ fullName, email, rfc, role, permissions, userId }: DashboardProps) {
   const [screen, setScreen] = useState<Screen>('home')
   const [mobileOpen, setMobileOpen] = useState(false)
   const [signingOut, startSignOut] = useTransition()
@@ -69,7 +87,11 @@ export default function Dashboard({ fullName, email, rfc, role, permissions }: D
         role={role}
       />
 
-      <main className="min-w-0 px-5 py-6 lg:px-10 lg:py-7 pb-20 max-w-[1280px]">
+      <main
+        className={`min-w-0 px-5 py-6 lg:px-10 lg:py-7 pb-20 ${
+          WIDE_SCREENS.has(screen) ? 'w-full' : 'max-w-[1280px]'
+        }`}
+      >
         <div className="flex items-center justify-between gap-4 mb-7">
           <div className="flex items-center gap-3">
             <button
@@ -106,6 +128,7 @@ export default function Dashboard({ fullName, email, rfc, role, permissions }: D
           signingOut={signingOut}
           role={role}
           permissions={permissions}
+          userId={userId}
         />
       </main>
     </div>
@@ -125,6 +148,7 @@ interface RouterProps {
   signingOut: boolean
   role: string | null
   permissions: string[]
+  userId?: string | null
 }
 
 function ScreenRouter({
@@ -139,6 +163,7 @@ function ScreenRouter({
   signingOut,
   role,
   permissions,
+  userId,
 }: RouterProps) {
   const roleKey = normalizeRole(role)
   const isGuest = roleKey === 'guest'
@@ -181,6 +206,21 @@ function ScreenRouter({
     }
     if (screen === 'tramites-adicionales') {
       return <TramitesAdicionalesScreen />
+    }
+    if (screen === 'mis-clientes') {
+      return <MisClientesScreen />
+    }
+    if (screen === 'clientes') {
+      return <ClientesScreen permissions={permissions} />
+    }
+    if (screen === 'contribuyentes') {
+      return <ContribuyentesScreen />
+    }
+    if (screen === 'ventas') {
+      return <VentasScreen />
+    }
+    if (screen === 'roles') {
+      return <RolesScreen currentUserId={userId ?? undefined} />
     }
     const [title, hint] = TITLES[screen] ?? ['Próximamente', '']
     return <PlaceholderScreen title={title} description={hint || undefined} />

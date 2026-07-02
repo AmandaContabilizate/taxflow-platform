@@ -32,11 +32,14 @@ export const API_BASE_URLS = {
   // Procedures · ventas / planes
   catalogs_procedures: `${BASE_PROCEDURES}/catalogs${DbOrigin}`,
   finances: `${BASE_PROCEDURES}/finances${DbOrigin}`,
+  // Asignación de contador a contribuyente. OJO: NO lleva /SQLServer.
+  accountant_assignments: `${BASE_PROCEDURES}/accountant-assignments`,
   stripe: `${BASE_PROCEDURES}/stripe`, // OJO: stripe NO lleva /SQLServer
   // Reports
   dashboard_reports: `${BASE_REPORTS}/dashboard/3`,
   declarations_reports: `${BASE_REPORTS}/declarations`,
   sales_reports: `${BASE_REPORTS}/sales`,
+  taxpayers_reports: `${BASE_REPORTS}/taxpayers`,
 } as const;
 
 export type ApiType = keyof typeof API_BASE_URLS;
