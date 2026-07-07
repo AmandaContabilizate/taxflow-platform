@@ -8,10 +8,13 @@ __v0_jsx-dev-runtime.ts
 next.user-config.*
 
 # Environment variables
-.env*.local
-.env
+#.env*.local solo valores de desarrollo local
+#.env -- solo valores de desarrollo local
 
 # Common ignores
 node_modules
 .next/
 .DS_Store
+
+# Deploy zips (scripts/build-deploy-zip.mjs)
+deploy/

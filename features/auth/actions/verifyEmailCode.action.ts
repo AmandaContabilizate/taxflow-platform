@@ -49,14 +49,9 @@ export async function verifyEmailCode(
     return ok(redirectPath);
   } catch (e) {
     if (e instanceof ApiError) {
-      const body = e.body as
-        | { detail?: string; title?: string }
-        | undefined;
-      const message =
-        body?.detail || body?.title || "Código inválido o expirado";
       return err({
         statusCode: e.status,
-        fieldErrors: { code: [message] },
+        fieldErrors: { code: [e.message || "Código inválido o expirado"] },
       });
     }
     console.error("[verifyEmailCode] Error:", e);

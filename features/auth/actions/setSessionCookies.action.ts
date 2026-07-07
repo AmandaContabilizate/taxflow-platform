@@ -15,6 +15,13 @@ interface SessionData {
 
 interface SetSessionCookiesOptions {
   rememberMe?: boolean;
+  /**
+   * true cuando la sesión se crea dentro del puente SSO/iframe (partner
+   * embebiendo ContaboxPro). Requiere SameSite=None para que las cookies
+   * sobrevivan en contexto cross-site, lo que a su vez obliga Secure=true
+   * sin importar el chequeo de `isHttps`.
+   */
+  embedded?: boolean;
 }
 
 const RESERVED_CLAIMS = new Set(["iat", "nbf", "exp", "iss", "aud", "jti"]);
@@ -49,8 +56,8 @@ export async function setSessionCookies(
 
   const baseCookie = {
     httpOnly: true,
-    secure: Boolean(isHttps),
-    sameSite: "lax" as const,
+    secure: options.embedded ? true : Boolean(isHttps),
+    sameSite: options.embedded ? ("none" as const) : ("lax" as const),
     path: "/",
   };
 

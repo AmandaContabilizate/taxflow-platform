@@ -1,0 +1,242 @@
+{
+  "INVALID_INPUT": {
+    "es": "Entrada inválida. Faltan o son incorrectos los parámetros.",
+    "en": "Invalid input. Missing or incorrect parameters."
+  },
+  "INVALID_PHOTO_TYPE": {
+    "es": "El archivo debe ser una imagen JPG o PNG.",
+    "en": "File must be a JPG or PNG image."
+  },
+  "INVALID_PHOTO_SIZE": {
+    "es": "La foto debe tener un tamaño máximo de 2 MB.",
+    "en": "Photo must be at most 2 MB."
+  },
+  "PHOTO_UPDATE_FAILED": {
+    "es": "No se pudo actualizar la foto del usuario.",
+    "en": "Failed to update user photo."
+  },
+  "USER_CREATION_FAILED": {
+    "es": "No se pudo crear o actualizar el usuario.",
+    "en": "Failed to create or update user."
+  },
+  "USER_ALREADY_REGISTERED": {
+    "es": "El correo ya está registrado.",
+    "en": "The email is already registered."
+  },
+  "USER_ROLE_ASSIGN_FAILED": {
+    "es": "No se pudo asignar el rol por defecto al usuario.",
+    "en": "Failed to assign default role to user."
+  },
+  "USER_UPDATE_PASSWORD_FAILED": {
+    "es": "No se pudo actualizar la contraseña del usuario.",
+    "en": "Failed to update user password."
+  },
+  "UNEXPECTED_ERROR": {
+    "es": "Ocurrió un error inesperado.",
+    "en": "An unexpected error occurred."
+  },
+  "INVALID_REQUEST": {
+    "es": "La solicitud es inválida.",
+    "en": "The request is invalid."
+  },
+  "PROCESSING_ERROR": {
+    "es": "Ocurrió un error al procesar la solicitud.",
+    "en": "An error occurred while processing the request."
+  },
+  "INVOICE_XML_NOT_FOUND": {
+    "es": "No se encontró el XML de la factura.",
+    "en": "Invoice XML not found."
+  },
+  "EXPENSE_XML_NOT_FOUND": {
+    "es": "No se encontró el XML del gasto.",
+    "en": "Expense XML not found."
+  },
+  "RETENTION_XML_NOT_FOUND": {
+    "es": "No se encontró el XML de retención.",
+    "en": "Retention XML not found."
+  },
+  "INVOICE_PDF_NOT_FOUND": {
+    "es": "No se encontró el PDF de la factura.",
+    "en": "Invoice PDF not found."
+  },
+  "EXPENSE_PDF_NOT_FOUND": {
+    "es": "No se encontró el PDF del gasto.",
+    "en": "Expense PDF not found."
+  },
+  "RETENTION_PDF_NOT_FOUND": {
+    "es": "No se encontró el PDF de retención.",
+    "en": "Retention PDF not found."
+  },
+  "INVALID_CODE_FORMAT": {
+    "es": "El código debe ser un número válido.",
+    "en": "The code must be a valid number."
+  },
+  "CONFIRMATION_VALIDATION_FAILED": {
+    "es": "La validación de la confirmación falló.",
+    "en": "Confirmation validation failed."
+  },
+  "CODE_NOT_FOUND": {
+    "es": "No se encontró un código de confirmación para este usuario.",
+    "en": "No confirmation code found for this user."
+  },
+  "INVALID_CODE": {
+    "es": "El código de confirmación es inválido.",
+    "en": "The confirmation code is invalid."
+  },
+  "USER_NOT_FOUND": {
+    "es": "Usuario no encontrado.",
+    "en": "User not found."
+  },
+  "USER_UPDATE_FAILED": {
+    "es": "No se pudo actualizar la información del usuario.",
+    "en": "Failed to update user information."
+  },
+  "UNKNOW_PARTNERSHIP": {
+    "es": "El código de referido no pertenece a ninguna alianza.",
+    "en": "Referral code does not belong to any partnership."
+  },
+  "UPDATE_FAILED": {
+    "es": "Actualización fallida.",
+    "en": "Update failed."
+  },
+  "PROFILE_SAVE_FAILED": {
+    "es": "No se pudo guardar el perfil del usuario.",
+    "en": "Failed to save user profile."
+  },
+  "ROLE_NOT_FOUND": {
+    "es": "Rol no encontrado.",
+    "en": "Role not found."
+  },
+  "ROLE_INACTIVE": {
+    "es": "El rol está inactivo.",
+    "en": "Role is inactive."
+  },
+  "ROLE_ALREADY_ASSIGNED": {
+    "es": "El usuario ya tiene asignado ese rol.",
+    "en": "User already has this role."
+  },
+  "ROLE_ASSIGN_FAILED": {
+    "es": "No se pudo asignar el rol al usuario.",
+    "en": "Failed to assign role to user."
+  },
+  "ROLE_NOT_ASSIGNED": {
+    "es": "El usuario no tiene asignado el rol especificado.",
+    "en": "User is not assigned to the specified role."
+  },
+  "CANNOT_REMOVE_LAST_ROLE": {
+    "es": "No se puede dejar al usuario sin roles.",
+    "en": "User cannot be left without roles."
+  },
+  "ROLE_REMOVE_FAILED": {
+    "es": "No se pudo remover el rol del usuario.",
+    "en": "Failed to remove role from user."
+  },
+  "EXTERNAL_AUTH_FAILED": {
+    "es": "Falló la autenticación externa.",
+    "en": "External authentication failed."
+  },
+  "FAILED_CREATE_USER": {
+    "es": "No se pudo crear el usuario.",
+    "en": "Failed to create user."
+  },
+  "FAILED_ADD_EXTERNAL_LOGIN": {
+    "es": "No se pudo asociar el inicio de sesión externo.",
+    "en": "Failed to add external login."
+  },
+  "INVALID_CREDENTIALS": {
+    "es": "Credenciales inválidas.",
+    "en": "Invalid credentials."
+  },
+  "TAXPAYER_NOT_FOUND": {
+    "es": "No se encontro al contribuyente.",
+    "en": "Taxpayer not found."
+  },
+  "DB_SERVICE_NOT_RESOLVED": {
+    "es": "No se pudo resolver el servicio de base de datos.",
+    "en": "Database service could not be resolved."
+  },
+  "PDF_GEN_EMPTY_HTML": {
+    "es": "El servicio de generación de PDF devolvió HTML vacío.",
+    "en": "PDF generation service returned empty HTML."
+  },
+  "CERT_PARSE_FAILED": {
+    "es": "No se pudo parsear el certificado (.cer).",
+    "en": "Unable to parse certificate (.cer)."
+  },
+  "RFC_NOT_IN_CERT": {
+    "es": "El RFC no se encontró en los campos del certificado.",
+    "en": "RFC not found in certificate fields."
+  },
+  "CERT_NOT_VALID": {
+    "es": "El certificado no es válido en el periodo actual.",
+    "en": "Certificate is not currently valid."
+  },
+  "CERT_VALIDATION_SAT_FAILED": {
+    "es": "La validación del certificado contra SAT falló.",
+    "en": "Certificate validation against SAT failed."
+  },
+  "CERT_VALIDATION_SAT_ERROR": {
+    "es": "Error al validar el certificado contra SAT.",
+    "en": "Error validating certificate against SAT."
+  },
+  "CERT_THUMBPRINT_MISSING": {
+    "es": "No se pudo determinar la huella digital del certificado.",
+    "en": "Certificate thumbprint could not be determined."
+  },
+  "CERT_THUMBPRINT_EXISTS": {
+    "es": "Ya existe un certificado con la misma huella digital.",
+    "en": "A certificate with the same thumbprint already exists."
+  },
+  "PRIVATE_KEY_LOAD_FAILED": {
+    "es": "No se pudo cargar la clave privada.",
+    "en": "Unable to load private key."
+  },
+  "KEY_CERT_MISMATCH": {
+    "es": "La clave privada y el certificado no coinciden.",
+    "en": "Certificate and private key do not match."
+  },
+  "KEY_VALIDATION_ERROR": {
+    "es": "Error al validar el par clave-certificado.",
+    "en": "Error validating key pair."
+  },
+  "SAVE_FILES_FAILED": {
+    "es": "Error al guardar los archivos o registro en la base de datos.",
+    "en": "Error saving files or db record."
+  },
+  "LOAD_DIGITAL_IDENTITY_FAILED": {
+    "es": "Fallo al cargar la identidad digital.",
+    "en": "Failed to load digital identity."
+  },
+  "INVALID_RFC_LENGTH": {
+    "es": "El RFC debe tener entre 12 y 13 caracteres.",
+    "en": "The RFC must be between 12 and 13 characters long."
+  },
+  "ALREADY_EXISTS": {
+    "es": "El RFC ya existe.",
+    "en": "The RFC already exists."
+  },
+  "TIMBRAME_USER_NOT_FOUND": {
+    "es": "Tu cuenta aún no está habilitada en el módulo de Facturación. Por favor, contacta a soporte para activar este servicio.",
+    "en": "Your account is not yet enabled for the Billing module. Please contact support to activate this service."
+  },
+  "TIMBRAME_AUTH_FAILED": {
+    "es": "No fue posible conectar con el servicio de Facturación. Intenta de nuevo en unos momentos.",
+    "en": "Unable to connect to the Billing service. Please try again in a few moments."
+  },
+  "EMAIL_ALREADY_EXISTS": {
+    "es": "El correo electrónico ya está en uso por otro usuario.",
+    "en": "The email is already in use by another user."
+  },
+  "CIEC_INVALID": {
+    "es": "La CIEC no es válida. Actualice sus credenciales del SAT.",
+    "en": "The CIEC is invalid. Please update your SAT credentials."
+  },
+  "DOCUMENT_UNAVAILABLE": {
+    "es": "No se pudo obtener el documento fiscal. Intente más tarde.",
+    "en": "The fiscal document could not be retrieved. Please try again later."
+  },
+  "TIMBRAME_REGISTRATION_FAILED": {
+    "es": "No se pudo completar el registro automático. Asegúrate de tener al menos un régimen fiscal activo configurado en tu perfil.",
+    "en": "Could not complete automatic registration on Tímbrame. Make sure to have at least one active tax regime configured in your profile."
+  }
+}

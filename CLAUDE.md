@@ -1,4 +1,6 @@
-# Contabilízate — Guía para desarrollo
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Stack
 - Next.js 16 (App Router) + React 19
@@ -6,6 +8,89 @@
 - `next-themes` para modo claro/oscuro (estrategia `class` en `<html>`)
 - Componentes shadcn/ui en `components/ui/*`
 - Auth + features en `features/*` (server actions)
+
+## Comandos
+
+```bash
+npm run dev      # servidor de desarrollo (localhost:3000)
+npm run build    # build de producción
+npm run start    # sirve el build de producción
+npm run lint     # eslint .
+```
+
+No hay suite de tests configurada (sin Jest/Vitest/Playwright en `package.json`).
+
+El backend (.NET, microservicios "ContaboxPro core2") es un repo aparte y debe
+estar corriendo en local para que las server actions respondan; ver
+`.env.local.example` para las URLs/puertos esperados de cada microservicio.
+
+⚠️ `next.config.mjs` tiene `typescript.ignoreBuildErrors: true` — `next build`
+**no falla** por errores de tipos. Corre `npx tsc --noEmit` explícitamente si
+necesitas confirmar que el código type-checkea.
+
+## Arquitectura
+
+### El "dashboard" es una SPA dentro de una sola ruta
+`app/` es deliberadamente delgado: solo existen unas pocas rutas reales
+(`/`, `/auth/login`, `/dashboard`, `/onboarding`, `/planes`, `/pago-exitoso`).
+Una vez el usuario entra a `/dashboard` (`app/dashboard/page.tsx`), toda la
+navegación interna (Home, Clientes, Declaraciones, Facturas, Roles, etc.) es
+**client-side**, manejada por `components/dashboard/index.tsx` con un
+`useState<Screen>` y un switch de componentes en `components/dashboard/screens/`.
+No busques rutas de Next.js para cada sección del dashboard — busca la entrada
+correspondiente en `components/dashboard/screens/index.ts`.
+
+- `components/dashboard/sidebar.tsx` — navegación lateral, filtra opciones
+  según `role`/`permissions`.
+- `components/dashboard/constants.ts` — títulos, roles normalizados, mapeos
+  de display.
+- `features/taxpayers/stores/rfcStore.tsx` — `RfcProvider`, contexto de RFC
+  activo compartido entre pantallas (útil cuando un contador opera varios
+  contribuyentes).
+
+### Auth: doble capa (middleware + guard de cliente)
+- `middleware.ts` — solo verifica la **presencia** de la cookie `auth_token`
+  (edge, rápido) y redirige según `lib/routes.ts` (`PUBLIC_ROUTES` /
+  `PROTECTED_ROUTES` / `AUTH_REDIRECT_ROUTES`).
+- `app/auth-guard.tsx` (`AuthGuard`, client component) — revalida la sesión
+  real en cada cambio de ruta llamando a `getStatusToken()` y expulsa a login
+  si el token expiró. El middleware por sí solo no valida el JWT.
+- Nuevas rutas públicas/protegidas se declaran en `lib/routes.ts`, no
+  hardcodeadas en el middleware.
+
+### Server actions → múltiples microservicios .NET
+El backend está partido en microservicios independientes (ver
+`lib/api/apiUrls.ts`): **Identity** (auth, users, taxpayers, roles),
+**Procedures** (declaration, vault, cfdi, finances, stripe), **Reports**
+(dashboards, ventas, taxpayers), **Scrappers** (SAT). Cada server action:
+
+1. Vive en `features/<dominio>/actions/<verbo><Entidad>.action.ts` con
+   `"use server"` al inicio.
+2. Llama a `lib/api/fetchClient.ts` (`fetchGet`/`fetchPost`/`fetchPostPublic`/
+   `fetchPostMultipart`/`fetchGetBlob`/…) pasando el **endpoint relativo**
+   (definido en `lib/api/apiRoutes.ts`, catálogo central `API_ROUTES`) y el
+   **`apiType`** correcto (clave de `API_BASE_URLS` en `apiUrls.ts`) para que
+   pegue al microservicio correcto.
+3. Envuelve la respuesta en `Result<T, E>` (`lib/common/result.ts`: `ok()` /
+   `err()`), capturando `ApiError` (de `fetchClient.ts`, trae `status` y
+   `body` del backend) — **nunca deja que la excepción suba al componente**.
+   Ver `features/auth/actions/signIn.action.ts` o
+   `features/taxpayers/actions/getTaxpayers.action.ts` como referencia.
+4. `fetchClient.ts` agrega el header `Authorization: Bearer <auth_token>`
+   automáticamente vía cookies (`buildAuthHeaders`) a menos que se use la
+   variante `*Public`.
+
+Al agregar un endpoint nuevo: primero añade la ruta a `API_ROUTES` en
+`apiRoutes.ts` (agrupada por dominio, con comentario del `apiType`/método
+esperado), luego el `apiType` en `apiUrls.ts` si es un microservicio nuevo,
+y por último la action en `features/<dominio>/actions/`.
+
+### Roles y permisos
+Vienen del backend como claims en cookies (`claim_role`, `claim_permission`,
+`userId`) y se parsean en `app/dashboard/page.tsx` (`parsePermissions`). Se
+propagan por props a `Dashboard` → `Sidebar`/screens, que ocultan opciones de
+navegación según rol/permiso. `features/roles/` maneja la administración de
+roles (CRUD) contra el microservicio Identity (`apiType: "roles"`).
 
 ## Theming — REGLAS OBLIGATORIAS
 
