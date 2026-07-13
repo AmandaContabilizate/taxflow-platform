@@ -88,6 +88,30 @@ export const API_ROUTES = {
     // Reasignar contribuyente a otro contador.
     REASSIGN: "/reassign",
   },
+  // Bóveda de CFDI (microservicio Procedures). apiType "vault".
+  // Todas requieren rfc + email (el email sale de la cookie en la server action).
+  VAULT: {
+    ISSUED_COUNT: (rfc: string, email: string) =>
+      `/issued-count?rfc=${encodeURIComponent(rfc)}&email=${encodeURIComponent(email)}`,
+    RECEIVED_COUNT: (rfc: string, email: string) =>
+      `/received-count?rfc=${encodeURIComponent(rfc)}&email=${encodeURIComponent(email)}`,
+    TOTAL_INCOME: (rfc: string, email: string, year: number) =>
+      `/total-income?rfc=${encodeURIComponent(rfc)}&email=${encodeURIComponent(email)}&year=${year}`,
+    TOTAL_EXPENSES: (rfc: string, email: string, year: number) =>
+      `/total-expenses?rfc=${encodeURIComponent(rfc)}&email=${encodeURIComponent(email)}&year=${year}`,
+    ISSUED_INVOICES: (rfc: string, email: string) =>
+      `/issued-invoices?rfc=${encodeURIComponent(rfc)}&email=${encodeURIComponent(email)}`,
+    RECEIVED_INVOICES: (rfc: string, email: string) =>
+      `/received-invoices?rfc=${encodeURIComponent(rfc)}&email=${encodeURIComponent(email)}`,
+  },
+  // Documentos CFDI individuales (microservicio Procedures). apiType "cfdi".
+  // invoice → emitidas (IdInvoice) · expense → recibidas / gastos (IdExpense).
+  CFDI: {
+    INVOICE_PDF: (id: string) => `/invoice-pdf?IdInvoice=${encodeURIComponent(id)}`,
+    INVOICE_XML: (id: string) => `/invoice-xml?IdInvoice=${encodeURIComponent(id)}`,
+    EXPENSE_PDF: (id: string) => `/expense-pdf?IdExpense=${encodeURIComponent(id)}`,
+    EXPENSE_XML: (id: string) => `/expense-xml?IdExpense=${encodeURIComponent(id)}`,
+  },
   // Ventas / planes (microservicio Procedures)
   CATALOGS: {
     PLANS: (rfc: string) => `/plans?rfc=${encodeURIComponent(rfc)}`, // apiType "catalogs_procedures"

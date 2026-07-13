@@ -1,8 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, BadgeCheck, Check, Download, Eye, FileDown } from 'lucide-react'
 import { useHasRfc, useSelectedRfc } from '@/features/taxpayers/stores/rfcStore'
+import {
+  getIssuedInvoices,
+  getReceivedInvoices,
+  getVaultStats,
+} from '@/features/vault/actions'
+import { CFDI_STATUS_VIGENTE, type VaultInvoice, type VaultStats } from '@/features/vault/types'
 import { DISPLAY, MONO } from '../constants'
 import type { GoFn } from '../types'
 import { Badge, Btn, Card, Divider, HelpBox, SummaryStat, Tabs } from '../ui'
@@ -12,43 +18,185 @@ interface Props {
   go: GoFn
 }
 
-type Estado = 'deducible' | 'revisar'
+const moneyFull = new Intl.NumberFormat('es-MX', {
+  style: 'currency',
+  currency: 'MXN',
+  maximumFractionDigits: 0,
+})
 
-interface Factura {
-  emisor: string
+// Formato compacto tipo "$128K" / "$9.9K" para las tarjetas.
+function compactMoney(n: number): string {
+  const trim = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(1))
+  const abs = Math.abs(n)
+  if (abs >= 1_000_000) return `$${trim(n / 1_000_000)}M`
+  if (abs >= 1_000) return `$${trim(n / 1_000)}K`
+  return `$${Math.round(n)}`
+}
+
+function formatDate(s: string): string {
+  if (!s) return ''
+  const d = new Date(s)
+  if (Number.isNaN(d.getTime())) return s
+  return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })
+}
+
+type DocType = 'invoice' | 'expense'
+
+interface Row {
+  key: string
+  id: string
+  docType: DocType
+  name: string
   rfc: string
   meta: string
   monto: string
-  estado: Estado
+  revisar: boolean
 }
 
-const RECIBIDAS: Factura[] = [
-  { emisor: 'Farmacia del Ahorro', rfc: 'FDA010101XXX', meta: '14 abr · Medicamentos', monto: '$2,500', estado: 'deducible' },
-  { emisor: 'Gasolinera Express', rfc: 'GEX150101XXX', meta: '12 abr · Combustible', monto: '$1,800', estado: 'deducible' },
-  { emisor: 'Office Depot', rfc: 'ODE920101XXX', meta: '10 abr · Material oficina', monto: '$3,200', estado: 'deducible' },
-  { emisor: 'Telmex', rfc: 'TMX931208XXX', meta: '08 abr · Servicio telefónico', monto: '$899', estado: 'deducible' },
-  { emisor: 'CFE', rfc: 'CFE370814XXX', meta: '05 abr · Energía eléctrica', monto: '$1,500', estado: 'deducible' },
-  { emisor: 'Restaurante La Parroquia', rfc: 'RLP010101XXX', meta: '03 abr · Alimentos', monto: '$450', estado: 'revisar' },
-]
+// La contraparte es el receptor en emitidas y el emisor en recibidas.
+// Emitidas = CFDI tipo "invoice" (IdInvoice) · recibidas = "expense" (IdExpense).
+function toRow(inv: VaultInvoice, side: 'issued' | 'received'): Row {
+  const party = side === 'issued' ? inv.receiver : inv.issuer
+  const fecha = formatDate(inv.date)
+  const uso = inv.uso?.trim()
+  return {
+    key: inv.uuid || String(inv.id),
+    id: String(inv.id),
+    docType: side === 'issued' ? 'invoice' : 'expense',
+    name: party?.name?.trim() || party?.rfc || 'Sin nombre',
+    rfc: party?.rfc || '—',
+    meta: [fecha, uso].filter(Boolean).join(' · '),
+    monto: moneyFull.format(inv.total ?? 0),
+    revisar: inv.statusComprobante !== CFDI_STATUS_VIGENTE,
+  }
+}
 
-const EMITIDAS: Factura[] = [
-  { emisor: 'Constructora del Norte', rfc: 'CNO980215XXX', meta: '15 abr · Servicios profesionales', monto: '$48,000', estado: 'deducible' },
-  { emisor: 'Grupo Comercial Delta', rfc: 'GCD050510XXX', meta: '11 abr · Consultoría', monto: '$35,000', estado: 'deducible' },
-  { emisor: 'Distribuidora Pacífico', rfc: 'DPA110320XXX', meta: '06 abr · Servicios profesionales', monto: '$28,500', estado: 'deducible' },
-  { emisor: 'Innovación Digital SA', rfc: 'IDI170808XXX', meta: '02 abr · Consultoría', monto: '$16,500', estado: 'deducible' },
-]
+function filenameFromResponse(res: Response, fallback: string): string {
+  const cd = res.headers.get('content-disposition')
+  if (!cd) return fallback
+  const star = /filename\*=UTF-8''([^;\n]+)/i.exec(cd)
+  if (star?.[1]) {
+    try {
+      return decodeURIComponent(star[1])
+    } catch {
+      return star[1]
+    }
+  }
+  const m = /filename="?([^";]+)"?/i.exec(cd)
+  return m?.[1] ?? fallback
+}
 
-const CANCELADAS: Factura[] = [
-  { emisor: 'Grupo Comercial Delta', rfc: 'GCD050510XXX', meta: '09 abr · Consultoría', monto: '$12,000', estado: 'revisar' },
-]
+function triggerBrowserDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
+// Descarga el ZIP (PDF + XML) de las filas dadas vía el proxy /api/vault/download-zip.
+// Agrupa por tipo porque la pestaña "Canceladas" mezcla emitidas y recibidas.
+async function downloadRowsZip(rows: Row[]) {
+  const groups = new Map<DocType, string[]>()
+  for (const r of rows) {
+    const arr = groups.get(r.docType) ?? []
+    arr.push(r.id)
+    groups.set(r.docType, arr)
+  }
+
+  for (const [type, ids] of groups) {
+    const res = await fetch('/api/vault/download-zip', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids, type }),
+    })
+    if (!res.ok) {
+      const payload = (await res.json().catch(() => null)) as { error?: string } | null
+      throw new Error(payload?.error || 'No se pudo descargar el ZIP.')
+    }
+    triggerBrowserDownload(await res.blob(), filenameFromResponse(res, 'documentos.zip'))
+  }
+}
 
 const TABS = ['Recibidas', 'Emitidas', 'Canceladas'] as const
-const DATA: Factura[][] = [RECIBIDAS, EMITIDAS, CANCELADAS]
 
 export function DocumentosScreen({ go }: Props) {
   const { hasRfc, loading } = useHasRfc()
   const rfc = useSelectedRfc()
   const [tab, setTab] = useState(0)
+
+  const [dataLoading, setDataLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [stats, setStats] = useState<VaultStats | null>(null)
+  const [issued, setIssued] = useState<VaultInvoice[]>([])
+  const [received, setReceived] = useState<VaultInvoice[]>([])
+
+  const [downloading, setDownloading] = useState(false)
+  const [downloadError, setDownloadError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!rfc) return
+    let active = true
+    setDataLoading(true)
+    setError(null)
+
+    Promise.all([getVaultStats(rfc), getIssuedInvoices(rfc), getReceivedInvoices(rfc)])
+      .then(([s, i, r]) => {
+        if (!active) return
+        if (s.success) setStats(s.value)
+        else setError(s.error.message)
+        setIssued(i.success ? i.value : [])
+        setReceived(r.success ? r.value : [])
+      })
+      .catch(() => {
+        if (active) setError('No pudimos cargar tu bóveda.')
+      })
+      .finally(() => {
+        if (active) setDataLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [rfc])
+
+  const rowsByTab = useMemo<Row[][]>(() => {
+    const recibidas = received.map(r => toRow(r, 'received'))
+    const emitidas = issued.map(i => toRow(i, 'issued'))
+    const canceladas = [
+      ...issued.filter(i => i.statusComprobante !== CFDI_STATUS_VIGENTE).map(i => toRow(i, 'issued')),
+      ...received.filter(r => r.statusComprobante !== CFDI_STATUS_VIGENTE).map(r => toRow(r, 'received')),
+    ]
+    return [recibidas, emitidas, canceladas]
+  }, [issued, received])
+
+  // "Deducible": no hay campo del backend, se deriva de los CFDI recibidos
+  // vigentes (statusComprobante === 1). Monto deducible y % sobre el total recibido.
+  const deducible = useMemo(() => {
+    const totalRecibido = received.reduce((sum, r) => sum + (r.total ?? 0), 0)
+    const totalDeducible = received
+      .filter(r => r.statusComprobante === CFDI_STATUS_VIGENTE)
+      .reduce((sum, r) => sum + (r.total ?? 0), 0)
+    const pct = totalRecibido > 0 ? Math.round((totalDeducible / totalRecibido) * 100) : 0
+    return { value: totalDeducible, pct }
+  }, [received])
+
+  async function handleDownloadTab(rows: Row[]) {
+    if (rows.length === 0 || downloading) return
+    setDownloading(true)
+    setDownloadError(null)
+    try {
+      await downloadRowsZip(rows)
+    } catch (e) {
+      setDownloadError(e instanceof Error ? e.message : 'No se pudo descargar el ZIP.')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   if (loading) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tu bóveda" />
 
@@ -57,142 +205,104 @@ export function DocumentosScreen({ go }: Props) {
     { t: 'No apareces en listas negras', s: 'Tu RFC tiene buen historial' },
     { t: 'Tu RFC está activo', s: 'Puedes facturar sin problema' },
   ]
-  const facturas = DATA[tab]
+  const rows = rowsByTab[tab]
+
+  const facturasHint = (n: number) => `${n} ${n === 1 ? 'factura' : 'facturas'}`
 
   return (
     <div className="flex flex-col gap-5 max-w-[960px]">
-      <HelpBox>
-        Esta es tu <strong>bóveda digital</strong>: aquí guardamos tu Constancia de Situación Fiscal y todas las
-        facturas que el SAT registra a tu nombre. Las descargamos automáticamente por ti.
-      </HelpBox>
-
-      {/* Constancia de Situación Fiscal */}
       <div>
-        <div className="text-[16px] font-bold mb-3" style={{ color: 'var(--ink-700)' }}>
-          📄 Tu Constancia de Situación Fiscal
-        </div>
-        <div
-          className="rounded-3xl p-6"
-          style={{ background: 'var(--hero-brand-soft)', border: '1px solid var(--brand-200)' }}
-        >
-          <div className="flex items-center gap-4 flex-wrap">
-            <div
-              className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
-              style={{ background: 'linear-gradient(140deg,#10DA92,#00A068)' }}
-            >
-              <BadgeCheck size={28} color="#fff" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[12px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--brand-700)' }}>
-                Vigente · al día
-              </div>
-              <div className="text-[20px] font-extrabold tracking-tight mt-1" style={DISPLAY}>
-                Está lista cuando la necesites
-              </div>
-              <div className="text-[13px] mt-1" style={{ ...MONO, color: 'var(--ink-500)' }}>
-                RFC: {rfc}
-              </div>
-            </div>
-          </div>
-          <div className="flex gap-3 mt-5 flex-wrap">
-            <Btn kind="primary">
-              <Eye size={16} /> Ver documento
-            </Btn>
-            <Btn kind="ghost">
-              <FileDown size={16} /> Descargar PDF
-            </Btn>
-          </div>
-        </div>
-      </div>
 
-      {/* Situación ante el SAT */}
-      <div>
-        <div className="text-[16px] font-bold mb-3" style={{ color: 'var(--ink-700)' }}>
-          ✅ Tu situación ante el SAT
-        </div>
-        <Card>
-          <div>
-            {status.map((it, i, arr) => (
-              <div key={it.t}>
-                <div className="flex items-center gap-3 px-4 py-3.5">
-                  <div
-                    className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: 'var(--brand-50)', color: 'var(--brand-700)' }}
-                  >
-                    <Check size={20} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-[14.5px]">{it.t}</div>
-                    <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
-                      {it.s}
-                    </div>
-                  </div>
-                </div>
-                {i < arr.length - 1 && <Divider />}
-              </div>
-            ))}
+        {error && (
+          <div
+            className="rounded-2xl px-4 py-3 mb-4 text-[13.5px] font-semibold"
+            style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}
+          >
+            {error}
           </div>
-        </Card>
-      </div>
-
-      {/* Bóveda de facturas (CFDI) */}
-      <div>
-        <div className="text-[16px] font-bold mb-3" style={{ color: 'var(--ink-700)' }}>
-          🧾 Tus facturas (CFDI)
-        </div>
+        )}
 
         {/* Resumen */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-          <SummaryStat label="Emitidas" value="$128K" hint="5 facturas" />
-          <SummaryStat label="Recibidas" value="$10K" hint="6 facturas" />
-          <SummaryStat label="Deducible" value="$9.9K" hint="95% ✓" tone="ok" />
+          <SummaryStat
+            label="Emitidas"
+            value={dataLoading && !stats ? '—' : compactMoney(stats?.totalIncome.value ?? 0)}
+            hint={dataLoading && !stats ? 'Cargando…' : facturasHint(stats?.issuedCount ?? 0)}
+          />
+          <SummaryStat
+            label="Recibidas"
+            value={dataLoading && !stats ? '—' : compactMoney(stats?.totalExpenses.value ?? 0)}
+            hint={dataLoading && !stats ? 'Cargando…' : facturasHint(stats?.receivedCount ?? 0)}
+          />
+          <SummaryStat
+            label="Deducible"
+            value={dataLoading ? '—' : compactMoney(deducible.value)}
+            hint={dataLoading ? 'Cargando…' : `${deducible.pct}% ✓`}
+            tone="ok"
+          />
         </div>
 
         {/* Tabs + descarga */}
         <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
           <Tabs items={[...TABS]} active={tab} onChange={setTab} />
-          <Btn kind="ghost" size="sm">
-            <Download size={16} /> Descargar XML + PDF
+          <Btn
+            kind="ghost"
+            size="sm"
+            onClick={() => handleDownloadTab(rows)}
+            disabled={downloading || dataLoading || rows.length === 0}
+          >
+            <Download size={16} /> {downloading ? 'Descargando…' : 'Descargar XML + PDF'}
           </Btn>
         </div>
 
+        {downloadError && (
+          <div
+            className="rounded-2xl px-4 py-3 mb-3 text-[13.5px] font-semibold"
+            style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}
+          >
+            {downloadError}
+          </div>
+        )}
+
         <Card>
-          {facturas.length === 0 ? (
+          {dataLoading ? (
+            <div className="px-4 py-10 text-center text-[13.5px]" style={{ color: 'var(--ink-500)' }}>
+              Cargando tus facturas…
+            </div>
+          ) : rows.length === 0 ? (
             <div className="px-4 py-10 text-center text-[13.5px]" style={{ color: 'var(--ink-500)' }}>
               No hay facturas en esta sección.
             </div>
           ) : (
             <div>
-              {facturas.map((f, i, arr) => {
-                const isRevisar = f.estado === 'revisar'
-                return (
-                  <div key={`${f.rfc}-${f.meta}`}>
-                    <div className="flex items-center gap-3 px-4 py-3.5">
-                      <div
-                        className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
-                        style={
-                          isRevisar
-                            ? { background: 'var(--amber-soft)', color: '#7B5312' }
-                            : { background: 'var(--brand-50)', color: 'var(--brand-700)' }
-                        }
-                      >
-                        {isRevisar ? <AlertTriangle size={20} /> : <FileDown size={20} />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-bold text-[14.5px] truncate">{f.emisor}</div>
-                        <div className="text-[12px] mt-0.5 truncate" style={{ ...MONO, color: 'var(--ink-500)' }}>
-                          {f.rfc} · {f.meta}
-                        </div>
-                      </div>
-                      <div className="text-[14.5px] font-extrabold" style={MONO}>
-                        {f.monto}
-                      </div>
-                      <Badge kind={isRevisar ? 'amber' : 'brand'}>{isRevisar ? 'Revisar' : 'Deducible'}</Badge>
+              {rows.map((f, i, arr) => (
+                <div key={f.key}>
+                  <div className="flex items-center gap-3 px-4 py-3.5">
+                    <div
+                      className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+                      style={
+                        f.revisar
+                          ? { background: 'var(--amber-soft)', color: '#7B5312' }
+                          : { background: 'var(--brand-50)', color: 'var(--brand-700)' }
+                      }
+                    >
+                      {f.revisar ? <AlertTriangle size={20} /> : <FileDown size={20} />}
                     </div>
-                    {i < arr.length - 1 && <Divider />}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-[14.5px] truncate">{f.name}</div>
+                      <div className="text-[12px] mt-0.5 truncate" style={{ ...MONO, color: 'var(--ink-500)' }}>
+                        {f.rfc}
+                        {f.meta ? ` · ${f.meta}` : ''}
+                      </div>
+                    </div>
+                    <div className="text-[14.5px] font-extrabold" style={MONO}>
+                      {f.monto}
+                    </div>
+                    <Badge kind={f.revisar ? 'amber' : 'brand'}>{f.revisar ? 'Revisar' : 'Deducible'}</Badge>
                   </div>
-                )
-              })}
+                  {i < arr.length - 1 && <Divider />}
+                </div>
+              ))}
             </div>
           )}
         </Card>
