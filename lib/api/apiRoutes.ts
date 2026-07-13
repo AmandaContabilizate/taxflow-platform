@@ -12,8 +12,11 @@ export const API_ROUTES = {
     ROOT: "",                       // GET    apiType "users" → /api/users
     GET: (id: string) => `/${id}`,
     SEND_CODE: "/SendCode",         // POST   apiType "users" → /api/users/SendCode
+    EXIST_EMAIL: (email: string) => `/ExistEmail/${encodeURIComponent(email)}`, // GET apiType "users"
     VALIDATE_CODE: "/ValidateConfirmationCode", // POST apiType "users"
     COMPLETE_PROFILE: "/CompleteUserProfile",   // POST apiType "users" (auth)
+    FORGOT_PASSWORD: "/forgot-password",        // POST apiType "users" → body: email (string)
+    RESET_PASSWORD: "/reset-password",          // POST apiType "users" → body: { Email, ResetCode, NewPassword }
     // Roles del usuario. apiType "users"
     ASSIGN_ROLE: "/assign-role",    // POST   → /api/users/.../assign-role
     REMOVE_ROLE: "/remove-role",    // POST   → /api/users/.../remove-role

@@ -3,7 +3,8 @@
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { getStatusToken } from "@/features/auth/actions";
-import { isPublicRoute, PUBLIC_ROUTES } from "@/lib/routes";
+import { handleAuthFailure } from "@/features/auth/lib/handleAuthFailure";
+import { isPublicRoute } from "@/lib/routes";
 
 /**
  * Guard de cliente complementario al middleware.
@@ -20,10 +21,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       try {
         const result = await getStatusToken();
         if (!cancelled && !result.success) {
-          window.location.href = PUBLIC_ROUTES.LOGIN;
+          await handleAuthFailure();
         }
       } catch {
-        if (!cancelled) window.location.href = PUBLIC_ROUTES.LOGIN;
+        if (!cancelled) await handleAuthFailure();
       }
     })();
 

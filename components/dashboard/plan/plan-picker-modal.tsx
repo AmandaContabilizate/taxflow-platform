@@ -1,6 +1,7 @@
 'use client'
 
 import { Elements } from '@stripe/react-stripe-js'
+import type { Stripe } from '@stripe/stripe-js'
 import { Check, CheckCircle2, Loader2, Minus, Plus } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import {
@@ -11,6 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { createPaymentSheet } from '@/features/account/actions/createPaymentSheet.action'
+import { getStripePublishableKey } from '@/features/account/actions/getStripePublishableKey.action'
 import { registerSaleNew } from '@/features/account/actions/registerSaleNew.action'
 import {
   formatMXN,
@@ -25,8 +27,6 @@ import { getStripe } from '@/lib/stripe-client'
 import { DISPLAY } from '../constants'
 import { Badge, Btn } from '../ui'
 import { PaymentForm } from './payment-form'
-
-const stripePromise = getStripe()
 
 type Step = 'cart' | 'paying' | 'success'
 
@@ -46,6 +46,7 @@ export function PlanPickerModal({
   catalog,
   onPaid,
 }: PlanPickerModalProps) {
+  const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null)
   const [step, setStep] = useState<Step>('cart')
   const [paymentMode, setPaymentMode] = useState<PaymentMode>(0)
   const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null)
@@ -66,6 +67,21 @@ export function PlanPickerModal({
     [planList, selectedPlanId],
   )
   const freeAddons = !!selectedPlan?.grantsFreeAddOns
+
+  // Publishable key resuelta server-side (no NEXT_PUBLIC_ — así el mismo
+  // build sirve STG/Producción sin rebuild). Se busca una sola vez al abrir
+  // el modal por primera vez.
+  useEffect(() => {
+    if (!open || stripePromise) return
+    let cancelled = false
+    getStripePublishableKey().then((key) => {
+      if (cancelled || !key) return
+      setStripePromise(getStripe(key))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [open, stripePromise])
 
   // Reiniciar el carrito cada vez que se abre el modal.
   useEffect(() => {
@@ -478,7 +494,7 @@ export function PlanPickerModal({
           </>
         )}
 
-        {step === 'paying' && clientSecret && (
+        {step === 'paying' && clientSecret && stripePromise && (
           <div className="flex-1 min-h-0 overflow-y-auto -mx-1 px-1">
             <Elements
               stripe={stripePromise}

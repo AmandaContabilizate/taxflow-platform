@@ -1,5 +1,14 @@
 import { cookies } from "next/headers";
 import { getBaseUrl, type ApiType } from "./apiUrls";
+import { getErrorMessage, hasErrorCode } from "./errorMessages";
+
+// El backend .NET en dev local usa un certificado HTTPS autofirmado.
+// Se desactiva la verificación aquí (no solo vía .env) para garantizar que
+// aplique antes de la primera petición, sin depender del orden de carga de
+// las env vars de Next. NUNCA se ejecuta fuera de development.
+if (process.env.NODE_ENV === "development") {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+}
 
 // =============================================================
 // Errores
@@ -10,6 +19,7 @@ export class ApiError extends Error {
   statusText: string;
   body: unknown;
   url: string;
+  errorCode?: string;
 
   constructor(opts: {
     message: string;
@@ -17,6 +27,7 @@ export class ApiError extends Error {
     statusText: string;
     body: unknown;
     url: string;
+    errorCode?: string;
   }) {
     super(opts.message);
     this.name = "ApiError";
@@ -24,6 +35,7 @@ export class ApiError extends Error {
     this.statusText = opts.statusText;
     this.body = opts.body;
     this.url = opts.url;
+    this.errorCode = opts.errorCode;
   }
 }
 
@@ -89,8 +101,11 @@ async function request<T>(
   // Read body once as text — más seguro con respuestas vacías o no-JSON.
   const rawText = await response.text();
   const contentType = response.headers.get("content-type") ?? "";
+  // Incluye "application/problem+json" (ProblemDetails de ASP.NET Core), no
+  // solo "application/json" — si no, el body de un error 400/404 nunca se
+  // parsea y detail/title/errorCode quedan inaccesibles para el caller.
   let data: unknown = rawText;
-  if (contentType.includes("application/json") && rawText) {
+  if (contentType.includes("json") && rawText) {
     try {
       data = JSON.parse(rawText);
     } catch {
@@ -99,23 +114,43 @@ async function request<T>(
   }
 
   if (!response.ok) {
+    const parsed =
+      typeof data === "object" && data !== null
+        ? (data as {
+          message?: string;
+          error?: string;
+          detail?: string;
+          title?: string;
+          errorCode?: string;
+          extensions?: { errorCode?: string };
+        })
+        : undefined;
+
+    const errorCode = parsed?.errorCode ?? parsed?.extensions?.errorCode;
+
     // Distintos formatos de error del backend: `error` (respuestas custom),
     // ProblemDetails `detail` (específico) y `title` (genérico, p. ej. "Not
-    // Found"). Preferimos el mensaje más específico disponible.
+    // Found"). El catálogo (errorCode → mensaje amigable) tiene prioridad
+    // sobre el texto crudo del backend (a veces en inglés, p. ej. mensajes
+    // de validación de ASP.NET Identity) — pero solo si el código está
+    // catalogado, para no ocultar un `detail` específico con "Error
+    // desconocido".
     const message =
-      typeof data === "string"
-        ? data
-        : (data as { message?: string; error?: string; detail?: string; title?: string })?.message ??
-        (data as { error?: string })?.error ??
-        (data as { detail?: string })?.detail ??
-        (data as { title?: string })?.title ??
-        response.statusText;
+      (hasErrorCode(errorCode) ? getErrorMessage(errorCode) : null) ??
+      (typeof data === "string" ? data : undefined) ??
+      parsed?.message ??
+      parsed?.error ??
+      parsed?.detail ??
+      parsed?.title ??
+      response.statusText;
+
     throw new ApiError({
       message: message || `HTTP ${response.status}`,
       status: response.status,
       statusText: response.statusText,
       body: data,
       url,
+      errorCode,
     });
   }
 

@@ -1,19 +1,19 @@
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
 
 /**
- * Carga única de Stripe.js en el cliente (web). Usa la publishable key pública.
- * Para el Payment Element embebido (equivalente web del PaymentSheet móvil).
+ * Carga única de Stripe.js en el cliente (web). Para el Payment Element
+ * embebido (equivalente web del PaymentSheet móvil).
+ *
+ * La publishable key se recibe como parámetro (resuelta server-side vía
+ * `getStripePublishableKey` server action) en lugar de leerse aquí de
+ * `process.env.NEXT_PUBLIC_*` — así el mismo build sirve STG/Producción sin
+ * rebuild cuando la key cambia entre entornos.
  */
 let stripePromise: Promise<Stripe | null> | null = null;
 
-export function getStripe(): Promise<Stripe | null> {
+export function getStripe(publishableKey: string): Promise<Stripe | null> {
   if (!stripePromise) {
-    const key = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-    if (!key) {
-      console.error("[stripe-client] Falta NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY");
-      return Promise.resolve(null);
-    }
-    stripePromise = loadStripe(key);
+    stripePromise = loadStripe(publishableKey);
   }
   return stripePromise;
 }

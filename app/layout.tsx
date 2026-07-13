@@ -21,6 +21,9 @@ export const metadata: Metadata = {
     'Declara impuestos con inteligencia artificial. Conecta tu RFC, descarga tu constancia y elige el plan perfecto según tu régimen fiscal.',
   keywords: ['declaración de impuestos', 'SAT', 'RFC', 'contabilidad', 'régimen fiscal', 'CIEC', 'FIEL'],
   generator: 'v0.app',
+  icons: {
+    icon: '/Conta.png',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

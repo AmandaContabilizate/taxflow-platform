@@ -30,14 +30,9 @@ export async function signUp(
     return ok({ email: input.email });
   } catch (e) {
     if (e instanceof ApiError) {
-      const body = e.body as
-        | { detail?: string; title?: string; extensions?: { errorCode?: string } }
-        | undefined;
-      const message =
-        body?.detail || body?.title || "No se pudo iniciar el registro";
       return err({
         statusCode: e.status,
-        fieldErrors: { root: [message] },
+        fieldErrors: { root: [e.message || "No se pudo iniciar el registro"] },
       });
     }
     console.error("[signUp] Error:", e);

@@ -12,6 +12,11 @@ export const PUBLIC_ROUTES = {
   PRIVACY: "/privacy-policy",
   PLANS: "/planes",
   PAYMENT_SUCCESS: "/pago-exitoso",
+  SESSION_ENDED: "/session-ended",
+  LOGIN_CALLBACK: "/auth/login-callback",
+  FORGOT_PASSWORD: "/auth/forgot-password",
+  RESET_PASSWORD: "/auth/reset-password",
+  COMPLETE_PROFILE: "/auth/complete-profile",
 } as const;
 
 export const PROTECTED_ROUTES = {
@@ -28,6 +33,10 @@ export const PUBLIC_NONAUTH_ROUTES: string[] = [
   PUBLIC_ROUTES.PRIVACY,
   PUBLIC_ROUTES.PLANS,
   PUBLIC_ROUTES.PAYMENT_SUCCESS,
+  PUBLIC_ROUTES.SESSION_ENDED,
+  PUBLIC_ROUTES.LOGIN_CALLBACK,
+  PUBLIC_ROUTES.FORGOT_PASSWORD,
+  PUBLIC_ROUTES.RESET_PASSWORD,
 ];
 
 export const PUBLIC_NO_AUTH_PATTERNS: RegExp[] = [

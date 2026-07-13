@@ -1,3 +1,5 @@
+import "server-only";
+
 /**
  * Mapa de bases URL por microservicio del backend ContaboxPro core2.
  *
@@ -7,13 +9,17 @@
  *   - Reports    → 7126  (dashboards)
  *   - Scrappers  → 7042  (SAT scrappers)
  *
- * Configurables en .env.local con NEXT_PUBLIC_API_*.
+ * Configurables en .env.local con API_BASE_*. Intencionalmente SIN el
+ * prefijo NEXT_PUBLIC_ — este módulo es server-only (ver `import
+ * "server-only"` arriba). Así los valores se pueden cambiar en Application
+ * Settings (Azure) sin necesitar un rebuild, y el mismo build sirve para
+ * STG y Producción indistintamente.
  */
 
-const BASE_IDENTITY = process.env.NEXT_PUBLIC_API_BASE_IDENTITY || "https://localhost:7125/api";
-const BASE_PROCEDURES = process.env.NEXT_PUBLIC_API_BASE_PROCEDURES || "https://localhost:7165/api";
-const BASE_REPORTS = process.env.NEXT_PUBLIC_API_BASE_REPORTS || "https://localhost:7126/api";
-const BASE_SCRAPPERS = process.env.NEXT_PUBLIC_API_BASE_SCRAPPERS || "https://localhost:7042/api";
+const BASE_IDENTITY = process.env.API_BASE_IDENTITY || "https://localhost:7125/api";
+const BASE_PROCEDURES = process.env.API_BASE_PROCEDURES || "https://localhost:7165/api";
+const BASE_REPORTS = process.env.API_BASE_REPORTS || "https://localhost:7126/api";
+const BASE_SCRAPPERS = process.env.API_BASE_SCRAPPERS || "https://localhost:7042/api";
 const DbOrigin = "/SQLServer";
 
 export const API_BASE_URLS = {
@@ -53,3 +59,23 @@ export function getBaseUrl(apiType: ApiType = "default"): string {
   }
   return url;
 }
+
+// =============================================================
+// SSO / OAuth externo
+// =============================================================
+
+// Identifica este frontend ante el backend (rutas con {systemOriginId?}
+// como /auth/google, /auth/facebook, /users/SendCode). Configurable por env
+// para poder reusarse en otros orígenes sin tocar código.
+const SYSTEM_ORIGIN_ID = process.env.SYSTEM_ORIGIN_ID || "4";
+
+/**
+ * URL absoluta del challenge OAuth del backend. Se usa para navegación
+ * directa del navegador (`window.location.href`), no para fetch — el
+ * backend hace el handshake completo y redirige de vuelta al frontend.
+ */
+export function getExternalAuthUrl(provider: "google" | "facebook" | "apple"): string {
+  return `${getBaseUrl("auth")}/${provider}/${SYSTEM_ORIGIN_ID}`;
+}
+
+export { SYSTEM_ORIGIN_ID };
