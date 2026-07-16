@@ -15,6 +15,7 @@ import {
   Home,
   Inbox,
   KanbanSquare,
+  KeyRound,
   Layers,
   Lightbulb,
   PiggyBank,
@@ -73,6 +74,7 @@ export const TITLES: Record<Screen, [string, string]> = {
   'tramites-adicionales': ['Trámites adicionales', 'Seguimiento de trámites vendidos a tus clientes'],
   ventas: ['Ventas', 'Resumen de ventas registradas por cuenta'],
   roles: ['Roles y permisos', 'Administra roles, sus permisos y los roles de cada usuario'],
+  partnership: ['Partnership', 'Administra CORS, llaves SSO y bitácora de logins'],
 }
 
 const GUEST_NAV: NavDef[] = [
@@ -186,9 +188,17 @@ const ROLES_ITEM: NavDef = {
   Icon: ShieldCheck,
   hint: 'Administra roles y permisos',
 }
+const PARTNERSHIP_ITEM: NavDef = {
+  id: 'partnership',
+  label: 'Partnership',
+  Icon: KeyRound,
+  hint: 'CORS, llaves SSO y logins',
+}
 
 export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
   guest: GUEST_NAV,
+  // Partner externo con SSO: solo administra su propia integración.
+  'external-provider': [DASHBOARD_ITEM, PARTNERSHIP_ITEM],
   // Perfil administrativo / superusuario: administración de roles y padrones.
   developer: [
     DASHBOARD_ITEM,
@@ -302,6 +312,9 @@ export function normalizeRole(raw: string | null | undefined): RoleKey {
     case 'gerente operaciones':
     case 'gerente de operaciones':
       return 'gerente-operaciones'
+    case 'adminpartnership':
+    case 'admin partnership':
+      return 'external-provider'
     default:
       return 'guest'
   }

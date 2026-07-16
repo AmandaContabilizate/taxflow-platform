@@ -1,6 +1,8 @@
+import { decodeJwt } from "jose";
 import { NextResponse, type NextRequest } from "next/server";
 import { clearSessionCookies, setSessionCookies } from "@/features/auth/actions";
-import { PROTECTED_ROUTES, PUBLIC_ROUTES } from "@/lib/routes";
+import { resolveLoginDestination } from "@/features/auth/lib/resolveLoginDestination";
+import { PROTECTED_ROUTES, PUBLIC_ROUTES, resolveRedirectBase } from "@/lib/routes";
 
 /**
  * Destino al que el backend redirige tras el handshake OAuth (Google/
@@ -21,7 +23,7 @@ export async function GET(request: NextRequest) {
   const refreshToken = params.get("temp") ?? undefined;
 
   if (!token) {
-    return NextResponse.redirect(new URL(PUBLIC_ROUTES.LOGIN, request.url));
+    return NextResponse.redirect(new URL(PUBLIC_ROUTES.LOGIN, resolveRedirectBase(request.url)));
   }
 
   const isEmbedded = request.headers.get("sec-fetch-dest") === "iframe";
@@ -32,10 +34,13 @@ export async function GET(request: NextRequest) {
     { embedded: isEmbedded },
   );
 
-  let destination: string = PROTECTED_ROUTES.DASHBOARD;
-  if (!rfc) {
-    destination = fullName ? PROTECTED_ROUTES.ONBOARDING : PUBLIC_ROUTES.COMPLETE_PROFILE;
-  }
+  const { role } = decodeJwt(token) as { role?: string };
+  const destination = resolveLoginDestination({
+    role,
+    rfc,
+    fullName,
+    fallback: PROTECTED_ROUTES.DASHBOARD,
+  });
 
-  return NextResponse.redirect(new URL(destination, request.url));
+  return NextResponse.redirect(new URL(destination, resolveRedirectBase(request.url)));
 }

@@ -1,9 +1,11 @@
 "use server";
 
+import { decodeJwt } from "jose";
 import { ApiError, fetchPostPublic } from "@/lib/api";
 import { API_ROUTES } from "@/lib/api/apiRoutes";
 import { type Result, err, ok } from "@/lib/common";
 import { PROTECTED_ROUTES } from "@/lib/routes";
+import { resolveLoginDestination } from "../lib/resolveLoginDestination";
 import type { SignInSchema } from "../schemas/signIn.schema";
 import type { LoginResponse, SignInError } from "../types";
 import { setSessionCookies } from "./setSessionCookies.action";
@@ -44,7 +46,16 @@ export async function signIn(
       { rememberMe: credentials.rememberMe },
     );
 
-    return ok(redirectPath);
+    const { role } = decodeJwt(response.token) as { role?: string };
+
+    return ok(
+      resolveLoginDestination({
+        role,
+        rfc: response.rfc,
+        fullName: response.fullName,
+        fallback: redirectPath,
+      }),
+    );
   } catch (e) {
     if (e instanceof ApiError && e.status === 401) {
       return err({

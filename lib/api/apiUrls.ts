@@ -41,6 +41,8 @@ export const API_BASE_URLS = {
   // Asignación de contador a contribuyente. OJO: NO lleva /SQLServer.
   accountant_assignments: `${BASE_PROCEDURES}/accountant-assignments`,
   stripe: `${BASE_PROCEDURES}/stripe`, // OJO: stripe NO lleva /SQLServer
+  // Administración de partnerships externos (SSO). OJO: NO lleva /SQLServer.
+  partnership: `${BASE_PROCEDURES}/partnership`,
   // Reports
   dashboard_reports: `${BASE_REPORTS}/dashboard/3`,
   declarations_reports: `${BASE_REPORTS}/declarations`,

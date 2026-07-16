@@ -21,6 +21,7 @@ import {
   HomeScreen,
   MisClientesScreen,
   OperacionesScreen,
+  PartnershipScreen,
   PermisosScreen,
   PlaceholderScreen,
   PlanScreen,
@@ -43,6 +44,7 @@ const WIDE_SCREENS = new Set<Screen>([
   'contribuyentes',
   'ventas',
   'roles',
+  'partnership',
 ])
 
 export default function Dashboard({ fullName, email, rfc, role, permissions, userId }: DashboardProps) {
@@ -221,6 +223,9 @@ function ScreenRouter({
     }
     if (screen === 'roles') {
       return <RolesScreen currentUserId={userId ?? undefined} />
+    }
+    if (screen === 'partnership') {
+      return <PartnershipScreen />
     }
     const [title, hint] = TITLES[screen] ?? ['Próximamente', '']
     return <PlaceholderScreen title={title} description={hint || undefined} />

@@ -2,15 +2,13 @@
 
 import { useRouter } from 'next/navigation'
 import SatCredentialsForm from '@/components/sat-credentials-form'
-import type { FiscalRegime } from '@/lib/types'
 
 interface Props {
-  regimes: FiscalRegime[]
   existingRfc?: string
   hasCredentials: boolean
 }
 
-export default function OnboardingClient({ regimes, existingRfc, hasCredentials }: Props) {
+export default function OnboardingClient({ existingRfc, hasCredentials }: Props) {
   const router = useRouter()
 
   return (
@@ -47,9 +45,31 @@ export default function OnboardingClient({ regimes, existingRfc, hasCredentials 
           >
             Conecta tu cuenta del SAT
           </h2>
-          <p className="text-sm font-semibold mb-8" style={{ color: 'rgba(255,255,255,0.6)' }}>
+          <p className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.6)' }}>
             Elige cómo quieres vincularte, detectamos tu régimen automáticamente y te mostramos el plan ideal.
           </p>
+
+          <div className="flex items-center gap-3 mb-8 mt-2">
+            <a
+              href="https://www.youtube.com/watch?v=iifS2LLieMU"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-bold hover:underline"
+              style={{ color: 'var(--brand-400)' }}
+            >
+              ¿Qué es la CIEC?
+            </a>
+            <span style={{ color: 'rgba(255,255,255,0.25)' }}>·</span>
+            <a
+              href="https://www.bbva.mx/educacion-financiera/empresa/cuenta-empresarial-que-es-la-e-firma.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-bold hover:underline"
+              style={{ color: 'var(--brand-400)' }}
+            >
+              ¿Qué es la e.firma?
+            </a>
+          </div>
 
           {/* Method cards */}
           <div className="flex flex-col gap-3 mb-10">
@@ -143,9 +163,8 @@ export default function OnboardingClient({ regimes, existingRfc, hasCredentials 
 
         <div className="w-full max-w-lg">
           <SatCredentialsForm
-            regimes={regimes}
             existingRfc={existingRfc}
-            onComplete={() => router.push('/planes')}
+            onComplete={() => router.push('/dashboard')}
           />
         </div>
       </div>

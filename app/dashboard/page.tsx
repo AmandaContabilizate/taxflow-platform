@@ -2,10 +2,11 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import Dashboard from '@/components/dashboard'
 import { getCurrentUser } from '@/features/auth/actions'
+import { PUBLIC_ROUTES } from '@/lib/routes'
 
 export default async function DashboardPage() {
   const user = await getCurrentUser()
-  if (!user) redirect('/auth/login')
+  if (!user) redirect(PUBLIC_ROUTES.LOGOUT)
 
   const cookieStore = await cookies()
   const role = cookieStore.get('claim_role')?.value ?? null
