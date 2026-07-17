@@ -16,24 +16,21 @@ export function ClientesScreen({ permissions = [] }: { permissions?: string[] })
   const canAssign = permissions.includes(ASSIGN_PERMISSION)
   const [target, setTarget] = useState<ClientListItem | null>(null)
 
-  // TEMP debug: ¿qué permisos llegan y por qué canAssign es false?
-  console.log('[Clientes] permissions:', permissions, '| canAssign:', canAssign)
-
   return (
-    <div className="flex flex-col gap-5 max-w-full">
+    <div className="flex flex-col gap-5 max-w-full h-[calc(100dvh-8.5rem)]">
       <HelpBox>
         Contribuyentes que ya tienen ventas pagadas. Aquí ves sus compras y los planes que contrataron.
       </HelpBox>
 
-      <Card>
+      <Card className="shrink-0">
         <div className="p-4">
           <SearchBar value={list.rfc} onChange={list.setRfc} placeholder="Buscar por RFC…" />
         </div>
       </Card>
 
-      <Card>
+      <Card className="flex-1 min-h-0 flex flex-col">
         <div
-          className="px-5 py-4 flex items-center justify-between flex-wrap gap-2 border-b"
+          className="px-5 py-4 flex items-center justify-between flex-wrap gap-2 border-b shrink-0"
           style={{ borderColor: 'var(--border)' }}
         >
           <div className="text-[15px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
@@ -42,24 +39,28 @@ export function ClientesScreen({ permissions = [] }: { permissions?: string[] })
         </div>
 
         {list.error ? (
-          <div className="px-5 py-8 text-center flex flex-col items-center gap-2">
+          <div className="flex-1 px-5 py-8 text-center flex flex-col items-center justify-center gap-2">
             <AlertCircle size={20} style={{ color: '#9E3A15' }} />
             <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>
               {list.error}
             </div>
           </div>
         ) : list.loading ? (
-          <div className="px-5 py-10 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
+          <div className="flex-1 px-5 py-10 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
             <Loader2 size={18} className="animate-spin" /> Cargando clientes…
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            <div className="flex-1 min-h-0 overflow-auto">
               <table className="w-full text-sm">
-                <thead>
+                <thead className="sticky top-0 z-10">
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
                     {['Cliente', 'RFC', 'Regímenes', 'Compras', 'Planes', 'Contador'].map((h) => (
-                      <th key={h} className="px-5 py-3 text-left font-extrabold" style={{ color: 'var(--ink-700)' }}>
+                      <th
+                        key={h}
+                        className="px-5 py-3 text-left font-extrabold"
+                        style={{ color: 'var(--ink-700)', background: 'var(--card)' }}
+                      >
                         {h}
                       </th>
                     ))}
@@ -147,7 +148,7 @@ export function ClientesScreen({ permissions = [] }: { permissions?: string[] })
             </div>
 
             {list.items.length === 0 ? (
-              <div className="text-center py-8">
+              <div className="text-center py-8 shrink-0">
                 <div style={{ color: 'var(--ink-500)' }}>No se encontraron clientes</div>
               </div>
             ) : (

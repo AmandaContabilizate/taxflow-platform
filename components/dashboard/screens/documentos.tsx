@@ -9,9 +9,9 @@ import {
   getVaultStats,
 } from '@/features/vault/actions'
 import { CFDI_STATUS_VIGENTE, type VaultInvoice, type VaultStats } from '@/features/vault/types'
-import { DISPLAY, MONO } from '../constants'
+import { MONO } from '../constants'
 import type { GoFn } from '../types'
-import { Badge, Btn, Card, Divider, HelpBox, SummaryStat, Tabs } from '../ui'
+import { Badge, Btn, Card, Divider, SummaryStat, Tabs } from '../ui'
 import { NeedsSatConnect } from './needs-sat-connect'
 
 interface Props {
@@ -24,7 +24,6 @@ const moneyFull = new Intl.NumberFormat('es-MX', {
   maximumFractionDigits: 0,
 })
 
-// Formato compacto tipo "$128K" / "$9.9K" para las tarjetas.
 function compactMoney(n: number): string {
   const trim = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(1))
   const abs = Math.abs(n)
@@ -53,8 +52,6 @@ interface Row {
   revisar: boolean
 }
 
-// La contraparte es el receptor en emitidas y el emisor en recibidas.
-// Emitidas = CFDI tipo "invoice" (IdInvoice) · recibidas = "expense" (IdExpense).
 function toRow(inv: VaultInvoice, side: 'issued' | 'received'): Row {
   const party = side === 'issued' ? inv.receiver : inv.issuer
   const fecha = formatDate(inv.date)
@@ -97,8 +94,6 @@ function triggerBrowserDownload(blob: Blob, filename: string) {
   URL.revokeObjectURL(url)
 }
 
-// Descarga el ZIP (PDF + XML) de las filas dadas vía el proxy /api/vault/download-zip.
-// Agrupa por tipo porque la pestaña "Canceladas" mezcla emitidas y recibidas.
 async function downloadRowsZip(rows: Row[]) {
   const groups = new Map<DocType, string[]>()
   for (const r of rows) {
@@ -173,8 +168,6 @@ export function DocumentosScreen({ go }: Props) {
     return [recibidas, emitidas, canceladas]
   }, [issued, received])
 
-  // "Deducible": no hay campo del backend, se deriva de los CFDI recibidos
-  // vigentes (statusComprobante === 1). Monto deducible y % sobre el total recibido.
   const deducible = useMemo(() => {
     const totalRecibido = received.reduce((sum, r) => sum + (r.total ?? 0), 0)
     const totalDeducible = received

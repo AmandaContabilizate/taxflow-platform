@@ -6,7 +6,6 @@ export type Screen =
   | 'facturas'
   | 'documentos'
   | 'diagnostico'
-  | 'aprende'
   | 'tip-detail'
   | 'tramites'
   | 'plan'
@@ -65,4 +64,9 @@ export interface DashboardProps {
   userId?: string | null
 }
 
-export type GoFn = (s: Screen) => void
+export interface GoOptions {
+  // Al ir a 'plan', abre el selector de planes automáticamente.
+  openPlanPicker?: boolean
+}
+
+export type GoFn = (s: Screen, opts?: GoOptions) => void

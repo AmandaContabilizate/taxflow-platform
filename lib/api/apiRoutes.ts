@@ -59,8 +59,11 @@ export const API_ROUTES = {
   // Operaciones (microservicio Reports)
   DECLARATIONS_OPS: {
     // kind: 2 = planes a futuro, 1 = regularizaciones. apiType "declarations_reports"
-    PAID_PENDING: (kind: number, skip = 0, take = 500) =>
-      `/paid-pending?kind=${kind}&skip=${skip}&take=${take}`,
+    // accountantUserId (opcional): filtra a las declaraciones del contador dado.
+    PAID_PENDING: (kind: number, skip = 0, take = 500, accountantUserId?: string) =>
+      `/paid-pending?kind=${kind}&skip=${skip}&take=${take}${
+        accountantUserId ? `&accountantUserId=${encodeURIComponent(accountantUserId)}` : ""
+      }`,
   },
   SALES_OPS: {
     // Trámites adicionales vendidos. apiType "sales_reports"
@@ -80,19 +83,19 @@ export const API_ROUTES = {
       `/with-paid-sales?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}`,
     // Cartera del contador autenticado (o de otro vía accountantUserId). apiType "taxpayers_reports"
     MY_CLIENTS: (skip = 0, take = 100, rfc?: string, accountantUserId?: string) =>
-      `/my-clients?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${
-        accountantUserId ? `&accountantUserId=${encodeURIComponent(accountantUserId)}` : ""
+      `/my-clients?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${accountantUserId ? `&accountantUserId=${encodeURIComponent(accountantUserId)}` : ""
       }`,
   },
-  // Asignación de contador a contribuyente (microservicio Procedures). apiType "accountant_assignments"
   ACCOUNTANT_ASSIGNMENTS: {
-    // Ver asignación actual + historial + pool de contadores.
     GET: (taxpayerId: number) => `/${taxpayerId}`,
-    // Reasignar contribuyente a otro contador.
     REASSIGN: "/reassign",
   },
-  // Bóveda de CFDI (microservicio Procedures). apiType "vault".
-  // Todas requieren rfc + email (el email sale de la cookie en la server action).
+  DECLARATION: {
+    FISCAL_SCORE: (rfc: string) => `/fiscal-score?rfc=${encodeURIComponent(rfc)}`,
+    REGULARIZATIONS: (rfc: string) => `/regularizations?rfc=${encodeURIComponent(rfc)}`,
+    FUTURE_PLAN: (rfc: string) => `/future-plan?rfc=${encodeURIComponent(rfc)}`,
+    ANNUALS: (rfc: string) => `/annuals?rfc=${encodeURIComponent(rfc)}`,
+  },
   VAULT: {
     ISSUED_COUNT: (rfc: string, email: string) =>
       `/issued-count?rfc=${encodeURIComponent(rfc)}&email=${encodeURIComponent(email)}`,
@@ -118,6 +121,8 @@ export const API_ROUTES = {
   // Ventas / planes (microservicio Procedures)
   CATALOGS: {
     PLANS: (rfc: string) => `/plans?rfc=${encodeURIComponent(rfc)}`, // apiType "catalogs_procedures"
+    // Catálogo público (sin rfc ni auth). apiType "catalogs_procedures"
+    ADDITIONAL_PROCEDURES: "/additional-procedures",
   },
   FINANCES: {
     REGISTER_SALE_NEW: "/register-sale/new", // apiType "finances"

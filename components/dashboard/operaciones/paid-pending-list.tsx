@@ -44,6 +44,7 @@ export function PaidPendingList({ kind, help, searchPlaceholder, emptyText }: Pr
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [onlyMine, setOnlyMine] = useState(false)
   const [selected, setSelected] = useState<PaidPendingDeclaration | null>(null)
 
   useEffect(() => {
@@ -51,7 +52,7 @@ export function PaidPendingList({ kind, help, searchPlaceholder, emptyText }: Pr
     setLoading(true)
     setError(null)
     void (async () => {
-      const res = await getPaidPendingDeclarations(kind)
+      const res = await getPaidPendingDeclarations(kind, 0, 500, onlyMine)
       if (cancelled) return
       if (res.success) setRows(res.value)
       else setError(res.error.message)
@@ -60,7 +61,7 @@ export function PaidPendingList({ kind, help, searchPlaceholder, emptyText }: Pr
     return () => {
       cancelled = true
     }
-  }, [kind])
+  }, [kind, onlyMine])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -103,10 +104,21 @@ export function PaidPendingList({ kind, help, searchPlaceholder, emptyText }: Pr
         </div>
       </Card>
 
-      {/* Encabezado / contador */}
-      <div className="flex items-center justify-between px-1">
+      {/* Encabezado / contador + filtro por contador */}
+      <div className="flex items-center justify-between gap-3 px-1 flex-wrap">
         <div className="text-[15px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
           {loading ? 'Cargando…' : `${filtered.length} ${filtered.length === 1 ? 'declaración' : 'declaraciones'}`}
+        </div>
+        <div
+          className="inline-flex rounded-xl p-0.5"
+          style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}
+        >
+          <ScopeButton active={!onlyMine} onClick={() => setOnlyMine(false)}>
+            Todas
+          </ScopeButton>
+          <ScopeButton active={onlyMine} onClick={() => setOnlyMine(true)}>
+            Mis declaraciones
+          </ScopeButton>
         </div>
       </div>
 
@@ -186,6 +198,30 @@ export function PaidPendingList({ kind, help, searchPlaceholder, emptyText }: Pr
         </div>
       )}
     </div>
+  )
+}
+
+function ScopeButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="px-3.5 py-1.5 rounded-lg text-[13px] font-bold transition"
+      style={
+        active
+          ? { background: 'var(--card)', color: 'var(--ink-900)', boxShadow: 'var(--sh-1)' }
+          : { background: 'transparent', color: 'var(--ink-500)' }
+      }
+    >
+      {children}
+    </button>
   )
 }
 

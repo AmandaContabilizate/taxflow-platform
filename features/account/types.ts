@@ -93,6 +93,30 @@ export function toPlansCatalog(data: unknown): PlansCatalog {
   };
 }
 
+/**
+ * Catálogo de trámites adicionales (GET /api/catalogs/{db}/additional-procedures).
+ * `satProcedures` → trámites con el SAT · `extraDeclarations` → declaraciones extra.
+ */
+export interface AdditionalProceduresCatalog {
+  satProcedures: Plan[];
+  extraDeclarations: Plan[];
+}
+
+export const EMPTY_ADDITIONAL_PROCEDURES: AdditionalProceduresCatalog = {
+  satProcedures: [],
+  extraDeclarations: [],
+};
+
+export function toAdditionalProceduresCatalog(data: unknown): AdditionalProceduresCatalog {
+  const onlyActive = (arr: unknown): Plan[] =>
+    Array.isArray(arr) ? (arr as Plan[]).filter((p) => p?.isActive) : [];
+  const obj = (data ?? {}) as Record<string, unknown>;
+  return {
+    satProcedures: onlyActive(obj.satProcedures),
+    extraDeclarations: onlyActive(obj.extraDeclarations),
+  };
+}
+
 export interface RegisterSaleItem {
   subscriptionId: number; // = Plan.id (del plan o del add-on)
   quantity: number;
@@ -171,6 +195,8 @@ export interface ActivePlan {
   price: number | null;
   currency: string | null;
   billingPeriod: BillingPeriod | null;
+  features: string[] | null;
+  featuresJson: string | null;
   status: string | null;
   subscriptionId: string | null;
   renewDate: string | null;
@@ -178,6 +204,23 @@ export interface ActivePlan {
   paymentIntentId: string | null;
   paidAmount: number | null;
   paidAt: string | null;
+}
+
+/** Resuelve features desde el arreglo o parseando `featuresJson`. */
+export function resolveFeatures(
+  features: string[] | null | undefined,
+  featuresJson: string | null | undefined,
+): string[] {
+  if (features && features.length > 0) return features;
+  if (featuresJson) {
+    try {
+      const parsed = JSON.parse(featuresJson);
+      if (Array.isArray(parsed)) return parsed.filter((x) => typeof x === "string");
+    } catch {
+      // featuresJson mal formado: ignorar
+    }
+  }
+  return [];
 }
 
 // =============================================================

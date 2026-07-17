@@ -1,23 +1,22 @@
 'use client'
 
-import { Check, FileText, Loader2, Lock, MessageCircle, Sparkles, Stethoscope } from 'lucide-react'
+import { Check, Loader2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { cancelSubscription } from '@/features/account/actions/cancelSubscription.action'
 import { getActivePlan } from '@/features/account/actions/getActivePlan.action'
 import { getPlans } from '@/features/account/actions/getPlans.action'
-import { EMPTY_PLANS_CATALOG, formatMXN, periodLabel, type ActivePlan, type PlansCatalog } from '@/features/account/types'
+import {
+  EMPTY_PLANS_CATALOG,
+  formatMXN,
+  periodLabel,
+  resolveFeatures,
+  type ActivePlan,
+  type PlansCatalog,
+} from '@/features/account/types'
 import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import { PlanPickerModal } from '../plan/plan-picker-modal'
 import { DISPLAY } from '../constants'
 import { Badge, Btn, Card, Divider, HelpBox, Pill, VideoSlot } from '../ui'
-
-const INCLUYE = [
-  { i: Sparkles, t: '6 declaraciones al mes con apoyo de IA', s: 'Llevas 2 usadas este mes' },
-  { i: FileText, t: '300 facturas (CFDI) por semestre', s: 'Has emitido 24' },
-  { i: MessageCircle, t: 'Chat ilimitado con tu contador', s: 'Te responden en menos de 2 horas' },
-  { i: Lock, t: 'Monitoreo de listas negras del SAT', s: 'Vigilamos tu RFC todo el día' },
-  { i: Stethoscope, t: 'Diagnóstico fiscal con IA', s: 'Te avisamos cuando puedes ahorrar' },
-]
 
 function formatRenewDate(value?: string): string | null {
   if (!value) return null
@@ -26,7 +25,12 @@ function formatRenewDate(value?: string): string | null {
   return date.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-export function PlanScreen() {
+interface PlanScreenProps {
+  autoOpenPicker?: boolean
+  onAutoOpenHandled?: () => void
+}
+
+export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled }: PlanScreenProps) {
   const { selectedRfc } = useRfcStore()
 
   const [activePlan, setActivePlan] = useState<ActivePlan | null>(null)
@@ -82,6 +86,14 @@ export function PlanScreen() {
   const renewDate = formatRenewDate(activePlan?.renewDate ?? undefined)
   const planCount = catalog.futurePlans.length
   const hasPlans = planCount > 0
+  const features = resolveFeatures(activePlan?.features, activePlan?.featuresJson)
+
+  useEffect(() => {
+    if (autoOpenPicker && hasPlans) {
+      setPickerOpen(true)
+      onAutoOpenHandled?.()
+    }
+  }, [autoOpenPicker, hasPlans, onAutoOpenHandled])
 
   return (
     <div className="flex flex-col gap-6 max-w-[1040px]">
@@ -168,39 +180,35 @@ export function PlanScreen() {
         )}
       </div>
 
-      {/* Lo que incluye */}
-      <div>
-        <div className="text-[18px] font-bold mb-1" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
-          Lo que incluye tu plan
-        </div>
-        <div className="text-[13.5px] mb-4" style={{ color: 'var(--ink-500)' }}>
-          Todo esto ya está cubierto sin que pagues extra.
-        </div>
-        <Card>
-          <div>
-            {INCLUYE.map((it, i, arr) => (
-              <div key={it.t}>
-                <div className="flex items-center gap-3 px-4 py-3.5">
-                  <div
-                    className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: 'var(--brand-50)', color: 'var(--brand-700)' }}
-                  >
-                    <it.i size={20} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-[14.5px]">{it.t}</div>
-                    <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
-                      {it.s}
-                    </div>
-                  </div>
-                  <Check size={18} color="var(--brand-500)" />
-                </div>
-                {i < arr.length - 1 && <Divider />}
-              </div>
-            ))}
+      {/* Lo que incluye (features del plan activo) */}
+      {hasSub && features.length > 0 && (
+        <div>
+          <div className="text-[18px] font-bold mb-1" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
+            Lo que incluye tu plan
           </div>
-        </Card>
-      </div>
+          <div className="text-[13.5px] mb-4" style={{ color: 'var(--ink-500)' }}>
+            Todo esto ya está cubierto sin que pagues extra.
+          </div>
+          <Card>
+            <div>
+              {features.map((f, i, arr) => (
+                <div key={`${f}-${i}`}>
+                  <div className="flex items-center gap-3 px-4 py-3.5">
+                    <div
+                      className="w-9 h-9 rounded-2xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: 'var(--brand-50)', color: 'var(--brand-700)' }}
+                    >
+                      <Check size={18} />
+                    </div>
+                    <div className="flex-1 min-w-0 font-bold text-[14.5px]">{f}</div>
+                  </div>
+                  {i < arr.length - 1 && <Divider />}
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Cambiar / renovar */}
       <div>
