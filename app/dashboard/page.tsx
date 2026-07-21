@@ -12,11 +12,15 @@ export default async function DashboardPage() {
   const permissions = parsePermissions(cookieStore.get('claim_permission')?.value)
   const userId = cookieStore.get('userId')?.value ?? null
 
+  const fullName = cookieStore.get('fullName')?.value ?? user.fullName ?? user.email ?? 'Usuario'
+  const email = cookieStore.get('email')?.value ?? user.email ?? ''
+  const rfc = cookieStore.get('rfc')?.value ?? user.rfc ?? null
+
   return (
     <Dashboard
-      fullName={user.fullName ?? user.email ?? 'Usuario'}
-      email={user.email ?? ''}
-      rfc={user.rfc ?? null}
+      fullName={fullName}
+      email={email}
+      rfc={rfc}
       role={role}
       permissions={permissions}
       userId={userId}

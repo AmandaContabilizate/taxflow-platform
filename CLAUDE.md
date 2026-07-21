@@ -20,6 +20,7 @@ npm run lint     # eslint .
 ```
 
 No hay suite de tests configurada (sin Jest/Vitest/Playwright en `package.json`).
+Evita comentarios innecesarios en el código, si al editar el archivo ves comentarios ineceesarios eliminalos
 
 El backend (.NET, microservicios "ContaboxPro core2") es un repo aparte y debe
 estar corriendo en local para que las server actions respondan; ver

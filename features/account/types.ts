@@ -117,6 +117,27 @@ export function toAdditionalProceduresCatalog(data: unknown): AdditionalProcedur
   };
 }
 
+/** Pago a Contabilízate (GET /api/sales/payments). */
+export interface SalePayment {
+  saleId: number;
+  rfc: string;
+  amount: number;
+  currency: string;
+  saleDate: string;
+  planName: string | null;
+  type: "subscription" | "one_time" | string;
+  paymentIntentId: string | null;
+  checkoutId: string | null;
+  stripeSubscriptionId: string | null;
+}
+
+export interface SalePaymentsPage {
+  page: number;
+  pageSize: number;
+  total: number;
+  items: SalePayment[];
+}
+
 export interface RegisterSaleItem {
   subscriptionId: number; // = Plan.id (del plan o del add-on)
   quantity: number;

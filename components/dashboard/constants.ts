@@ -81,7 +81,6 @@ const GUEST_NAV: NavDef[] = [
   { id: 'facturas', label: 'Facturas', Icon: FilePlus, hint: 'Emite y revisa facturas' },
   { id: 'documentos', label: 'Bóveda', Icon: FolderLock, hint: 'Tu bóveda digital de CFDI y constancias' },
   { id: 'diagnostico', label: 'Diagnóstico', Icon: Stethoscope, hint: 'Tu situación fiscal' },
-  // { id: 'aprende', label: 'Aprende', Icon: Sparkles, hint: 'Lecciones cortas' },
   { id: 'tramites', label: 'Trámites', Icon: FilePlus2, hint: 'Servicios extra' },
   { id: 'plan', label: 'Mi plan', Icon: Gem, hint: 'Tu suscripción' },
   { id: 'ayuda', label: 'Ayuda', Icon: HelpCircle, hint: 'Tutoriales y dudas' },

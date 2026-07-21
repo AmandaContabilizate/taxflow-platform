@@ -1,36 +1,31 @@
-/**
- * Catálogo central de endpoints del backend ContaboxPro core2.
- * Las rutas son relativas a la base que define cada `apiType` en apiUrls.ts.
- */
 export const API_ROUTES = {
   AUTH: {
-    LOGIN: "/login",                // POST   apiType "auth"  → /api/auth/login
-    SIGN_OUT: "/signout",           // POST   apiType "auth"
-    VALIDATE: "/validate",          // GET    apiType "auth"
+    LOGIN: "/login",
+    SIGN_OUT: "/signout",
+    VALIDATE: "/validate",
   },
   USERS: {
-    ROOT: "",                       // GET    apiType "users" → /api/users
+    ROOT: "",
     GET: (id: string) => `/${id}`,
-    SEND_CODE: "/SendCode",         // POST   apiType "users" → /api/users/SendCode
-    EXIST_EMAIL: (email: string) => `/ExistEmail/${encodeURIComponent(email)}`, // GET apiType "users"
-    VALIDATE_CODE: "/ValidateConfirmationCode", // POST apiType "users"
-    COMPLETE_PROFILE: "/CompleteUserProfile",   // POST apiType "users" (auth)
-    FORGOT_PASSWORD: "/forgot-password",        // POST apiType "users" → body: email (string)
-    RESET_PASSWORD: "/reset-password",          // POST apiType "users" → body: { Email, ResetCode, NewPassword }
-    // Roles del usuario. apiType "users"
-    ASSIGN_ROLE: "/assign-role",    // POST   → /api/users/.../assign-role
-    REMOVE_ROLE: "/remove-role",    // POST   → /api/users/.../remove-role
-    ROLES: (userId: string) => `/${encodeURIComponent(userId)}/roles`, // GET|PUT
-    SWITCH_ROLE: "/switch-role",    // POST   (cambia rol activo, devuelve JWT nuevo)
+    SEND_CODE: "/SendCode",
+    EXIST_EMAIL: (email: string) => `/ExistEmail/${encodeURIComponent(email)}`,
+    VALIDATE_CODE: "/ValidateConfirmationCode",
+    COMPLETE_PROFILE: "/CompleteUserProfile",
+    FORGOT_PASSWORD: "/forgot-password",
+    RESET_PASSWORD: "/reset-password",
+    UPDATE_PASSWORD: "/UpdatePassword",
+    ASSIGN_ROLE: "/assign-role",
+    REMOVE_ROLE: "/remove-role",
+    ROLES: (userId: string) => `/${encodeURIComponent(userId)}/roles`,
+    SWITCH_ROLE: "/switch-role",
   },
-  // Administración de roles (microservicio Identity). apiType "roles"
   ROLES: {
-    LIST: "/roles-list",                                   // GET
-    GET: (roleId: string) => `/roles/${encodeURIComponent(roleId)}`, // GET
-    CREATE: "/roles",                                      // POST
-    UPDATE: "/roles",                                      // PUT
-    DELETE: (roleId: string) => `/roles/${encodeURIComponent(roleId)}`, // DELETE
-    CLAIMS_CATALOG: "/claims-catalog",                     // GET
+    LIST: "/roles-list",
+    GET: (roleId: string) => `/roles/${encodeURIComponent(roleId)}`,
+    CREATE: "/roles",
+    UPDATE: "/roles",
+    DELETE: (roleId: string) => `/roles/${encodeURIComponent(roleId)}`,
+    CLAIMS_CATALOG: "/claims-catalog",
   },
   TAXPAYERS: {
     ROOT: "",
@@ -43,7 +38,6 @@ export const API_ROUTES = {
     TAX_CERTIFICATE: (rfc: string) =>
       `/taxcertificate?rfc=${encodeURIComponent(rfc)}`,
   },
-  // Metadata de documentos fiscales (apiType "identity" → base /api)
   METADATA: {
     COMPLIANCE_OPINION: (rfc: string) =>
       `/compliance-opinion/metadata?rfc=${encodeURIComponent(rfc)}`,
@@ -56,32 +50,22 @@ export const API_ROUTES = {
     ISSUED_INVOICES: "/issued-invoices",
     ACTIVE_CLIENTS: "/active-clients",
   },
-  // Operaciones (microservicio Reports)
   DECLARATIONS_OPS: {
-    // kind: 2 = planes a futuro, 1 = regularizaciones. apiType "declarations_reports"
-    // accountantUserId (opcional): filtra a las declaraciones del contador dado.
     PAID_PENDING: (kind: number, skip = 0, take = 500, accountantUserId?: string) =>
-      `/paid-pending?kind=${kind}&skip=${skip}&take=${take}${
-        accountantUserId ? `&accountantUserId=${encodeURIComponent(accountantUserId)}` : ""
+      `/paid-pending?kind=${kind}&skip=${skip}&take=${take}${accountantUserId ? `&accountantUserId=${encodeURIComponent(accountantUserId)}` : ""
       }`,
   },
   SALES_OPS: {
-    // Trámites adicionales vendidos. apiType "sales_reports"
     PROCEDURES: (skip = 0, take = 500) =>
       `/procedures?skip=${skip}&take=${take}`,
-    // Resumen de ventas (cuenta + productos). apiType "sales_reports"
     SUMMARY: (skip = 0, take = 100, rfc?: string) =>
       `/summary?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}`,
   },
-  // Padrón de contribuyentes / clientes (microservicio Reports)
   TAXPAYERS_OPS: {
-    // Todos los contribuyentes. apiType "taxpayers_reports"
     LIST: (skip = 0, take = 100, rfc?: string) =>
       `?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}`,
-    // Contribuyentes con ventas pagadas (= clientes). apiType "taxpayers_reports"
     WITH_PAID_SALES: (skip = 0, take = 100, rfc?: string) =>
       `/with-paid-sales?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}`,
-    // Cartera del contador autenticado (o de otro vía accountantUserId). apiType "taxpayers_reports"
     MY_CLIENTS: (skip = 0, take = 100, rfc?: string, accountantUserId?: string) =>
       `/my-clients?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${accountantUserId ? `&accountantUserId=${encodeURIComponent(accountantUserId)}` : ""
       }`,
@@ -89,6 +73,11 @@ export const API_ROUTES = {
   ACCOUNTANT_ASSIGNMENTS: {
     GET: (taxpayerId: number) => `/${taxpayerId}`,
     REASSIGN: "/reassign",
+    BY_RFC: (rfc: string) => `/by-rfc?rfc=${encodeURIComponent(rfc)}`,
+  },
+  SALES: {
+    PAYMENTS: (rfc: string, page = 1, pageSize = 20) =>
+      `/payments?rfc=${encodeURIComponent(rfc)}&page=${page}&pageSize=${pageSize}`,
   },
   DECLARATION: {
     FISCAL_SCORE: (rfc: string) => `/fiscal-score?rfc=${encodeURIComponent(rfc)}`,
@@ -110,30 +99,26 @@ export const API_ROUTES = {
     RECEIVED_INVOICES: (rfc: string, email: string) =>
       `/received-invoices?rfc=${encodeURIComponent(rfc)}&email=${encodeURIComponent(email)}`,
   },
-  // Documentos CFDI individuales (microservicio Procedures). apiType "cfdi".
-  // invoice → emitidas (IdInvoice) · expense → recibidas / gastos (IdExpense).
   CFDI: {
     INVOICE_PDF: (id: string) => `/invoice-pdf?IdInvoice=${encodeURIComponent(id)}`,
     INVOICE_XML: (id: string) => `/invoice-xml?IdInvoice=${encodeURIComponent(id)}`,
     EXPENSE_PDF: (id: string) => `/expense-pdf?IdExpense=${encodeURIComponent(id)}`,
     EXPENSE_XML: (id: string) => `/expense-xml?IdExpense=${encodeURIComponent(id)}`,
   },
-  // Ventas / planes (microservicio Procedures)
   CATALOGS: {
-    PLANS: (rfc: string) => `/plans?rfc=${encodeURIComponent(rfc)}`, // apiType "catalogs_procedures"
-    // Catálogo público (sin rfc ni auth). apiType "catalogs_procedures"
+    PLANS: (rfc: string) => `/plans?rfc=${encodeURIComponent(rfc)}`,
     ADDITIONAL_PROCEDURES: "/additional-procedures",
   },
   FINANCES: {
-    REGISTER_SALE_NEW: "/register-sale/new", // apiType "finances"
+    REGISTER_SALE_NEW: "/register-sale/new",
   },
   STRIPE: {
-    PAYMENT_SHEET: "/payment-sheet", // apiType "stripe"
+    PAYMENT_SHEET: "/payment-sheet",
     PROMOTION_CODE_VALIDATE: "/promotion-code/validate",
     SUBSCRIPTION_CURRENT: (rfc: string) =>
       `/subscription/current?rfc=${encodeURIComponent(rfc)}`,
     SUBSCRIPTION_CANCEL: "/subscription/cancel",
     ACTIVE_PLAN: (rfc: string) =>
-      `/active-plan?rfc=${encodeURIComponent(rfc)}`, // apiType "stripe"
+      `/active-plan?rfc=${encodeURIComponent(rfc)}`,
   },
 } as const;

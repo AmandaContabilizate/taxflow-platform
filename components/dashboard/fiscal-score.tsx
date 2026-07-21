@@ -4,6 +4,7 @@ import { ArrowUpRight, Loader2, RefreshCw } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { getFiscalScore } from '@/features/declarations/actions/getFiscalScore.action'
 import type { FiscalScore } from '@/features/declarations/types'
+import { getTaxCertificateMetadata } from '@/features/taxpayers/actions/getDocumentMetadata.action'
 import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import { DISPLAY, MONO } from './constants'
 import type { GoFn } from './types'
@@ -13,7 +14,8 @@ type State =
   | { status: 'idle' }
   | { status: 'loading' }
   | { status: 'ready'; value: FiscalScore }
-  | { status: 'empty' } // total === 0: el usuario no tiene declaraciones
+  | { status: 'empty' } // total === 0 pero con documento de situación fiscal
+  | { status: 'processing' } // 0 declaraciones y sin documento: análisis en curso
   | { status: 'error'; message: string }
 
 interface Props {
@@ -57,18 +59,22 @@ export function FiscalScore({ go, planTier, satSyncedLabel }: Props) {
     setState({ status: 'loading' })
 
     void (async () => {
-      const res = await getFiscalScore(selectedRfc)
+      const [scoreRes, csfRes] = await Promise.all([
+        getFiscalScore(selectedRfc),
+        getTaxCertificateMetadata(selectedRfc),
+      ])
       if (cancelled) return
-      if (!res.success) {
-        setState({ status: 'error', message: res.error.message })
+      if (!scoreRes.success) {
+        setState({ status: 'error', message: scoreRes.error.message })
         return
       }
-      // total === 0 con score === 100 significa "sin declaraciones", no "todo al día".
-      if (res.value.total === 0) {
-        setState({ status: 'empty' })
+      // Sin declaraciones (0 regularizaciones): si además no hay documento de
+      // situación fiscal, el análisis sigue en curso; si lo hay, solo está vacío.
+      if (scoreRes.value.total === 0) {
+        setState({ status: csfRes.success ? 'empty' : 'processing' })
         return
       }
-      setState({ status: 'ready', value: res.value })
+      setState({ status: 'ready', value: scoreRes.value })
     })()
 
     return () => {
@@ -110,6 +116,8 @@ export function FiscalScore({ go, planTier, satSyncedLabel }: Props) {
         </div>
       ) : state.status === 'error' ? (
         <ErrorBody message={state.message} onRetry={() => go('declaraciones')} />
+      ) : state.status === 'processing' ? (
+        <ProcessingBody />
       ) : state.status === 'empty' ? (
         <EmptyBody onConnect={() => go('estatus-sat')} />
       ) : (
@@ -212,6 +220,26 @@ function EmptyBody({ onConnect }: { onConnect: () => void }) {
         <Btn size="lg" onClick={onConnect} style={{ background: '#fff', color: 'var(--ink-900)', boxShadow: 'none' }}>
           Conectar con el SAT <ArrowUpRight size={18} />
         </Btn>
+      </div>
+    </div>
+  )
+}
+
+function ProcessingBody() {
+  return (
+    <div className="mt-6">
+      <div
+        className="inline-flex items-center gap-2 text-[11px] tracking-[0.18em] uppercase font-extrabold"
+        style={{ color: 'rgba(255,255,255,0.55)' }}
+      >
+        <Loader2 size={13} className="animate-spin" /> Tu score fiscal
+      </div>
+      <div className="text-[26px] lg:text-[34px] font-extrabold tracking-tight leading-tight mt-1" style={DISPLAY}>
+        Análisis fiscal en proceso
+      </div>
+      <div className="text-[14.5px] mt-3 leading-relaxed max-w-[480px]" style={{ color: 'rgba(255,255,255,0.78)' }}>
+        Estamos sincronizando tu información con el SAT. En cuanto terminemos, aquí verás tu score fiscal y tus
+        declaraciones.
       </div>
     </div>
   )

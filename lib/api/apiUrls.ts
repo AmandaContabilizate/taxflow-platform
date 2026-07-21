@@ -1,21 +1,5 @@
 import "server-only";
 
-/**
- * Mapa de bases URL por microservicio del backend ContaboxPro core2.
- *
- * Microservicios (puertos por defecto en dev):
- *   - Identity   → 7125  (auth, users, taxpayers, employees, roles)
- *   - Procedures → 7165  (declaration, vault, cfdi, ...)
- *   - Reports    → 7126  (dashboards)
- *   - Scrappers  → 7042  (SAT scrappers)
- *
- * Configurables en .env.local con API_BASE_*. Intencionalmente SIN el
- * prefijo NEXT_PUBLIC_ — este módulo es server-only (ver `import
- * "server-only"` arriba). Así los valores se pueden cambiar en Application
- * Settings (Azure) sin necesitar un rebuild, y el mismo build sirve para
- * STG y Producción indistintamente.
- */
-
 const BASE_IDENTITY = process.env.API_BASE_IDENTITY || "https://localhost:7125/api";
 const BASE_PROCEDURES = process.env.API_BASE_PROCEDURES || "https://localhost:7165/api";
 const BASE_REPORTS = process.env.API_BASE_REPORTS || "https://localhost:7126/api";
@@ -24,24 +8,20 @@ const DbOrigin = "/SQLServer";
 
 export const API_BASE_URLS = {
   default: BASE_IDENTITY,
-  // Identity
   auth: `${BASE_IDENTITY}/auth${DbOrigin}`,
   users: `${BASE_IDENTITY}/users${DbOrigin}`,
   taxpayers: `${BASE_IDENTITY}/taxpayers${DbOrigin}`,
   catalogs: `${BASE_IDENTITY}/catalogs${DbOrigin}`,
   metadata: `${BASE_IDENTITY}/metadata${DbOrigin}`,
   roles: `${BASE_IDENTITY}/roles${DbOrigin}`,
-  // Procedures
   declaration: `${BASE_PROCEDURES}/declaration${DbOrigin}`,
   vault: `${BASE_PROCEDURES}/vault${DbOrigin}`,
   cfdi: `${BASE_PROCEDURES}/cfdi${DbOrigin}`,
-  // Procedures · ventas / planes
   catalogs_procedures: `${BASE_PROCEDURES}/catalogs${DbOrigin}`,
   finances: `${BASE_PROCEDURES}/finances${DbOrigin}`,
-  // Asignación de contador a contribuyente. OJO: NO lleva /SQLServer.
   accountant_assignments: `${BASE_PROCEDURES}/accountant-assignments`,
-  stripe: `${BASE_PROCEDURES}/stripe`, // OJO: stripe NO lleva /SQLServer
-  // Reports
+  sales_procedures: `${BASE_PROCEDURES}/sales`,
+  stripe: `${BASE_PROCEDURES}/stripe`,
   dashboard_reports: `${BASE_REPORTS}/dashboard/3`,
   declarations_reports: `${BASE_REPORTS}/declarations`,
   sales_reports: `${BASE_REPORTS}/sales`,
@@ -60,20 +40,8 @@ export function getBaseUrl(apiType: ApiType = "default"): string {
   return url;
 }
 
-// =============================================================
-// SSO / OAuth externo
-// =============================================================
-
-// Identifica este frontend ante el backend (rutas con {systemOriginId?}
-// como /auth/google, /auth/facebook, /users/SendCode). Configurable por env
-// para poder reusarse en otros orígenes sin tocar código.
 const SYSTEM_ORIGIN_ID = process.env.SYSTEM_ORIGIN_ID || "4";
 
-/**
- * URL absoluta del challenge OAuth del backend. Se usa para navegación
- * directa del navegador (`window.location.href`), no para fetch — el
- * backend hace el handshake completo y redirige de vuelta al frontend.
- */
 export function getExternalAuthUrl(provider: "google" | "facebook" | "apple"): string {
   return `${getBaseUrl("auth")}/${provider}/${SYSTEM_ORIGIN_ID}`;
 }

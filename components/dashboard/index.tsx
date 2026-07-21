@@ -7,7 +7,7 @@ import { RfcProvider } from '@/features/taxpayers/stores/rfcStore'
 import SatConnectScreen from '@/components/sat-connect-screen'
 import { DISPLAY, TITLES, normalizeRole } from './constants'
 import { Sidebar } from './sidebar'
-import type { DashboardProps, GoFn, Screen } from './types'
+import type { DashboardProps, Screen } from './types'
 import {
   AprendeScreen,
   AyudaScreen,
@@ -48,7 +48,6 @@ const WIDE_SCREENS = new Set<Screen>([
 export default function Dashboard({ fullName, email, rfc, role, permissions, userId }: DashboardProps) {
   const [screen, setScreen] = useState<Screen>('home')
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [autoOpenPlanPicker, setAutoOpenPlanPicker] = useState(false)
   const [signingOut, startSignOut] = useTransition()
 
   const initials =
@@ -59,9 +58,8 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
       .join('') || 'U'
   const firstName = fullName.split(' ')[0] || 'Usuario'
 
-  const go: GoFn = (s, opts) => {
+  const go = (s: Screen) => {
     setScreen(s)
-    setAutoOpenPlanPicker(s === 'plan' && !!opts?.openPlanPicker)
     setMobileOpen(false)
     if (typeof window !== 'undefined') window.scrollTo(0, 0)
   }
@@ -130,8 +128,6 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
             role={role}
             permissions={permissions}
             userId={userId}
-            autoOpenPlanPicker={autoOpenPlanPicker}
-            onAutoOpenPlanPickerHandled={() => setAutoOpenPlanPicker(false)}
           />
         </main>
       </div>
@@ -141,7 +137,7 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
 
 interface RouterProps {
   screen: Screen
-  go: GoFn
+  go: (s: Screen) => void
   rfc: string | null
   fullName: string
   email: string
@@ -152,8 +148,6 @@ interface RouterProps {
   role: string | null
   permissions: string[]
   userId?: string | null
-  autoOpenPlanPicker: boolean
-  onAutoOpenPlanPickerHandled: () => void
 }
 
 function ScreenRouter({
@@ -169,8 +163,6 @@ function ScreenRouter({
   role,
   permissions,
   userId,
-  autoOpenPlanPicker,
-  onAutoOpenPlanPickerHandled,
 }: RouterProps) {
   const roleKey = normalizeRole(role)
   const isGuest = roleKey === 'guest'
@@ -184,8 +176,9 @@ function ScreenRouter({
         rfc={rfc}
         initials={initials}
         onLogout={onLogout}
-        signingOut={signingOut}
-      />
+        signingOut={signingOut} role={null} go={function (s: Screen): void {
+          throw new Error('Function not implemented.')
+        }} />
     )
   }
   if (screen === 'permisos') {
@@ -248,14 +241,9 @@ function ScreenRouter({
     case 'tip-detail':
       return <TipDetailScreen go={go} />
     case 'tramites':
-      return <TramitesScreen go={go} />
+      return <TramitesScreen />
     case 'plan':
-      return (
-        <PlanScreen
-          autoOpenPicker={autoOpenPlanPicker}
-          onAutoOpenHandled={onAutoOpenPlanPickerHandled}
-        />
-      )
+      return <PlanScreen />
     case 'ayuda':
       return <AyudaScreen />
     default:

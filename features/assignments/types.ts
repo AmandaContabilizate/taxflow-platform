@@ -8,6 +8,12 @@
  * El shape de `reassign` (request/response) sí está confirmado.
  */
 
+/** Contador activo por RFC (GET /accountant-assignments/by-rfc). */
+export interface AccountantByRfc {
+  rfc: string;
+  accountantName: string;
+}
+
 /** Contador (base para current / history / pool). */
 export interface AccountantRef {
   accountantUserId: string;
