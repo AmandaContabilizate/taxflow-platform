@@ -20,6 +20,8 @@ const NO_PLAN: ActivePlan = {
   price: null,
   currency: null,
   billingPeriod: null,
+  features: null,
+  featuresJson: null,
   status: null,
   subscriptionId: null,
   renewDate: null,

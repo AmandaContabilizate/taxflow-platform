@@ -6,7 +6,6 @@ export type Screen =
   | 'facturas'
   | 'documentos'
   | 'diagnostico'
-  | 'aprende'
   | 'tip-detail'
   | 'tramites'
   | 'plan'

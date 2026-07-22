@@ -6,14 +6,14 @@ import { getRolesList } from '@/features/roles/actions/getRolesList.action'
 import { deleteRole } from '@/features/roles/actions/deleteRole.action'
 import type { RoleOverviewDto } from '@/features/roles/types'
 import { Badge, Btn, Card } from '../ui'
-import { RoleFormModal } from './role-form-modal'
+import { RoleEditor } from './role-editor'
 
 export function RolesCatalog() {
   const [roles, setRoles] = useState<RoleOverviewDto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const [modalOpen, setModalOpen] = useState(false)
+  const [editorOpen, setEditorOpen] = useState(false)
   const [editing, setEditing] = useState<RoleOverviewDto | null>(null)
 
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -34,12 +34,12 @@ export function RolesCatalog() {
 
   function openCreate() {
     setEditing(null)
-    setModalOpen(true)
+    setEditorOpen(true)
   }
 
   function openEdit(role: RoleOverviewDto) {
     setEditing(role)
-    setModalOpen(true)
+    setEditorOpen(true)
   }
 
   async function handleDelete(role: RoleOverviewDto) {
@@ -62,7 +62,7 @@ export function RolesCatalog() {
           <div className="text-[15px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
             {loading ? 'Cargando…' : `${roles.length} roles`}
           </div>
-          <Btn kind="primary" size="sm" onClick={openCreate}>
+          <Btn kind="primary" size="sm" onClick={openCreate} disabled={editorOpen && editing === null}>
             <Plus size={15} /> Nuevo rol
           </Btn>
         </div>
@@ -73,6 +73,11 @@ export function RolesCatalog() {
           </div>
         )}
 
+        <div
+          className="grid transition-[grid-template-rows] duration-300 ease-out"
+          style={{ gridTemplateRows: editorOpen ? '0fr' : '1fr' }}
+        >
+          <div className="overflow-hidden">
         {error ? (
           <div className="px-5 py-8 text-center flex flex-col items-center gap-2">
             <AlertCircle size={20} style={{ color: '#9E3A15' }} />
@@ -151,9 +156,23 @@ export function RolesCatalog() {
             )}
           </div>
         )}
+          </div>
+        </div>
       </Card>
 
-      <RoleFormModal open={modalOpen} onOpenChange={setModalOpen} role={editing} onSaved={load} />
+      {editorOpen && (
+        <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+          <RoleEditor
+            key={editing?.id ?? 'new'}
+            role={editing}
+            onSaved={() => {
+              setEditorOpen(false)
+              load()
+            }}
+            onCancel={() => setEditorOpen(false)}
+          />
+        </div>
+      )}
     </div>
   )
 }

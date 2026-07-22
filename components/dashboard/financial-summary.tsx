@@ -38,7 +38,6 @@ export function FinancialSummary() {
     if (!selectedRfc) return
     let cancelled = false
     const rfc = selectedRfc
-    console.log(rfc);
 
     setIncome(loading)
     setBills(loading)

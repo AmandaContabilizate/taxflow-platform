@@ -41,6 +41,7 @@ export function ProceduresList() {
     setError(null)
     void (async () => {
       const res = await getProcedureSales()
+      console.log(res);
       if (cancelled) return
       if (res.success) setRows(res.value)
       else setError(res.error.message)
@@ -50,7 +51,6 @@ export function ProceduresList() {
       cancelled = true
     }
   }, [])
-
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     if (!q) return rows

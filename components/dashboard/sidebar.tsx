@@ -60,7 +60,7 @@ export function Sidebar({
       )}
 
       <aside
-        className={`fixed lg:sticky top-0 left-0 h-screen w-[260px] z-[80] flex flex-col px-4 py-5 gap-1 transition-transform lg:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
+        className={`fixed lg:sticky top-0 left-0 h-screen w-[260px] shrink-0 z-[80] flex flex-col px-4 py-5 transition-transform lg:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
         style={{
           background: 'var(--sidebar)',
           borderRight: '1px solid var(--sidebar-border)',
@@ -68,7 +68,7 @@ export function Sidebar({
         }}
       >
         <div
-          className="flex items-center gap-2.5 px-2 pb-5 mb-3"
+          className="flex items-center gap-2.5 px-2 pb-5 mb-3 flex-shrink-0"
           style={{ borderBottom: '1px solid var(--sidebar-border)' }}
         >
           <div
@@ -84,7 +84,7 @@ export function Sidebar({
           </span>
         </div>
 
-        {roleKey == 'guest' && (<div className="px-1 mb-3">
+        {roleKey == 'guest' && (<div className="px-1 mb-3 flex-shrink-0">
           <label
             className="block text-[10.5px] font-bold uppercase tracking-wider mb-1.5 px-1"
             style={{ color: 'var(--ink-500)' }}
@@ -144,7 +144,7 @@ export function Sidebar({
         )}
 
 
-        <nav className="flex flex-col gap-1.5 py-1">
+        <nav className="flex flex-col gap-1 py-1 flex-1 min-h-0 overflow-y-auto overflow-x-hidden -mx-1 px-1">
           {navItems.map(n => (
             <NavItem
               key={n.id}
@@ -161,7 +161,7 @@ export function Sidebar({
           onClick={toggleTheme}
           aria-label={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
           title={isDark ? 'Modo claro' : 'Modo oscuro'}
-          className="mt-3 flex items-center gap-3 px-3 py-2.5 rounded-2xl text-left transition w-full hover:opacity-90"
+          className="mt-3 flex-shrink-0 flex items-center gap-3 px-3 py-2.5 rounded-2xl text-left transition w-full hover:opacity-90"
           style={{
             background: 'var(--sidebar-accent)',
             color: 'var(--sidebar-accent-foreground)',
@@ -186,7 +186,7 @@ export function Sidebar({
         </button>
 
         <div
-          className="mt-3 p-3.5 rounded-2xl flex items-center gap-2.5"
+          className="mt-3 flex-shrink-0 p-3.5 rounded-2xl flex items-center gap-2.5"
           style={{ background: 'var(--sidebar-accent)', border: '1px solid var(--sidebar-border)' }}
         >
           <button onClick={() => go('cuenta')} className="flex items-center gap-2.5 flex-1 min-w-0 text-left">
@@ -231,7 +231,7 @@ function NavItem({ label, Icon, active, onClick, hint }: NavItemProps) {
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-3 px-3 py-3 rounded-2xl text-left transition w-full"
+      className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left transition w-full"
       style={
         active
           ? { background: 'var(--nav-active-bg)', color: 'var(--nav-active-fg)', boxShadow: 'var(--sh-ink)' }
@@ -239,18 +239,18 @@ function NavItem({ label, Icon, active, onClick, hint }: NavItemProps) {
       }
     >
       <span
-        className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+        className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
         style={{
           background: active ? 'var(--nav-active-icon-bg)' : 'var(--ink-50)',
           color: active ? 'var(--nav-active-icon-fg)' : 'var(--ink-700)',
         }}
       >
-        <Icon size={18} />
+        <Icon size={16} />
       </span>
       <span className="flex-1 min-w-0">
-        <span className="block text-[14.5px] font-bold leading-tight">{label}</span>
+        <span className="block text-[13.5px] font-bold leading-tight truncate">{label}</span>
         <span
-          className="block text-[11.5px] font-semibold mt-0.5"
+          className="block text-[11px] font-semibold mt-0.5 truncate"
           style={{ color: active ? 'var(--nav-active-hint)' : 'var(--ink-400)' }}
         >
           {hint}

@@ -1,25 +1,86 @@
-import { AlertCircle, Calendar, HelpCircle, Zap } from 'lucide-react'
-import { useHasRfc } from '@/features/taxpayers/stores/rfcStore'
-import { DISPLAY, MONO } from '../constants'
+'use client'
+
+import { AlertCircle, Calendar, CheckCircle2, Loader2, Zap } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { getIssuedInvoices, getMonthlyBills, getMonthlyIncome } from '@/features/dashboard/actions'
+import { formatMoney, formatNumber } from '@/features/dashboard/tools/helpers'
+import { getFiscalScore } from '@/features/declarations/actions/getFiscalScore.action'
+import { getRegularizations } from '@/features/declarations/actions/getRegularizations.action'
+import type { FiscalScore, Regularizations } from '@/features/declarations/types'
+import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
+import { monthYear } from '../declaraciones/parts'
+import { DISPLAY } from '../constants'
 import type { GoFn } from '../types'
 import { Badge, Btn, Card, Divider, HelpBox, Pill, SummaryStat, VideoSlot } from '../ui'
 import { NeedsSatConnect } from './needs-sat-connect'
+
+type PillKind = 'brand' | 'amber' | 'coral'
+
+interface FiscalStatus {
+  word: string
+  accent: string
+  pill: PillKind
+  pillText: string
+  positive: boolean
+}
+
+function fiscalStatus(score: number): FiscalStatus {
+  if (score >= 75) return { word: 'excelente', accent: '#00A068', pill: 'brand', pillText: 'Todo en orden', positive: true }
+  if (score >= 50) return { word: 'buena', accent: '#00A068', pill: 'brand', pillText: 'Vas bien', positive: true }
+  if (score >= 25) return { word: 'regular', accent: '#7B5312', pill: 'amber', pillText: 'Requiere atención', positive: false }
+  return { word: 'crítica', accent: '#9E3A15', pill: 'coral', pillText: 'Requiere atención', positive: false }
+}
 
 interface Props {
   go: GoFn
 }
 
 export function DiagnosticoScreen({ go }: Props) {
-  const { hasRfc, loading } = useHasRfc()
-  if (loading) return null
+  const { hasRfc, loading: loadingRfc } = useHasRfc()
+  const { selectedRfc } = useRfcStore()
+
+  const [loading, setLoading] = useState(true)
+  const [score, setScore] = useState<FiscalScore | null>(null)
+  const [income, setIncome] = useState<number | null>(null)
+  const [bills, setBills] = useState<number | null>(null)
+  const [invoices, setInvoices] = useState<number | null>(null)
+  const [regs, setRegs] = useState<Regularizations | null>(null)
+
+  useEffect(() => {
+    if (!selectedRfc) return
+    let cancelled = false
+    setLoading(true)
+    void (async () => {
+      const [scoreRes, incomeRes, billsRes, invoicesRes, regsRes] = await Promise.all([
+        getFiscalScore(selectedRfc),
+        getMonthlyIncome(selectedRfc),
+        getMonthlyBills(selectedRfc),
+        getIssuedInvoices(selectedRfc),
+        getRegularizations(selectedRfc),
+      ])
+      if (cancelled) return
+      setScore(scoreRes.success ? scoreRes.value : null)
+      setIncome(incomeRes.success ? incomeRes.value : null)
+      setBills(billsRes.success ? billsRes.value : null)
+      setInvoices(invoicesRes.success ? invoicesRes.value : null)
+      setRegs(regsRes.success ? regsRes.value : null)
+      setLoading(false)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [selectedRfc])
+
+  if (loadingRfc) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tu diagnóstico fiscal" />
 
-  const adeudos = ['Noviembre 2025', 'Diciembre 2025', 'Enero 2026', 'Febrero 2026', 'Marzo 2026']
-  const oportunidades = [
-    { t: 'Deducciones personales', a: '+$3,100', d: 'Gastos médicos, colegiaturas y donativos pueden bajar tus impuestos.' },
-    { t: 'Gastos de tu actividad', a: '+$4,100', d: 'Gasolina, mantenimiento y teléfono que usas para trabajar.' },
-    { t: 'Revisión de retenciones', a: '+$1,560', d: 'Verifica que las plataformas estén reteniendo lo correcto.' },
-  ]
+  const status = score ? fiscalStatus(score.score) : null
+  const money = (v: number | null) => (loading ? '…' : v == null ? '—' : formatMoney(v))
+  const num = (v: number | null) => (loading ? '…' : v == null ? '—' : formatNumber(v))
+  const expensePct =
+    income && income > 0 && bills != null ? `${Math.round((bills / income) * 100)}% de tus ingresos` : 'Gastos recientes'
+
+  const months = regs?.months ?? []
 
   return (
     <div className="flex flex-col gap-6 max-w-[1040px]">
@@ -30,43 +91,58 @@ export function DiagnosticoScreen({ go }: Props) {
 
       <div
         className="rounded-3xl p-7 lg:p-8"
-        style={{ background: 'var(--hero-coral-soft-bg)', border: '1px solid var(--coral-soft)' }}
+        style={{
+          background: status?.positive ? 'var(--hero-brand-soft)' : 'var(--hero-coral-soft-bg)',
+          border: `1px solid ${status?.positive ? 'var(--brand-200)' : 'var(--coral-soft)'}`,
+        }}
       >
-        <Pill kind="coral">
-          <AlertCircle size={14} /> Requiere atención
-        </Pill>
-        <div
-          className="text-[28px] lg:text-[34px] font-extrabold tracking-tight leading-tight mt-4 max-w-[680px]"
-          style={DISPLAY}
-        >
-          Tu situación fiscal está <span style={{ color: '#9E3A15' }}>regular</span>
-        </div>
-        <div className="text-[14.5px] mt-3 leading-relaxed max-w-[600px]" style={{ color: 'var(--ink-700)' }}>
-          Revisamos tus últimas 9 facturas y 3 declaraciones. La buena noticia: podrías ahorrar{' '}
-          <strong>$8,760 MXN</strong> con unos ajustes simples.
-        </div>
-        <div className="flex flex-wrap gap-3 mt-6">
-          <Btn kind="brand" size="lg">
-            <Zap size={18} /> Empezar a regularizar
-          </Btn>
-          <Btn kind="ghost" size="lg" onClick={() => go('ayuda')}>
-            <HelpCircle size={18} /> No entiendo qué significa
-          </Btn>
-        </div>
+        {loading || !score || !status ? (
+          <div className="flex items-center gap-2 text-[15px]" style={{ color: 'var(--ink-500)' }}>
+            <Loader2 size={18} className="animate-spin" /> Analizando tu situación fiscal…
+          </div>
+        ) : (
+          <>
+            <Pill kind={status.pill}>
+              {status.positive ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />} {status.pillText}
+            </Pill>
+            <div
+              className="text-[28px] lg:text-[34px] font-extrabold tracking-tight leading-tight mt-4 max-w-[680px]"
+              style={DISPLAY}
+            >
+              Tu situación fiscal está <span style={{ color: status.accent }}>{status.word}</span>
+            </div>
+            <div className="text-[13.5px] mt-2" style={{ color: 'var(--ink-500)' }}>
+              Score fiscal: <strong>{Math.round(score.score)}/100</strong> · {score.presented} de {score.total}{' '}
+              declaraciones presentadas
+            </div>
+            {score.pending > 0 && (
+              <div className="flex flex-wrap gap-3 mt-6">
+                <Btn kind="brand" size="lg" onClick={() => go('plan')}>
+                  <Zap size={18} /> Empezar a regularizar
+                </Btn>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       <div>
         <div className="text-[18px] font-bold mb-1" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
-          Tu año en números
+          Tus números
         </div>
         <div className="text-[13.5px] mb-4" style={{ color: 'var(--ink-500)' }}>
-          Lo que el SAT sabe de ti hasta hoy.
+          Ingresos, gastos y facturación recientes.
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <SummaryStat label="Ingresos" value="$336K" hint="Lo que has reportado este año" />
-          <SummaryStat label="Gastos" value="$112K" hint="33% de tus ingresos" />
-          <SummaryStat label="Facturas emitidas" value="24" hint="2 aún sin cobrar" />
-          <SummaryStat label="Pendientes" value="5" hint="Declaraciones por presentar" tone="warn" />
+          <SummaryStat label="Ingresos" value={money(income)} hint="Lo que has reportado" />
+          <SummaryStat label="Gastos" value={money(bills)} hint={expensePct} />
+          <SummaryStat label="Facturas emitidas" value={num(invoices)} hint="Facturas que has emitido" />
+          <SummaryStat
+            label="Pendientes"
+            value={loading ? '…' : score ? String(score.pending) : '—'}
+            hint="Declaraciones por presentar"
+            tone={score && score.pending > 0 ? 'warn' : undefined}
+          />
         </div>
       </div>
 
@@ -75,63 +151,38 @@ export function DiagnosticoScreen({ go }: Props) {
           Lo que debes al SAT
         </div>
         <div className="text-[13.5px] mb-4" style={{ color: 'var(--ink-500)' }}>
-          $4,850 MXN en total. Te ayudamos a regularizarte mes por mes.
+          {loading
+            ? 'Revisando tus declaraciones…'
+            : months.length === 0
+              ? 'No tienes meses pendientes por regularizar.'
+              : `${months.length} ${months.length === 1 ? 'mes pendiente' : 'meses pendientes'} por regularizar. Te ayudamos mes por mes.`}
         </div>
-        <Card>
-          <div>
-            {adeudos.map((m, i, arr) => (
-              <div key={m}>
-                <div className="flex items-center gap-3 px-4 py-3.5">
-                  <div
-                    className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: 'var(--amber-soft)', color: '#7B5312' }}
-                  >
-                    <Calendar size={20} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-[14.5px]">{m}</div>
-                    <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
-                      Impuestos sin pagar
+        {months.length > 0 && (
+          <Card>
+            <div>
+              {months.map((m, i) => (
+                <div key={m.declarationId}>
+                  <div className="flex items-center gap-3 px-4 py-3.5">
+                    <div
+                      className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: 'var(--amber-soft)', color: '#7B5312' }}
+                    >
+                      <Calendar size={20} />
                     </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-[14.5px]">{monthYear(m.fiscalYear, m.month)}</div>
+                      <div className="text-[12.5px] mt-0.5 truncate" style={{ color: 'var(--ink-500)' }}>
+                        {m.statusLabel}
+                      </div>
+                    </div>
+                    <Badge kind="amber">Pendiente</Badge>
                   </div>
-                  <div className="text-[14.5px] font-extrabold" style={MONO}>
-                    $970
-                  </div>
-                  <Badge kind="amber">Pendiente</Badge>
+                  {i < months.length - 1 && <Divider />}
                 </div>
-                {i < arr.length - 1 && <Divider />}
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-
-      <div>
-        <div className="text-[18px] font-bold mb-1" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
-          💡 Dónde puedes ahorrar
-        </div>
-        <div className="text-[13.5px] mb-4" style={{ color: 'var(--ink-500)' }}>
-          Cosas que probablemente no estás aprovechando.
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {oportunidades.map(o => (
-            <div
-              key={o.t}
-              className="rounded-3xl p-5"
-              style={{ background: 'var(--brand-50)', border: '1px solid var(--brand-200)' }}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="font-bold text-[14.5px]" style={{ color: 'var(--brand-900)' }}>
-                  {o.t}
-                </div>
-                <Badge kind="brand">{o.a}</Badge>
-              </div>
-              <div className="text-[13px] leading-relaxed" style={{ color: 'var(--ink-700)' }}>
-                {o.d}
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </Card>
+        )}
       </div>
 
       <VideoSlot title="¿Cómo se calcula mi diagnóstico fiscal?" duration="3 min" />

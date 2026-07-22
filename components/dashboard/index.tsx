@@ -73,67 +73,66 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
 
   return (
     <RfcProvider initialRfc={rfc}>
-    <div
-      className="grid min-h-screen lg:grid-cols-[260px_1fr]"
-      style={{ background: 'var(--background)', color: 'var(--foreground)' }}
-    >
-      <Sidebar
-        screen={screen}
-        mobileOpen={mobileOpen}
-        onClose={() => setMobileOpen(false)}
-        go={go}
-        initials={initials}
-        firstName={firstName}
-        onLogout={handleLogout}
-        signingOut={signingOut}
-        role={role}
-      />
-
-      <main
-        className={`min-w-0 px-5 py-6 lg:px-10 lg:py-7 pb-20 ${
-          WIDE_SCREENS.has(screen) ? 'w-full' : 'max-w-[1280px]'
-        }`}
+      <div
+        className="grid min-h-screen lg:grid-cols-[260px_1fr]"
+        style={{ background: 'var(--background)', color: 'var(--foreground)' }}
       >
-        <div className="flex items-center justify-between gap-4 mb-7">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setMobileOpen(true)}
-              aria-label="Abrir menú"
-              className="lg:hidden w-10 h-10 rounded-full flex items-center justify-center"
-              style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
-            >
-              <Menu size={18} />
-            </button>
-            <div>
-              <div
-                className="text-[26px] lg:text-[32px] font-extrabold tracking-tight leading-tight"
-                style={{ ...DISPLAY, color: 'var(--ink-900)' }}
-              >
-                {screen === 'home' ? `Hola, ${firstName} 👋` : TITLES[screen][0]}
-              </div>
-              <div className="text-[14px] font-semibold mt-1" style={{ color: 'var(--ink-500)' }}>
-                {TITLES[screen][1]}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <ScreenRouter
+        <Sidebar
           screen={screen}
+          mobileOpen={mobileOpen}
+          onClose={() => setMobileOpen(false)}
           go={go}
-          rfc={rfc}
-          fullName={fullName}
-          email={email}
-          firstName={firstName}
           initials={initials}
+          firstName={firstName}
           onLogout={handleLogout}
           signingOut={signingOut}
           role={role}
-          permissions={permissions}
-          userId={userId}
         />
-      </main>
-    </div>
+
+        <main
+          className={`min-w-0 px-5 py-6 lg:px-10 lg:py-7 pb-20 ${WIDE_SCREENS.has(screen) ? 'w-full' : 'max-w-[1280px]'
+            }`}
+        >
+          <div className="flex items-center justify-between gap-4 mb-7">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setMobileOpen(true)}
+                aria-label="Abrir menú"
+                className="lg:hidden w-10 h-10 rounded-full flex items-center justify-center"
+                style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+              >
+                <Menu size={18} />
+              </button>
+              <div>
+                <div
+                  className="text-[26px] lg:text-[32px] font-extrabold tracking-tight leading-tight"
+                  style={{ ...DISPLAY, color: 'var(--ink-900)' }}
+                >
+                  {screen === 'home' ? `Hola, ${firstName} 👋` : TITLES[screen][0]}
+                </div>
+                <div className="text-[14px] font-semibold mt-1" style={{ color: 'var(--ink-500)' }}>
+                  {TITLES[screen][1]}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <ScreenRouter
+            screen={screen}
+            go={go}
+            rfc={rfc}
+            fullName={fullName}
+            email={email}
+            firstName={firstName}
+            initials={initials}
+            onLogout={handleLogout}
+            signingOut={signingOut}
+            role={role}
+            permissions={permissions}
+            userId={userId}
+          />
+        </main>
+      </div>
     </RfcProvider>
   )
 }
@@ -179,8 +178,9 @@ function ScreenRouter({
         rfc={rfc}
         initials={initials}
         onLogout={onLogout}
-        signingOut={signingOut}
-      />
+        signingOut={signingOut} role={null} go={function (s: Screen): void {
+          throw new Error('Function not implemented.')
+        }} />
     )
   }
   if (screen === 'permisos') {
@@ -243,8 +243,6 @@ function ScreenRouter({
       return <DocumentosScreen go={go} />
     case 'diagnostico':
       return <DiagnosticoScreen go={go} />
-    case 'aprende':
-      return <AprendeScreen go={go} />
     case 'tip-detail':
       return <TipDetailScreen go={go} />
     case 'tramites':

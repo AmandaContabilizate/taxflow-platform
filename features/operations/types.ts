@@ -22,23 +22,36 @@ export const DECLARATION_KIND = {
 export type DeclarationKind =
   (typeof DECLARATION_KIND)[keyof typeof DECLARATION_KIND];
 
-/** Item de `/declarations/paid-pending` (mismo DTO para kind 1 y 2). */
+/**
+ * Item de `/declarations/paid-pending` (mismo DTO para kind 1 y 2).
+ *
+ * Teléfono/correo/nombre salen del usuario dueño de la cuenta (Taxpayer.User).
+ * El contador es el snapshot histórico fijado al activarse el pago (Stripe).
+ */
 export interface PaidPendingDeclaration {
   declarationId: number;
   taxpayerId: number;
   rfc: string;
   legalName: string;
   email: string;
+  phone: string | null;
   fiscalYear: number;
-  periodValueId: number;
+  periodValueId: number | null;
   periodo: string;
+  /** 1 = Mensual, 2 = Bimestral, 3 = Anual. */
+  periodicityId: number | null;
+  /** "Mensual" / "Bimestral" / "Anual". */
+  periodicity: string | null;
   statusId: number;
   statusCode: string;
   declarationKind: number;
   saleItemId: number;
   saleId: number;
   saleDate: string;
-  assignedAt: string | null;
+  /** Fecha de activación (pago Stripe). */
+  assignedAt: string;
+  accountantUserId: string | null;
+  accountantName: string | null;
 }
 
 /** Item de `/sales/procedures` (trámites adicionales vendidos). */

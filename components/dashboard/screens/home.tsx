@@ -1,7 +1,5 @@
 import {
   AlertCircle,
-  ArrowRight,
-  HelpCircle,
   PlayCircle,
   Sparkles,
   Zap,
@@ -9,6 +7,7 @@ import {
 import { useHasRfc } from '@/features/taxpayers/stores/rfcStore'
 import { DISPLAY } from '../constants'
 import { FiscalCredibility } from '../fiscal-credibility'
+import { FiscalScore } from '../fiscal-score'
 import { FinancialSummary } from '../financial-summary'
 import type { GoFn } from '../types'
 import { Btn, HelpBox, VideoSlot } from '../ui'
@@ -71,52 +70,7 @@ export function HomeScreen({ go }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div
-        className="rounded-3xl p-7 lg:p-8 text-white relative overflow-hidden"
-        style={{ background: 'linear-gradient(155deg,#1E1952 0%,#15113F 100%)', boxShadow: 'var(--sh-ink)' }}
-      >
-        <div
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[12px] font-bold"
-          style={{
-            background: 'rgba(14,209,138,0.18)',
-            color: 'var(--brand-300)',
-            border: '1px solid rgba(14,209,138,0.3)',
-          }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--brand-500)' }} /> Lo que importa hoy
-        </div>
-        <div
-          className="text-[28px] lg:text-[36px] font-extrabold tracking-tight leading-tight mt-4 max-w-[640px]"
-          style={DISPLAY}
-        >
-          Tu declaración de marzo vence en <span style={{ color: 'var(--brand-300)' }}>1 día</span>
-        </div>
-        <div className="text-[15px] mt-3 leading-relaxed max-w-[560px]" style={{ color: 'rgba(255,255,255,0.78)' }}>
-          No te preocupes: tu contador ya la está preparando. Solo necesitas revisarla y autorizar el pago cuando esté
-          lista.
-        </div>
-        <div className="flex flex-wrap gap-3 mt-6">
-          <Btn
-            size="lg"
-            onClick={() => go('declaraciones')}
-            style={{ background: '#fff', color: 'var(--ink-900)', boxShadow: 'none' }}
-          >
-            Ver mi declaración <ArrowRight size={18} />
-          </Btn>
-          <Btn
-            size="lg"
-            kind="ghost"
-            onClick={() => go('ayuda')}
-            style={{
-              background: 'rgba(255,255,255,0.08)',
-              color: '#fff',
-              border: '1px solid rgba(255,255,255,0.18)',
-            }}
-          >
-            <HelpCircle size={18} /> No entiendo qué hacer
-          </Btn>
-        </div>
-      </div>
+      <FiscalScore go={go} />
 
       <FiscalCredibility go={go} />
 
