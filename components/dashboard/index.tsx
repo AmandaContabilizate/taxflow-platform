@@ -187,7 +187,7 @@ function ScreenRouter({
     return <PermisosScreen initialPermissions={permissions} role={role} />
   }
   if (screen === 'estatus-sat') {
-    return <SatConnectScreen />
+    return <SatConnectScreen go={go} />
   }
 
   // Para roles operativos, todo es placeholder por ahora (Dashboard incluido).

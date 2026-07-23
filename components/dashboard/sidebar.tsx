@@ -1,7 +1,7 @@
 'use client'
 
 import type { ComponentType } from 'react'
-import { ChevronDown, LogOut, Moon, Sun } from 'lucide-react'
+import { ChevronDown, LogOut, Moon, Plus, Sun } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import { DISPLAY, MONO, PERMISOS_NAV, ROLE_NAV, normalizeRole } from './constants'
@@ -85,12 +85,22 @@ export function Sidebar({
         </div>
 
         {roleKey == 'guest' && (<div className="px-1 mb-3 flex-shrink-0">
-          <label
-            className="block text-[10.5px] font-bold uppercase tracking-wider mb-1.5 px-1"
-            style={{ color: 'var(--ink-500)' }}
-          >
-            RFC activo
-          </label>
+          <div className="flex items-center justify-between gap-2 mb-1.5 px-1">
+            <label
+              className="block text-[10.5px] font-bold uppercase tracking-wider"
+              style={{ color: 'var(--ink-500)' }}
+            >
+              RFC activo
+            </label>
+            <button
+              type="button"
+              onClick={() => go('estatus-sat')}
+              className="flex items-center gap-1 text-[10.5px] font-bold rounded-full px-2 py-0.5 transition hover:opacity-80"
+              style={{ background: 'var(--brand-100)', color: 'var(--brand-900)' }}
+            >
+              <Plus size={12} /> Agregar
+            </button>
+          </div>
           <div
             className="relative rounded-2xl"
             style={{
