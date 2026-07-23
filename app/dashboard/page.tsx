@@ -2,11 +2,13 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import Dashboard from '@/components/dashboard'
 import { getCurrentUser } from '@/features/auth/actions'
+import { getUserInfo } from '@/features/auth/actions/getUserInfo.action'
 
 export default async function DashboardPage() {
   const user = await getCurrentUser()
   if (!user) redirect('/auth/login')
 
+  const userInfo = await getUserInfo()
   const cookieStore = await cookies()
   const role = cookieStore.get('claim_role')?.value ?? null
   const permissions = parsePermissions(cookieStore.get('claim_permission')?.value)
@@ -15,6 +17,7 @@ export default async function DashboardPage() {
   const fullName = cookieStore.get('fullName')?.value ?? user.fullName ?? user.email ?? 'Usuario'
   const email = cookieStore.get('email')?.value ?? user.email ?? ''
   const rfc = cookieStore.get('rfc')?.value ?? user.rfc ?? null
+  const phoneNumber = userInfo?.phoneMobile ?? null
 
   return (
     <Dashboard
@@ -24,6 +27,7 @@ export default async function DashboardPage() {
       role={role}
       permissions={permissions}
       userId={userId}
+      phoneNumber={phoneNumber}
     />
   )
 }

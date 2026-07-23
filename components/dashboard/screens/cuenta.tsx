@@ -14,18 +14,21 @@ import {
   UserRound,
 } from 'lucide-react'
 import { useEffect, useState, type ComponentType } from 'react'
+import { useTheme } from 'next-themes'
 import { getActivePlan } from '@/features/account/actions/getActivePlan.action'
 import { getSalePayments } from '@/features/account/actions/getSalePayments.action'
 import { periodLabel, type ActivePlan, type SalePayment } from '@/features/account/types'
 import { getAccountantByRfc } from '@/features/assignments/actions/getAccountantByRfc.action'
 import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
+import SatConnectScreen from '@/components/sat-connect-screen'
+import { Modal } from '../modal'
 import { PaymentsPanel } from '../cuenta/payments-panel'
 import { SecurityForm } from '../cuenta/security-form'
 import { DISPLAY, MONO } from '../constants'
 import type { GoFn } from '../types'
 import { Btn, Card, Divider } from '../ui'
 
-type ActionKey = 'seguridad' | 'pagos'
+type ActionKey = 'seguridad' | 'pagos' | 'datos-fiscales'
 
 interface PaymentsState {
   loading: boolean
@@ -42,12 +45,15 @@ interface Props {
   rfc: string | null
   role: string | null
   initials: string
+  phoneNumber?: string
+  ciecState?: number
   go: GoFn
   onLogout: () => void
   signingOut: boolean
 }
 
-export function CuentaScreen({ fullName, email, rfc, role, initials, go, onLogout, signingOut }: Props) {
+export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber, ciecState, go, onLogout, signingOut }: Props) {
+  const { theme, setTheme } = useTheme()
   const { selectedRfc } = useRfcStore()
   const [plan, setPlan] = useState<ActivePlan | null>(null)
   const [accountant, setAccountant] = useState<{ loading: boolean; name: string | null }>({
@@ -56,6 +62,8 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, go, onLogou
   })
   const [payments, setPayments] = useState<PaymentsState>(INITIAL_PAYMENTS)
   const [active, setActive] = useState<ActionKey | null>(null)
+  const [showFiscalModal, setShowFiscalModal] = useState(false)
+  const [showSecurityModal, setShowSecurityModal] = useState(false)
 
   const activeRfc = selectedRfc ?? rfc
 
@@ -104,7 +112,7 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, go, onLogou
   const toggle = (key: ActionKey) => setActive((cur) => (cur === key ? null : key))
 
   const detail =
-    active === 'seguridad' ? <SecurityForm /> : active === 'pagos' ? (
+    active === 'pagos' ? (
       <PaymentsPanel
         loading={payments.loading}
         error={payments.error}
@@ -114,9 +122,9 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, go, onLogou
     ) : null
 
   return (
-    <div className="flex flex-col lg:flex-row gap-5 items-start max-w-[1200px]">
+    <div className={`flex flex-col gap-7 items-start w-full ${active === 'datos-fiscales' ? 'lg:flex-row' : 'lg:flex-row'}`}>
       {/* Perfil */}
-      <div className="w-full lg:w-[320px] lg:shrink-0">
+      <div className="w-full lg:w-[310px] lg:shrink-0 flex flex-col gap-6">
         <Card>
           <div className="p-6">
             <div className="flex items-center gap-4">
@@ -141,6 +149,14 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, go, onLogou
             <div className="text-[12.5px] mt-3 truncate" style={{ color: 'var(--ink-500)' }}>
               {email}
             </div>
+
+            {phoneNumber && (
+              <div className="text-[12.5px] mt-2 truncate flex items-center gap-2" style={{ color: 'var(--ink-500)' }}>
+                <span>📱</span>
+                <span style={{ color: 'var(--ink-700)' }}>{phoneNumber}</span>
+              </div>
+            )}
+
             {role && (
               <div
                 className="inline-flex mt-2 px-2.5 py-1 rounded-full text-[11px] font-bold"
@@ -167,6 +183,34 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, go, onLogou
             </div>
           </div>
         </Card>
+
+        {/* Estado de CIEC */}
+        <Card>
+          <div className="p-6">
+            <div className="text-[11px] font-extrabold uppercase tracking-wider mb-2" style={{ color: 'var(--ink-500)' }}>
+              Estado de CIEC
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[15px] font-bold" style={{ color: 'var(--ink-900)' }}>
+                  {ciecState === 1 ? 'Válida' : ciecState === 2 ? 'Inválida' : 'No validado'}
+                </div>
+                <div className="text-[12px] mt-1" style={{ color: 'var(--ink-500)' }}>
+                  {ciecState === 1 ? 'Tu contraseña CIEC es válida' : ciecState === 2 ? 'Tu contraseña CIEC es inválida' : 'Aún no has validado tu CIEC'}
+                </div>
+              </div>
+              <div
+                className="w-12 h-12 rounded-full flex items-center justify-center text-[20px]"
+                style={{
+                  background: ciecState === 1 ? 'var(--brand-50)' : ciecState === 2 ? 'var(--coral-soft)' : 'var(--amber-soft)',
+                  color: ciecState === 1 ? 'var(--brand-700)' : ciecState === 2 ? '#9E3A15' : '#7B5312',
+                }}
+              >
+                {ciecState === 1 ? '✓' : ciecState === 2 ? '✕' : '!'}
+              </div>
+            </div>
+          </div>
+        </Card>
       </div>
 
       {/* Listas */}
@@ -179,7 +223,10 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, go, onLogou
               iconColor="var(--brand-700)"
               title="Mi plan"
               subtitle={planLabel}
-              onClick={() => go('plan')}
+              onClick={() => {
+                go('plan')
+                toggle('datos-fiscales')
+              }}
             />
             <Divider />
             <AccountRow
@@ -188,7 +235,10 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, go, onLogou
               iconColor="#9E3A15"
               title="Trámites adicionales"
               subtitle="Trámites con el SAT y declaraciones extra"
-              onClick={() => go('tramites')}
+              onClick={() => {
+                go('tramites')
+                toggle('datos-fiscales')
+              }}
             />
             <Divider />
             <AccountRow
@@ -197,6 +247,17 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, go, onLogou
               iconColor="#1C4C96"
               title="Datos fiscales"
               subtitle={activeRfc ? `RFC ${activeRfc}` : 'RFC · régimen · domicilio'}
+              onClick={() => setShowFiscalModal(true)}
+              right={
+                <ChevronDown
+                  size={16}
+                  style={{
+                    color: 'var(--ink-300)',
+                    transition: 'transform 0.2s',
+                    transform: 'rotate(-90deg)',
+                  }}
+                />
+              }
             />
             <Divider />
             <AccountRow
@@ -246,23 +307,18 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, go, onLogou
               Icon={ShieldCheck}
               title="Seguridad"
               subtitle="Cambia tu contraseña"
-              onClick={() => toggle('seguridad')}
+              onClick={() => setShowSecurityModal(true)}
               right={
                 <ChevronDown
                   size={16}
                   style={{
                     color: 'var(--ink-300)',
                     transition: 'transform 0.2s',
-                    transform: active === 'seguridad' ? 'rotate(180deg)' : 'none',
+                    transform: 'rotate(-90deg)',
                   }}
                 />
               }
             />
-            {active === 'seguridad' && (
-              <div className="lg:hidden px-4 pb-5 pt-1">
-                <SecurityForm />
-              </div>
-            )}
             <Divider />
             <AccountRow
               Icon={HelpCircle}
@@ -296,6 +352,16 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, go, onLogou
           </Card>
         </div>
       )}
+
+      {/* Modal de Datos Fiscales */}
+      <Modal isOpen={showFiscalModal} onClose={() => setShowFiscalModal(false)} title="Datos fiscales">
+        <SatConnectScreen rfc={activeRfc} />
+      </Modal>
+
+      {/* Modal de Seguridad */}
+      <Modal isOpen={showSecurityModal} onClose={() => setShowSecurityModal(false)} title="Seguridad">
+        <SecurityForm />
+      </Modal>
     </div>
   )
 }

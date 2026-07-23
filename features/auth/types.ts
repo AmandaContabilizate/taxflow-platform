@@ -29,6 +29,13 @@ export interface CurrentUser {
   rfc?: string;
 }
 
+export interface UserInfo {
+  userId: string;
+  email?: string;
+  fullName?: string;
+  phoneMobile?: string;
+}
+
 export type SignInError = {
   statusCode: number;
   fieldErrors: Record<string, string[]>;

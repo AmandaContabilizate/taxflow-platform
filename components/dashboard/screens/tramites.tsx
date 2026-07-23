@@ -12,7 +12,7 @@ export function TramitesScreen() {
   const tramitesPrecios = [300, 200, 300, 300]
 
   return (
-    <div className="flex flex-col gap-6 max-w-[1040px]">
+    <div className="flex flex-col gap-6">
       <HelpBox>
         Aquí están los trámites <strong>extra</strong> que puedes contratar cuando los necesites. Los que ya vienen
         incluidos en tu plan dicen <em>"Incluido"</em> y no te cobramos nada extra.

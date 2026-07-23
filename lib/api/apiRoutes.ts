@@ -7,6 +7,7 @@ export const API_ROUTES = {
   USERS: {
     ROOT: "",
     GET: (id: string) => `/${id}`,
+    MY_INFO: "/my-info",
     SEND_CODE: "/SendCode",
     EXIST_EMAIL: (email: string) => `/ExistEmail/${encodeURIComponent(email)}`,
     VALIDATE_CODE: "/ValidateConfirmationCode",

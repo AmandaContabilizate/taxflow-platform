@@ -13,10 +13,12 @@ import {
   type ActivePlan,
   type PlansCatalog,
 } from '@/features/account/types'
-import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
+import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import { PlanPickerModal } from '../plan/plan-picker-modal'
 import { DISPLAY } from '../constants'
 import { Badge, Btn, Card, Divider, HelpBox, Pill, VideoSlot } from '../ui'
+import { NeedsSatConnect } from './needs-sat-connect'
+import type { GoFn } from '../types'
 
 function formatRenewDate(value?: string): string | null {
   if (!value) return null
@@ -28,10 +30,12 @@ function formatRenewDate(value?: string): string | null {
 interface PlanScreenProps {
   autoOpenPicker?: boolean
   onAutoOpenHandled?: () => void
+  go: GoFn
 }
 
-export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled }: PlanScreenProps) {
+export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled, go }: PlanScreenProps) {
   const { selectedRfc } = useRfcStore()
+  const { hasRfc, loading } = useHasRfc()
 
   const [activePlan, setActivePlan] = useState<ActivePlan | null>(null)
   const [loadingSub, setLoadingSub] = useState(true)
@@ -95,8 +99,11 @@ export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled }: PlanSc
     }
   }, [autoOpenPicker, hasPlans, onAutoOpenHandled])
 
+  if (loading) return null
+  if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tus planes" />
+
   return (
-    <div className="flex flex-col gap-6 max-w-[1040px]">
+    <div className="flex flex-col gap-6">
       <HelpBox>
         Aquí ves tu suscripción, qué tienes incluido y cómo cambiar de plan. Si quieres cancelar o pausar, también lo
         haces desde aquí.

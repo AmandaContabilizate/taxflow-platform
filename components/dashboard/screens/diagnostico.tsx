@@ -83,7 +83,7 @@ export function DiagnosticoScreen({ go }: Props) {
   const months = regs?.months ?? []
 
   return (
-    <div className="flex flex-col gap-6 max-w-[1040px]">
+    <div className="flex flex-col gap-6">
       <HelpBox>
         <strong>¿Qué es un diagnóstico fiscal?</strong> Es un análisis de tu situación con el SAT. Te decimos qué está
         bien, qué hay que arreglar y dónde puedes ahorrar.

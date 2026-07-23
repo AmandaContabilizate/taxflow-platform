@@ -12,7 +12,7 @@ export function AyudaScreen() {
   ]
 
   return (
-    <div className="flex flex-col gap-6 max-w-[960px]">
+    <div className="flex flex-col gap-6">
       <HelpBox>
         Aquí encuentras videos cortos y respuestas a las dudas más comunes. Si algo no entiendes, escríbele a tu
         contador desde tu cuenta.

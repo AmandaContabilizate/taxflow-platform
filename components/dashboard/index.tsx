@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Menu } from 'lucide-react'
+import { Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { signOut } from '@/features/auth/actions'
-import { RfcProvider } from '@/features/taxpayers/stores/rfcStore'
+import { RfcProvider, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import SatConnectScreen from '@/components/sat-connect-screen'
+import { DashboardHeader } from './header'
 import { DISPLAY, TITLES, normalizeRole } from './constants'
 import { Sidebar } from './sidebar'
 import type { DashboardProps, Screen } from './types'
@@ -30,6 +31,7 @@ import {
   TramitesScreen,
   TramitesAdicionalesScreen,
   VentasScreen,
+  VistaFiscalScreen,
 } from './screens'
 
 // Pantallas de tablas/listados densos que aprovechan todo el ancho disponible.
@@ -43,11 +45,16 @@ const WIDE_SCREENS = new Set<Screen>([
   'contribuyentes',
   'ventas',
   'roles',
+  'declaraciones',
+  'plan',
+  'home',
+  'vista-fiscal',
 ])
 
-export default function Dashboard({ fullName, email, rfc, role, permissions, userId }: DashboardProps) {
+export default function Dashboard({ fullName, email, rfc, role, permissions, userId, phoneNumber }: DashboardProps) {
   const [screen, setScreen] = useState<Screen>('home')
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [signingOut, startSignOut] = useTransition()
 
   const initials =
@@ -72,27 +79,59 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
   return (
     <RfcProvider initialRfc={rfc}>
       <div
-        className="grid min-h-screen lg:grid-cols-[260px_1fr]"
+        className={`grid min-h-screen transition-all duration-300 ${sidebarCollapsed ? 'lg:grid-cols-[80px_1fr]' : 'lg:grid-cols-[260px_1fr]'}`}
         style={{ background: 'var(--background)', color: 'var(--foreground)' }}
       >
-        <Sidebar
-          screen={screen}
-          mobileOpen={mobileOpen}
-          onClose={() => setMobileOpen(false)}
-          go={go}
-          initials={initials}
-          firstName={firstName}
-          onLogout={handleLogout}
-          signingOut={signingOut}
-          role={role}
-        />
+          <Sidebar
+            screen={screen}
+            mobileOpen={mobileOpen}
+            onClose={() => setMobileOpen(false)}
+            go={go}
+            initials={initials}
+            firstName={firstName}
+            onLogout={handleLogout}
+            signingOut={signingOut}
+            role={role}
+            collapsed={sidebarCollapsed}
+            onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+          />
+
+        {/* Botón de colapso flotante */}
+        <button
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          aria-label={sidebarCollapsed ? 'Expandir menú' : 'Contraer menú'}
+          title={sidebarCollapsed ? 'Expandir menú' : 'Contraer menú'}
+          className="hidden lg:flex fixed top-6 z-[85] items-center justify-center rounded-lg transition-all duration-300 hover:opacity-80"
+          style={{
+            width: '32px',
+            height: '32px',
+            background: 'rgba(37, 99, 235, 0.1)',
+            color: '#2563EB',
+            border: '1px solid rgba(37, 99, 235, 0.2)',
+            left: sidebarCollapsed ? 'calc(80px - 16px)' : 'calc(260px - 16px)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(37, 99, 235, 0.15)'
+            e.currentTarget.style.borderColor = 'rgba(37, 99, 235, 0.3)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(37, 99, 235, 0.1)'
+            e.currentTarget.style.borderColor = 'rgba(37, 99, 235, 0.2)'
+          }}
+        >
+          {sidebarCollapsed ? (
+            <PanelLeftOpen size={16} />
+          ) : (
+            <PanelLeftClose size={16} />
+          )}
+        </button>
 
         <main
           className={`min-w-0 px-5 py-6 lg:px-10 lg:py-7 pb-20 ${WIDE_SCREENS.has(screen) ? 'w-full' : 'max-w-[1280px]'
             }`}
         >
           <div className="flex items-center justify-between gap-4 mb-7">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-1">
               <button
                 onClick={() => setMobileOpen(true)}
                 aria-label="Abrir menú"
@@ -113,6 +152,10 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
                 </div>
               </div>
             </div>
+            {/* Header con buscador y botones de tema */}
+            <div className="hidden lg:flex">
+              <DashboardHeader />
+            </div>
           </div>
 
           <ScreenRouter
@@ -128,6 +171,7 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
             role={role}
             permissions={permissions}
             userId={userId}
+            phoneNumber={phoneNumber}
           />
         </main>
       </div>
@@ -148,6 +192,7 @@ interface RouterProps {
   role: string | null
   permissions: string[]
   userId?: string | null
+  phoneNumber?: string | null
 }
 
 function ScreenRouter({
@@ -163,22 +208,28 @@ function ScreenRouter({
   role,
   permissions,
   userId,
+  phoneNumber,
 }: RouterProps) {
   const roleKey = normalizeRole(role)
   const isGuest = roleKey === 'guest'
+  const { rfcs, selectedRfc } = useRfcStore()
 
   // Pantallas compartidas por todos los roles
   if (screen === 'cuenta') {
+    const ciecState = rfcs.find(r => r.rfc === selectedRfc)?.ciecState
     return (
       <CuentaScreen
         fullName={fullName}
         email={email}
         rfc={rfc}
+        phoneNumber={phoneNumber ?? undefined}
+        ciecState={ciecState}
         initials={initials}
         onLogout={onLogout}
-        signingOut={signingOut} role={null} go={function (s: Screen): void {
-          throw new Error('Function not implemented.')
-        }} />
+        signingOut={signingOut}
+        role={null}
+        go={go}
+      />
     )
   }
   if (screen === 'permisos') {
@@ -230,6 +281,8 @@ function ScreenRouter({
   switch (screen) {
     case 'home':
       return <HomeScreen go={go} firstName={firstName} />
+    case 'vista-fiscal':
+      return <VistaFiscalScreen go={go} />
     case 'declaraciones':
       return <DeclaracionesScreen go={go} />
     case 'facturas':
@@ -243,7 +296,7 @@ function ScreenRouter({
     case 'tramites':
       return <TramitesScreen />
     case 'plan':
-      return <PlanScreen />
+      return <PlanScreen go={go} />
     case 'ayuda':
       return <AyudaScreen />
     default:

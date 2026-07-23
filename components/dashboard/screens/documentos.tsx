@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, BadgeCheck, Check, Download, Eye, FileDown } from 'lucide-react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
+import { AlertTriangle, Download, FileDown, Search, Sliders, ChevronDown } from 'lucide-react'
 import { useHasRfc, useSelectedRfc } from '@/features/taxpayers/stores/rfcStore'
 import {
   getIssuedInvoices,
@@ -12,7 +12,20 @@ import { CFDI_STATUS_VIGENTE, type VaultInvoice, type VaultStats } from '@/featu
 import { MONO } from '../constants'
 import type { GoFn } from '../types'
 import { Badge, Btn, Card, Divider, SummaryStat, Tabs } from '../ui'
+import { DatePicker } from '../date-picker'
 import { NeedsSatConnect } from './needs-sat-connect'
+
+interface Filters {
+  search: string
+  startDate: string
+  endDate: string
+  rfc: string
+  cfdiUse: string
+  minAmount: string
+  maxAmount: string
+  status: string
+  type: string
+}
 
 interface Props {
   go: GoFn
@@ -132,6 +145,20 @@ export function DocumentosScreen({ go }: Props) {
   const [downloading, setDownloading] = useState(false)
   const [downloadError, setDownloadError] = useState<string | null>(null)
 
+  const [filters, setFilters] = useState<Filters>({
+    search: '',
+    startDate: '',
+    endDate: '',
+    rfc: '',
+    cfdiUse: '',
+    minAmount: '',
+    maxAmount: '',
+    status: '',
+    type: '',
+  })
+  const [filtersExpanded, setFiltersExpanded] = useState(false)
+  const [searchPending, startSearchTransition] = useTransition()
+
   useEffect(() => {
     if (!rfc) return
     let active = true
@@ -158,6 +185,30 @@ export function DocumentosScreen({ go }: Props) {
     }
   }, [rfc])
 
+  const applyFilters = (rows: Row[]): Row[] => {
+    return rows.filter(row => {
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase()
+        const matches =
+          row.name.toLowerCase().includes(searchLower) ||
+          row.rfc.toLowerCase().includes(searchLower)
+        if (!matches) return false
+      }
+      if (filters.rfc && row.rfc !== filters.rfc) return false
+      if (filters.minAmount) {
+        const min = parseFloat(filters.minAmount)
+        const amount = parseFloat(row.monto.replace(/[^\d.-]/g, ''))
+        if (amount < min) return false
+      }
+      if (filters.maxAmount) {
+        const max = parseFloat(filters.maxAmount)
+        const amount = parseFloat(row.monto.replace(/[^\d.-]/g, ''))
+        if (amount > max) return false
+      }
+      return true
+    })
+  }
+
   const rowsByTab = useMemo<Row[][]>(() => {
     const recibidas = received.map(r => toRow(r, 'received'))
     const emitidas = issued.map(i => toRow(i, 'issued'))
@@ -165,8 +216,8 @@ export function DocumentosScreen({ go }: Props) {
       ...issued.filter(i => i.statusComprobante !== CFDI_STATUS_VIGENTE).map(i => toRow(i, 'issued')),
       ...received.filter(r => r.statusComprobante !== CFDI_STATUS_VIGENTE).map(r => toRow(r, 'received')),
     ]
-    return [recibidas, emitidas, canceladas]
-  }, [issued, received])
+    return [applyFilters(recibidas), applyFilters(emitidas), applyFilters(canceladas)]
+  }, [issued, received, filters])
 
   const deducible = useMemo(() => {
     const totalRecibido = received.reduce((sum, r) => sum + (r.total ?? 0), 0)
@@ -190,20 +241,42 @@ export function DocumentosScreen({ go }: Props) {
     }
   }
 
+  async function handleSearch() {
+    if (!rfc) return
+    startSearchTransition(async () => {
+      setError(null)
+      const filterParams = {
+        search: filters.search || undefined,
+        from: filters.startDate || undefined,
+        to: filters.endDate || undefined,
+        rfcSearch: filters.rfc || undefined,
+        cfdiUse: filters.cfdiUse || undefined,
+        minTotal: filters.minAmount ? parseFloat(filters.minAmount) : undefined,
+        maxTotal: filters.maxAmount ? parseFloat(filters.maxAmount) : undefined,
+        statusCfdi: filters.status ? parseInt(filters.status) : undefined,
+        typeCfdi: filters.type ? [filters.type] : undefined,
+      }
+      const [issuedResult, receivedResult] = await Promise.all([
+        getIssuedInvoices(rfc, filterParams),
+        getReceivedInvoices(rfc, filterParams),
+      ])
+      if (issuedResult.success) setIssued(issuedResult.value)
+      else setError(issuedResult.error.message)
+      if (receivedResult.success) setReceived(receivedResult.value)
+      else setError(receivedResult.error.message)
+      setFiltersExpanded(false)
+    })
+  }
+
   if (loading) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tu bóveda" />
 
-  const status = [
-    { t: 'Estás al corriente con tus obligaciones', s: 'No debes nada al SAT' },
-    { t: 'No apareces en listas negras', s: 'Tu RFC tiene buen historial' },
-    { t: 'Tu RFC está activo', s: 'Puedes facturar sin problema' },
-  ]
   const rows = rowsByTab[tab]
 
   const facturasHint = (n: number) => `${n} ${n === 1 ? 'factura' : 'facturas'}`
 
   return (
-    <div className="flex flex-col gap-5 max-w-[960px]">
+    <div className="flex flex-col gap-5">
       <div>
 
         {error && (
@@ -235,8 +308,163 @@ export function DocumentosScreen({ go }: Props) {
           />
         </div>
 
+        {/* Filtros - Rediseño */}
+        <div className="flex flex-col gap-3">
+          {/* Buscador Principal */}
+          <div className="flex gap-3 items-center">
+            <div className="flex-1">
+              <input
+                type="text"
+                placeholder="Buscar por UUID, RFC, Folio o Razón Social"
+                value={filters.search}
+                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                className="w-full px-4 py-3 rounded-xl border text-[14px] transition"
+                style={{ borderColor: 'var(--border)', background: 'var(--input)' }}
+              />
+            </div>
+            <button
+              onClick={() => setFiltersExpanded(!filtersExpanded)}
+              className="px-5 py-3 rounded-xl font-semibold text-[13px] flex items-center gap-2 transition hover:opacity-80"
+              style={{ background: 'var(--brand-50)', color: 'var(--brand-700)', border: '1px solid var(--brand-200)' }}
+            >
+              <Sliders size={16} /> FILTROS
+              <ChevronDown
+                size={16}
+                style={{
+                  transform: filtersExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
+                  transition: 'transform 0.2s',
+                }}
+              />
+            </button>
+            <button
+              onClick={handleSearch}
+              disabled={searchPending}
+              className="px-5 py-3 rounded-xl font-semibold text-[13px] text-white flex items-center gap-2 transition hover:opacity-90 disabled:opacity-50"
+              style={{ background: '#15113F' }}
+            >
+              <Search size={16} /> {searchPending ? 'Buscando…' : 'BUSCAR'}
+            </button>
+          </div>
+
+          {/* Panel de Filtros Avanzados */}
+          {filtersExpanded && (
+            <Card>
+              <div className="p-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+                      Fecha Inicio
+                    </label>
+                    <DatePicker
+                      value={filters.startDate}
+                      onChange={(date) => setFilters({ ...filters, startDate: date })}
+                      placeholder="Seleccionar"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+                      Fecha Fin
+                    </label>
+                    <DatePicker
+                      value={filters.endDate}
+                      onChange={(date) => setFilters({ ...filters, endDate: date })}
+                      placeholder="Seleccionar"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+                      RFC
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ej: GOR0930119TXA"
+                      value={filters.rfc}
+                      onChange={(e) => setFilters({ ...filters, rfc: e.target.value.toUpperCase() })}
+                      className="w-full px-4 py-2.5 rounded-lg border text-[13px]"
+                      style={{ borderColor: 'var(--border)', background: 'var(--input)' }}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+                      Uso de CFDI
+                    </label>
+                    <select
+                      value={filters.cfdiUse}
+                      onChange={(e) => setFilters({ ...filters, cfdiUse: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-lg border text-[13px]"
+                      style={{ borderColor: 'var(--border)', background: 'var(--input)' }}
+                    >
+                      <option value="">Todos</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+                      Monto Mínimo
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="$0.00"
+                      value={filters.minAmount}
+                      onChange={(e) => setFilters({ ...filters, minAmount: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-lg border text-[13px]"
+                      style={{ borderColor: 'var(--border)', background: 'var(--input)' }}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+                      Monto Máximo
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="$999,999.99"
+                      value={filters.maxAmount}
+                      onChange={(e) => setFilters({ ...filters, maxAmount: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-lg border text-[13px]"
+                      style={{ borderColor: 'var(--border)', background: 'var(--input)' }}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+                      Estatus
+                    </label>
+                    <select
+                      value={filters.status}
+                      onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-lg border text-[13px]"
+                      style={{ borderColor: 'var(--border)', background: 'var(--input)' }}
+                    >
+                      <option value="">Todos</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+                      Tipo
+                    </label>
+                    <select
+                      value={filters.type}
+                      onChange={(e) => setFilters({ ...filters, type: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-lg border text-[13px]"
+                      style={{ borderColor: 'var(--border)', background: 'var(--input)' }}
+                    >
+                      <option value="">Todos</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          )}
+        </div>
+
+
         {/* Tabs + descarga */}
-        <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-3 mt-6">
           <Tabs items={[...TABS]} active={tab} onChange={setTab} />
           <Btn
             kind="ghost"

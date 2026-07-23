@@ -2,6 +2,7 @@ import type { ComponentType } from 'react'
 
 export type Screen =
   | 'home'
+  | 'vista-fiscal'
   | 'declaraciones'
   | 'facturas'
   | 'documentos'
@@ -62,6 +63,7 @@ export interface DashboardProps {
   role: string | null
   permissions: string[]
   userId?: string | null
+  phoneNumber?: string | null
 }
 
 export type GoFn = (s: Screen) => void

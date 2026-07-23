@@ -18,7 +18,7 @@ export function FacturasScreen({ go }: Props) {
   if (!hasRfc) return <NeedsSatConnect go={go} feature="emitir facturas" />
 
   return (
-    <div className="flex flex-col gap-5 max-w-[760px]">
+    <div className="flex flex-col gap-5">
       <HelpBox>
         Estamos terminando la conexión con <strong>Timbrame</strong>, nuestro proveedor de facturación electrónica
         autorizado por el SAT. En cuanto esté lista, podrás emitir tus CFDI directo desde aquí.

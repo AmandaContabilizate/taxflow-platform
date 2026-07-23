@@ -39,6 +39,7 @@ export const MONO = { fontFamily: 'var(--font-mono)' } as const
 export const TITLES: Record<Screen, [string, string]> = {
   home: ['Hola 👋', 'Aquí tienes lo importante de hoy'],
   declaraciones: ['Mis declaraciones', 'Tus impuestos mes con mes, sin complicarte'],
+  'vista-fiscal': ['Tu vida fiscal', 'Todas tus herramientas en un solo lugar'],
   facturas: ['Mis facturas', 'Las facturas que emites a tus clientes'],
   documentos: ['Mi bóveda', 'Tus documentos y facturas del SAT, en un solo lugar'],
   diagnostico: ['Diagnóstico fiscal', 'Cómo estás y qué puedes mejorar'],
@@ -77,10 +78,11 @@ export const TITLES: Record<Screen, [string, string]> = {
 
 const GUEST_NAV: NavDef[] = [
   { id: 'home', label: 'Inicio', Icon: Home, hint: 'Tu resumen del día' },
-  { id: 'declaraciones', label: 'Declaraciones', Icon: FileText, hint: 'Tus impuestos del mes' },
-  { id: 'facturas', label: 'Facturas', Icon: FilePlus, hint: 'Emite y revisa facturas' },
-  { id: 'documentos', label: 'Bóveda', Icon: FolderLock, hint: 'Tu bóveda digital de CFDI y constancias' },
+  { id: 'vista-fiscal', label: 'Vista fiscal', Icon: Stethoscope, hint: 'Tu vida fiscal' },
   { id: 'diagnostico', label: 'Diagnóstico', Icon: Stethoscope, hint: 'Tu situación fiscal' },
+  { id: 'declaraciones', label: 'Declaraciones', Icon: FileText, hint: 'Tus impuestos del mes' },
+  { id: 'facturas', label: 'Facturación', Icon: FilePlus, hint: 'Emite y revisa facturas' },
+  { id: 'documentos', label: 'Bóveda', Icon: FolderLock, hint: 'Tu bóveda digital de CFDI y constancias' },
   { id: 'tramites', label: 'Trámites', Icon: FilePlus2, hint: 'Servicios extra' },
   { id: 'plan', label: 'Mi plan', Icon: Gem, hint: 'Tu suscripción' },
   { id: 'ayuda', label: 'Ayuda', Icon: HelpCircle, hint: 'Tutoriales y dudas' },

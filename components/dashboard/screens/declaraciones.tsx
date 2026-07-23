@@ -46,7 +46,7 @@ export function DeclaracionesScreen({ go }: Props) {
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tus declaraciones" />
 
   return (
-    <div className="flex flex-col gap-5 max-w-[960px]">
+    <div className="flex flex-col gap-5">
       <HelpBox>
         <strong>Tus declaraciones, organizadas por momento.</strong> Resuelve el pasado, ten claridad del futuro y no
         olvides la anual. Todo lo prepara tu contador, tú solo autorizas.
@@ -62,7 +62,7 @@ export function DeclaracionesScreen({ go }: Props) {
         <div className="text-[16px] font-bold mb-3" style={{ color: 'var(--ink-700)' }}>
           ¿Necesitas entender mejor?
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {TAB_VIDEOS[tab].map(([title, duration]) => (
             <VideoSlot key={title} title={title} duration={duration} />
           ))}

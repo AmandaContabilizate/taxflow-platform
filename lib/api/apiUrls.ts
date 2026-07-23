@@ -1,9 +1,9 @@
 import "server-only";
 
-const BASE_IDENTITY = process.env.API_BASE_IDENTITY || "https://localhost:7125/api";
-const BASE_PROCEDURES = process.env.API_BASE_PROCEDURES || "https://localhost:7165/api";
-const BASE_REPORTS = process.env.API_BASE_REPORTS || "https://localhost:7126/api";
-const BASE_SCRAPPERS = process.env.API_BASE_SCRAPPERS || "https://localhost:7042/api";
+const BASE_IDENTITY = process.env.NEXT_PUBLIC_API_BASE_IDENTITY || process.env.API_BASE_IDENTITY || "https://localhost:7125/api";
+const BASE_PROCEDURES = process.env.NEXT_PUBLIC_API_BASE_PROCEDURES || process.env.API_BASE_PROCEDURES || "https://localhost:7165/api";
+const BASE_REPORTS = process.env.NEXT_PUBLIC_API_BASE_REPORTS || process.env.API_BASE_REPORTS || "https://localhost:7126/api";
+const BASE_SCRAPPERS = process.env.NEXT_PUBLIC_API_BASE_SCRAPPERS || process.env.API_BASE_SCRAPPERS || "https://localhost:7042/api";
 const DbOrigin = "/SQLServer";
 
 export const API_BASE_URLS = {

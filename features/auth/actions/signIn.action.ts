@@ -52,7 +52,10 @@ export async function signIn(
         fieldErrors: { email: ["Credenciales inválidas"] },
       });
     }
-    console.error("[signIn] Error:", e);
+    console.error("[signIn] Error:", e instanceof Error ? e.message : String(e));
+    if (e instanceof Error) {
+      console.error("[signIn] Stack:", e.stack);
+    }
     return err({
       statusCode: 500,
       fieldErrors: { root: ["Error al iniciar sesión. Intenta de nuevo."] },

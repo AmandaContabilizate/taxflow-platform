@@ -58,6 +58,7 @@ export function RfcProvider({ children, initialRfc = null }: RfcProviderProps) {
       setError(null)
       setSelectedRfcState(prev => {
         if (prev && res.value.some(r => r.rfc === prev)) return prev
+        if (initialRfc && res.value.some(r => r.rfc === initialRfc)) return initialRfc
         const stored =
           typeof window !== 'undefined'
             ? window.localStorage.getItem(STORAGE_KEY)
@@ -70,7 +71,7 @@ export function RfcProvider({ children, initialRfc = null }: RfcProviderProps) {
       setError(res.error.message)
     }
     setLoading(false)
-  }, [])
+  }, [initialRfc])
 
   useEffect(() => {
     void load()

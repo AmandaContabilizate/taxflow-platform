@@ -73,10 +73,14 @@ function VideoSlot({ title, duration }: { title: string; duration: string }) {
 
 // ── SatConnectScreen ──────────────────────────────────────────────────────────
 
-export default function SatConnectScreen() {
+interface SatConnectScreenProps {
+  rfc?: string | null
+}
+
+export default function SatConnectScreen({ rfc: initialRfc }: SatConnectScreenProps = {}) {
   const router = useRouter()
   const [authMethod, setAuthMethod] = useState<'ciec' | 'fiel'>('ciec')
-  const [rfc, setRfc] = useState('')
+  const [rfc, setRfc] = useState(initialRfc ?? '')
   const [ciec, setCiec] = useState('')
   const [showCiec, setShowCiec] = useState(false)
   const [cerFile, setCerFile] = useState<File | null>(null)
