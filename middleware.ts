@@ -3,6 +3,7 @@ import {
   PROTECTED_ROUTES,
   PUBLIC_ROUTES,
   isPublicRoute,
+  resolveRedirectBase,
   shouldRedirectIfAuthenticated,
 } from "@/lib/routes";
 
@@ -30,7 +31,7 @@ export function middleware(request: NextRequest) {
   const isAuthenticated = Boolean(request.cookies.get("auth_token"));
 
   if (isAuthenticated && shouldRedirectIfAuthenticated(pathname)) {
-    return NextResponse.redirect(new URL(PROTECTED_ROUTES.DASHBOARD, request.url));
+    return NextResponse.redirect(new URL(PROTECTED_ROUTES.DASHBOARD, resolveRedirectBase(request.url)));
   }
 
   if (isPublicRoute(pathname)) {
@@ -38,7 +39,7 @@ export function middleware(request: NextRequest) {
   }
 
   if (!isAuthenticated) {
-    const url = new URL(PUBLIC_ROUTES.LOGIN, request.url);
+    const url = new URL(PUBLIC_ROUTES.LOGIN, resolveRedirectBase(request.url));
     url.searchParams.set("from", pathname);
     return NextResponse.redirect(url);
   }

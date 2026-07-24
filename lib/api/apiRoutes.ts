@@ -32,6 +32,11 @@ export const API_ROUTES = {
     ROOT: "",
     GET: (id: string) => `/${id}`,
     UPDATECIEC: "/updateCiec",
+    // Crea contribuyente para cualquier régimen (no limitado a 605); valida CIEC sin
+    // descargar constancia, régimen/razón social se completan async. apiType "taxpayers"
+    CREATE_BY_CIEC: "/create-by-ciec",
+    // Crea (o reutiliza) contribuyente por RFC y persiste su e.Firma. apiType "taxpayers"
+    CREATE_BY_EFIRMA: "/create-by-efirma",
     AVAILABLE_RFCS: "/available-rfcs",
     RFC_STATUS: (rfc: string) => `/rfc-status?rfc=${encodeURIComponent(rfc)}`,
     COMPLIANCE_OPINION: (rfc: string) =>
@@ -112,6 +117,19 @@ export const API_ROUTES = {
   },
   FINANCES: {
     REGISTER_SALE_NEW: "/register-sale/new",
+  },
+  // Administración de partnerships externos (SSO). apiType "partnership"
+  PARTNERSHIP: {
+    CORS: {
+      LIST: "/cors",
+      ADD: "/cors",
+      DELETE: (id: number) => `/cors/${id}`,
+    },
+    KEYS: {
+      ACTIVE: "/keys",
+      GENERATE: "/keys",
+    },
+    LOGINS: "/logins",
   },
   STRIPE: {
     PAYMENT_SHEET: "/payment-sheet",

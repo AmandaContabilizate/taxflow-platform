@@ -3,7 +3,10 @@
 import { useState, type ReactNode, type ComponentType } from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertCircle, ArrowRight, ChevronRight, Eye, FileDown, Lightbulb, Lock, PlayCircle } from 'lucide-react'
-import { updateCiec } from '@/features/taxpayers/actions/updateCiec.action'
+import { createTaxpayerByCiec } from '@/features/taxpayers/actions/createTaxpayerByCiec.action'
+import { createTaxpayerByEfirma } from '@/features/taxpayers/actions/createTaxpayerByEfirma.action'
+import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
+import type { GoFn } from '@/components/dashboard/types'
 
 // ── Shared primitives (mirrored from dashboard) ──────────────────────────────
 
@@ -74,11 +77,16 @@ function VideoSlot({ title, duration }: { title: string; duration: string }) {
 // ── SatConnectScreen ──────────────────────────────────────────────────────────
 
 interface SatConnectScreenProps {
+   go?: GoFn;
   rfc?: string | null
 }
 
-export default function SatConnectScreen({ rfc: initialRfc }: SatConnectScreenProps = {}) {
+export default function SatConnectScreen({
+  go,
+  rfc: initialRfc,
+}: SatConnectScreenProps = {}) {
   const router = useRouter()
+  const { refresh: refreshRfcs, setSelectedRfc } = useRfcStore()
   const [authMethod, setAuthMethod] = useState<'ciec' | 'fiel'>('ciec')
   const [rfc, setRfc] = useState(initialRfc ?? '')
   const [ciec, setCiec] = useState('')
@@ -110,14 +118,27 @@ export default function SatConnectScreen({ rfc: initialRfc }: SatConnectScreenPr
     setError(null)
 
     try {
-      // if (authMethod === 'ciec') {
-      const res = await updateCiec({ rfc: rfcClean, satPassword: ciec })
-      console.log(res);
+      const res =
+        authMethod === 'ciec'
+          ? await createTaxpayerByCiec({ rfc: rfcClean, ciec })
+          : await createTaxpayerByEfirma({
+              rfc: rfcClean,
+              cerFile: cerFile as File,
+              keyFile: keyFile as File,
+              authSecret: fielPwd,
+            })
       if (!res.success) {
-        setError(res.error.message || 'No pudimos conectar con el SAT. Revisa tus datos e inténtalo otra vez.')
+        setError(
+          res.error.errorCode === 'INVALID_CIEC'
+            ? 'La contraseña CIEC es incorrecta. Vuelve a ingresarla.'
+            : res.error.message || 'No pudimos conectar con el SAT. Revisa tus datos e inténtalo otra vez.',
+        )
         return
       }
+      await refreshRfcs()
+      setSelectedRfc(rfcClean)
       router.refresh()
+      go?.('home')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No pudimos conectar con el SAT')
     } finally {

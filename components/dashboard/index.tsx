@@ -22,6 +22,7 @@ import {
   HomeScreen,
   MisClientesScreen,
   OperacionesScreen,
+  PartnershipScreen,
   PermisosScreen,
   PlaceholderScreen,
   PlanScreen,
@@ -49,6 +50,7 @@ const WIDE_SCREENS = new Set<Screen>([
   'plan',
   'home',
   'vista-fiscal',
+  'partnership',
 ])
 
 export default function Dashboard({ fullName, email, rfc, role, permissions, userId, phoneNumber }: DashboardProps) {
@@ -236,7 +238,7 @@ function ScreenRouter({
     return <PermisosScreen initialPermissions={permissions} role={role} />
   }
   if (screen === 'estatus-sat') {
-    return <SatConnectScreen />
+    return <SatConnectScreen go={go} />
   }
 
   // Para roles operativos, todo es placeholder por ahora (Dashboard incluido).
@@ -272,6 +274,9 @@ function ScreenRouter({
     }
     if (screen === 'roles') {
       return <RolesScreen currentUserId={userId ?? undefined} />
+    }
+    if (screen === 'partnership') {
+      return <PartnershipScreen />
     }
     const [title, hint] = TITLES[screen] ?? ['Próximamente', '']
     return <PlaceholderScreen title={title} description={hint || undefined} />

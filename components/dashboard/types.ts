@@ -37,9 +37,11 @@ export type Screen =
   | 'tramites-adicionales'
   | 'ventas'
   | 'roles'
+  | 'partnership'
 
 export type RoleKey =
   | 'guest'
+  | 'external-provider'
   | 'developer'
   | 'seller'
   | 'atencion-clientes'

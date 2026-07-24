@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { getActivePlan } from '@/features/account/actions/getActivePlan.action'
 import type { ActivePlan } from '@/features/account/types'
 import { getCurrentUser } from '@/features/auth/actions'
+import { PUBLIC_ROUTES } from '@/lib/routes'
 import type { FiscalRegime } from '@/lib/types'
 import PlanesClient from './planes-client'
 
@@ -19,7 +20,7 @@ const DEFAULT_REGIMES: FiscalRegime[] = [
 export default async function PlanesPage() {
   const user = await getCurrentUser()
   if (!user) {
-    redirect('/auth/login')
+    redirect(PUBLIC_ROUTES.LOGOUT)
   }
 
   // TODO(backend): leer credenciales/régimen del usuario desde el backend.
