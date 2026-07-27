@@ -51,12 +51,30 @@ function step(msg) {
   console.log(`\n▶ ${msg}`);
 }
 
-function run(cmd) {
-  execSync(cmd, { cwd: ROOT, stdio: "inherit" });
+function run(cmd, extraEnv = {}) {
+  execSync(cmd, { cwd: ROOT, stdio: "inherit", env: { ...process.env, ...extraEnv } });
 }
 
+function pad(n) {
+  return String(n).padStart(2, "0");
+}
+
+const now = new Date();
+const BUILD_DATE = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+let branch = "";
+try {
+  branch = execSync("git rev-parse --abbrev-ref HEAD", { cwd: ROOT }).toString().trim();
+} catch {
+  branch = "";
+}
+const BUILD_BRANCH = branch && branch !== "main" && branch !== "HEAD" ? branch : "";
+
 step("1/5 — Compilando el proyecto (next build)...");
-run("npm run build");
+run("npm run build", {
+  NEXT_PUBLIC_BUILD_DATE: BUILD_DATE,
+  NEXT_PUBLIC_BUILD_BRANCH: BUILD_BRANCH,
+});
 
 if (!existsSync(STANDALONE_DIR)) {
   console.error(
@@ -107,6 +125,9 @@ await new Promise((resolve, reject) => {
 const sizeMB = (statSync(OUTPUT_ZIP).size / (1024 * 1024)).toFixed(1);
 
 console.log(`\n✓ Listo: ${path.relative(ROOT, OUTPUT_ZIP)} (${sizeMB} MB)`);
+console.log(
+  `  Build: ${BUILD_DATE}${BUILD_BRANCH ? ` · rama ${BUILD_BRANCH}` : " (main)"}`,
+);
 console.log(
   "\nEn Azure App Service, el Startup Command para este paquete es:\n  node server.js\n" +
     "(no `next start` — ese es el server generado por output: standalone)",

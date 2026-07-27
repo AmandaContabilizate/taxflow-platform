@@ -43,10 +43,27 @@ try {
     $Timestamp  = Get-Date -Format "yyyy-MM-ddTHH-mm-ss"
     $OutputZip  = Join-Path $OutputDir "taxflow-platform-$Timestamp.zip"
 
+    $BuildDate = Get-Date -Format "yyyy-MM-dd HH:mm"
+    $Branch = ""
+    try {
+        $Branch = (git rev-parse --abbrev-ref HEAD 2>$null | Out-String).Trim()
+    } catch {
+        $Branch = ""
+    }
+    if ($Branch -eq "main" -or $Branch -eq "HEAD") { $Branch = "" }
+
     Write-Step "1/5 - Compilando el proyecto (next build)..."
-    npm run build
-    if ($LASTEXITCODE -ne 0) {
-        throw "El build fallo (exit code $LASTEXITCODE)."
+    $env:NEXT_PUBLIC_BUILD_DATE = $BuildDate
+    $env:NEXT_PUBLIC_BUILD_BRANCH = $Branch
+    try {
+        npm run build
+        if ($LASTEXITCODE -ne 0) {
+            throw "El build fallo (exit code $LASTEXITCODE)."
+        }
+    }
+    finally {
+        Remove-Item Env:\NEXT_PUBLIC_BUILD_DATE -ErrorAction SilentlyContinue
+        Remove-Item Env:\NEXT_PUBLIC_BUILD_BRANCH -ErrorAction SilentlyContinue
     }
 
     if (-not (Test-Path $StandaloneDir)) {
@@ -110,6 +127,11 @@ try {
     $sizeMB = [Math]::Round((Get-Item $OutputZip -ErrorAction Stop).Length / 1MB, 1)
     Write-Host ""
     Write-Host "OK Listo: $relZip ($sizeMB MB)" -ForegroundColor Green
+    if ($Branch) {
+        Write-Host "  Build: $BuildDate - rama $Branch"
+    } else {
+        Write-Host "  Build: $BuildDate (main)"
+    }
     Write-Host ""
     Write-Host "En Azure App Service, el Startup Command para este paquete es:"
     Write-Host "  node server.js"

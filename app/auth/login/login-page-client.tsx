@@ -25,6 +25,11 @@ interface LoginPageClientProps {
 
 const DISPLAY_FONT = { fontFamily: "var(--font-display)" } as const;
 
+// Solo definidas cuando el build se generó vía scripts/build-deploy-zip.*
+// (npm run dev / next build normal no las setean, así que la leyenda no aparece).
+const BUILD_DATE = process.env.NEXT_PUBLIC_BUILD_DATE;
+const BUILD_BRANCH = process.env.NEXT_PUBLIC_BUILD_BRANCH;
+
 const BENEFITS = [
   { symbol: "✓", label: "Conexión segura con el SAT" },
   { symbol: "⚡", label: "Declaraciones automáticas" },
@@ -265,6 +270,12 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
           <p className="mt-auto text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
             Confían en nosotros miles de emprendedores en México
           </p>
+          {BUILD_DATE && (
+            <p className="mt-1 text-[10px]" style={{ color: "rgba(255,255,255,0.25)" }}>
+              {BUILD_DATE}
+              {BUILD_BRANCH && ` · ${BUILD_BRANCH}`}
+            </p>
+          )}
         </aside>
 
         <section className="flex items-center justify-center p-4 sm:p-8 lg:p-14">
