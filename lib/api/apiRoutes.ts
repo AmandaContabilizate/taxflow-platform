@@ -59,6 +59,8 @@ export const API_ROUTES = {
     PAID_PENDING: (kind: number, skip = 0, take = 500, accountantUserId?: string) =>
       `/paid-pending?kind=${kind}&skip=${skip}&take=${take}${accountantUserId ? `&accountantUserId=${encodeURIComponent(accountantUserId)}` : ""
       }`,
+    CALCULATIONS: (declarationId: number) => `/${declarationId}/calculations`,
+    GENERAL: (declarationId: number) => `/${declarationId}/general`,
   },
   SALES_OPS: {
     PROCEDURES: (skip = 0, take = 500) =>

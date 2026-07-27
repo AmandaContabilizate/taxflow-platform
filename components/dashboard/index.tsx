@@ -50,6 +50,7 @@ const WIDE_SCREENS = new Set<Screen>([
 export default function Dashboard({ fullName, email, rfc, role, permissions, userId }: DashboardProps) {
   const [screen, setScreen] = useState<Screen>('home')
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [autoOpenPlanPicker, setAutoOpenPlanPicker] = useState(false)
   const [signingOut, startSignOut] = useTransition()
 
   const initials =
@@ -130,6 +131,12 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
             role={role}
             permissions={permissions}
             userId={userId}
+            autoOpenPlanPicker={autoOpenPlanPicker}
+            onPlanPickerHandled={() => setAutoOpenPlanPicker(false)}
+            goToPlanPicker={() => {
+              setAutoOpenPlanPicker(true)
+              go('plan')
+            }}
           />
         </main>
       </div>
@@ -150,6 +157,9 @@ interface RouterProps {
   role: string | null
   permissions: string[]
   userId?: string | null
+  autoOpenPlanPicker: boolean
+  onPlanPickerHandled: () => void
+  goToPlanPicker: () => void
 }
 
 function ScreenRouter({
@@ -165,6 +175,9 @@ function ScreenRouter({
   role,
   permissions,
   userId,
+  autoOpenPlanPicker,
+  onPlanPickerHandled,
+  goToPlanPicker,
 }: RouterProps) {
   const roleKey = normalizeRole(role)
   const isGuest = roleKey === 'guest'
@@ -246,9 +259,9 @@ function ScreenRouter({
     case 'tip-detail':
       return <TipDetailScreen go={go} />
     case 'tramites':
-      return <TramitesScreen />
+      return <TramitesScreen onContratar={goToPlanPicker} />
     case 'plan':
-      return <PlanScreen />
+      return <PlanScreen autoOpenPicker={autoOpenPlanPicker} onAutoOpenHandled={onPlanPickerHandled} />
     case 'ayuda':
       return <AyudaScreen />
     default:
