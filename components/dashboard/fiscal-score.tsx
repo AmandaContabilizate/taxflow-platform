@@ -49,6 +49,61 @@ function scoreColor(score: number): string {
   return '#FF8862' // coral
 }
 
+/**
+ * Insignia del encabezado. El fondo del hero es púrpura constante, así que los
+ * colores van literales (ver excepción de fondos de color fijo en CLAUDE.md).
+ */
+type BadgeTone = 'brand' | 'amber' | 'coral' | 'neutral'
+
+const BADGE_TONES: Record<BadgeTone, { bg: string; fg: string; border: string; dot: string }> = {
+  brand: {
+    bg: 'rgba(14,209,138,0.18)',
+    fg: '#7BF0C6',
+    border: '1px solid rgba(14,209,138,0.3)',
+    dot: '#0ED18A',
+  },
+  amber: {
+    bg: 'rgba(245,176,55,0.18)',
+    fg: '#FFD98A',
+    border: '1px solid rgba(245,176,55,0.32)',
+    dot: '#F5B037',
+  },
+  coral: {
+    bg: 'rgba(255,136,98,0.18)',
+    fg: '#FFB59E',
+    border: '1px solid rgba(255,136,98,0.32)',
+    dot: '#FF8862',
+  },
+  neutral: {
+    bg: 'rgba(255,255,255,0.08)',
+    fg: 'rgba(255,255,255,0.72)',
+    border: '1px solid rgba(255,255,255,0.16)',
+    dot: 'rgba(255,255,255,0.5)',
+  },
+}
+
+function headerBadge(
+  status: State['status'],
+  satSyncedLabel?: string,
+): { label: string; tone: BadgeTone; pulse: boolean } {
+  switch (status) {
+    case 'ready':
+      return {
+        label: satSyncedLabel ? `SAT sincronizado · ${satSyncedLabel}` : 'SAT sincronizado',
+        tone: 'brand',
+        pulse: false,
+      }
+    case 'empty':
+      return { label: 'Sin declaraciones registradas', tone: 'amber', pulse: false }
+    case 'processing':
+      return { label: 'Sincronizando con el SAT', tone: 'amber', pulse: true }
+    case 'error':
+      return { label: 'No pudimos consultar al SAT', tone: 'coral', pulse: false }
+    default:
+      return { label: 'Consultando al SAT', tone: 'neutral', pulse: true }
+  }
+}
+
 export function FiscalScore({ go, planTier, satSyncedLabel }: Props) {
   const { selectedRfc } = useRfcStore()
   const [state, setState] = useState<State>({ status: 'idle' })
@@ -82,6 +137,9 @@ export function FiscalScore({ go, planTier, satSyncedLabel }: Props) {
     }
   }, [selectedRfc])
 
+  const badgeInfo = headerBadge(state.status, satSyncedLabel)
+  const badge = { ...BADGE_TONES[badgeInfo.tone], label: badgeInfo.label, pulse: badgeInfo.pulse }
+
   return (
     <div
       className="rounded-3xl p-7 lg:p-8 text-white relative overflow-hidden"
@@ -91,14 +149,13 @@ export function FiscalScore({ go, planTier, satSyncedLabel }: Props) {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div
           className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[12px] font-bold"
-          style={{
-            background: 'rgba(14,209,138,0.18)',
-            color: 'var(--brand-300)',
-            border: '1px solid rgba(14,209,138,0.3)',
-          }}
+          style={{ background: badge.bg, color: badge.fg, border: badge.border }}
         >
-          <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--brand-500)' }} />
-          {satSyncedLabel ? `SAT sincronizado · ${satSyncedLabel}` : 'SAT sincronizado'}
+          <span
+            className={`w-1.5 h-1.5 rounded-full ${badge.pulse ? 'animate-pulse' : ''}`}
+            style={{ background: badge.dot }}
+          />
+          {badge.label}
         </div>
         {planTier && (
           <div className="text-[12px] font-extrabold tracking-wide" style={{ color: 'var(--brand-300)' }}>
@@ -119,7 +176,7 @@ export function FiscalScore({ go, planTier, satSyncedLabel }: Props) {
       ) : state.status === 'processing' ? (
         <ProcessingBody />
       ) : state.status === 'empty' ? (
-        <EmptyBody onConnect={() => go('estatus-sat')} />
+        <EmptyBody onSeeDeclarations={() => go('declaraciones')} />
       ) : (
         <ReadyBody value={state.value} go={go} />
       )}
@@ -200,7 +257,7 @@ function ReadyBody({ value, go }: { value: FiscalScore; go: GoFn }) {
   )
 }
 
-function EmptyBody({ onConnect }: { onConnect: () => void }) {
+function EmptyBody({ onSeeDeclarations }: { onSeeDeclarations: () => void }) {
   return (
     <div className="mt-6">
       <div
@@ -213,12 +270,16 @@ function EmptyBody({ onConnect }: { onConnect: () => void }) {
         Aún no tienes declaraciones
       </div>
       <div className="text-[14.5px] mt-3 leading-relaxed max-w-[480px]" style={{ color: 'rgba(255,255,255,0.78)' }}>
-        En cuanto conectemos tu RFC con el SAT y empecemos a presentar tus declaraciones, aquí verás tu score fiscal en
-        tiempo real.
+        Tu RFC ya está conectado con el SAT, pero todavía no hay declaraciones registradas. En cuanto presentemos la
+        primera, aquí verás tu score fiscal en tiempo real.
       </div>
       <div className="mt-6">
-        <Btn size="lg" onClick={onConnect} style={{ background: '#fff', color: 'var(--ink-900)', boxShadow: 'none' }}>
-          Conectar con el SAT <ArrowUpRight size={18} />
+        <Btn
+          size="lg"
+          onClick={onSeeDeclarations}
+          style={{ background: '#fff', color: 'var(--ink-900)', boxShadow: 'none' }}
+        >
+          Ver mis declaraciones <ArrowUpRight size={18} />
         </Btn>
       </div>
     </div>

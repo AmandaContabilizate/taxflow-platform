@@ -5,6 +5,58 @@
  * - Resumen de ventas (`/sales/summary`).
  */
 
+/** Cálculos fiscales de una declaración (IVA/ISR ya parseados). */
+export interface DeclarationCalculations {
+  declarationId: number;
+  iva: Record<string, unknown> | null;
+  isr: Record<string, unknown> | null;
+}
+
+/** Montos del backend: number o string decimal ("438.49"). */
+export type Money = number | string | null;
+
+/** Datos generales de una declaración (DeclaracionGeneralDto). */
+export interface DeclarationGeneral {
+  taxpayerId: number;
+  rfc: string;
+  legalName: string;
+  email: string | null;
+  phone: string | null;
+  fiscalYear: number;
+  periodValueId: number;
+  periodo: string;
+  periodicityId: number;
+  periodicity: string;
+  taxRegimeId: number;
+  regimeSatCode: string | null;
+  regimeName: string | null;
+  statusId: number;
+  statusCode: string;
+  statusDescription: string;
+  accumulatedIncome: Money;
+  personalDeductions: Money;
+  taxableBase: Money;
+  lowerLimit: Money;
+  surplus: Money;
+  rate: Money;
+  result: Money;
+  fixedQuota: Money;
+  annualTax: Money;
+  employmentSubsidy: Money;
+  withheldTax: Money;
+  favorableTax: Money;
+  totalDeclaration: Money;
+  createdAt: string | null;
+  updatedAt: string | null;
+  submittedAt: string | null;
+  assignedAt: string | null;
+  acknowledgmentPdfUrl: string | null;
+  paymentLinePdfUrl: string | null;
+  paymentAcknowledgmentPdfUrl: string | null;
+  accountantUserId: string | null;
+  accountantName: string | null;
+}
+
 /** Respuesta paginada del backend (skip/take/total). */
 export interface Paged<T> {
   items: T[];
