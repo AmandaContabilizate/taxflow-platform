@@ -1,6 +1,7 @@
 import {
   Activity,
   BarChart3,
+  BookOpen,
   Briefcase,
   Calendar,
   CheckSquare,
@@ -32,7 +33,7 @@ import {
   Users,
   Zap,
 } from 'lucide-react'
-import type { NavDef, RoleKey, Screen } from './types'
+import type { NavDef, NavSection, RoleKey, Screen } from './types'
 
 export const DISPLAY = { fontFamily: 'var(--font-display)' } as const
 export const MONO = { fontFamily: 'var(--font-mono)' } as const
@@ -49,6 +50,7 @@ export const TITLES: Record<Screen, [string, string]> = {
   tramites: ['Trámites adicionales', 'Servicios extra que puedes contratar cuando los necesites'],
   plan: ['Mi plan', 'Tu suscripción y opciones de pago'],
   ayuda: ['Ayuda y tutoriales', 'Aprende a tu ritmo, paso a paso'],
+  manual: ['Manual de usuario', 'Guía completa de cómo usar Contabilízate'],
   cuenta: ['Mi cuenta', 'Tus datos y preferencias'],
   'estatus-sat': ['Conectar con el SAT', 'Necesitamos esto una sola vez'],
   permisos: ['Modificador de permisos', 'Edita los permisos asignados a tu rol'],
@@ -88,6 +90,39 @@ const GUEST_NAV: NavDef[] = [
   { id: 'tramites', label: 'Trámites', Icon: FilePlus2, hint: 'Servicios extra' },
   { id: 'plan', label: 'Mi plan', Icon: Gem, hint: 'Tu suscripción' },
   { id: 'ayuda', label: 'Ayuda', Icon: HelpCircle, hint: 'Tutoriales y dudas' },
+  { id: 'manual', label: 'Manual', Icon: BookOpen, hint: 'Guía de usuario' },
+]
+
+export const GUEST_NAV_GROUPED: NavSection[] = [
+  {
+    items: [
+      { id: 'home', label: 'Inicio', Icon: Home, hint: 'Tu resumen del día' },
+    ]
+  },
+  {
+    section: 'FISCAL',
+    items: [
+      { id: 'vista-fiscal', label: 'Vista fiscal', Icon: Layers, hint: 'Tu vida fiscal' },
+      { id: 'diagnostico', label: 'Diagnóstico', Icon: Stethoscope, hint: 'Tu situación fiscal' },
+      { id: 'declaraciones', label: 'Declaraciones', Icon: FileText, hint: 'Tus impuestos del mes' },
+      { id: 'facturas', label: 'Facturación', Icon: FilePlus, hint: 'Emite y revisa facturas' },
+      { id: 'documentos', label: 'Bóveda', Icon: FolderLock, hint: 'Tu bóveda digital de CFDI y constancias' },
+    ]
+  },
+  {
+    section: 'CUENTA',
+    items: [
+      { id: 'tramites', label: 'Trámites', Icon: FilePlus2, hint: 'Servicios extra' },
+      { id: 'plan', label: 'Mi plan', Icon: Gem, hint: 'Tu suscripción' },
+    ]
+  },
+  {
+    section: 'AYUDA',
+    items: [
+      { id: 'ayuda', label: 'Ayuda', Icon: HelpCircle, hint: 'Tutoriales y dudas' },
+      { id: 'manual', label: 'Manual', Icon: BookOpen, hint: 'Guía de usuario' },
+    ]
+  },
 ]
 
 // Compatibilidad: algunos componentes externos siguen importando NAV.

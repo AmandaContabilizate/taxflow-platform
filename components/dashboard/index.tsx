@@ -20,6 +20,7 @@ import {
   DocumentosScreen,
   FacturasScreen,
   HomeScreen,
+  ManualScreen,
   MisClientesScreen,
   OperacionesScreen,
   PartnershipScreen,
@@ -41,15 +42,20 @@ const WIDE_SCREENS = new Set<Screen>([
   'operaciones',
   'regularizaciones',
   'tramites-adicionales',
+  'tramites',
   'mis-clientes',
   'clientes',
   'contribuyentes',
   'ventas',
   'roles',
-  'declaraciones',
   'plan',
   'home',
   'vista-fiscal',
+  'diagnostico',
+  'facturas',
+  'documentos',
+  'manual',
+  'ayuda',
   'partnership',
 ])
 
@@ -304,6 +310,8 @@ function ScreenRouter({
       return <PlanScreen go={go} />
     case 'ayuda':
       return <AyudaScreen />
+    case 'manual':
+      return <ManualScreen go={go} />
     default:
       return null
   }
