@@ -15,6 +15,9 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { useState } from 'react'
+// EPs desconectados temporalmente (aún no traen datos); usar dummies.
+// import { getDeclarationCalculations } from '@/features/operations/actions/getDeclarationCalculations.action'
+// import { getDeclarationGeneral } from '@/features/operations/actions/getDeclarationGeneral.action'
 import type { PaidPendingDeclaration } from '@/features/operations/types'
 import { DISPLAY, MONO } from '../constants'
 import { Card } from '../ui'
@@ -28,7 +31,7 @@ const money = (n: number) =>
 
 const TAB_ITEMS = ['Comprobantes', 'Cálculos', 'Clasificación', 'Reporte Cliente'] as const
 
-// Datos dummy — el backend aún no entrega el detalle fiscal de la declaración.
+// Datos dummy — el EP /general aún no entrega datos; reconectar cuando esté listo.
 const DUMMY = {
   ingresosBrutos: 29000,
   gastosDeducibles: 8120,
@@ -43,6 +46,9 @@ interface Props {
 
 export function DeclarationDetail({ declaration: d, onBack }: Props) {
   const [tab, setTab] = useState(0)
+
+  // Pendiente: el EP /general aún no trae datos. Reconectar getDeclarationGeneral
+  // (con general/loadingGeneral) cuando el backend responda; ver git para el wiring.
 
   return (
     <div className="flex flex-col gap-5 max-w-full">
@@ -190,14 +196,15 @@ interface Cfdi {
   tasaIva: string
   total: number
   status: string
-  clasificacion: 'Considerado' | 'No considerado'
+  clasificacion: 'Considerado' | 'No considerado',
+  nameClasificacion: "Gasolina, combustibles y aceites"
 }
 
 const DUMMY_CFDIS: Cfdi[] = [
-  { folio: 'A001', fecha: '2024-01-15', tipo: 'Emitido', tipoComprobante: 'Ingreso', rfcEmisor: 'PEGJ850101ABC', rfcReceptor: 'EAB123456789', subtotal: 10000, iva: 1600, tasaIva: '16%', total: 11600, status: 'Vigente', clasificacion: 'Considerado' },
-  { folio: 'A002', fecha: '2024-01-20', tipo: 'Emitido', tipoComprobante: 'Ingreso', rfcEmisor: 'PEGJ850101ABC', rfcReceptor: 'CXY987654321', subtotal: 15000, iva: 2400, tasaIva: '16%', total: 17400, status: 'Vigente', clasificacion: 'No considerado' },
-  { folio: 'B001', fecha: '2024-01-10', tipo: 'Recibido', tipoComprobante: 'Egreso', rfcEmisor: 'PDF456789123', rfcReceptor: 'PEGJ850101ABC', subtotal: 2000, iva: 320, tasaIva: '16%', total: 2320, status: 'Vigente', clasificacion: 'Considerado' },
-  { folio: 'B002', fecha: '2024-01-25', tipo: 'Recibido', tipoComprobante: 'Egreso', rfcEmisor: 'SGH789123456', rfcReceptor: 'PEGJ850101ABC', subtotal: 5000, iva: 800, tasaIva: '16%', total: 5800, status: 'Vigente', clasificacion: 'Considerado' },
+  { folio: 'A001', fecha: '2024-01-15', tipo: 'Emitido', tipoComprobante: 'Ingreso', rfcEmisor: 'PEGJ850101ABC', rfcReceptor: 'EAB123456789', subtotal: 10000, iva: 1600, tasaIva: '16%', total: 11600, status: 'Vigente', clasificacion: 'Considerado', nameClasificacion: 'Gasolina, combustibles y aceites' },
+  { folio: 'A002', fecha: '2024-01-20', tipo: 'Emitido', tipoComprobante: 'Ingreso', rfcEmisor: 'PEGJ850101ABC', rfcReceptor: 'CXY987654321', subtotal: 15000, iva: 2400, tasaIva: '16%', total: 17400, status: 'Vigente', clasificacion: 'No considerado', nameClasificacion: 'Gasolina, combustibles y aceites' },
+  { folio: 'B001', fecha: '2024-01-10', tipo: 'Recibido', tipoComprobante: 'Egreso', rfcEmisor: 'PDF456789123', rfcReceptor: 'PEGJ850101ABC', subtotal: 2000, iva: 320, tasaIva: '16%', total: 2320, status: 'Vigente', clasificacion: 'Considerado', nameClasificacion: 'Gasolina, combustibles y aceites' },
+  { folio: 'B002', fecha: '2024-01-25', tipo: 'Recibido', tipoComprobante: 'Egreso', rfcEmisor: 'SGH789123456', rfcReceptor: 'PEGJ850101ABC', subtotal: 5000, iva: 800, tasaIva: '16%', total: 5800, status: 'Vigente', clasificacion: 'Considerado', nameClasificacion: 'Gasolina, combustibles y aceites' },
 ]
 
 function ComprobantesTab({ d }: { d: PaidPendingDeclaration }) {
@@ -287,7 +294,7 @@ function ComprobantesTab({ d }: { d: PaidPendingDeclaration }) {
             <table className="w-full text-[12.5px]">
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                  {['Conceptos', 'Folio', 'Fecha', 'Tipo', 'Tipo Comprobante', 'RFC Emisor', 'RFC Receptor', 'Subtotal', 'IVA', 'Tasa IVA', 'Total', 'Status', 'Estatus Clasificación', 'Acciones'].map((h) => (
+                  {['Conceptos', 'Folio', 'Fecha', 'Tipo', 'Tipo Comprobante', 'RFC Emisor', 'RFC Receptor', 'Subtotal', 'IVA', 'Tasa IVA', 'Total', 'Status', 'Estatus Clasificación', 'Clasificación', 'Acciones'].map((h) => (
                     <th key={h} className="px-3 py-2.5 text-left font-extrabold whitespace-nowrap" style={{ color: 'var(--ink-700)' }}>
                       {h}
                     </th>
@@ -333,6 +340,11 @@ function ComprobantesTab({ d }: { d: PaidPendingDeclaration }) {
                           No considerado
                         </span>
                       )}
+                    </td>
+                    <td className="px-3 py-3">
+                      <span className="inline-flex px-2.5 py-1 rounded-md text-[11px] font-bold" style={{ background: 'var(--ink-900)', color: 'var(--card)' }}>
+                        {c.nameClasificacion}
+                      </span>
                     </td>
                     <td className="px-3 py-3 font-bold" style={{ color: 'var(--ink-500)' }}>⋯</td>
                   </tr>
@@ -691,3 +703,4 @@ function RecomBlock({
     </div>
   )
 }
+

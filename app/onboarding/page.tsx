@@ -9,6 +9,8 @@ import { PUBLIC_ROUTES } from '@/lib/routes'
  * TODO(backend):
  *   credentials ← GET /api/taxpayers/me  (para precargar RFC si ya existe)
  */
+export const dynamic = 'force-dynamic'
+
 export default async function OnboardingPage() {
   const user = await getCurrentUser()
   if (!user) redirect(PUBLIC_ROUTES.LOGOUT)

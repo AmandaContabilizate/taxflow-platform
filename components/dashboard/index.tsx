@@ -63,6 +63,7 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
   const [screen, setScreen] = useState<Screen>('home')
   const [mobileOpen, setMobileOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [autoOpenPlanPicker, setAutoOpenPlanPicker] = useState(false)
   const [signingOut, startSignOut] = useTransition()
 
   const initials =
@@ -179,7 +180,6 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
             role={role}
             permissions={permissions}
             userId={userId}
-            phoneNumber={phoneNumber}
           />
         </main>
       </div>
@@ -200,7 +200,6 @@ interface RouterProps {
   role: string | null
   permissions: string[]
   userId?: string | null
-  phoneNumber?: string | null
 }
 
 function ScreenRouter({
@@ -216,7 +215,6 @@ function ScreenRouter({
   role,
   permissions,
   userId,
-  phoneNumber,
 }: RouterProps) {
   const roleKey = normalizeRole(role)
   const isGuest = roleKey === 'guest'
@@ -305,9 +303,9 @@ function ScreenRouter({
     case 'tip-detail':
       return <TipDetailScreen go={go} />
     case 'tramites':
-      return <TramitesScreen />
+      return <TramitesScreen onContratar={goToPlanPicker} />
     case 'plan':
-      return <PlanScreen go={go} />
+      return <PlanScreen />
     case 'ayuda':
       return <AyudaScreen />
     case 'manual':

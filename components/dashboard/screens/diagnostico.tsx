@@ -31,6 +31,21 @@ function fiscalStatus(score: number): FiscalStatus {
   return { word: 'crítica', accent: '#9E3A15', pill: 'coral', pillText: 'Requiere atención', positive: false }
 }
 
+/** true mientras el score todavía no es confiable: sin CSF leída, o con declaraciones "Por Revisar" sin confirmar. */
+function isStillChecking(score: FiscalScore | null): boolean {
+  if (!score) return false
+  return !score.hasCsfData || score.isReconciling || score.pendingVerificationCount > 0
+}
+
+type DiagnosticoStep = 'loading' | 'connecting' | 'checking' | 'ready'
+
+function diagnosticoStep(score: FiscalScore | null, loading: boolean): DiagnosticoStep {
+  if (loading || !score) return 'loading'
+  if (!score.hasCsfData) return 'connecting'
+  if (score.isReconciling || score.pendingVerificationCount > 0) return 'checking'
+  return 'ready'
+}
+
 interface Props {
   go: GoFn
 }
@@ -49,6 +64,19 @@ export function DiagnosticoScreen({ go }: Props) {
   useEffect(() => {
     if (!selectedRfc) return
     let cancelled = false
+    let intervalId: ReturnType<typeof setInterval> | undefined
+
+    const pollScore = async () => {
+      const res = await getFiscalScore(selectedRfc)
+      if (cancelled) return
+      const next = res.success ? res.value : null
+      setScore(next)
+      if (!isStillChecking(next) && intervalId) {
+        clearInterval(intervalId)
+        intervalId = undefined
+      }
+    }
+
     setLoading(true)
     void (async () => {
       const [scoreRes, incomeRes, billsRes, invoicesRes, regsRes] = await Promise.all([
@@ -59,21 +87,32 @@ export function DiagnosticoScreen({ go }: Props) {
         getRegularizations(selectedRfc),
       ])
       if (cancelled) return
-      setScore(scoreRes.success ? scoreRes.value : null)
+      const initialScore = scoreRes.success ? scoreRes.value : null
+      setScore(initialScore)
       setIncome(incomeRes.success ? incomeRes.value : null)
       setBills(billsRes.success ? billsRes.value : null)
       setInvoices(invoicesRes.success ? invoicesRes.value : null)
       setRegs(regsRes.success ? regsRes.value : null)
       setLoading(false)
+
+      // Mientras la CSF no se haya leído o el scraper siga reconciliando declaraciones "Por
+      // Revisar", el score todavía no es confiable — seguimos consultando cada 20s hasta que
+      // se resuelva, en vez de dejar el dato pegado en "0 de 0 declaraciones".
+      if (isStillChecking(initialScore)) {
+        intervalId = setInterval(() => void pollScore(), 20000)
+      }
     })()
+
     return () => {
       cancelled = true
+      if (intervalId) clearInterval(intervalId)
     }
   }, [selectedRfc])
 
   if (loadingRfc) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tu diagnóstico fiscal" />
 
+  const step = diagnosticoStep(score, loading)
   const status = score ? fiscalStatus(score.score) : null
   const money = (v: number | null) => (loading ? '…' : v == null ? '—' : formatMoney(v))
   const num = (v: number | null) => (loading ? '…' : v == null ? '—' : formatNumber(v))
@@ -92,15 +131,59 @@ export function DiagnosticoScreen({ go }: Props) {
       <div
         className="rounded-3xl p-7 lg:p-8"
         style={{
-          background: status?.positive ? 'var(--hero-brand-soft)' : 'var(--hero-coral-soft-bg)',
-          border: `1px solid ${status?.positive ? 'var(--brand-200)' : 'var(--coral-soft)'}`,
+          background:
+            step === 'ready' && status
+              ? status.positive
+                ? 'var(--hero-brand-soft)'
+                : 'var(--hero-coral-soft-bg)'
+              : 'var(--hero-amber)',
+          border: `1px solid ${
+            step === 'ready' && status
+              ? status.positive
+                ? 'var(--brand-200)'
+                : 'var(--coral-soft)'
+              : 'var(--hero-amber-border)'
+          }`,
         }}
       >
-        {loading || !score || !status ? (
+        {step === 'loading' ? (
           <div className="flex items-center gap-2 text-[15px]" style={{ color: 'var(--ink-500)' }}>
             <Loader2 size={18} className="animate-spin" /> Analizando tu situación fiscal…
           </div>
-        ) : (
+        ) : step === 'connecting' ? (
+          <>
+            <Pill kind="amber">
+              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#F5B037' }} /> Conectando
+              con el SAT
+            </Pill>
+            <div
+              className="text-[26px] lg:text-[32px] font-extrabold tracking-tight leading-tight mt-4 max-w-[680px]"
+              style={DISPLAY}
+            >
+              Nos estamos conectando con el SAT
+            </div>
+            <div className="text-[13.5px] mt-2 max-w-[560px]" style={{ color: 'var(--ink-500)' }}>
+              Estamos descargando tu constancia de situación fiscal. En cuanto la tengamos, calculamos qué
+              declaraciones te corresponden.
+            </div>
+          </>
+        ) : step === 'checking' ? (
+          <>
+            <Pill kind="amber">
+              <Loader2 size={13} className="animate-spin" /> Comprobando con el SAT
+            </Pill>
+            <div
+              className="text-[26px] lg:text-[32px] font-extrabold tracking-tight leading-tight mt-4 max-w-[680px]"
+              style={DISPLAY}
+            >
+              Estamos comprobando tus declaraciones
+            </div>
+            <div className="text-[13.5px] mt-2" style={{ color: 'var(--ink-500)' }}>
+              Ya revisamos {score!.total} de {score!.total + score!.pendingVerificationCount} · Faltan{' '}
+              {score!.pendingVerificationCount} por confirmar con el SAT.
+            </div>
+          </>
+        ) : status && score ? (
           <>
             <Pill kind={status.pill}>
               {status.positive ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />} {status.pillText}
@@ -123,7 +206,7 @@ export function DiagnosticoScreen({ go }: Props) {
               </div>
             )}
           </>
-        )}
+        ) : null}
       </div>
 
       <div>
