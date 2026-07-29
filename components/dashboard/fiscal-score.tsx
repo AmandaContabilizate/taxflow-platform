@@ -4,7 +4,6 @@ import { ArrowUpRight, Loader2, RefreshCw } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { getFiscalScore } from '@/features/declarations/actions/getFiscalScore.action'
 import type { FiscalScore } from '@/features/declarations/types'
-import { getTaxCertificateMetadata } from '@/features/taxpayers/actions/getDocumentMetadata.action'
 import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import { DISPLAY, MONO } from './constants'
 import type { GoFn } from './types'
@@ -114,19 +113,17 @@ export function FiscalScore({ go, planTier, satSyncedLabel }: Props) {
     setState({ status: 'loading' })
 
     void (async () => {
-      const [scoreRes, csfRes] = await Promise.all([
-        getFiscalScore(selectedRfc),
-        getTaxCertificateMetadata(selectedRfc),
-      ])
+      const scoreRes = await getFiscalScore(selectedRfc)
       if (cancelled) return
       if (!scoreRes.success) {
         setState({ status: 'error', message: scoreRes.error.message })
         return
       }
-      // Sin declaraciones (0 regularizaciones): si además no hay documento de
-      // situación fiscal, el análisis sigue en curso; si lo hay, solo está vacío.
+      // Sin declaraciones: distinguimos "ya terminamos y no hay nada" de "el
+      // scrapper sigue trabajando", usando las banderas del propio endpoint.
       if (scoreRes.value.total === 0) {
-        setState({ status: csfRes.success ? 'empty' : 'processing' })
+        const stillWorking = !scoreRes.value.hasCsfData || scoreRes.value.isReconciling
+        setState({ status: stillWorking ? 'processing' : 'empty' })
         return
       }
       setState({ status: 'ready', value: scoreRes.value })

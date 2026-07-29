@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useSelectedRfc } from '@/features/taxpayers/stores/rfcStore'
-import { getFiscalScore, type FiscalScore } from '../actions/getFiscalScore.action'
+import { getFiscalScore } from '../actions/getFiscalScore.action'
+import type { FiscalScore } from '../types'
 
 type DiagnosticoStep = 'loading' | 'connecting' | 'checking' | 'ready'
 

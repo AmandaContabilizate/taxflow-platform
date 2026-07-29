@@ -114,28 +114,32 @@ export function Sidebar({
         <nav className="flex flex-col gap-0 py-0 flex-1 min-h-0 overflow-y-auto overflow-x-hidden -mx-1 px-1">
           {roleKey === 'guest' && !collapsed ? (
             GUEST_NAV_GROUPED.map((section, idx) => {
+              // El primer grupo (Inicio) no tiene título; necesita una key propia.
+              const sectionKey = section.section ?? `group-${idx}`
               const isCollapsed = collapsedSections.has(section.section ?? '')
               const isCollapsible = ['FISCAL', 'CUENTA', 'AYUDA'].includes(section.section ?? '')
               const isFirst = idx === 0
 
               return (
-                <div key={section.section} className="flex flex-col gap-1">
-                  <button
-                    onClick={() => isCollapsible && toggleSection(section.section ?? '')}
-                    className={`px-2.5 ${isFirst ? 'pt-0' : 'pt-3'} pb-1.5 text-[10px] font-extrabold uppercase tracking-widest flex items-center justify-between transition-colors ${isCollapsible ? 'hover:opacity-70 cursor-pointer' : ''}`}
-                    style={{ color: 'var(--ink-400)' }}
-                  >
-                    <span>{section.section}</span>
-                    {isCollapsible && (
-                      <ChevronDown
-                        size={14}
-                        style={{
-                          transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
-                          transition: 'transform 200ms ease',
-                        }}
-                      />
-                    )}
-                  </button>
+                <div key={sectionKey} className="flex flex-col gap-1">
+                  {section.section && (
+                    <button
+                      onClick={() => isCollapsible && toggleSection(section.section ?? '')}
+                      className={`px-2.5 ${isFirst ? 'pt-0' : 'pt-3'} pb-1.5 text-[10px] font-extrabold uppercase tracking-widest flex items-center justify-between transition-colors ${isCollapsible ? 'hover:opacity-70 cursor-pointer' : ''}`}
+                      style={{ color: 'var(--ink-400)' }}
+                    >
+                      <span>{section.section}</span>
+                      {isCollapsible && (
+                        <ChevronDown
+                          size={14}
+                          style={{
+                            transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+                            transition: 'transform 200ms ease',
+                          }}
+                        />
+                      )}
+                    </button>
+                  )}
                   {!isCollapsed && section.items.map(n => (
                     <NavItem
                       key={n.id}
@@ -378,7 +382,7 @@ export function Sidebar({
           type="button"
           onClick={() => {
             go('estatus-sat')
-            setShowRfcPanel(false)
+            setMouseOverPanel(false)
           }}
           title="Agregar un RFC"
           className="mt-4 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg transition hover:opacity-80 font-semibold text-[12px] text-white"

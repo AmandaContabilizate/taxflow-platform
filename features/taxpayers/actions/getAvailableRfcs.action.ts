@@ -8,6 +8,8 @@ export interface AvailableRfc {
   rfc: string;
   legalName: string;
   status69B: string | null;
+  /** Estado de la CIEC: 1 = válida, 2 = inválida. Ausente si no se ha validado. */
+  ciecState?: number;
 }
 
 interface AvailableRfcsResponse {

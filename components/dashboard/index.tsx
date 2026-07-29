@@ -101,6 +101,11 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
       signOut()
     })
   }
+  // Desde Trámites: manda a "Mi plan" y deja que la pantalla abra el modal de pago.
+  const goToPlanPicker = () => {
+    setAutoOpenPlanPicker(true)
+    go('plan')
+  }
 
   return (
     <RfcProvider>
@@ -197,6 +202,10 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
             role={role}
             permissions={permissions}
             userId={userId}
+            phoneNumber={phoneNumber}
+            autoOpenPlanPicker={autoOpenPlanPicker}
+            onPlanPickerHandled={() => setAutoOpenPlanPicker(false)}
+            goToPlanPicker={goToPlanPicker}
           />
         </main>
       </div>
@@ -217,6 +226,10 @@ interface RouterProps {
   role: string | null
   permissions: string[]
   userId?: string | null
+  phoneNumber?: string | null
+  autoOpenPlanPicker: boolean
+  onPlanPickerHandled: () => void
+  goToPlanPicker: () => void
 }
 
 function ScreenRouter({
@@ -232,6 +245,10 @@ function ScreenRouter({
   role,
   permissions,
   userId,
+  phoneNumber,
+  autoOpenPlanPicker,
+  onPlanPickerHandled,
+  goToPlanPicker,
 }: RouterProps) {
   const roleKey = normalizeRole(role)
   const isGuest = roleKey === 'guest'
@@ -322,7 +339,13 @@ function ScreenRouter({
     case 'tramites':
       return <TramitesScreen onContratar={goToPlanPicker} />
     case 'plan':
-      return <PlanScreen />
+      return (
+        <PlanScreen
+          go={go}
+          autoOpenPicker={autoOpenPlanPicker}
+          onAutoOpenHandled={onPlanPickerHandled}
+        />
+      )
     case 'ayuda':
       return <AyudaScreen />
     case 'manual':
