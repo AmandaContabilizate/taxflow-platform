@@ -12,6 +12,9 @@ export interface FiscalScore {
   pending: number // total - presented
   score: number // 0-100 (2 decimales)
   breakdown: FiscalScoreStatusBreakdown[]
+  hasCsfData: boolean // true si ya se leyó la Constancia de Situación Fiscal al menos una vez
+  isReconciling: boolean // true si el scraper de declaraciones sigue corriendo para este RFC
+  pendingVerificationCount: number // cuántas siguen "Por Revisar" (sembradas, sin confirmar aún)
 }
 
 export interface FiscalScoreError {

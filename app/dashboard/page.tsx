@@ -5,6 +5,8 @@ import { getCurrentUser } from '@/features/auth/actions'
 import { getUserInfo } from '@/features/auth/actions/getUserInfo.action'
 import { PUBLIC_ROUTES } from '@/lib/routes'
 
+export const dynamic = 'force-dynamic'
+
 export default async function DashboardPage() {
   const user = await getCurrentUser()
   if (!user) redirect(PUBLIC_ROUTES.LOGOUT)

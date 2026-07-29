@@ -17,6 +17,8 @@ const DEFAULT_REGIMES: FiscalRegime[] = [
   { id: 'persona-moral-general', name: 'Personas Morales Régimen General', description: '', created_at: '' },
 ]
 
+export const dynamic = 'force-dynamic'
+
 export default async function PlanesPage() {
   const user = await getCurrentUser()
   if (!user) {
