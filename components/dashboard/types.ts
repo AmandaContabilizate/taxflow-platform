@@ -11,6 +11,7 @@ export type Screen =
   | 'tramites'
   | 'plan'
   | 'ayuda'
+  | 'manual'
   | 'cuenta'
   | 'estatus-sat'
   | 'permisos'
@@ -56,6 +57,11 @@ export interface NavDef {
   label: string
   Icon: ComponentType<{ size?: number }>
   hint: string
+}
+
+export interface NavSection {
+  section?: string
+  items: NavDef[]
 }
 
 export interface DashboardProps {

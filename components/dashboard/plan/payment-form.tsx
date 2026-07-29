@@ -1,7 +1,7 @@
 'use client'
 
 import { PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js'
-import { Loader2 } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Lock, Loader2 } from 'lucide-react'
 import { useState } from 'react'
 import { Btn } from '../ui'
 
@@ -22,7 +22,7 @@ export function PaymentForm({ payLabel, onSuccess, onCancel }: PaymentFormProps)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!stripe || !elements) return
 
@@ -58,36 +58,109 @@ export function PaymentForm({ payLabel, onSuccess, onCancel }: PaymentFormProps)
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <PaymentElement options={{ layout: 'tabs' }} />
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5 py-2">
+      {/* Security Info */}
+      <div
+        className="flex items-center gap-2.5 px-4 py-3 rounded-xl"
+        style={{
+          background: 'rgba(16, 185, 129, 0.08)',
+          border: '1px solid rgba(16, 185, 129, 0.2)',
+        }}
+      >
+        <Lock size={16} style={{ color: '#10B981', flexShrink: 0 }} />
+        <span className="text-[12px] font-medium" style={{ color: '#059669' }}>
+          Conexión segura. Tu información está encriptada.
+        </span>
+      </div>
 
+      {/* Payment Section */}
+      <div className="flex flex-col gap-3">
+        <label className="text-[12px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+          Método de pago
+        </label>
+        <div
+          className="rounded-2xl p-5 border"
+          style={{
+            background: 'var(--card)',
+            border: '1px solid var(--border)',
+          }}
+        >
+          <PaymentElement
+            options={{
+              layout: 'tabs',
+              wallets: { googlePay: 'never', applePay: 'never' },
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Error Message */}
       {error && (
         <div
-          className="text-[13px] font-semibold px-4 py-2.5 rounded-xl"
-          style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}
+          className="flex items-start gap-3 px-4 py-3.5 rounded-xl border-l-4 animate-in fade-in-50 duration-200"
+          style={{
+            background: 'rgba(239, 68, 68, 0.08)',
+            borderColor: '#EF4444',
+          }}
         >
-          {error}
+          <AlertCircle size={18} style={{ color: '#DC2626', flexShrink: 0, marginTop: '2px' }} />
+          <div>
+            <div className="text-[13px] font-semibold" style={{ color: '#7F1D1D' }}>
+              Error al procesar el pago
+            </div>
+            <div className="text-[12px] mt-1" style={{ color: '#991B1B' }}>
+              {error}
+            </div>
+          </div>
         </div>
       )}
 
-      <div className="flex flex-col gap-2">
-        <Btn type="submit" kind="brand" block disabled={!stripe || submitting}>
+      {/* Action Buttons */}
+      <div className="flex flex-col gap-2.5 pt-2">
+        <Btn
+          type="submit"
+          kind="brand"
+          block
+          disabled={!stripe || submitting}
+          style={{
+            opacity: !stripe || submitting ? 0.6 : 1,
+          }}
+        >
           {submitting ? (
-            <>
-              <Loader2 size={16} className="animate-spin" /> Procesando…
-            </>
+            <div className="flex items-center justify-center gap-2">
+              <Loader2 size={16} className="animate-spin" />
+              <span>Procesando pago…</span>
+            </div>
           ) : (
-            payLabel
+            <div className="flex items-center justify-center gap-2">
+              <Lock size={16} />
+              <span>{payLabel}</span>
+            </div>
           )}
         </Btn>
-        <Btn type="button" kind="ghost" block onClick={onCancel} disabled={submitting}>
-          Volver
+        <Btn
+          type="button"
+          kind="ghost"
+          block
+          onClick={onCancel}
+          disabled={submitting}
+        >
+          Volver al carrito
         </Btn>
       </div>
 
-      <p className="text-[11.5px] text-center" style={{ color: 'var(--ink-500)' }}>
-        Pago seguro procesado por Stripe.
-      </p>
+      {/* Security Footer */}
+      <div className="flex items-center justify-center gap-4 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
+        <div className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--ink-500)' }}>
+          <CheckCircle2 size={14} style={{ color: '#10B981' }} />
+          <span>Pago seguro con Stripe</span>
+        </div>
+        <div className="w-px h-3" style={{ background: 'var(--border)' }} />
+        <div className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--ink-500)' }}>
+          <Lock size={14} style={{ color: '#10B981' }} />
+          <span>Datos encriptados</span>
+        </div>
+      </div>
     </form>
   )
 }

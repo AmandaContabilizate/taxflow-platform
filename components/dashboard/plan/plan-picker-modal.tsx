@@ -214,9 +214,26 @@ export function PlanPickerModal({
         }
       >
         <DialogHeader className="text-left">
-          <DialogTitle style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
-            {step === 'success' ? '¡Listo!' : step === 'paying' ? 'Completa tu pago' : 'Arma tu plan'}
-          </DialogTitle>
+          <div className="flex items-center gap-4">
+            <DialogTitle style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
+              {step === 'success' ? '¡Listo!' : step === 'paying' ? 'Completa tu pago' : 'Arma tu plan'}
+            </DialogTitle>
+            {step === 'paying' && (
+              <div
+                className="px-4 py-2 rounded-lg text-[13px] font-bold flex items-center gap-2 flex-shrink-0"
+                style={{
+                  background: 'linear-gradient(135deg, #0066FF 0%, #0052CC 100%)',
+                  color: 'white',
+                  boxShadow: '0 4px 15px rgba(0, 102, 255, 0.3)',
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 1C6.48 1 2 5.48 2 11v9c0 1.1.9 2 2 2h4v-8H4v-2c0-4.42 3.58-8 8-8s8 3.58 8 8v2h-4v8h4c1.1 0 2-.9 2-2v-9c0-5.52-4.48-10-10-10z" />
+                </svg>
+                <span>Stripe</span>
+              </div>
+            )}
+          </div>
           <DialogDescription>
             {step === 'success'
               ? 'Tu pago se procesó correctamente.'

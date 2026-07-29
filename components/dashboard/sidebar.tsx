@@ -1,10 +1,11 @@
 'use client'
 
 import type { ComponentType } from 'react'
-import { ChevronDown, LogOut, Moon, Plus, Sun, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { useState } from 'react'
+import { ChevronDown, LogOut, Moon, Plus, Sun, PanelLeftClose, PanelLeftOpen, UserPlus, PlusCircle, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
-import { DISPLAY, MONO, PERMISOS_NAV, ROLE_NAV, normalizeRole } from './constants'
+import { DISPLAY, MONO, ROLE_NAV, GUEST_NAV_GROUPED, normalizeRole } from './constants'
 import type { GoFn, NavDef, Screen } from './types'
 
 interface SidebarProps {
@@ -38,6 +39,19 @@ export function Sidebar({
   const isDark = resolvedTheme === 'dark'
   const toggleTheme = () => setTheme(isDark ? 'light' : 'dark')
 
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
+  const [mouseOverPanel, setMouseOverPanel] = useState(false)
+
+  const toggleSection = (section: string) => {
+    const newCollapsed = new Set(collapsedSections)
+    if (newCollapsed.has(section)) {
+      newCollapsed.delete(section)
+    } else {
+      newCollapsed.add(section)
+    }
+    setCollapsedSections(newCollapsed)
+  }
+
   const roleKey = normalizeRole(role)
   const baseNav = ROLE_NAV[roleKey] ?? ROLE_NAV.guest
 
@@ -49,9 +63,7 @@ export function Sidebar({
     error: rfcsError,
     setSelectedRfc,
   } = useRfcStore()
-  // Mientras estamos en pruebas, el modificador de permisos sólo se muestra
-  // a Guest. Cuando exista el rol "Master" se cambia aquí.
-  const navItems: NavDef[] = roleKey === 'guest' ? [...baseNav, PERMISOS_NAV] : baseNav
+  const navItems: NavDef[] = baseNav
 
   return (
     <>
@@ -95,88 +107,62 @@ export function Sidebar({
           </div>
         </div>
 
-        {roleKey == 'guest' && !collapsed && (<div className="px-1 mb-3 flex-shrink-0">
-          <div className="flex items-center justify-between gap-2 mb-1.5 px-1">
-            <label
-              className="block text-[10.5px] font-bold uppercase tracking-wider"
-              style={{ color: 'var(--ink-500)' }}
-            >
-              RFC activo
-            </label>
-            <button
-              type="button"
-              onClick={() => go('estatus-sat')}
-              className="flex items-center gap-1 text-[10.5px] font-bold rounded-full px-2 py-0.5 transition hover:opacity-80"
-              style={{ background: 'var(--brand-100)', color: 'var(--brand-900)' }}
-            >
-              <Plus size={12} /> Agregar
-            </button>
-          </div>
-          <div
-            className="relative rounded-2xl"
-            style={{
-              background: 'var(--sidebar-accent)',
-              border: '1px solid var(--sidebar-border)',
-            }}
-          >
-            <select
-              value={selectedRfc ?? ''}
-              onChange={e => setSelectedRfc(e.target.value)}
-              disabled={loadingRfcs || rfcs.length === 0}
-              aria-label="Seleccionar RFC"
-              className="w-full appearance-none bg-transparent pl-3 pr-9 py-2.5 text-[13px] font-bold leading-tight outline-none disabled:opacity-60 cursor-pointer"
-              style={{ ...MONO, color: 'var(--sidebar-accent-foreground)' }}
-            >
-              {loadingRfcs && <option value="">Cargando…</option>}
-              {!loadingRfcs && rfcs.length === 0 && (
-                <option value="">Sin RFC disponibles</option>
-              )}
-              {rfcs.map(r => (
-                <option key={r.rfc} value={r.rfc} title={r.legalName}>
-                  {r.rfc}
-                </option>
-              ))}
-            </select>
-            <ChevronDown
-              size={16}
-              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
-              style={{ color: 'var(--ink-500)' }}
-            />
-          </div>
-          {selectedRfcInfo && (
-            <div
-              className="text-[11px] font-semibold mt-1.5 px-1 truncate"
-              style={{ color: 'var(--ink-500)' }}
-              title={selectedRfcInfo.legalName}
-            >
-              {selectedRfcInfo.legalName}
-            </div>
+        {roleKey == 'guest' && !collapsed && null}
+
+
+        <nav className="flex flex-col gap-0 py-0 flex-1 min-h-0 overflow-y-auto overflow-x-hidden -mx-1 px-1">
+          {roleKey === 'guest' && !collapsed ? (
+            GUEST_NAV_GROUPED.map((section, idx) => {
+              const isCollapsed = collapsedSections.has(section.section ?? '')
+              const isCollapsible = ['FISCAL', 'CUENTA', 'AYUDA'].includes(section.section ?? '')
+              const isFirst = idx === 0
+
+              return (
+                <div key={section.section} className="flex flex-col gap-1">
+                  <button
+                    onClick={() => isCollapsible && toggleSection(section.section ?? '')}
+                    className={`px-2.5 ${isFirst ? 'pt-0' : 'pt-3'} pb-1.5 text-[10px] font-extrabold uppercase tracking-widest flex items-center justify-between transition-colors ${isCollapsible ? 'hover:opacity-70 cursor-pointer' : ''}`}
+                    style={{ color: 'var(--ink-400)' }}
+                  >
+                    <span>{section.section}</span>
+                    {isCollapsible && (
+                      <ChevronDown
+                        size={14}
+                        style={{
+                          transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+                          transition: 'transform 200ms ease',
+                        }}
+                      />
+                    )}
+                  </button>
+                  {!isCollapsed && section.items.map(n => (
+                    <NavItem
+                      key={n.id}
+                      label={n.label}
+                      Icon={n.Icon}
+                      hint={n.hint}
+                      active={screen === n.id}
+                      onClick={() => go(n.id)}
+                      collapsed={false}
+                    />
+                  ))}
+                </div>
+              )
+            })
+          ) : (
+            navItems.map((n, idx) => (
+              <div key={n.id} style={{ marginTop: idx === 0 ? '8px' : undefined }}>
+                <NavItem
+                  label={n.label}
+                  Icon={n.Icon}
+                  hint={n.hint}
+                  active={screen === n.id}
+                  onClick={() => go(n.id)}
+                  collapsed={collapsed}
+                />
+              </div>
+            ))
           )}
-          {rfcsError && (
-            <div
-              className="text-[11px] font-semibold mt-1.5 px-1"
-              style={{ color: '#8B1E1E' }}
-            >
-              No pudimos cargar tus RFCs
-            </div>
-          )}
-        </div>
-
-        )}
-
-
-        <nav className="flex flex-col gap-1 py-1 flex-1 min-h-0 overflow-y-auto overflow-x-hidden -mx-1 px-1">
-          {navItems.map(n => (
-            <NavItem
-              key={n.id}
-              label={n.label}
-              Icon={n.Icon}
-              hint={n.hint}
-              active={screen === n.id}
-              onClick={() => go(n.id)}
-              collapsed={collapsed}
-            />
-          ))}
         </nav>
 
         <button
@@ -277,6 +263,153 @@ export function Sidebar({
           </button>
         </div>
       </aside>
+
+      {/* Overlay para cerrar panel en mobile */}
+      {mouseOverPanel && (
+        <div
+          className="fixed inset-0 z-[70] lg:hidden"
+          onClick={() => setMouseOverPanel(false)}
+          style={{ background: 'rgba(21,17,63,0.55)' }}
+        />
+      )}
+
+      {/* Pestañita flotante para abrir panel */}
+      {!mouseOverPanel && (
+        <button
+          onClick={() => setMouseOverPanel(true)}
+          className="fixed right-0 top-1/2 z-[79] rounded-l-lg transition hover:opacity-85 flex items-center justify-center"
+          style={{
+            background: '#1E1952',
+            border: '1px solid #0F0D2E',
+            borderRight: 'none',
+            color: 'white',
+            padding: '12px 8px',
+            width: '48px',
+            height: '48px',
+            transform: 'translateY(-50%)',
+          }}
+        >
+          <ChevronDown size={18} style={{ transform: 'rotate(90deg)' }} />
+        </button>
+      )}
+
+      <div
+        className="fixed top-0 right-0 h-screen w-[280px] z-[80] transition-transform duration-300 shadow-lg flex flex-col py-6 px-4"
+        style={{
+          background: 'var(--sidebar)',
+          borderLeft: '1px solid var(--sidebar-border)',
+          color: 'var(--sidebar-foreground)',
+          transform: mouseOverPanel ? 'translateX(0)' : 'translateX(100%)',
+        }}
+        onMouseEnter={() => setMouseOverPanel(true)}
+        onMouseLeave={() => setMouseOverPanel(false)}
+      >
+        {/* Pestañita lateral para cerrar panel */}
+        {mouseOverPanel && (
+          <button
+            onClick={() => setMouseOverPanel(false)}
+            className="absolute -left-8 top-6 w-8 h-12 rounded-l-lg transition"
+            style={{
+              background: '#10B981',
+              border: '1px solid #059669',
+              borderRight: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.opacity = '0.8'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = '1'
+            }}
+          >
+            <ChevronDown size={16} style={{ transform: 'rotate(-90deg)' }} />
+          </button>
+        )}
+        {/* Encabezado */}
+        <div className="flex items-center justify-between mb-6 pb-4" style={{ borderBottom: '1px solid var(--sidebar-border)' }}>
+          <h3 className="text-[13px] font-bold uppercase tracking-widest" style={{ color: 'var(--ink-400)' }}>RFC Activo</h3>
+          <button
+            onClick={() => setMouseOverPanel(false)}
+            className="p-1.5 rounded-lg transition hover:opacity-70"
+            style={{ background: 'var(--sidebar-accent)' }}
+          >
+            <X size={16} style={{ color: 'var(--ink-500)' }} />
+          </button>
+        </div>
+
+        {/* Selector RFC */}
+        <div className="relative rounded-lg mb-3" style={{ background: 'var(--sidebar-accent)', border: '1px solid var(--sidebar-border)' }}>
+          <select
+            value={selectedRfc ?? ''}
+            onChange={e => setSelectedRfc(e.target.value)}
+            disabled={loadingRfcs || rfcs.length === 0}
+            aria-label="Seleccionar RFC"
+            className="w-full appearance-none bg-transparent pl-4 pr-10 py-3 text-[12px] font-bold leading-tight outline-none disabled:opacity-60 cursor-pointer"
+            style={{ ...MONO, color: 'var(--sidebar-accent-foreground)' }}
+          >
+            {loadingRfcs && <option value="">Cargando…</option>}
+            {!loadingRfcs && rfcs.length === 0 && (
+              <option value="">Sin RFC disponibles</option>
+            )}
+            {rfcs.map(r => (
+              <option key={r.rfc} value={r.rfc} title={r.legalName}>
+                {r.rfc}
+              </option>
+            ))}
+          </select>
+          <ChevronDown
+            size={14}
+            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
+            style={{ color: 'var(--ink-500)' }}
+          />
+        </div>
+
+        {/* Card con nombre y RFC */}
+        {selectedRfcInfo && (
+          <div
+            className="rounded-2xl p-4 mb-4"
+            style={{
+              background: 'linear-gradient(135deg, var(--brand-50) 0%, var(--brand-100) 100%)',
+              border: '1px solid var(--brand-200)',
+            }}
+          >
+            <div className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--brand-700)' }}>
+              Tu RFC Activo
+            </div>
+            <div className="text-[12px] font-bold mb-2" style={{ color: 'var(--ink-900)' }}>
+              {selectedRfcInfo.legalName}
+            </div>
+            <div className="text-[11px] font-semibold" style={{ color: 'var(--ink-500)' }}>
+              {selectedRfc}
+            </div>
+          </div>
+        )}
+
+        {rfcsError && (
+          <div className="text-[11px] font-semibold px-1" style={{ color: '#8B1E1E' }}>
+            No pudimos cargar tus RFCs
+          </div>
+        )}
+
+        {/* Botón Agregar RFC */}
+        <button
+          type="button"
+          onClick={() => {
+            go('estatus-sat')
+            setShowRfcPanel(false)
+          }}
+          title="Agregar un RFC"
+          className="mt-4 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg transition hover:opacity-80 font-semibold text-[12px] text-white"
+          style={{ background: '#10B981' }}
+        >
+          <Plus size={16} />
+          <span>Agregar un RFC</span>
+        </button>
+      </div>
     </>
   )
 }
