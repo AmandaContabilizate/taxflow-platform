@@ -4,9 +4,9 @@ import { AlertCircle, Calendar, CheckCircle2, Loader2, Zap } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { getIssuedInvoices, getMonthlyBills, getMonthlyIncome } from '@/features/dashboard/actions'
 import { formatMoney, formatNumber } from '@/features/dashboard/tools/helpers'
-import { getFiscalScore } from '@/features/declarations/actions/getFiscalScore.action'
 import { getRegularizations } from '@/features/declarations/actions/getRegularizations.action'
-import type { FiscalScore, Regularizations } from '@/features/declarations/types'
+import { useFiscalScore } from '@/features/declarations/hooks/useFiscalScore'
+import type { Regularizations } from '@/features/declarations/types'
 import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import { monthYear } from '../declaraciones/parts'
 import { DISPLAY } from '../constants'
@@ -31,21 +31,6 @@ function fiscalStatus(score: number): FiscalStatus {
   return { word: 'crítica', accent: '#9E3A15', pill: 'coral', pillText: 'Requiere atención', positive: false }
 }
 
-/** true mientras el score todavía no es confiable: sin CSF leída, o con declaraciones "Por Revisar" sin confirmar. */
-function isStillChecking(score: FiscalScore | null): boolean {
-  if (!score) return false
-  return !score.hasCsfData || score.isReconciling || score.pendingVerificationCount > 0
-}
-
-type DiagnosticoStep = 'loading' | 'connecting' | 'checking' | 'ready'
-
-function diagnosticoStep(score: FiscalScore | null, loading: boolean): DiagnosticoStep {
-  if (loading || !score) return 'loading'
-  if (!score.hasCsfData) return 'connecting'
-  if (score.isReconciling || score.pendingVerificationCount > 0) return 'checking'
-  return 'ready'
-}
-
 interface Props {
   go: GoFn
 }
@@ -53,9 +38,8 @@ interface Props {
 export function DiagnosticoScreen({ go }: Props) {
   const { hasRfc, loading: loadingRfc } = useHasRfc()
   const { selectedRfc } = useRfcStore()
+  const { score, loading, step } = useFiscalScore()
 
-  const [loading, setLoading] = useState(true)
-  const [score, setScore] = useState<FiscalScore | null>(null)
   const [income, setIncome] = useState<number | null>(null)
   const [bills, setBills] = useState<number | null>(null)
   const [invoices, setInvoices] = useState<number | null>(null)
@@ -64,55 +48,29 @@ export function DiagnosticoScreen({ go }: Props) {
   useEffect(() => {
     if (!selectedRfc) return
     let cancelled = false
-    let intervalId: ReturnType<typeof setInterval> | undefined
 
-    const pollScore = async () => {
-      const res = await getFiscalScore(selectedRfc)
-      if (cancelled) return
-      const next = res.success ? res.value : null
-      setScore(next)
-      if (!isStillChecking(next) && intervalId) {
-        clearInterval(intervalId)
-        intervalId = undefined
-      }
-    }
-
-    setLoading(true)
     void (async () => {
-      const [scoreRes, incomeRes, billsRes, invoicesRes, regsRes] = await Promise.all([
-        getFiscalScore(selectedRfc),
+      const [incomeRes, billsRes, invoicesRes, regsRes] = await Promise.all([
         getMonthlyIncome(selectedRfc),
         getMonthlyBills(selectedRfc),
         getIssuedInvoices(selectedRfc),
         getRegularizations(selectedRfc),
       ])
       if (cancelled) return
-      const initialScore = scoreRes.success ? scoreRes.value : null
-      setScore(initialScore)
       setIncome(incomeRes.success ? incomeRes.value : null)
       setBills(billsRes.success ? billsRes.value : null)
       setInvoices(invoicesRes.success ? invoicesRes.value : null)
       setRegs(regsRes.success ? regsRes.value : null)
-      setLoading(false)
-
-      // Mientras la CSF no se haya leído o el scraper siga reconciliando declaraciones "Por
-      // Revisar", el score todavía no es confiable — seguimos consultando cada 20s hasta que
-      // se resuelva, en vez de dejar el dato pegado en "0 de 0 declaraciones".
-      if (isStillChecking(initialScore)) {
-        intervalId = setInterval(() => void pollScore(), 20000)
-      }
     })()
 
     return () => {
       cancelled = true
-      if (intervalId) clearInterval(intervalId)
     }
   }, [selectedRfc])
 
   if (loadingRfc) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tu diagnóstico fiscal" />
 
-  const step = diagnosticoStep(score, loading)
   const status = score ? fiscalStatus(score.score) : null
   const money = (v: number | null) => (loading ? '…' : v == null ? '—' : formatMoney(v))
   const num = (v: number | null) => (loading ? '…' : v == null ? '—' : formatNumber(v))

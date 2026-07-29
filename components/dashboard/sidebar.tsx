@@ -7,6 +7,7 @@ import { useTheme } from 'next-themes'
 import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import { DISPLAY, MONO, ROLE_NAV, GUEST_NAV_GROUPED, normalizeRole } from './constants'
 import type { GoFn, NavDef, Screen } from './types'
+import { RFCSelector } from './rfc-selector'
 
 interface SidebarProps {
   screen: Screen
@@ -277,16 +278,15 @@ export function Sidebar({
       {!mouseOverPanel && (
         <button
           onClick={() => setMouseOverPanel(true)}
-          className="fixed right-0 top-1/2 z-[79] rounded-l-lg transition hover:opacity-85 flex items-center justify-center"
+          className="fixed right-0 bottom-6 z-[79] rounded-l-lg transition hover:opacity-85 flex items-center justify-center"
           style={{
             background: '#1E1952',
             border: '1px solid #0F0D2E',
             borderRight: 'none',
             color: 'white',
-            padding: '12px 8px',
-            width: '48px',
-            height: '48px',
-            transform: 'translateY(-50%)',
+            padding: '8px 4px',
+            width: '32px',
+            height: '40px',
           }}
         >
           <ChevronDown size={18} style={{ transform: 'rotate(90deg)' }} />
@@ -308,7 +308,7 @@ export function Sidebar({
         {mouseOverPanel && (
           <button
             onClick={() => setMouseOverPanel(false)}
-            className="absolute -left-8 top-6 w-8 h-12 rounded-l-lg transition"
+            className="absolute -left-6 bottom-6 w-6 h-10 rounded-l-lg transition"
             style={{
               background: '#10B981',
               border: '1px solid #059669',
@@ -342,30 +342,8 @@ export function Sidebar({
         </div>
 
         {/* Selector RFC */}
-        <div className="relative rounded-lg mb-3" style={{ background: 'var(--sidebar-accent)', border: '1px solid var(--sidebar-border)' }}>
-          <select
-            value={selectedRfc ?? ''}
-            onChange={e => setSelectedRfc(e.target.value)}
-            disabled={loadingRfcs || rfcs.length === 0}
-            aria-label="Seleccionar RFC"
-            className="w-full appearance-none bg-transparent pl-4 pr-10 py-3 text-[12px] font-bold leading-tight outline-none disabled:opacity-60 cursor-pointer"
-            style={{ ...MONO, color: 'var(--sidebar-accent-foreground)' }}
-          >
-            {loadingRfcs && <option value="">Cargando…</option>}
-            {!loadingRfcs && rfcs.length === 0 && (
-              <option value="">Sin RFC disponibles</option>
-            )}
-            {rfcs.map(r => (
-              <option key={r.rfc} value={r.rfc} title={r.legalName}>
-                {r.rfc}
-              </option>
-            ))}
-          </select>
-          <ChevronDown
-            size={14}
-            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
-            style={{ color: 'var(--ink-500)' }}
-          />
+        <div className="mb-4">
+          <RFCSelector compact={true} />
         </div>
 
         {/* Card con nombre y RFC */}

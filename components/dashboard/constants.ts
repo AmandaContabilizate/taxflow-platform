@@ -29,6 +29,7 @@ import {
   Stethoscope,
   Target,
   TrendingUp,
+  LayoutGrid,
   UserPlus,
   Users,
   Zap,
@@ -82,7 +83,7 @@ export const TITLES: Record<Screen, [string, string]> = {
 
 const GUEST_NAV: NavDef[] = [
   { id: 'home', label: 'Inicio', Icon: Home, hint: 'Tu resumen del día' },
-  { id: 'vista-fiscal', label: 'Vista fiscal', Icon: Stethoscope, hint: 'Tu vida fiscal' },
+  { id: 'vista-fiscal', label: 'Vista fiscal', Icon: LayoutGrid, hint: 'Tu vida fiscal' },
   { id: 'diagnostico', label: 'Diagnóstico', Icon: Stethoscope, hint: 'Tu situación fiscal' },
   { id: 'declaraciones', label: 'Declaraciones', Icon: FileText, hint: 'Tus impuestos del mes' },
   { id: 'facturas', label: 'Facturación', Icon: FilePlus, hint: 'Emite y revisa facturas' },
@@ -102,7 +103,7 @@ export const GUEST_NAV_GROUPED: NavSection[] = [
   {
     section: 'FISCAL',
     items: [
-      { id: 'vista-fiscal', label: 'Vista fiscal', Icon: Layers, hint: 'Tu vida fiscal' },
+      { id: 'vista-fiscal', label: 'Vista fiscal', Icon: LayoutGrid, hint: 'Tu vida fiscal' },
       { id: 'diagnostico', label: 'Diagnóstico', Icon: Stethoscope, hint: 'Tu situación fiscal' },
       { id: 'declaraciones', label: 'Declaraciones', Icon: FileText, hint: 'Tus impuestos del mes' },
       { id: 'facturas', label: 'Facturación', Icon: FilePlus, hint: 'Emite y revisa facturas' },

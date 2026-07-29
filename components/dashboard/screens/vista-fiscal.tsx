@@ -59,11 +59,17 @@ export function VistaFiscalScreen({ go }: Props) {
                 <div className="text-[32px] font-extrabold tracking-tight" style={{ color: 'var(--ink-900)' }}>
                   {selectedRfcInfo.legalName}
                 </div>
-                <div className="text-[13.5px] mt-2 mb-1" style={{ color: 'var(--ink-600)' }}>
-                  {(selectedRfcInfo as any).regimen && (
-                    <div>{(selectedRfcInfo as any).regimen}</div>
-                  )}
-                </div>
+                {(selectedRfcInfo as any)?.regimenes && (selectedRfcInfo as any).regimenes.length > 0 && (
+                  <div className="text-[13.5px] mt-2 mb-2">
+                    <div className="flex flex-wrap gap-1.5">
+                      {(selectedRfcInfo as any).regimenes.map((r: any) => (
+                        <span key={r.id || r.satCode} className="inline-block px-3 py-1.5 rounded-lg text-[12px] font-medium" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#059669' }}>
+                          {r.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="text-[13.5px]" style={{ ...MONO, color: 'var(--ink-600)' }}>
                   {selectedRfcInfo.rfc}
                 </div>

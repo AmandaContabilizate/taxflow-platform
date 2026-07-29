@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { signOut } from '@/features/auth/actions'
 import { RfcProvider, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
@@ -66,6 +66,23 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
   const [autoOpenPlanPicker, setAutoOpenPlanPicker] = useState(false)
   const [signingOut, startSignOut] = useTransition()
 
+  // Cargar pantalla guardada al montar
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedScreen = localStorage.getItem('dashboard-screen')
+      if (savedScreen) {
+        setScreen(savedScreen as Screen)
+      }
+    }
+  }, [])
+
+  // Guardar pantalla actual en localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('dashboard-screen', screen)
+    }
+  }, [screen])
+
   const initials =
     (fullName || email)
       .split(' ')
@@ -86,7 +103,7 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
   }
 
   return (
-    <RfcProvider initialRfc={rfc}>
+    <RfcProvider>
       <div
         className={`grid min-h-screen transition-all duration-300 ${sidebarCollapsed ? 'lg:grid-cols-[80px_1fr]' : 'lg:grid-cols-[260px_1fr]'}`}
         style={{ background: 'var(--background)', color: 'var(--foreground)' }}
@@ -161,9 +178,9 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
                 </div>
               </div>
             </div>
-            {/* Header con buscador y botones de tema */}
+            {/* Header con selector RFC y botón conectar SAT */}
             <div className="hidden lg:flex">
-              <DashboardHeader />
+              <DashboardHeader go={go} />
             </div>
           </div>
 
