@@ -202,7 +202,7 @@ export interface CancelSubscriptionResponse {
 }
 
 /**
- * Plan activo del RFC (GET /api/stripe/active-plan?rfc=...). Cubre tanto
+ * Sub-objeto `plan` de GET /api/stripe/active-plan?rfc=... Cubre tanto
  * suscripción (`type: "subscription"`) como pago único (`type: "one_time"`).
  * Si `hasPlan` es false el resto de campos vienen en null.
  */
@@ -225,6 +225,52 @@ export interface ActivePlan {
   paymentIntentId: string | null;
   paidAmount: number | null;
   paidAt: string | null;
+}
+
+/** Partida de una compra: el plan/producto contratado y lo que otorga. */
+export interface AccountPurchaseItem {
+  saleItemId: number;
+  planId: number | null;
+  planKey: string | null;
+  planName: string | null;
+  productType: number;
+  quantity: number;
+  unitAmount: number;
+  amount: number;
+  regularizationDeclarations: number;
+  futureDeclarations: number;
+  taxRegimeId: number | null;
+}
+
+/** Una venta del RFC con su desglose de partidas. */
+export interface AccountPurchase {
+  saleId: number;
+  saleDate: string;
+  amount: number;
+  statusId: number;
+  status: string;
+  type: "one_time" | "subscription" | string;
+  checkoutId: string | null;
+  paymentIntentId: string | null;
+  stripeSubscriptionId: string | null;
+  items: AccountPurchaseItem[];
+}
+
+/** Cuenta de un RFC: su plan vigente más el historial de compras. */
+export interface PlanAccountBase {
+  rfc: string;
+  legalName: string | null;
+  plan: ActivePlan;
+  compras: AccountPurchase[];
+}
+
+/**
+ * Respuesta completa de GET /api/stripe/active-plan?rfc=... El endpoint ya no
+ * devuelve solo el plan: trae la cuenta del RFC consultado más los demás RFC
+ * del mismo usuario en `otrosRfc`.
+ */
+export interface PlanAccount extends PlanAccountBase {
+  otrosRfc: PlanAccountBase[];
 }
 
 /** Resuelve features desde el arreglo o parseando `featuresJson`. */

@@ -9,6 +9,7 @@ type Fetcher<T> = (p: {
   skip: number
   take: number
   rfc?: string
+  regimeId?: number
 }) => Promise<Result<Paged<T>, { message: string }>>
 
 interface PagedListState<T> {
@@ -22,17 +23,20 @@ interface PagedListState<T> {
   error: string | null
   rfc: string
   setRfc: (value: string) => void
+  regimeId: number | ''
+  setRegimeId: (value: number | '') => void
   nextPage: () => void
   prevPage: () => void
   reload: () => void
 }
 
-/** Lista paginada server-side con filtro por RFC (debounced). */
+/** Lista paginada server-side con filtros por RFC (debounced) y régimen. */
 export function usePagedList<T>(fetcher: Fetcher<T>, take = 50): PagedListState<T> {
   const [items, setItems] = useState<T[]>([])
   const [total, setTotal] = useState(0)
   const [skip, setSkip] = useState(0)
   const [rfc, setRfcState] = useState('')
+  const [regimeId, setRegimeIdState] = useState<number | ''>('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
@@ -43,7 +47,12 @@ export function usePagedList<T>(fetcher: Fetcher<T>, take = 50): PagedListState<
     setError(null)
     const delay = rfc ? 350 : 0
     const handle = setTimeout(async () => {
-      const res = await fetcher({ skip, take, rfc: rfc.trim() || undefined })
+      const res = await fetcher({
+        skip,
+        take,
+        rfc: rfc.trim() || undefined,
+        regimeId: regimeId || undefined,
+      })
       if (cancelled) return
       if (res.success) {
         setItems(res.value.items)
@@ -59,11 +68,16 @@ export function usePagedList<T>(fetcher: Fetcher<T>, take = 50): PagedListState<
       cancelled = true
       clearTimeout(handle)
     }
-  }, [fetcher, skip, take, rfc, reloadKey])
+  }, [fetcher, skip, take, rfc, regimeId, reloadKey])
 
   const setRfc = (value: string) => {
     setSkip(0)
     setRfcState(value)
+  }
+
+  const setRegimeId = (value: number | '') => {
+    setSkip(0)
+    setRegimeIdState(value)
   }
 
   return {
@@ -77,10 +91,90 @@ export function usePagedList<T>(fetcher: Fetcher<T>, take = 50): PagedListState<
     error,
     rfc,
     setRfc,
+    regimeId,
+    setRegimeId,
     nextPage: () => setSkip((s) => (s + take < total ? s + take : s)),
     prevPage: () => setSkip((s) => Math.max(0, s - take)),
     reload: () => setReloadKey((k) => k + 1),
   }
+}
+
+/**
+ * Catálogo de regímenes para el filtro. No hay endpoint de catálogo, así que se
+ * acumula con los regímenes que van apareciendo en los resultados: al filtrar
+ * por uno, la opción activa no desaparece de la lista.
+ */
+export function useRegimenOptions(items: { regimenes?: TaxpayerRegimen[] }[]) {
+  const [seen, setSeen] = useState<Map<number, TaxpayerRegimen>>(new Map())
+
+  useEffect(() => {
+    setSeen((prev) => {
+      let changed = false
+      const next = new Map(prev)
+      for (const it of items) {
+        for (const r of it.regimenes ?? []) {
+          if (!next.has(r.id)) {
+            next.set(r.id, r)
+            changed = true
+          }
+        }
+      }
+      return changed ? next : prev
+    })
+  }, [items])
+
+  return [...seen.values()].sort((a, b) => a.satCode.localeCompare(b.satCode))
+}
+
+/** Filtros compartidos del padrón: RFC + régimen. */
+export function TaxpayerFilters({
+  rfc,
+  onRfcChange,
+  regimeId,
+  onRegimeChange,
+  regimenes,
+  placeholder,
+}: {
+  rfc: string
+  onRfcChange: (v: string) => void
+  regimeId: number | ''
+  onRegimeChange: (v: number | '') => void
+  regimenes: TaxpayerRegimen[]
+  placeholder?: string
+}) {
+  return (
+    <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex-1 min-w-0">
+        <SearchBar value={rfc} onChange={onRfcChange} placeholder={placeholder} />
+      </div>
+      <select
+        value={regimeId}
+        onChange={(e) => onRegimeChange(e.target.value ? Number(e.target.value) : '')}
+        className="px-3 py-2.5 rounded-lg text-[13px] font-semibold sm:w-[290px]"
+        style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--ink-700)' }}
+      >
+        <option value="">Todos los regímenes</option>
+        {regimenes.map((r) => (
+          <option key={r.id} value={r.id}>
+            {r.satCode} · {r.name}
+          </option>
+        ))}
+      </select>
+      {(rfc || regimeId) && (
+        <button
+          type="button"
+          onClick={() => {
+            onRfcChange('')
+            onRegimeChange('')
+          }}
+          className="px-3.5 py-2.5 rounded-lg text-[12.5px] font-bold whitespace-nowrap"
+          style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--ink-700)' }}
+        >
+          Limpiar
+        </button>
+      )}
+    </div>
+  )
 }
 
 export function SearchBar({

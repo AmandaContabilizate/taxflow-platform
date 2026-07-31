@@ -65,6 +65,7 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [autoOpenPlanPicker, setAutoOpenPlanPicker] = useState(false)
   const [signingOut, startSignOut] = useTransition()
+  const isClient = normalizeRole(role) === 'guest'
 
   // Cargar pantalla guardada al montar
   useEffect(() => {
@@ -183,10 +184,13 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
                 </div>
               </div>
             </div>
-            {/* Header con selector RFC y botón conectar SAT */}
-            <div className="hidden lg:flex">
-              <DashboardHeader go={go} />
-            </div>
+            {/* Selector de RFC y alta de RFC: solo para el cliente. Los roles
+                operativos no operan sobre un RFC propio. */}
+            {isClient && (
+              <div className="hidden lg:flex">
+                <DashboardHeader go={go} />
+              </div>
+            )}
           </div>
 
           <ScreenRouter

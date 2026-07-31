@@ -57,10 +57,36 @@ export const API_ROUTES = {
     ACTIVE_CLIENTS: "/active-clients",
   },
   DECLARATIONS_OPS: {
+    // apiType "declarations_reports" · GET. Todos los filtros son opcionales y
+    // combinables. OJO: devuelve un array pelón, no PagedResult (sin total).
+    // regimeId = Id de Users.TaxRegimes; periodValueId = Catalogs.Period
+    // (101-112 mensual, 201-206 bimestral, 501 anual).
+    LIST: (params: {
+      rfc?: string
+      regimeId?: number
+      year?: number
+      periodValueId?: number
+      statusId?: number
+      skip?: number
+      take?: number
+    }) => {
+      const qs = new URLSearchParams()
+      if (params.rfc) qs.set("rfc", params.rfc)
+      if (params.regimeId) qs.set("regimeId", String(params.regimeId))
+      if (params.year) qs.set("year", String(params.year))
+      if (params.periodValueId) qs.set("periodValueId", String(params.periodValueId))
+      if (params.statusId) qs.set("statusId", String(params.statusId))
+      qs.set("skip", String(params.skip ?? 0))
+      qs.set("take", String(params.take ?? 100))
+      return `?${qs.toString()}`
+    },
     PAID_PENDING: (kind: number, skip = 0, take = 500, accountantUserId?: string) =>
       `/paid-pending?kind=${kind}&skip=${skip}&take=${take}${accountantUserId ? `&accountantUserId=${encodeURIComponent(accountantUserId)}` : ""
       }`,
     CALCULATIONS: (declarationId: number) => `/${declarationId}/calculations`,
+    // Facturas del periodo + su clasificación. Devuelve PagedResult.
+    INVOICES: (declarationId: number, skip = 0, take = 100) =>
+      `/${declarationId}/invoices?skip=${skip}&take=${take}`,
     GENERAL: (declarationId: number) => `/${declarationId}/general`,
   },
   SALES_OPS: {
@@ -70,8 +96,10 @@ export const API_ROUTES = {
       `/summary?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}`,
   },
   TAXPAYERS_OPS: {
-    LIST: (skip = 0, take = 100, rfc?: string) =>
-      `?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}`,
+    // regimeId es el Id interno de Users.TaxRegimes (p.ej. 18), NO el código SAT (625).
+    LIST: (skip = 0, take = 100, rfc?: string, regimeId?: number) =>
+      `?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${regimeId ? `&regimeId=${regimeId}` : ""
+      }`,
     WITH_PAID_SALES: (skip = 0, take = 100, rfc?: string) =>
       `/with-paid-sales?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}`,
     MY_CLIENTS: (skip = 0, take = 100, rfc?: string, accountantUserId?: string) =>
@@ -140,6 +168,8 @@ export const API_ROUTES = {
     SUBSCRIPTION_CURRENT: (rfc: string) =>
       `/subscription/current?rfc=${encodeURIComponent(rfc)}`,
     SUBSCRIPTION_CANCEL: "/subscription/cancel",
+    // apiType "stripe" · GET. Devuelve la cuenta completa del RFC (plan,
+    // compras y otrosRfc), no solo el plan.
     ACTIVE_PLAN: (rfc: string) =>
       `/active-plan?rfc=${encodeURIComponent(rfc)}`,
   },

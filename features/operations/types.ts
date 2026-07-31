@@ -15,6 +15,86 @@ export interface DeclarationCalculations {
 /** Montos del backend: number o string decimal ("438.49"). */
 export type Money = number | string | null;
 
+/**
+ * Item de `GET /declarations` (DeclaracionListItemDto). Desde 2026-07 viene
+ * envuelto en `Paged<T>`; antes era un array pelón.
+ */
+export interface DeclarationListItem {
+  id: number;
+  taxpayerId: number;
+  rfc: string;
+  fiscalYear: number;
+  /** Catalogs.Period: 101-112 mensual, 201-206 bimestral, 501 anual. */
+  periodValueId: number;
+  statusId: number;
+  statusCode: string;
+  totalDeclaration: Money;
+  assignedAt: string | null;
+  submittedAt: string | null;
+  consumoStatusId: number | null;
+}
+
+/**
+ * Item de `GET /declarations/{id}/invoices` (DeclaracionFacturaDto): factura del
+ * periodo + su clasificación (LEFT JOIN, por eso `clasificada`).
+ */
+export interface DeclarationInvoice {
+  invoiceId: number;
+  uuid: string;
+  serie: string | null;
+  folio: string | null;
+  /** Fecha del CFDI. Para nómina NO es la que define el periodo. */
+  invoiceDate: string;
+  emitterRfc: string;
+  emitterName: string;
+  /** Ojo: en la tabla es ReceivedRfc, no Receiver. */
+  receivedRfc: string;
+  receiverName: string;
+  /** true = emitida, false = recibida. */
+  isIssued: boolean;
+  subTotal: Money;
+  total: Money;
+  /** 1 I, 2 E, 3 T, 4 P, 5 N. */
+  invoiceTypeId: number;
+  tipoComprobante: string;
+  esNomina: boolean;
+  /** Solo si es nómina; es la fecha que define el periodo. */
+  fechaPagoNomina: string | null;
+  cfdiUsageId: number | null;
+  wayOfPaymentId: number | null;
+  paymentMethodId: number | null;
+  /**
+   * `DeclarationInvoice.IsValid`: la validez con la que la factura entró a esta
+   * declaración. Es la que usó el cálculo.
+   */
+  isValid: boolean | null;
+  /** Bandera explícita: no inferir por nulls. */
+  clasificada: boolean;
+  isDeducible: boolean | null;
+  /**
+   * true = gasto, false = ingreso. NO habla de deducibilidad: un ingreso
+   * clasificado puede traer isGasto=false con isDeducible=true.
+   */
+  isGasto: boolean | null;
+  clasificacion: string | null;
+  actividad: string | null;
+  /** Viene de `DeclarationInvoice.Note`, con fallback al motivo de uuid_clasificado. */
+  motivo: string | null;
+}
+
+/**
+ * Mínimo que necesita `DeclarationDetail` para pintarse. `PaidPendingDeclaration`
+ * lo cumple estructuralmente; el flujo por contribuyente lo arma a mano.
+ */
+export interface DeclarationSubject {
+  declarationId: number;
+  rfc: string;
+  legalName: string;
+  periodo: string;
+  fiscalYear: number;
+  accountantName: string | null;
+}
+
 /** Datos generales de una declaración (DeclaracionGeneralDto). */
 export interface DeclarationGeneral {
   taxpayerId: number;
