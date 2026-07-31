@@ -25,8 +25,15 @@ function statusStyle(code: string): { label: string; bg: string; color: string }
     case 'EnProceso':
       return { label: 'En proceso', bg: 'var(--amber-soft)', color: '#7B5312' }
     case 'Presentada':
+      return { label: 'Presentada', bg: 'var(--brand-100)', color: '#00A068' }
+    case 'PresentadaManual':
+      return { label: 'Presentada (manual)', bg: 'var(--brand-100)', color: '#00A068' }
+    case 'PresentadaPrevio':
+      return { label: 'Presentada previamente', bg: 'var(--brand-100)', color: '#00A068' }
+    case 'PresentadaExterno':
+      return { label: 'Presentada (SAT)', bg: 'var(--brand-100)', color: '#00A068' }
     case 'Completada':
-      return { label: code === 'Presentada' ? 'Presentada' : 'Completada', bg: 'var(--brand-100)', color: '#00A068' }
+      return { label: 'Completada', bg: 'var(--brand-100)', color: '#00A068' }
     default:
       return { label: code || '—', bg: 'var(--ink-50)', color: 'var(--ink-700)' }
   }

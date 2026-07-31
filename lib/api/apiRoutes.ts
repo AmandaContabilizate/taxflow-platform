@@ -92,6 +92,7 @@ export const API_ROUTES = {
     REGULARIZATIONS: (rfc: string) => `/regularizations?rfc=${encodeURIComponent(rfc)}`,
     FUTURE_PLAN: (rfc: string) => `/future-plan?rfc=${encodeURIComponent(rfc)}`,
     ANNUALS: (rfc: string) => `/annuals?rfc=${encodeURIComponent(rfc)}`,
+    ALL: (rfc: string) => `/all?rfc=${encodeURIComponent(rfc)}`,
   },
   VAULT: {
     ISSUED_COUNT: (rfc: string, email: string) =>

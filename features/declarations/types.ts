@@ -70,6 +70,31 @@ export interface FuturePlan {
   upcoming: FuturePlanItem[]
 }
 
+// --- Todas ---
+export interface AllDeclarationItem {
+  declarationId: number
+  fiscalYear: number
+  periodValueId: number | null
+  month: number | null
+  periodicityId: number | null
+  periodicity: string | null // "Mensual" | "Bimestral" | "Anual"
+  statusId: number
+  statusCode: string
+  statusLabel: string
+  taxRegimeId: number | null
+  regimeSatCode: string | null
+  regimeName: string | null
+  /** 1 = Regularización, 2 = Futuro. Null si no tiene venta activa asociada. */
+  declarationKind: number | null
+  acknowledgmentPdfUrl: string | null
+  submittedAt: string | null
+}
+
+export interface AllDeclarations {
+  rfc: string
+  items: AllDeclarationItem[]
+}
+
 // --- Anuales ---
 export interface AnnualCurrent {
   fiscalYear: number
