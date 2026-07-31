@@ -3,19 +3,21 @@
 import { Check, Loader2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { cancelSubscription } from '@/features/account/actions/cancelSubscription.action'
-import { getActivePlan } from '@/features/account/actions/getActivePlan.action'
+import { getPlanAccount } from '@/features/account/actions/getActivePlan.action'
 import { getPlans } from '@/features/account/actions/getPlans.action'
 import {
   EMPTY_PLANS_CATALOG,
   formatMXN,
   periodLabel,
   resolveFeatures,
-  type ActivePlan,
+  type PlanAccount,
   type PlansCatalog,
 } from '@/features/account/types'
 import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
+import { OtherRfcs } from '../plan/other-rfcs'
 import { PlanPickerModal } from '../plan/plan-picker-modal'
-import { DISPLAY } from '../constants'
+import { PurchaseHistory } from '../plan/purchase-history'
+import { DISPLAY, MONO } from '../constants'
 import { Badge, Btn, Card, Divider, HelpBox, Pill, VideoSlot } from '../ui'
 import { NeedsSatConnect } from './needs-sat-connect'
 import type { GoFn } from '../types'
@@ -34,10 +36,10 @@ interface PlanScreenProps {
 }
 
 export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled, go }: PlanScreenProps) {
-  const { selectedRfc } = useRfcStore()
+  const { selectedRfc, setSelectedRfc } = useRfcStore()
   const { hasRfc, loading } = useHasRfc()
 
-  const [activePlan, setActivePlan] = useState<ActivePlan | null>(null)
+  const [account, setAccount] = useState<PlanAccount | null>(null)
   const [loadingSub, setLoadingSub] = useState(true)
   const [catalog, setCatalog] = useState<PlansCatalog>(EMPTY_PLANS_CATALOG)
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -47,13 +49,9 @@ export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled, go }: Pl
   const loadSubscription = useCallback(async () => {
     if (!selectedRfc) return
     setLoadingSub(true)
-    const res = await getActivePlan(selectedRfc)
+    const res = await getPlanAccount(selectedRfc)
     setLoadingSub(false)
-    if (res.success) {
-      setActivePlan(res.value)
-    } else {
-      setActivePlan(null)
-    }
+    setAccount(res.success ? res.value : null)
   }, [selectedRfc])
 
   useEffect(() => {
@@ -68,6 +66,8 @@ export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled, go }: Pl
       cancelled = true
     }
   }, [selectedRfc, loadSubscription])
+
+  const activePlan = account?.plan ?? null
 
   const handleCancel = useCallback(async () => {
     if (!activePlan?.subscriptionId) return
@@ -114,7 +114,16 @@ export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled, go }: Pl
         className="rounded-3xl p-7 lg:p-8 text-white"
         style={{ background: 'linear-gradient(155deg,#1E1952 0%,#15113F 100%)', boxShadow: 'var(--sh-ink)' }}
       >
-        <Pill kind="coral">{hasSub ? 'Tu plan actual' : 'Sin plan activo'}</Pill>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Pill kind="coral">{hasSub ? 'Tu plan actual' : 'Sin plan activo'}</Pill>
+          {hasSub && activePlan?.status && <Pill kind="brand">{activePlan.status}</Pill>}
+        </div>
+
+        {account && (
+          <div className="text-[13px] mt-3" style={{ color: 'rgba(255,255,255,0.75)' }}>
+            {account.legalName ?? 'Tu RFC'} · <span style={MONO}>{account.rfc}</span>
+          </div>
+        )}
 
         {loadingSub ? (
           <div className="flex items-center gap-2 mt-5 text-[15px]" style={{ color: 'rgba(255,255,255,0.8)' }}>
@@ -217,6 +226,8 @@ export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled, go }: Pl
         </div>
       )}
 
+      {!loadingSub && account && <PurchaseHistory compras={account.compras} />}
+
       {/* Cambiar / renovar */}
       <div>
         <div className="flex items-center gap-2 mb-1">
@@ -254,6 +265,8 @@ export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled, go }: Pl
           )}
         </Btn>
       )}
+
+      {!loadingSub && account && <OtherRfcs cuentas={account.otrosRfc} onSelect={setSelectedRfc} />}
 
       <VideoSlot title="¿Qué cubre cada plan?" duration="2 min" />
 

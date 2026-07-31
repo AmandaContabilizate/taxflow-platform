@@ -14,11 +14,11 @@ import {
   SlidersHorizontal,
   TrendingUp,
 } from 'lucide-react'
-import { useState } from 'react'
-// EPs desconectados temporalmente (aún no traen datos); usar dummies.
-// import { getDeclarationCalculations } from '@/features/operations/actions/getDeclarationCalculations.action'
-// import { getDeclarationGeneral } from '@/features/operations/actions/getDeclarationGeneral.action'
-import type { PaidPendingDeclaration } from '@/features/operations/types'
+import { useEffect, useState } from 'react'
+import { getDeclarationGeneral } from '@/features/operations/actions/getDeclarationGeneral.action'
+import type { DeclarationGeneral, DeclarationSubject } from '@/features/operations/types'
+import { CalculosTab } from './calculos-tab'
+import { ComprobantesTab } from './comprobantes-tab'
 import { DISPLAY, MONO } from '../constants'
 import { Card } from '../ui'
 
@@ -40,15 +40,33 @@ const DUMMY = {
 }
 
 interface Props {
-  declaration: PaidPendingDeclaration
+  declaration: DeclarationSubject
   onBack: () => void
 }
 
 export function DeclarationDetail({ declaration: d, onBack }: Props) {
   const [tab, setTab] = useState(0)
+  const [general, setGeneral] = useState<DeclarationGeneral | null>(null)
 
-  // Pendiente: el EP /general aún no trae datos. Reconectar getDeclarationGeneral
-  // (con general/loadingGeneral) cuando el backend responda; ver git para el wiring.
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const res = await getDeclarationGeneral(d.declarationId)
+      if (!cancelled && res.success) setGeneral(res.value)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [d.declarationId])
+
+  // El régimen y el ejercicio son la referencia del contador: salen de /general
+  // y caen a lo que traía el listado mientras carga.
+  const ejercicio = general?.fiscalYear ?? d.fiscalYear
+  const periodo = general?.periodo ?? d.periodo
+  const periodicidad = general?.periodicity ?? null
+  const regimen = general?.regimeName
+    ? `${general.regimeSatCode ?? ''} ${general.regimeName}`.trim()
+    : null
 
   return (
     <div className="flex flex-col gap-5 max-w-full">
@@ -70,7 +88,12 @@ export function DeclarationDetail({ declaration: d, onBack }: Props) {
               Declaración — {d.legalName}
             </h2>
             <div className="text-[13px] font-semibold mt-0.5" style={{ color: 'var(--ink-500)' }}>
-              <code style={MONO}>{d.rfc}</code> • {d.periodo}
+              <code style={MONO}>{d.rfc}</code> • {periodo} {ejercicio}
+              {periodicidad ? ` • ${periodicidad}` : ''}
+            </div>
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <MetaChip label="Ejercicio" value={String(ejercicio)} />
+              <MetaChip label="Régimen" value={regimen ?? 'Sin régimen asignado'} muted={!regimen} />
             </div>
           </div>
         </div>
@@ -112,11 +135,31 @@ export function DeclarationDetail({ declaration: d, onBack }: Props) {
       </div>
 
       {/* Tab content */}
-      {tab === 0 && <ComprobantesTab d={d} />}
-      {tab === 1 && <CalculosTab />}
+      {tab === 0 && <ComprobantesTab declarationId={d.declarationId} periodo={`${periodo} ${ejercicio}`} />}
+      {tab === 1 && <CalculosTab declarationId={d.declarationId} />}
       {tab === 2 && <ClasificacionTab />}
       {tab === 3 && <ReporteClienteTab d={d} />}
     </div>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Chip de metadato (ejercicio, régimen)                                     */
+/* -------------------------------------------------------------------------- */
+
+function MetaChip({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[12px]"
+      style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}
+    >
+      <span className="font-semibold uppercase tracking-wide text-[10px]" style={{ color: 'var(--ink-500)' }}>
+        {label}
+      </span>
+      <span className="font-bold" style={{ color: muted ? 'var(--ink-500)' : 'var(--ink-900)' }}>
+        {value}
+      </span>
+    </span>
   )
 }
 
@@ -181,189 +224,7 @@ function StatCard({
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Tab: Comprobantes                                                         */
-/* -------------------------------------------------------------------------- */
-
-interface Cfdi {
-  folio: string
-  fecha: string
-  tipo: 'Emitido' | 'Recibido'
-  tipoComprobante: 'Ingreso' | 'Egreso'
-  rfcEmisor: string
-  rfcReceptor: string
-  subtotal: number
-  iva: number
-  tasaIva: string
-  total: number
-  status: string
-  clasificacion: 'Considerado' | 'No considerado',
-  nameClasificacion: "Gasolina, combustibles y aceites"
-}
-
-const DUMMY_CFDIS: Cfdi[] = [
-  { folio: 'A001', fecha: '2024-01-15', tipo: 'Emitido', tipoComprobante: 'Ingreso', rfcEmisor: 'PEGJ850101ABC', rfcReceptor: 'EAB123456789', subtotal: 10000, iva: 1600, tasaIva: '16%', total: 11600, status: 'Vigente', clasificacion: 'Considerado', nameClasificacion: 'Gasolina, combustibles y aceites' },
-  { folio: 'A002', fecha: '2024-01-20', tipo: 'Emitido', tipoComprobante: 'Ingreso', rfcEmisor: 'PEGJ850101ABC', rfcReceptor: 'CXY987654321', subtotal: 15000, iva: 2400, tasaIva: '16%', total: 17400, status: 'Vigente', clasificacion: 'No considerado', nameClasificacion: 'Gasolina, combustibles y aceites' },
-  { folio: 'B001', fecha: '2024-01-10', tipo: 'Recibido', tipoComprobante: 'Egreso', rfcEmisor: 'PDF456789123', rfcReceptor: 'PEGJ850101ABC', subtotal: 2000, iva: 320, tasaIva: '16%', total: 2320, status: 'Vigente', clasificacion: 'Considerado', nameClasificacion: 'Gasolina, combustibles y aceites' },
-  { folio: 'B002', fecha: '2024-01-25', tipo: 'Recibido', tipoComprobante: 'Egreso', rfcEmisor: 'SGH789123456', rfcReceptor: 'PEGJ850101ABC', subtotal: 5000, iva: 800, tasaIva: '16%', total: 5800, status: 'Vigente', clasificacion: 'Considerado', nameClasificacion: 'Gasolina, combustibles y aceites' },
-]
-
-function ComprobantesTab({ d }: { d: PaidPendingDeclaration }) {
-  const [subTab, setSubTab] = useState(0)
-
-  return (
-    <Card>
-      <div className="p-5 flex flex-col gap-4">
-        {/* Header row */}
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div>
-            <h3 className="text-[17px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
-              CFDIs Emitidos y Recibidos
-            </h3>
-            <p className="text-[13px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
-              Comprobantes fiscales para el período {d.periodo}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-[12.5px] font-bold"
-              style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
-            >
-              + Agregar Comprobante sin XML
-            </button>
-            <button
-              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-[12.5px] font-bold"
-              style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}
-            >
-              + Agregar CFDI
-            </button>
-          </div>
-        </div>
-
-        {/* Search */}
-        <div className="relative">
-          <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-500)' }} />
-          <input
-            type="text"
-            placeholder="Buscar CFDI…"
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg text-[13px]"
-            style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
-          />
-        </div>
-
-        {/* Sub-tabs */}
-        <div className="flex p-1 rounded-xl" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
-          {['CFDIs Normales', 'CFDIs de Retenciones'].map((t, i) => (
-            <button
-              key={t}
-              onClick={() => setSubTab(i)}
-              className="flex-1 px-4 py-2 rounded-lg text-[13px] font-bold transition"
-              style={
-                i === subTab
-                  ? { background: 'var(--card)', color: 'var(--ink-900)', boxShadow: 'var(--sh-1)' }
-                  : { background: 'transparent', color: 'var(--ink-500)' }
-              }
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-
-        {/* Filters */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{ background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--ink-700)' }}
-          >
-            <SlidersHorizontal size={15} />
-          </button>
-          {['Todos', 'Todos los tipos', 'Todos'].map((f, i) => (
-            <select
-              key={`${f}-${i}`}
-              className="px-3 py-2 rounded-lg text-[12.5px] font-semibold"
-              style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--ink-700)' }}
-              defaultValue=""
-            >
-              <option value="">{f}</option>
-            </select>
-          ))}
-        </div>
-
-        {/* Table */}
-        {subTab === 0 ? (
-          <div className="overflow-x-auto -mx-1">
-            <table className="w-full text-[12.5px]">
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                  {['Conceptos', 'Folio', 'Fecha', 'Tipo', 'Tipo Comprobante', 'RFC Emisor', 'RFC Receptor', 'Subtotal', 'IVA', 'Tasa IVA', 'Total', 'Status', 'Estatus Clasificación', 'Clasificación', 'Acciones'].map((h) => (
-                    <th key={h} className="px-3 py-2.5 text-left font-extrabold whitespace-nowrap" style={{ color: 'var(--ink-700)' }}>
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {DUMMY_CFDIS.map((c) => (
-                  <tr key={c.folio} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td className="px-3 py-3">
-                      <ChevronRight size={15} style={{ color: 'var(--ink-500)' }} />
-                    </td>
-                    <td className="px-3 py-3 font-semibold" style={{ color: 'var(--ink-900)' }}>{c.folio}</td>
-                    <td className="px-3 py-3 whitespace-nowrap" style={{ color: 'var(--ink-700)' }}>{c.fecha}</td>
-                    <td className="px-3 py-3">
-                      <span className="inline-flex px-2.5 py-1 rounded-md text-[11px] font-bold" style={{ background: 'var(--ink-900)', color: 'var(--card)' }}>
-                        {c.tipo}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3" style={{ color: 'var(--ink-700)' }}>{c.tipoComprobante}</td>
-                    <td className="px-3 py-3 whitespace-nowrap"><code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-700)' }}>{c.rfcEmisor}</code></td>
-                    <td className="px-3 py-3 whitespace-nowrap"><code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-700)' }}>{c.rfcReceptor}</code></td>
-                    <td className="px-3 py-3 whitespace-nowrap" style={{ color: 'var(--ink-900)' }}>{money(c.subtotal)}</td>
-                    <td className="px-3 py-3 whitespace-nowrap" style={{ color: 'var(--ink-900)' }}>{money(c.iva)}</td>
-                    <td className="px-3 py-3">
-                      <span className="inline-flex px-2 py-0.5 rounded-md text-[11px] font-bold" style={{ background: 'var(--sky-soft)', color: 'var(--sky)' }}>
-                        {c.tasaIva}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3 whitespace-nowrap font-semibold" style={{ color: 'var(--ink-900)' }}>{money(c.total)}</td>
-                    <td className="px-3 py-3">
-                      <span className="inline-flex px-2.5 py-1 rounded-md text-[11px] font-bold" style={{ background: 'var(--ink-900)', color: 'var(--card)' }}>
-                        {c.status}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3">
-                      {c.clasificacion === 'Considerado' ? (
-                        <span className="inline-flex px-2.5 py-1 rounded-md text-[11px] font-bold" style={{ background: 'var(--ink-900)', color: 'var(--card)' }}>
-                          Considerado
-                        </span>
-                      ) : (
-                        <span className="inline-flex px-2.5 py-1 rounded-md text-[11px] font-bold" style={{ background: 'var(--muted)', color: 'var(--ink-500)' }}>
-                          No considerado
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-3">
-                      <span className="inline-flex px-2.5 py-1 rounded-md text-[11px] font-bold" style={{ background: 'var(--ink-900)', color: 'var(--card)' }}>
-                        {c.nameClasificacion}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3 font-bold" style={{ color: 'var(--ink-500)' }}>⋯</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="text-center py-10 text-[13px]" style={{ color: 'var(--ink-500)' }}>
-            No hay CFDIs de retenciones en este período.
-          </div>
-        )}
-      </div>
-    </Card>
-  )
-}
-
-/* -------------------------------------------------------------------------- */
-/*  Tab: Cálculos                                                             */
+/*  Tokens de color compartidos por Clasificación y Reporte Cliente            */
 /* -------------------------------------------------------------------------- */
 
 type CellTone = 'red' | 'green' | 'blue' | 'violet' | 'amber' | 'neutral'
@@ -377,100 +238,6 @@ const CELL_BG: Record<CellTone, string> = {
   neutral: 'var(--muted)',
 }
 
-function CalcCell({ label, value, tone = 'neutral' }: { label: string; value: string; tone?: CellTone }) {
-  return (
-    <div className="flex-1 min-w-[150px] rounded-xl p-3" style={{ background: CELL_BG[tone], border: '1px solid var(--border)' }}>
-      <div className="text-[11px] font-semibold" style={{ color: 'var(--ink-500)' }}>{label}</div>
-      <div className="text-[14px] font-extrabold mt-1" style={{ color: 'var(--ink-900)' }}>{value}</div>
-    </div>
-  )
-}
-
-function CalcSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <h4 className="text-[14px] font-extrabold" style={{ color: 'var(--ink-900)' }}>{title}</h4>
-      <div className="flex flex-wrap gap-2">{children}</div>
-    </div>
-  )
-}
-
-function CalculosTab() {
-  return (
-    <Card>
-      <div className="p-5 flex flex-col gap-6">
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div>
-            <h3 className="text-[17px] font-extrabold" style={{ color: 'var(--ink-900)' }}>Cálculos Fiscales</h3>
-            <p className="text-[13px] mt-0.5" style={{ color: 'var(--ink-500)' }}>Determinación de impuestos para RESICO</p>
-          </div>
-          <button
-            className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-[12.5px] font-bold"
-            style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
-          >
-            Editar Cálculos
-          </button>
-        </div>
-
-        <CalcSection title="Detalles Generales">
-          <CalcCell label="Deducciones Autorizadas" value={money(8120)} tone="red" />
-          <CalcCell label="Deducciones No Autorizadas" value={money(0)} />
-          <CalcCell label="Deducción Ciega" value={money(0)} />
-          <CalcCell label="Ingresos" value={money(29000)} tone="green" />
-          <CalcCell label="Ingresos por Enajenación" value={money(23200)} tone="blue" />
-          <CalcCell label="Ingresos por Hospedaje" value={money(0)} />
-          <CalcCell label="Ingresos por Inmuebles" value={money(0)} />
-          <CalcCell label="Deducciones Personales" value={money(2500)} tone="violet" />
-          <CalcCell label="Total ISR" value={money(2610)} tone="blue" />
-        </CalcSection>
-
-        <CalcSection title="Enajenación y Prestación de Servicios">
-          <CalcCell label="Ingresos intermediarios por enajenación" value={money(8700)} />
-          <CalcCell label="Ingresos intermediarios por servicios" value={money(5800)} />
-          <CalcCell label="Ingresos directos por enajenación" value={money(7250)} />
-          <CalcCell label="Ingresos directos por servicios" value={money(7250)} />
-          <CalcCell label="Ingresos totales del mes" value={money(29000)} tone="blue" />
-          <CalcCell label="Tasa %" value="1.25%" tone="amber" />
-          <CalcCell label="ISR causado" value={money(261)} tone="green" />
-          <CalcCell label="Retenciones por plataformas" value={money(0)} />
-        </CalcSection>
-
-        <CalcSection title="Servicio Hospedaje">
-          <CalcCell label="Ingresos mediante intermediarios" value={money(0)} />
-          <CalcCell label="Ingresos directos del usuario" value={money(0)} />
-          <CalcCell label="Ingresos totales del mes" value={money(0)} />
-          <CalcCell label="Tasa %" value="4%" tone="amber" />
-          <CalcCell label="ISR causado" value={money(0)} tone="green" />
-          <CalcCell label="Retenciones por plataformas tecnológicas" value={money(0)} />
-        </CalcSection>
-
-        <CalcSection title="Servicio Terrestre">
-          <CalcCell label="Ingresos intermediarios servicios terrestres" value={money(0)} />
-          <CalcCell label="Ingresos intermediarios entrega bienes" value={money(0)} />
-          <CalcCell label="Ingresos directos servicios terrestres" value={money(0)} />
-          <CalcCell label="Ingresos directos entrega bienes" value={money(0)} />
-          <CalcCell label="Ingresos totales del mes" value={money(0)} />
-          <CalcCell label="Tasa %" value="2.1%" tone="amber" />
-          <CalcCell label="ISR causado" value={money(0)} tone="green" />
-          <CalcCell label="Retenciones por plataformas" value={money(0)} />
-        </CalcSection>
-
-        <CalcSection title="IVA">
-          <CalcCell label="Ingresos mediante intermediarios" value={money(11600)} />
-          <CalcCell label="Ingresos directos del usuario" value={money(17400)} />
-          <CalcCell label="Ingresos totales del mes" value={money(29000)} tone="violet" />
-          <CalcCell label="Tasa %" value="16%" tone="amber" />
-          <CalcCell label="IVA causado" value={money(4000)} tone="green" />
-          <CalcCell label="Retenciones IVA plataforma" value={money(0)} />
-          <CalcCell label="IVA gastos (acreditable)" value={money(1120)} tone="red" />
-          <CalcCell label="IVA periodo a declarar" value={money(2880)} tone="violet" />
-          <CalcCell label="IVA acreditar periodos anteriores" value={money(0)} />
-          <CalcCell label="IVA a favor" value={money(0)} tone="green" />
-        </CalcSection>
-      </div>
-    </Card>
-  )
-}
 
 /* -------------------------------------------------------------------------- */
 /*  Tab: Clasificación                                                        */
@@ -511,7 +278,7 @@ function ClasificacionTab() {
 /*  Tab: Reporte Cliente                                                      */
 /* -------------------------------------------------------------------------- */
 
-function ReporteClienteTab({ d }: { d: PaidPendingDeclaration }) {
+function ReporteClienteTab({ d }: { d: DeclarationSubject }) {
   const initials =
     d.legalName
       .split(' ')

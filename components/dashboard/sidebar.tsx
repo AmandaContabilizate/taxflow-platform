@@ -54,6 +54,7 @@ export function Sidebar({
   }
 
   const roleKey = normalizeRole(role)
+  const isClient = roleKey === 'guest'
   const baseNav = ROLE_NAV[roleKey] ?? ROLE_NAV.guest
 
   const {
@@ -269,7 +270,10 @@ export function Sidebar({
         </div>
       </aside>
 
-      {/* Overlay para cerrar panel en mobile */}
+      {/* Panel de RFC activo: solo para el cliente. Los roles operativos no
+          eligen RFC desde aquí, así que ni la pestañita flotante deben ver. */}
+      {isClient && (
+        <>
       {mouseOverPanel && (
         <div
           className="fixed inset-0 z-[70] lg:hidden"
@@ -392,6 +396,8 @@ export function Sidebar({
           <span>Agregar un RFC</span>
         </button>
       </div>
+        </>
+      )}
     </>
   )
 }

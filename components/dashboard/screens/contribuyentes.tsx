@@ -4,20 +4,28 @@ import { AlertCircle, Loader2 } from 'lucide-react'
 import { getTaxpayers } from '@/features/taxpayers/actions/getTaxpayers.action'
 import { MONO } from '../constants'
 import { Card, HelpBox } from '../ui'
-import { Pagination, RegimenesCell, SearchBar, usePagedList } from '../clientes/parts'
+import { Pagination, RegimenesCell, TaxpayerFilters, usePagedList, useRegimenOptions } from '../clientes/parts'
 
 export function ContribuyentesScreen() {
   const list = usePagedList(getTaxpayers, 50)
+  const regimenOptions = useRegimenOptions(list.items)
 
   return (
     <div className="flex flex-col gap-5 max-w-full h-[calc(100dvh-8.5rem)]">
       <HelpBox>
-        Padrón completo de contribuyentes. Filtra por RFC y navega entre páginas.
+        Padrón completo de contribuyentes. Filtra por RFC o por régimen fiscal y navega entre páginas.
       </HelpBox>
 
       <Card className="shrink-0">
         <div className="p-4">
-          <SearchBar value={list.rfc} onChange={list.setRfc} placeholder="Buscar por RFC…" />
+          <TaxpayerFilters
+            rfc={list.rfc}
+            onRfcChange={list.setRfc}
+            regimeId={list.regimeId}
+            onRegimeChange={list.setRegimeId}
+            regimenes={regimenOptions}
+            placeholder="Buscar por RFC…"
+          />
         </div>
       </Card>
 

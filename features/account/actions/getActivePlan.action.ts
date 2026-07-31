@@ -3,7 +3,7 @@
 import { ApiError, fetchGet } from "@/lib/api";
 import { API_ROUTES } from "@/lib/api/apiRoutes";
 import { type Result, err, ok } from "@/lib/common";
-import type { ActivePlan } from "../types";
+import type { ActivePlan, PlanAccount, PlanAccountBase } from "../types";
 
 interface ActivePlanError {
   statusCode: number;
@@ -31,23 +31,53 @@ const NO_PLAN: ActivePlan = {
   paidAt: null,
 };
 
-export async function getActivePlan(
+function normalizeAccount(
+  raw: Partial<PlanAccountBase> | null | undefined,
+  fallbackRfc: string,
+): PlanAccountBase {
+  return {
+    rfc: raw?.rfc ?? fallbackRfc,
+    legalName: raw?.legalName ?? null,
+    plan: raw?.plan ?? NO_PLAN,
+    compras: raw?.compras ?? [],
+  };
+}
+
+/**
+ * Cuenta completa del RFC: plan vigente, historial de compras y los demás RFC
+ * del usuario.
+ */
+export async function getPlanAccount(
   rfc: string,
-): Promise<Result<ActivePlan, ActivePlanError>> {
+): Promise<Result<PlanAccount, ActivePlanError>> {
   try {
-    const data = await fetchGet<ActivePlan>(
+    const data = await fetchGet<PlanAccount | null>(
       API_ROUTES.STRIPE.ACTIVE_PLAN(rfc),
       "stripe",
     );
-    return ok(data ?? NO_PLAN);
+    return ok({
+      ...normalizeAccount(data, rfc),
+      otrosRfc: (data?.otrosRfc ?? []).map((other) =>
+        normalizeAccount(other, other?.rfc ?? ""),
+      ),
+    });
   } catch (e) {
     if (e instanceof ApiError) {
       return err({ statusCode: e.status, message: e.message });
     }
-    console.error("[getActivePlan] Error:", e);
+    console.error("[getPlanAccount] Error:", e);
     return err({
       statusCode: 500,
       message: "No pudimos obtener tu plan activo.",
     });
   }
+}
+
+/** Solo el plan vigente del RFC, para las vistas que no necesitan las compras. */
+export async function getActivePlan(
+  rfc: string,
+): Promise<Result<ActivePlan, ActivePlanError>> {
+  const res = await getPlanAccount(rfc);
+  if (!res.success) return res;
+  return ok(res.value.plan);
 }
