@@ -173,4 +173,8 @@ export const API_ROUTES = {
     ACTIVE_PLAN: (rfc: string) =>
       `/active-plan?rfc=${encodeURIComponent(rfc)}`,
   },
+  TIMBRAME: {
+    /** apiType "timbrame" · GET. Token SSO para portal de facturación. */
+    PORTAL_ACCESS: "/portal-access",
+  },
 } as const;

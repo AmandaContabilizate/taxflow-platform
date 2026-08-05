@@ -23,6 +23,8 @@ export const API_BASE_URLS = {
   stripe: `${BASE_PROCEDURES}/stripe`, // OJO: stripe NO lleva /SQLServer
   // Administración de partnerships externos (SSO). OJO: NO lleva /SQLServer.
   partnership: `${BASE_PROCEDURES}/partnership`,
+  // Timbrame SSO. Incluye DbOrigin (/SQLServer).
+  timbrame: `${BASE_PROCEDURES}/timbrame${DbOrigin}`,
   // Reports
   sales_procedures: `${BASE_PROCEDURES}/sales`,
   dashboard_reports: `${BASE_REPORTS}/dashboard${DbOrigin}`,
