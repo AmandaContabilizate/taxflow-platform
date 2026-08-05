@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { useHasRfc } from '@/features/taxpayers/stores/rfcStore'
+import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import { AnualesTab } from '../declaraciones/anuales-tab'
 import { FuturoTab } from '../declaraciones/futuro-tab'
 import { RegularizacionesTab } from '../declaraciones/regularizaciones-tab'
+import { TodasTab } from '../declaraciones/todas-tab'
 import type { GoFn } from '../types'
 import { HelpBox, Tabs, VideoSlot } from '../ui'
 import { NeedsSatConnect } from './needs-sat-connect'
@@ -13,15 +14,17 @@ interface Props {
   go: GoFn
 }
 
-type TabKey = 'regularizaciones' | 'futuro' | 'anuales'
+type TabKey = 'todas' | 'regularizaciones' | 'futuro' | 'anuales'
 
 const TAB_LABELS: Record<TabKey, string> = {
+  todas: 'Todas',
   regularizaciones: 'Regularizaciones',
   futuro: 'Plan a futuro',
   anuales: 'Anuales',
 }
 
 const TAB_VIDEOS: Record<TabKey, [string, string][]> = {
+  todas: [],
   regularizaciones: [
     ['¿Cómo funcionan las regularizaciones?', '3 min'],
     ['¿Qué pasa si no presento a tiempo?', '2 min'],
@@ -36,14 +39,18 @@ const TAB_VIDEOS: Record<TabKey, [string, string][]> = {
   ],
 }
 
-const ORDER: TabKey[] = ['regularizaciones', 'futuro', 'anuales']
+// "Todas" va primera en la barra de tabs, pero la pestaña seleccionada por
+// defecto sigue siendo "Regularizaciones" (ver useState más abajo).
+const ORDER: TabKey[] = ['todas', 'regularizaciones', 'futuro', 'anuales']
 
 export function DeclaracionesScreen({ go }: Props) {
   const { hasRfc, loading } = useHasRfc()
+  const { selectedRfcInfo } = useRfcStore()
   const [tab, setTab] = useState<TabKey>('regularizaciones')
 
   if (loading) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tus declaraciones" />
+  if (selectedRfcInfo?.ciecState !== 1) return <NeedsSatConnect go={go} feature="ver tus declaraciones" />
 
   return (
     <div className="flex flex-col gap-5">
@@ -54,20 +61,23 @@ export function DeclaracionesScreen({ go }: Props) {
 
       <Tabs items={ORDER.map((k) => TAB_LABELS[k])} active={ORDER.indexOf(tab)} onChange={(i) => setTab(ORDER[i])} />
 
+      {tab === 'todas' && <TodasTab />}
       {tab === 'regularizaciones' && <RegularizacionesTab />}
       {tab === 'futuro' && <FuturoTab />}
       {tab === 'anuales' && <AnualesTab />}
 
-      <div>
-        <div className="text-[16px] font-bold mb-3" style={{ color: 'var(--ink-700)' }}>
-          ¿Necesitas entender mejor?
+      {TAB_VIDEOS[tab].length > 0 && (
+        <div>
+          <div className="text-[16px] font-bold mb-3" style={{ color: 'var(--ink-700)' }}>
+            ¿Necesitas entender mejor?
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {TAB_VIDEOS[tab].map(([title, duration]) => (
+              <VideoSlot key={title} title={title} duration={duration} />
+            ))}
+          </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {TAB_VIDEOS[tab].map(([title, duration]) => (
-            <VideoSlot key={title} title={title} duration={duration} />
-          ))}
-        </div>
-      </div>
+      )}
     </div>
   )
 }

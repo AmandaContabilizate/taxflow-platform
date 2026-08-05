@@ -10,22 +10,24 @@ interface DashboardHeaderProps {
 }
 
 export function DashboardHeader({ go }: DashboardHeaderProps) {
-  const { score } = useFiscalScore()
+  const { score, step } = useFiscalScore()
 
   return (
     <div className="flex items-center justify-between gap-4 w-full">
       {/* Selector RFC */}
       <div className="flex items-center gap-3">
         {/* Indicador de diagnóstico en proceso */}
-        {score?.isReconciling && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(100, 116, 139, 0.1)', color: '#64748B' }}>
+        {score?.isReconciling || step === 'connecting' || step === 'checking' ? (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(245, 176, 55, 0.1)', color: '#7B5312' }}>
             <Loader2 size={16} className="animate-spin" />
-            <span className="text-[12px] font-medium whitespace-nowrap">Diagnóstico en proceso…</span>
+            <span className="text-[12px] font-medium whitespace-nowrap">
+              {step === 'connecting' ? 'Conectando con el SAT…' : step === 'checking' ? 'Comprobando con el SAT…' : 'Diagnóstico en proceso…'}
+            </span>
           </div>
-        )}
+        ) : null}
 
         {/* Mensaje de éxito cuando termina */}
-        {score && !score.isReconciling && (
+        {score && !score.isReconciling && step === 'ready' && (
           <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl h-10 animate-in fade-in slide-in-from-left-4 duration-300" style={{ background: 'white', border: '1px solid #e5e7eb', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)' }}>
             <TrendingUp size={16} style={{ color: '#10B981', flexShrink: 0 }} />
             <div className="text-[12px] font-bold" style={{ color: '#059669' }}>

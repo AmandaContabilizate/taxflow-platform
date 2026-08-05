@@ -1,6 +1,7 @@
 'use client'
 
 import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
+import { useFiscalScore } from '@/features/declarations/hooks/useFiscalScore'
 import type { GoFn } from '../types'
 import { BlacklistCard } from './blacklist-card'
 import { ComplianceCard } from './compliance-card'
@@ -15,7 +16,9 @@ interface Props {
 
 export function FiscalCredibility({ go }: Props) {
   const { selectedRfc } = useRfcStore()
-  const { csf, opinion, blacklist, busy, viewer, runAction, closeViewer } = useFiscalDocuments(selectedRfc)
+  const { step } = useFiscalScore()
+  const isSyncingWithSat = step === 'connecting'
+  const { csf, opinion, blacklist, busy, viewer, runAction, closeViewer } = useFiscalDocuments(selectedRfc, isSyncingWithSat)
 
   const csfMissing = csf.state === 'missing'
   const csfErrored = csf.state === 'error'

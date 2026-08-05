@@ -3,9 +3,7 @@ import { getBaseUrl, type ApiType } from "./apiUrls";
 import { getErrorMessage, hasErrorCode } from "./errorMessages";
 
 // El backend .NET en dev local usa un certificado HTTPS autofirmado.
-// Se desactiva la verificación aquí (no solo vía .env) para garantizar que
-// aplique antes de la primera petición, sin depender del orden de carga de
-// las env vars de Next. NUNCA se ejecuta fuera de development.
+// Se desactiva la verificación aquí para garantizar que aplique en development.
 if (process.env.NODE_ENV === "development") {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 }

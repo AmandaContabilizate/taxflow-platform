@@ -1,12 +1,13 @@
 import type { CSSProperties, ReactNode } from 'react'
 
-export type BadgeKind = 'default' | 'brand' | 'amber' | 'coral'
+export type BadgeKind = 'default' | 'brand' | 'amber' | 'coral' | 'sky'
 
 const STYLES: Record<BadgeKind, CSSProperties> = {
   default: { background: 'var(--ink-50)', color: 'var(--ink-700)' },
   brand: { background: 'var(--brand-100)', color: 'var(--brand-900)' },
   amber: { background: 'var(--amber-soft)', color: '#7B5312' },
   coral: { background: 'var(--coral-soft)', color: '#9E3A15' },
+  sky: { background: 'var(--sky-soft)', color: '#1C4C96' },
 }
 
 export function Badge({ children, kind = 'default' }: { children: ReactNode; kind?: BadgeKind }) {

@@ -31,6 +31,7 @@ export const API_ROUTES = {
   TAXPAYERS: {
     ROOT: "",
     GET: (id: string) => `/${id}`,
+    GET_BY_RFC: (rfc: string) => `/2/taxpayer?rfc=${encodeURIComponent(rfc)}`,
     UPDATECIEC: "/updateCiec",
     // Crea contribuyente para cualquier régimen (no limitado a 605); valida CIEC sin
     // descargar constancia, régimen/razón social se completan async. apiType "taxpayers"
@@ -120,6 +121,7 @@ export const API_ROUTES = {
     REGULARIZATIONS: (rfc: string) => `/regularizations?rfc=${encodeURIComponent(rfc)}`,
     FUTURE_PLAN: (rfc: string) => `/future-plan?rfc=${encodeURIComponent(rfc)}`,
     ANNUALS: (rfc: string) => `/annuals?rfc=${encodeURIComponent(rfc)}`,
+    ALL: (rfc: string) => `/all?rfc=${encodeURIComponent(rfc)}`,
   },
   VAULT: {
     ISSUED_COUNT: (rfc: string, email: string) =>
@@ -144,6 +146,7 @@ export const API_ROUTES = {
   CATALOGS: {
     PLANS: (rfc: string) => `/plans?rfc=${encodeURIComponent(rfc)}`,
     ADDITIONAL_PROCEDURES: "/additional-procedures",
+    TAX_REGIMES: "/taxregimes",
   },
   FINANCES: {
     REGISTER_SALE_NEW: "/register-sale/new",
