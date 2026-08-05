@@ -1,5 +1,5 @@
 import { Clock, MessageCircle, Sparkles } from 'lucide-react'
-import { useHasRfc } from '@/features/taxpayers/stores/rfcStore'
+import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import { DISPLAY } from '../constants'
 import type { GoFn } from '../types'
 import { Badge, Btn, Card, HelpBox, Pill } from '../ui'
@@ -14,8 +14,10 @@ const TIMBRAME_BLUE = '#2541E8'
 
 export function FacturasScreen({ go }: Props) {
   const { hasRfc, loading } = useHasRfc()
+  const { selectedRfcInfo } = useRfcStore()
   if (loading) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="emitir facturas" />
+  if (selectedRfcInfo?.ciecState !== 1) return <NeedsSatConnect go={go} feature="emitir facturas" />
 
   return (
     <div className="flex flex-col gap-5">

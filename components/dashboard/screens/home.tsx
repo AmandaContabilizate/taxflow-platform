@@ -2,7 +2,7 @@ import {
   PlayCircle,
   Sparkles,
 } from 'lucide-react'
-import { useHasRfc } from '@/features/taxpayers/stores/rfcStore'
+import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import { DISPLAY } from '../constants'
 import { FiscalCredibility } from '../fiscal-credibility'
 import { FiscalScore } from '../fiscal-score'
@@ -19,10 +19,15 @@ interface Props {
 
 export function HomeScreen({ go }: Props) {
   const { hasRfc, loading } = useHasRfc()
+  const { selectedRfcInfo } = useRfcStore()
 
   if (loading) return null
 
   if (!hasRfc) {
+    return <NeedsSatConnect go={go} feature="empezar a gestionar tus impuestos" />
+  }
+
+  if (selectedRfcInfo?.ciecState !== 1) {
     return <NeedsSatConnect go={go} feature="empezar a gestionar tus impuestos" />
   }
 

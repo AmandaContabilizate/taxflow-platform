@@ -19,6 +19,7 @@ export function CsfCard({ state, downloadDate, busy, onConnect, onUpload, onView
   const errored = state === 'error'
   const notFound = state === 'rfc-not-found'
   const forbidden = state === 'forbidden'
+  const isDownloading = busy === 'csf:download' || busy === 'csf:view'
 
   return (
     <DocCardShell
@@ -41,16 +42,18 @@ export function CsfCard({ state, downloadDate, busy, onConnect, onUpload, onView
       eyebrow="Constancia de Situación Fiscal"
       title={
         state === 'loading'
-          ? 'Buscando…'
-          : available
-            ? 'La tenemos lista'
-            : notFound
-              ? 'No encontramos este RFC'
-              : forbidden
-                ? 'Sin acceso'
-                : errored
-                  ? 'Servicio en pruebas'
-                  : 'Aún no la tenemos'
+          ? 'Cargando…'
+          : isDownloading
+            ? 'Cargando…'
+            : available
+              ? 'La tenemos lista'
+              : notFound
+                ? 'No encontramos este RFC'
+                : forbidden
+                  ? 'Sin acceso'
+                  : errored
+                    ? 'Servicio en pruebas'
+                    : 'Aún no la tenemos'
       }
       desc={
         available

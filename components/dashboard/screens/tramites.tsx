@@ -11,8 +11,11 @@ import {
   type AdditionalProceduresCatalog,
   type Plan,
 } from '@/features/account/types'
+import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import { DISPLAY, MONO } from '../constants'
+import type { GoFn } from '../types'
 import { Btn, Card, Divider, HelpBox } from '../ui'
+import { NeedsSatConnect } from './needs-sat-connect'
 
 const KEY_ICONS: Array<[RegExp, LucideIcon]> = [
   [/domicilio/i, MapPin],
@@ -45,9 +48,12 @@ function description(plan: Plan): string | null {
 interface TramitesScreenProps {
   /** Manda a "Mi plan" y abre el modal de planes y pago. */
   onContratar: () => void
+  go: GoFn
 }
 
-export function TramitesScreen({ onContratar }: TramitesScreenProps) {
+export function TramitesScreen({ onContratar, go }: TramitesScreenProps) {
+  const { hasRfc, loading: loadingRfc } = useHasRfc()
+  const { selectedRfcInfo } = useRfcStore()
   const [catalog, setCatalog] = useState<AdditionalProceduresCatalog>(EMPTY_ADDITIONAL_PROCEDURES)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -65,6 +71,10 @@ export function TramitesScreen({ onContratar }: TramitesScreenProps) {
       cancelled = true
     }
   }, [])
+
+  if (loadingRfc) return null
+  if (!hasRfc) return <NeedsSatConnect go={go} feature="ver trámites adicionales" />
+  if (selectedRfcInfo?.ciecState !== 1) return <NeedsSatConnect go={go} feature="ver trámites adicionales" />
 
   const { satProcedures, extraDeclarations } = catalog
   const isEmpty = !loading && satProcedures.length === 0 && extraDeclarations.length === 0

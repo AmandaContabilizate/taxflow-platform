@@ -37,7 +37,7 @@ interface Props {
 
 export function DiagnosticoScreen({ go }: Props) {
   const { hasRfc, loading: loadingRfc } = useHasRfc()
-  const { selectedRfc } = useRfcStore()
+  const { selectedRfc, selectedRfcInfo } = useRfcStore()
   const { score, loading, step } = useFiscalScore()
 
   const [income, setIncome] = useState<number | null>(null)
@@ -70,6 +70,7 @@ export function DiagnosticoScreen({ go }: Props) {
 
   if (loadingRfc) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tu diagnóstico fiscal" />
+  if (selectedRfcInfo?.ciecState !== 1) return <NeedsSatConnect go={go} feature="ver tu diagnóstico fiscal" />
 
   const status = score ? fiscalStatus(score.score) : null
   const money = (v: number | null) => (loading ? '…' : v == null ? '—' : formatMoney(v))

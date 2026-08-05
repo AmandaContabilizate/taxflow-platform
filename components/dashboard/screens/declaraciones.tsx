@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useHasRfc } from '@/features/taxpayers/stores/rfcStore'
+import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import { AnualesTab } from '../declaraciones/anuales-tab'
 import { FuturoTab } from '../declaraciones/futuro-tab'
 import { RegularizacionesTab } from '../declaraciones/regularizaciones-tab'
@@ -45,10 +45,12 @@ const ORDER: TabKey[] = ['todas', 'regularizaciones', 'futuro', 'anuales']
 
 export function DeclaracionesScreen({ go }: Props) {
   const { hasRfc, loading } = useHasRfc()
+  const { selectedRfcInfo } = useRfcStore()
   const [tab, setTab] = useState<TabKey>('regularizaciones')
 
   if (loading) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tus declaraciones" />
+  if (selectedRfcInfo?.ciecState !== 1) return <NeedsSatConnect go={go} feature="ver tus declaraciones" />
 
   return (
     <div className="flex flex-col gap-5">

@@ -300,7 +300,7 @@ function ScreenRouter({
       return <RegularizacionesScreen />
     }
     if (screen === 'tramites-adicionales') {
-      return <TramitesAdicionalesScreen />
+      return <TramitesAdicionalesScreen go={go} />
     }
     if (screen === 'mis-clientes') {
       return <MisClientesScreen />
@@ -329,7 +329,7 @@ function ScreenRouter({
     case 'home':
       return <HomeScreen go={go} firstName={firstName} />
     case 'vista-fiscal':
-      return <VistaFiscalScreen go={go} />
+      return <VistaFiscalScreen go={go} firstName={firstName} />
     case 'declaraciones':
       return <DeclaracionesScreen go={go} />
     case 'facturas':
@@ -341,7 +341,7 @@ function ScreenRouter({
     case 'tip-detail':
       return <TipDetailScreen go={go} />
     case 'tramites':
-      return <TramitesScreen onContratar={goToPlanPicker} />
+      return <TramitesScreen onContratar={goToPlanPicker} go={go} />
     case 'plan':
       return (
         <PlanScreen

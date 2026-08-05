@@ -19,7 +19,7 @@ import type { DocAction, DocInfo, DocKind, Viewer } from './types'
 
 const initial: DocInfo = { state: 'loading' }
 
-export function useFiscalDocuments(selectedRfc: string | null) {
+export function useFiscalDocuments(selectedRfc: string | null, isSyncingWithSat: boolean = false) {
   const [csf, setCsf] = useState<DocInfo>(initial)
   const [opinion, setOpinion] = useState<DocInfo>(initial)
   const [blacklist, setBlacklist] = useState<DocInfo>(initial)
@@ -30,9 +30,13 @@ export function useFiscalDocuments(selectedRfc: string | null) {
     if (!selectedRfc) return
     let cancelled = false
 
-    setCsf(initial)
-    setOpinion(initial)
-    setBlacklist(initial)
+    // Si está sincronizando con el SAT, mostrar estado de carga
+    if (isSyncingWithSat) {
+      setCsf(initial)
+      setOpinion(initial)
+      setBlacklist(initial)
+      return
+    }
 
     void (async () => {
       const [csfRes, opRes, statusRes] = await Promise.all([
@@ -66,7 +70,7 @@ export function useFiscalDocuments(selectedRfc: string | null) {
     return () => {
       cancelled = true
     }
-  }, [selectedRfc])
+  }, [selectedRfc, isSyncingWithSat])
 
   const closeViewer = useCallback(() => {
     setViewer((prev) => {
