@@ -46,6 +46,7 @@ export const TITLES: Record<Screen, [string, string]> = {
   facturas: ['Mis facturas', 'Las facturas que emites a tus clientes'],
   documentos: ['Mi bóveda', 'Tus documentos y facturas del SAT, en un solo lugar'],
   diagnostico: ['Diagnóstico fiscal', 'Cómo estás y qué puedes mejorar'],
+  estatussat: ['Estatus ante SAT', 'Monitoreo continuo de listas y cumplimiento'],
   // aprende: ['Aprende', 'Lecciones cortas para entender tus impuestos'],
   'tip-detail': ['Lección', 'Aprende algo útil en pocos minutos'],
   tramites: ['Trámites adicionales', 'Servicios extra que puedes contratar cuando los necesites'],
@@ -53,7 +54,6 @@ export const TITLES: Record<Screen, [string, string]> = {
   ayuda: ['Ayuda y tutoriales', 'Aprende a tu ritmo, paso a paso'],
   manual: ['Manual de usuario', 'Guía completa de cómo usar Contabilízate'],
   cuenta: ['Mi cuenta', 'Tus datos y preferencias'],
-  'estatus-sat': ['Conectar con el SAT', 'Necesitamos esto una sola vez'],
   permisos: ['Modificador de permisos', 'Edita los permisos asignados a tu rol'],
   // Roles operativos
   usuarios: ['Usuarios', 'Administra usuarios del sistema'],
@@ -105,6 +105,7 @@ export const GUEST_NAV_GROUPED: NavSection[] = [
     items: [
       { id: 'vista-fiscal', label: 'Vista fiscal', Icon: LayoutGrid, hint: 'Tu vida fiscal' },
       { id: 'diagnostico', label: 'Diagnóstico', Icon: Stethoscope, hint: 'Tu situación fiscal' },
+      { id: 'estatussat', label: 'Estatus SAT', Icon: Activity, hint: 'Monitoreo SAT' },
       { id: 'declaraciones', label: 'Declaraciones', Icon: FileText, hint: 'Tus impuestos del mes' },
       { id: 'facturas', label: 'Facturación', Icon: FilePlus, hint: 'Emite y revisa facturas' },
       { id: 'documentos', label: 'Bóveda', Icon: FolderLock, hint: 'Tu bóveda digital de CFDI y constancias' },

@@ -18,6 +18,7 @@ import {
   DeclaracionesScreen,
   DiagnosticoScreen,
   DocumentosScreen,
+  EstatusSatScreen,
   FacturasScreen,
   HomeScreen,
   ManualScreen,
@@ -52,6 +53,7 @@ const WIDE_SCREENS = new Set<Screen>([
   'home',
   'vista-fiscal',
   'diagnostico',
+  'estatussat',
   'facturas',
   'documentos',
   'manual',
@@ -338,6 +340,8 @@ function ScreenRouter({
       return <DocumentosScreen go={go} />
     case 'diagnostico':
       return <DiagnosticoScreen go={go} />
+    case 'estatussat':
+      return <EstatusSatScreen go={go} />
     case 'tip-detail':
       return <TipDetailScreen go={go} />
     case 'tramites':
