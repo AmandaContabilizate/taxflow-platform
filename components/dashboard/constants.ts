@@ -44,6 +44,7 @@ export const TITLES: Record<Screen, [string, string]> = {
   declaraciones: ['Mis declaraciones', 'Tus impuestos mes con mes, sin complicarte'],
   'vista-fiscal': ['Tu vida fiscal', 'Todas tus herramientas en un solo lugar'],
   facturas: ['Mis facturas', 'Las facturas que emites a tus clientes'],
+  george: ['Recibos → Facturas', 'Convierte tus recibos digitales en facturas CFDI'],
   documentos: ['Mi bóveda', 'Tus documentos y facturas del SAT, en un solo lugar'],
   diagnostico: ['Diagnóstico fiscal', 'Cómo estás y qué puedes mejorar'],
   estatussat: ['Estatus ante SAT', 'Monitoreo continuo de listas y cumplimiento'],
@@ -108,6 +109,7 @@ export const GUEST_NAV_GROUPED: NavSection[] = [
       { id: 'estatussat', label: 'Estatus SAT', Icon: Activity, hint: 'Monitoreo SAT' },
       { id: 'declaraciones', label: 'Declaraciones', Icon: FileText, hint: 'Tus impuestos del mes' },
       { id: 'facturas', label: 'Facturación', Icon: FilePlus, hint: 'Emite y revisa facturas' },
+      { id: 'george', label: 'Recibos → Facturas', Icon: Receipt, hint: 'Convierte recibos en facturas' },
       { id: 'documentos', label: 'Bóveda', Icon: FolderLock, hint: 'Tu bóveda digital de CFDI y constancias' },
     ]
   },

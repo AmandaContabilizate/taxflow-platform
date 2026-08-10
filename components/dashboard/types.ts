@@ -5,6 +5,7 @@ export type Screen =
   | 'vista-fiscal'
   | 'declaraciones'
   | 'facturas'
+  | 'george'
   | 'documentos'
   | 'diagnostico'
   | 'tip-detail'

@@ -20,6 +20,7 @@ import {
   DocumentosScreen,
   EstatusSatScreen,
   FacturasScreen,
+  GeorgeScreen,
   HomeScreen,
   ManualScreen,
   MisClientesScreen,
@@ -55,6 +56,7 @@ const WIDE_SCREENS = new Set<Screen>([
   'diagnostico',
   'estatussat',
   'facturas',
+  'george',
   'documentos',
   'manual',
   'ayuda',
@@ -336,6 +338,8 @@ function ScreenRouter({
       return <DeclaracionesScreen go={go} />
     case 'facturas':
       return <FacturasScreen go={go} />
+    case 'george':
+      return <GeorgeScreen go={go} />
     case 'documentos':
       return <DocumentosScreen go={go} />
     case 'diagnostico':
