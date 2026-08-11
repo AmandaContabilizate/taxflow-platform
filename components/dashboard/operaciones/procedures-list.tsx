@@ -4,10 +4,8 @@ import { AlertCircle, ExternalLink, Loader2, Search } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { getProcedureSales } from '@/features/operations/actions/getProcedureSales.action'
 import type { ProcedureSale } from '@/features/operations/types'
-import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import { MONO } from '../constants'
 import { Card, HelpBox } from '../ui'
-import { NeedsSatConnect } from '../screens/needs-sat-connect'
 
 function fmtDate(value: string | null): string {
   if (!value) return '—'
@@ -31,13 +29,7 @@ function statusStyle(status: string): { bg: string; color: string } {
   }
 }
 
-interface Props {
-  go: any
-}
-
-export function ProceduresList({ go }: Props) {
-  const { hasRfc, loading: loadingRfc } = useHasRfc()
-  const { selectedRfcInfo } = useRfcStore()
+export function ProceduresList() {
   const [rows, setRows] = useState<ProcedureSale[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -70,10 +62,6 @@ export function ProceduresList({ go }: Props) {
         r.productName.toLowerCase().includes(q),
     )
   }, [rows, search])
-
-  if (loadingRfc) return null
-  if (!hasRfc) return <NeedsSatConnect go={go} feature="ver trámites adicionales" />
-  if (selectedRfcInfo?.ciecState !== 1) return <NeedsSatConnect go={go} feature="ver trámites adicionales" />
 
   return (
     <div className="flex flex-col gap-5 max-w-full">

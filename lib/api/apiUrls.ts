@@ -3,6 +3,7 @@ import "server-only";
 const BASE_IDENTITY = process.env.NEXT_PUBLIC_API_BASE_IDENTITY || process.env.API_BASE_IDENTITY || "https://localhost:7125/api";
 const BASE_PROCEDURES = process.env.NEXT_PUBLIC_API_BASE_PROCEDURES || process.env.API_BASE_PROCEDURES || "https://localhost:7165/api";
 const BASE_REPORTS = process.env.NEXT_PUBLIC_API_BASE_REPORTS || process.env.API_BASE_REPORTS || "https://localhost:7126/api";
+const BASE_GEORGE = `${BASE_PROCEDURES}/george`;
 
 const DbOrigin = "/SQLServer";
 
@@ -20,7 +21,9 @@ export const API_BASE_URLS = {
   catalogs_procedures: `${BASE_PROCEDURES}/catalogs${DbOrigin}`,
   finances: `${BASE_PROCEDURES}/finances${DbOrigin}`,
   accountant_assignments: `${BASE_PROCEDURES}/accountant-assignments`,
-  stripe: `${BASE_PROCEDURES}/stripe`,
+  stripe: `${BASE_PROCEDURES}/stripe`, // OJO: stripe NO lleva /SQLServer
+  george: BASE_GEORGE,
+  // Administración de partnerships externos (SSO). OJO: NO lleva /SQLServer.
   partnership: `${BASE_PROCEDURES}/partnership`,
   // Reports
   sales_procedures: `${BASE_PROCEDURES}/sales`,

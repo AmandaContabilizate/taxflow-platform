@@ -222,4 +222,12 @@ export const API_ROUTES = {
     ACTIVE_PLAN: (rfc: string) =>
       `/active-plan?rfc=${encodeURIComponent(rfc)}`,
   },
+  GEORGE: {
+    REGISTER_COMPANY: "/george/register-company",
+    COMPANY: "/george/company",
+    QUOTA: "/george/quota",
+    UPLOAD_TICKET: "/george/upload-ticket",
+    TICKETS: "/george/tickets",
+    PURCHASE_TICKETS: "/george/purchase-tickets",
+  },
 } as const;

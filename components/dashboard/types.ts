@@ -5,6 +5,7 @@ export type Screen =
   | 'vista-fiscal'
   | 'declaraciones'
   | 'facturas'
+  | 'george'
   | 'documentos'
   | 'diagnostico'
   | 'tip-detail'
@@ -13,7 +14,7 @@ export type Screen =
   | 'ayuda'
   | 'manual'
   | 'cuenta'
-  | 'estatus-sat'
+  | 'estatussat'
   | 'permisos'
   // Roles operativos
   | 'usuarios'
