@@ -20,8 +20,7 @@ export const API_BASE_URLS = {
   catalogs_procedures: `${BASE_PROCEDURES}/catalogs${DbOrigin}`,
   finances: `${BASE_PROCEDURES}/finances${DbOrigin}`,
   accountant_assignments: `${BASE_PROCEDURES}/accountant-assignments`,
-  stripe: `${BASE_PROCEDURES}/stripe`, // OJO: stripe NO lleva /SQLServer
-  // Administración de partnerships externos (SSO). OJO: NO lleva /SQLServer.
+  stripe: `${BASE_PROCEDURES}/stripe`,
   partnership: `${BASE_PROCEDURES}/partnership`,
   // Reports
   sales_procedures: `${BASE_PROCEDURES}/sales`,
@@ -29,6 +28,7 @@ export const API_BASE_URLS = {
   declarations_reports: `${BASE_REPORTS}/declarations`,
   sales_reports: `${BASE_REPORTS}/sales`,
   taxpayers_reports: `${BASE_REPORTS}/taxpayers`,
+  users_reports: `${BASE_REPORTS}/users`,
 } as const;
 
 export type ApiType = keyof typeof API_BASE_URLS;

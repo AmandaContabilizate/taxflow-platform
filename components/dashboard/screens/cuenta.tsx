@@ -47,12 +47,13 @@ interface Props {
   initials: string
   phoneNumber?: string
   ciecState?: number
+  isClient?: boolean
   go: GoFn
   onLogout: () => void
   signingOut: boolean
 }
 
-export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber, ciecState, go, onLogout, signingOut }: Props) {
+export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber, ciecState, isClient = true, go, onLogout, signingOut }: Props) {
   const { theme, setTheme } = useTheme()
   const { selectedRfc } = useRfcStore()
   const [plan, setPlan] = useState<ActivePlan | null>(null)
@@ -68,7 +69,7 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
   const activeRfc = selectedRfc ?? rfc
 
   useEffect(() => {
-    if (!activeRfc) return
+    if (!isClient || !activeRfc) return
     let cancelled = false
     setAccountant({ loading: true, name: null })
     setPayments(INITIAL_PAYMENTS)
@@ -92,7 +93,7 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
     return () => {
       cancelled = true
     }
-  }, [activeRfc])
+  }, [activeRfc, isClient])
 
   const planLabel = plan?.hasPlan
     ? `${plan.planName ?? 'Tu plan'}${plan.billingPeriod ? ` · ${periodLabel(plan.billingPeriod)}` : ''}`
@@ -138,7 +139,7 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
                 <div className="text-[19px] font-extrabold tracking-tight truncate" style={DISPLAY}>
                   {fullName}
                 </div>
-                {activeRfc && (
+                {isClient && activeRfc && (
                   <div className="text-[12px] mt-0.5 truncate" style={{ ...MONO, color: 'var(--ink-500)' }}>
                     {activeRfc}
                   </div>
@@ -166,25 +167,29 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
               </div>
             )}
 
-            <Divider />
+            {isClient && (
+              <>
+                <Divider />
 
-            <div className="flex items-center justify-between gap-3 pt-1">
-              <div className="min-w-0">
-                <div className="text-[11px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
-                  Mi plan
+                <div className="flex items-center justify-between gap-3 pt-1">
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+                      Mi plan
+                    </div>
+                    <div className="text-[14.5px] font-bold mt-0.5 truncate" style={{ color: 'var(--ink-900)' }}>
+                      {planLabel}
+                    </div>
+                  </div>
+                  <Btn size="sm" kind="primary" onClick={() => go('plan')}>
+                    Gestionar
+                  </Btn>
                 </div>
-                <div className="text-[14.5px] font-bold mt-0.5 truncate" style={{ color: 'var(--ink-900)' }}>
-                  {planLabel}
-                </div>
-              </div>
-              <Btn size="sm" kind="primary" onClick={() => go('plan')}>
-                Gestionar
-              </Btn>
-            </div>
+              </>
+            )}
           </div>
         </Card>
 
-        {/* Estado de CIEC */}
+        {isClient && (
         <Card>
           <div className="p-6">
             <div className="text-[11px] font-extrabold uppercase tracking-wider mb-2" style={{ color: 'var(--ink-500)' }}>
@@ -211,10 +216,12 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
             </div>
           </div>
         </Card>
+        )}
       </div>
 
       {/* Listas */}
       <div className="flex-1 min-w-0 w-full flex flex-col gap-6">
+        {isClient && (
         <Section title="Gestión">
           <Card>
             <AccountRow
@@ -298,6 +305,7 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
             )}
           </Card>
         </Section>
+        )}
 
         <Section title="Preferencias">
           <Card>

@@ -1,6 +1,7 @@
 import {
   Activity,
   BarChart3,
+  Bell,
   BookOpen,
   Briefcase,
   Calendar,
@@ -56,13 +57,14 @@ export const TITLES: Record<Screen, [string, string]> = {
   'estatus-sat': ['Conectar con el SAT', 'Necesitamos esto una sola vez'],
   permisos: ['Modificador de permisos', 'Edita los permisos asignados a tu rol'],
   // Roles operativos
-  usuarios: ['Usuarios', 'Administra usuarios del sistema'],
+  usuarios: ['Usuarios', 'Todas las cuentas registradas en la plataforma'],
   clientes: ['Clientes', 'Contribuyentes con ventas pagadas'],
   contribuyentes: ['Contribuyentes', 'Padrón completo de contribuyentes'],
   actividad: ['Actividad', 'Movimientos y eventos recientes'],
   comisiones: ['Comisiones', 'Tus comisiones y liquidaciones'],
   'mis-tareas': ['Mis tareas', 'Pendientes asignados a ti'],
   bandeja: ['Bandeja', 'Solicitudes y mensajes entrantes'],
+  notificaciones: ['Notificaciones', 'Envía avisos push a los usuarios de la app'],
   upsell: ['Upsell', 'Oportunidades para ampliar servicios'],
   'clientes-asignados': ['Clientes asignados', 'Tu cartera de atención'],
   'pipelines-por-etapa': ['Pipelines por etapa', 'Estado de tus oportunidades'],
@@ -70,7 +72,7 @@ export const TITLES: Record<Screen, [string, string]> = {
   regularizaciones: ['Regularizaciones', 'Casos en regularización fiscal'],
   'declaraciones-anuales': ['Declaraciones anuales', 'Declaraciones del ejercicio'],
   catalogos: ['Catálogos', 'Catálogos maestros del sistema'],
-  renovaciones: ['Renovaciones', 'Suscripciones por renovar'],
+  renovaciones: ['Renovaciones', 'Planes por vencer y quién ya canceló su renovación'],
   asignaciones: ['Asignaciones', 'Reparto de cartera al equipo'],
   equipo: ['Equipo', 'Tu equipo de trabajo'],
   'reportes-ejecutivos': ['Reportes ejecutivos', 'KPIs y resultados del área'],
@@ -137,12 +139,18 @@ export const PERMISOS_NAV: NavDef = {
 }
 
 const DASHBOARD_ITEM: NavDef = { id: 'home', label: 'Dashboard', Icon: Home, hint: 'Tu resumen' }
-const USUARIOS_ITEM: NavDef = { id: 'usuarios', label: 'Usuarios', Icon: Users, hint: 'Administra usuarios' }
+const USUARIOS_ITEM: NavDef = { id: 'usuarios', label: 'Usuarios', Icon: Users, hint: 'Cuentas registradas' }
 const CLIENTES_ITEM: NavDef = { id: 'clientes', label: 'Clientes', Icon: Briefcase, hint: 'Cartera de clientes' }
 const ACTIVIDAD_ITEM: NavDef = { id: 'actividad', label: 'Actividad', Icon: Activity, hint: 'Eventos recientes' }
 const COMISIONES_ITEM: NavDef = { id: 'comisiones', label: 'Comisiones', Icon: DollarSign, hint: 'Tus comisiones' }
 const MIS_TAREAS_ITEM: NavDef = { id: 'mis-tareas', label: 'Mis tareas', Icon: CheckSquare, hint: 'Pendientes' }
 const BANDEJA_ITEM: NavDef = { id: 'bandeja', label: 'Bandeja', Icon: Inbox, hint: 'Mensajes entrantes' }
+const NOTIFICACIONES_ITEM: NavDef = {
+  id: 'notificaciones',
+  label: 'Notificaciones',
+  Icon: Bell,
+  hint: 'Envía avisos a los usuarios',
+}
 const UPSELL_ITEM: NavDef = { id: 'upsell', label: 'Upsell', Icon: TrendingUp, hint: 'Oportunidades' }
 const CLIENTES_ASIGNADOS_ITEM: NavDef = {
   id: 'clientes-asignados',
@@ -192,7 +200,7 @@ const RENOVACIONES_ITEM: NavDef = {
   id: 'renovaciones',
   label: 'Renovaciones',
   Icon: RefreshCw,
-  hint: 'Suscripciones por renovar',
+  hint: 'Planes por vencer',
 }
 const ASIGNACIONES_ITEM: NavDef = {
   id: 'asignaciones',
@@ -256,9 +264,12 @@ export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
   ],
   'atencion-clientes': [
     DASHBOARD_ITEM,
+    USUARIOS_ITEM,
     OPERACIONES_ITEM,
+    RENOVACIONES_ITEM,
     COMISIONES_ITEM,
     BANDEJA_ITEM,
+    NOTIFICACIONES_ITEM,
     UPSELL_ITEM,
     CLIENTES_ASIGNADOS_ITEM,
     PIPELINES_ITEM,
@@ -266,6 +277,7 @@ export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
   ],
   accounter: [
     DASHBOARD_ITEM,
+    USUARIOS_ITEM,
     MIS_CLIENTES_ITEM,
     CLIENTES_ITEM,
     CONTRIBUYENTES_ITEM,
@@ -276,7 +288,14 @@ export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
     MIS_TAREAS_ITEM,
     CATALOGOS_ITEM,
   ],
-  renovaciones: [DASHBOARD_ITEM, OPERACIONES_ITEM, COMISIONES_ITEM, RENOVACIONES_ITEM, MIS_TAREAS_ITEM],
+  renovaciones: [
+    DASHBOARD_ITEM,
+    USUARIOS_ITEM,
+    OPERACIONES_ITEM,
+    COMISIONES_ITEM,
+    RENOVACIONES_ITEM,
+    MIS_TAREAS_ITEM,
+  ],
   'gerencia-comercial': [
     DASHBOARD_ITEM,
     OPERACIONES_ITEM,
@@ -291,9 +310,12 @@ export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
   ],
   'gerente-sac': [
     DASHBOARD_ITEM,
+    USUARIOS_ITEM,
     OPERACIONES_ITEM,
+    RENOVACIONES_ITEM,
     COMISIONES_ITEM,
     BANDEJA_ITEM,
+    NOTIFICACIONES_ITEM,
     UPSELL_ITEM,
     CLIENTES_ASIGNADOS_ITEM,
     PIPELINE_ITEM,
@@ -303,6 +325,7 @@ export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
   ],
   'gerente-operaciones': [
     DASHBOARD_ITEM,
+    USUARIOS_ITEM,
     MIS_CLIENTES_ITEM,
     OPERACIONES_ITEM,
     REGULARIZACIONES_ITEM,

@@ -23,6 +23,7 @@ export type Screen =
   | 'comisiones'
   | 'mis-tareas'
   | 'bandeja'
+  | 'notificaciones'
   | 'upsell'
   | 'clientes-asignados'
   | 'pipelines-por-etapa'

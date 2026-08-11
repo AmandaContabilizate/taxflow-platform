@@ -86,8 +86,26 @@ export const API_ROUTES = {
       }`,
     CALCULATIONS: (declarationId: number) => `/${declarationId}/calculations`,
     // Facturas del periodo + su clasificación. Devuelve PagedResult.
-    INVOICES: (declarationId: number, skip = 0, take = 100) =>
-      `/${declarationId}/invoices?skip=${skip}&take=${take}`,
+    // Filtros opcionales y combinables; omitirlos = "todos". El backend filtra
+    // dentro del IQueryable, así que `total` ya viene filtrado.
+    // invoiceTypeId: 1 Ingreso, 2 Egreso, 3 Traslado, 4 Pago, 5 Nómina
+    // (fuera de 1-5 el backend responde INVALID_REQUEST).
+    INVOICES: (params: {
+      declarationId: number
+      isIssued?: boolean
+      invoiceTypeId?: number
+      clasificada?: boolean
+      skip?: number
+      take?: number
+    }) => {
+      const qs = new URLSearchParams()
+      if (params.isIssued != null) qs.set("isIssued", String(params.isIssued))
+      if (params.invoiceTypeId != null) qs.set("invoiceTypeId", String(params.invoiceTypeId))
+      if (params.clasificada != null) qs.set("clasificada", String(params.clasificada))
+      qs.set("skip", String(params.skip ?? 0))
+      qs.set("take", String(params.take ?? 100))
+      return `/${params.declarationId}/invoices?${qs.toString()}`
+    },
     GENERAL: (declarationId: number) => `/${declarationId}/general`,
   },
   SALES_OPS: {
@@ -95,17 +113,46 @@ export const API_ROUTES = {
       `/procedures?skip=${skip}&take=${take}`,
     SUMMARY: (skip = 0, take = 100, rfc?: string) =>
       `/summary?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}`,
+    // GET sales_reports — trazabilidad Stripe de una venta (policy Contador.ReadVentas).
+    DETAIL: (saleId: number) => `/detail/${saleId}`,
+    // GET sales_reports — planes por vencer en los próximos `dias`.
+    UPCOMING_RENEWALS: (
+      skip = 0,
+      take = 100,
+      dias = 30,
+      tipo?: "subscription" | "one_time",
+      rfc?: string,
+      incluirVencidas = false,
+    ) =>
+      `/upcoming-renewals?skip=${skip}&take=${take}&dias=${dias}${tipo ? `&tipo=${tipo}` : ""}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""
+      }${incluirVencidas ? "&incluirVencidas=true" : ""}`,
   },
   TAXPAYERS_OPS: {
     // regimeId es el Id interno de Users.TaxRegimes (p.ej. 18), NO el código SAT (625).
-    LIST: (skip = 0, take = 100, rfc?: string, regimeId?: number) =>
+    // minSales: mínimo de ventas pagadas (StatusSaleId=2 con referencia de Stripe).
+    // En LIST, minSales=1 ya filtra a los que compraron alguna vez; en
+    // WITH_PAID_SALES y MY_CLIENTS el mínimo implícito ya es 1, así que sólo
+    // tiene efecto con 2 o más.
+    LIST: (skip = 0, take = 100, rfc?: string, regimeId?: number, minSales?: number) =>
       `?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${regimeId ? `&regimeId=${regimeId}` : ""
-      }`,
-    WITH_PAID_SALES: (skip = 0, take = 100, rfc?: string) =>
-      `/with-paid-sales?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}`,
-    MY_CLIENTS: (skip = 0, take = 100, rfc?: string, accountantUserId?: string) =>
+      }${minSales ? `&minSales=${minSales}` : ""}`,
+    WITH_PAID_SALES: (skip = 0, take = 100, rfc?: string, minSales?: number) =>
+      `/with-paid-sales?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${minSales ? `&minSales=${minSales}` : ""}`,
+    MY_CLIENTS: (skip = 0, take = 100, rfc?: string, accountantUserId?: string, minSales?: number) =>
       `/my-clients?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${accountantUserId ? `&accountantUserId=${encodeURIComponent(accountantUserId)}` : ""
-      }`,
+      }${minSales ? `&minSales=${minSales}` : ""}`,
+  },
+  // GET users_reports — padrón de cuentas registradas (solo requiere token).
+  USERS_OPS: {
+    LIST: (
+      skip = 0,
+      take = 100,
+      search?: string,
+      role?: string,
+      emailConfirmed?: boolean,
+    ) =>
+      `?skip=${skip}&take=${take}${search ? `&search=${encodeURIComponent(search)}` : ""}${role ? `&role=${encodeURIComponent(role)}` : ""
+      }${emailConfirmed === undefined ? "" : `&emailConfirmed=${emailConfirmed}`}`,
   },
   ACCOUNTANT_ASSIGNMENTS: {
     GET: (taxpayerId: number) => `/${taxpayerId}`,

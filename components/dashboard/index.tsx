@@ -22,16 +22,19 @@ import {
   HomeScreen,
   ManualScreen,
   MisClientesScreen,
+  NotificacionesScreen,
   OperacionesScreen,
   PartnershipScreen,
   PermisosScreen,
   PlaceholderScreen,
   PlanScreen,
   RegularizacionesScreen,
+  RenovacionesScreen,
   RolesScreen,
   TipDetailScreen,
   TramitesScreen,
   TramitesAdicionalesScreen,
+  UsuariosScreen,
   VentasScreen,
   VistaFiscalScreen,
 } from './screens'
@@ -46,6 +49,8 @@ const WIDE_SCREENS = new Set<Screen>([
   'mis-clientes',
   'clientes',
   'contribuyentes',
+  'usuarios',
+  'renovaciones',
   'ventas',
   'roles',
   'plan',
@@ -272,6 +277,7 @@ function ScreenRouter({
         onLogout={onLogout}
         signingOut={signingOut}
         role={null}
+        isClient={isGuest}
         go={go}
       />
     )
@@ -299,6 +305,9 @@ function ScreenRouter({
     if (screen === 'regularizaciones') {
       return <RegularizacionesScreen />
     }
+    if (screen === 'renovaciones') {
+      return <RenovacionesScreen />
+    }
     if (screen === 'tramites-adicionales') {
       return <TramitesAdicionalesScreen go={go} />
     }
@@ -311,6 +320,9 @@ function ScreenRouter({
     if (screen === 'contribuyentes') {
       return <ContribuyentesScreen />
     }
+    if (screen === 'usuarios') {
+      return <UsuariosScreen />
+    }
     if (screen === 'ventas') {
       return <VentasScreen />
     }
@@ -319,6 +331,9 @@ function ScreenRouter({
     }
     if (screen === 'partnership') {
       return <PartnershipScreen />
+    }
+    if (screen === 'notificaciones') {
+      return <NotificacionesScreen />
     }
     const [title, hint] = TITLES[screen] ?? ['Próximamente', '']
     return <PlaceholderScreen title={title} description={hint || undefined} />
