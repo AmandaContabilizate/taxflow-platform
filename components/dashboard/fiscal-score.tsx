@@ -245,7 +245,7 @@ function ReadyBody({ value, go }: { value: FiscalScore; go: GoFn }) {
         <Btn
           size="lg"
           onClick={() => go('declaraciones')}
-          style={{ background: '#fff', color: 'var(--ink-900)', boxShadow: 'none' }}
+          style={{ background: '#fff', color: '#0f172a', boxShadow: 'none' }}
         >
           Ver detalle <ArrowUpRight size={18} />
         </Btn>
@@ -274,7 +274,7 @@ function EmptyBody({ onSeeDeclarations }: { onSeeDeclarations: () => void }) {
         <Btn
           size="lg"
           onClick={onSeeDeclarations}
-          style={{ background: '#fff', color: 'var(--ink-900)', boxShadow: 'none' }}
+          style={{ background: '#fff', color: '#0f172a', boxShadow: 'none' }}
         >
           Ver mis declaraciones <ArrowUpRight size={18} />
         </Btn>

@@ -254,7 +254,7 @@ export function VistaFiscalScreen({ go }: Props) {
                   <button
                     onClick={() => go('declaraciones')}
                     className="w-full px-4 py-2.5 rounded-full font-bold text-[14px] flex items-center justify-center gap-2 transition hover:opacity-90"
-                    style={{ background: '#fff', color: 'var(--ink-900)' }}
+                    style={{ background: '#fff', color: '#0f172a' }}
                   >
                     Ver detalle
                     <ArrowRight size={16} />

@@ -177,4 +177,10 @@ export const API_ROUTES = {
     /** apiType "timbrame" · GET. Token SSO para portal de facturación. */
     PORTAL_ACCESS: "/portal-access",
   },
+  MARKETING: {
+    BROADCAST_PUSH: "/broadcast-push",
+  },
+  PUSH_TOKENS: {
+    REGISTER: "/register",
+  },
 } as const;

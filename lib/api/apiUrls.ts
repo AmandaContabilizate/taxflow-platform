@@ -31,6 +31,8 @@ export const API_BASE_URLS = {
   declarations_reports: `${BASE_REPORTS}/declarations`,
   sales_reports: `${BASE_REPORTS}/sales`,
   taxpayers_reports: `${BASE_REPORTS}/taxpayers`,
+  marketing: `${BASE_IDENTITY}/Marketing`,
+  push_tokens: `${BASE_IDENTITY}/PushTokens`,
 } as const;
 
 export type ApiType = keyof typeof API_BASE_URLS;

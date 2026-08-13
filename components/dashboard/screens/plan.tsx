@@ -171,7 +171,7 @@ export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled, go }: Pl
               <Btn
                 size="md"
                 onClick={() => setPickerOpen(true)}
-                style={{ background: '#fff', color: 'var(--ink-900)', boxShadow: 'none' }}
+                style={{ background: '#fff', color: '#0f172a', boxShadow: 'none' }}
               >
                 Cambiar plan
               </Btn>
@@ -188,7 +188,7 @@ export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled, go }: Pl
             <Btn
               size="md"
               onClick={() => setPickerOpen(true)}
-              style={{ background: '#fff', color: 'var(--ink-900)', boxShadow: 'none' }}
+              style={{ background: '#fff', color: '#0f172a', boxShadow: 'none' }}
             >
               Ver planes
             </Btn>
