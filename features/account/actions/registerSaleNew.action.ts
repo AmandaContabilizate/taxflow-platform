@@ -3,7 +3,7 @@
 import { ApiError, fetchPost } from "@/lib/api";
 import { API_ROUTES } from "@/lib/api/apiRoutes";
 import { type Result, err, ok } from "@/lib/common";
-import type { RegisterSaleNewRequest } from "../types";
+import type { RegisterSaleNewRequest, RegisterSaleNewResponse } from "../types";
 
 interface RegisterSaleError {
   statusCode: number;
@@ -16,9 +16,9 @@ interface RegisterSaleError {
  */
 export async function registerSaleNew(
   body: RegisterSaleNewRequest,
-): Promise<Result<true, RegisterSaleError>> {
+): Promise<Result<RegisterSaleNewResponse, RegisterSaleError>> {
   try {
-    await fetchPost<unknown>(
+    const response = await fetchPost<RegisterSaleNewResponse>(
       API_ROUTES.FINANCES.REGISTER_SALE_NEW,
       {
         ...body,
@@ -26,7 +26,7 @@ export async function registerSaleNew(
       },
       "finances",
     );
-    return ok(true);
+    return ok(response);
   } catch (e) {
     if (e instanceof ApiError) {
       return err({ statusCode: e.status, message: e.message });

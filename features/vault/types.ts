@@ -38,6 +38,12 @@ export interface VaultInvoice {
   folio: string
   uuid: string
   date: string
+  // Fecha de expedición del CFDI (Comprobante/@Fecha) y fecha de timbrado
+  // (TimbreFiscalDigital/@FechaTimbrado) por separado — pueden diferir unos
+  // días en facturas de Público en General timbradas ya iniciado el mes
+  // siguiente al que resumen.
+  invoiceDate: string
+  stampDate: string
   statusComprobante: number
   tipoComprobante: number
   uso: string
