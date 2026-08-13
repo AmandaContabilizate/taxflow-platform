@@ -1,11 +1,14 @@
 'use client'
 
 import { AlertCircle, Loader2 } from 'lucide-react'
+import Image from 'next/image'
+import { useState } from 'react'
 import { getSalesSummary } from '@/features/operations/actions/getSalesSummary.action'
 import type { ProductoVenta } from '@/features/operations/types'
 import { MONO } from '../constants'
 import { Card, HelpBox } from '../ui'
 import { Pagination, SearchBar, usePagedList } from '../clientes/parts'
+import { StripeDetailModal } from '../ventas/stripe-detail-modal'
 
 const money = new Intl.NumberFormat('es-MX', {
   style: 'currency',
@@ -49,14 +52,31 @@ function ProductosCell({ productos }: { productos: ProductoVenta[] }) {
   )
 }
 
+function StripeButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title="Ver datos de Stripe"
+      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border transition hover:bg-[var(--ink-50)]"
+      style={{ borderColor: 'var(--border)' }}
+    >
+      <Image src="/stripe-logo.png" alt="Stripe" width={44} height={18} />
+    </button>
+  )
+}
+
 export function VentasScreen() {
   const list = usePagedList(getSalesSummary, 50)
+  const [stripeSaleId, setStripeSaleId] = useState<number | null>(null)
 
   return (
     <div className="flex flex-col gap-5 max-w-full">
       <HelpBox>
         Resumen de ventas registradas. Cada renglón muestra la cuenta que compró, los productos
-        incluidos y el monto. Filtra por RFC y navega entre páginas.
+        incluidos y el monto. Filtra por RFC y navega entre páginas. Con el botón de Stripe abres
+        los identificadores del cobro (payment intent, customer, suscripción y checkout) para
+        rastrearlo en el dashboard de Stripe.
       </HelpBox>
 
       <Card>
@@ -92,10 +112,10 @@ export function VentasScreen() {
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Venta', 'Cuenta', 'RFC', 'Productos', 'Monto'].map((h) => (
+                    {['Venta', 'Cuenta', 'RFC', 'Productos', 'Monto', 'Stripe'].map((h) => (
                       <th
                         key={h}
-                        className={`px-5 py-3 font-extrabold ${h === 'Monto' ? 'text-right' : 'text-left'}`}
+                        className={`px-5 py-3 font-extrabold ${h === 'Monto' ? 'text-right' : h === 'Stripe' ? 'text-center' : 'text-left'}`}
                         style={{ color: 'var(--ink-700)' }}
                       >
                         {h}
@@ -133,6 +153,17 @@ export function VentasScreen() {
                           {money.format(v.amount)}
                         </span>
                       </td>
+                      <td className="px-5 py-4 align-top text-center">
+                        <StripeButton onClick={() => setStripeSaleId(v.saleId)} />
+                        {v.paymentIntentId && (
+                          <div
+                            className="text-[10.5px] mt-1 truncate max-w-[130px] mx-auto"
+                            style={{ ...MONO, color: 'var(--ink-400)' }}
+                          >
+                            {v.paymentIntentId}
+                          </div>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -158,6 +189,8 @@ export function VentasScreen() {
           </>
         )}
       </Card>
+
+      <StripeDetailModal saleId={stripeSaleId} onClose={() => setStripeSaleId(null)} />
     </div>
   )
 }

@@ -1,7 +1,12 @@
 'use client'
 
 import { ProceduresList } from '../operaciones/procedures-list'
+import type { GoFn } from '../types'
 
-export function TramitesAdicionalesScreen() {
-  return <ProceduresList />
+interface Props {
+  go: GoFn
+}
+
+export function TramitesAdicionalesScreen({ go }: Props) {
+  return <ProceduresList go={go} />
 }

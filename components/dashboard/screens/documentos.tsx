@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { AlertTriangle, Download, FileDown, Search, Sliders, ChevronDown } from 'lucide-react'
-import { useHasRfc, useSelectedRfc } from '@/features/taxpayers/stores/rfcStore'
+import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import {
   getIssuedInvoices,
   getReceivedInvoices,
@@ -154,7 +154,7 @@ const TABS = ['Recibidas', 'Emitidas', 'Canceladas'] as const
 
 export function DocumentosScreen({ go }: Props) {
   const { hasRfc, loading } = useHasRfc()
-  const rfc = useSelectedRfc()
+  const { selectedRfc: rfc, selectedRfcInfo } = useRfcStore()
   const [tab, setTab] = useState(0)
 
   const [dataLoading, setDataLoading] = useState(true)
@@ -291,6 +291,7 @@ export function DocumentosScreen({ go }: Props) {
 
   if (loading) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tu bóveda" />
+  if (selectedRfcInfo?.ciecState !== 1) return <NeedsSatConnect go={go} feature="ver tu bóveda" />
 
   const rows = rowsByTab[tab]
 

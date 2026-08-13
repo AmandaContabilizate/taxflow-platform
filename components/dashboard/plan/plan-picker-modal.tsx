@@ -125,12 +125,13 @@ export function PlanPickerModal({
   const proceduresTotal = freeAddons
     ? 0
     : procedures.reduce((sum, a) => sum + a.price * (qty[a.id] ?? 0), 0)
-  const regsTotal = freeAddons
-    ? 0
-    : regularizations.reduce(
-        (sum, r) => sum + (r.plan && selectedDecls.has(r.declarationId) ? r.plan.price : 0),
-        0,
-      )
+  // grantsFreeAddOns solo libera los trámites adicionales: las regularizaciones
+  // se cobran siempre. Ponerlas en 0 aquí mostraba un total menor al que
+  // termina cobrando Stripe, porque el cargo sale de los price de `items`.
+  const regsTotal = regularizations.reduce(
+    (sum, r) => sum + (r.plan && selectedDecls.has(r.declarationId) ? r.plan.price : 0),
+    0,
+  )
   const total = (selectedPlan?.price ?? 0) + proceduresTotal + regsTotal
 
   function buildItems(): RegisterSaleItem[] {

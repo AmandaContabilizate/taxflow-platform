@@ -10,6 +10,7 @@ type Fetcher<T> = (p: {
   take: number
   rfc?: string
   regimeId?: number
+  minSales?: number
 }) => Promise<Result<Paged<T>, { message: string }>>
 
 interface PagedListState<T> {
@@ -25,18 +26,29 @@ interface PagedListState<T> {
   setRfc: (value: string) => void
   regimeId: number | ''
   setRegimeId: (value: number | '') => void
+  minSales: number | ''
+  setMinSales: (value: number | '') => void
   nextPage: () => void
   prevPage: () => void
   reload: () => void
 }
 
-/** Lista paginada server-side con filtros por RFC (debounced) y régimen. */
-export function usePagedList<T>(fetcher: Fetcher<T>, take = 50): PagedListState<T> {
+/**
+ * Lista paginada server-side con filtros por RFC (debounced), régimen y
+ * mínimo de ventas pagadas. `initialMinSales` es el valor con el que arranca
+ * el filtro; el usuario puede cambiarlo desde la pantalla.
+ */
+export function usePagedList<T>(
+  fetcher: Fetcher<T>,
+  take = 50,
+  initialMinSales: number | '' = '',
+): PagedListState<T> {
   const [items, setItems] = useState<T[]>([])
   const [total, setTotal] = useState(0)
   const [skip, setSkip] = useState(0)
   const [rfc, setRfcState] = useState('')
   const [regimeId, setRegimeIdState] = useState<number | ''>('')
+  const [minSales, setMinSalesState] = useState<number | ''>(initialMinSales)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
@@ -52,6 +64,7 @@ export function usePagedList<T>(fetcher: Fetcher<T>, take = 50): PagedListState<
         take,
         rfc: rfc.trim() || undefined,
         regimeId: regimeId || undefined,
+        minSales: minSales || undefined,
       })
       if (cancelled) return
       if (res.success) {
@@ -68,7 +81,7 @@ export function usePagedList<T>(fetcher: Fetcher<T>, take = 50): PagedListState<
       cancelled = true
       clearTimeout(handle)
     }
-  }, [fetcher, skip, take, rfc, regimeId, reloadKey])
+  }, [fetcher, skip, take, rfc, regimeId, minSales, reloadKey])
 
   const setRfc = (value: string) => {
     setSkip(0)
@@ -78,6 +91,11 @@ export function usePagedList<T>(fetcher: Fetcher<T>, take = 50): PagedListState<
   const setRegimeId = (value: number | '') => {
     setSkip(0)
     setRegimeIdState(value)
+  }
+
+  const setMinSales = (value: number | '') => {
+    setSkip(0)
+    setMinSalesState(value)
   }
 
   return {
@@ -93,6 +111,8 @@ export function usePagedList<T>(fetcher: Fetcher<T>, take = 50): PagedListState<
     setRfc,
     regimeId,
     setRegimeId,
+    minSales,
+    setMinSales,
     nextPage: () => setSkip((s) => (s + take < total ? s + take : s)),
     prevPage: () => setSkip((s) => Math.max(0, s - take)),
     reload: () => setReloadKey((k) => k + 1),
@@ -126,7 +146,49 @@ export function useRegimenOptions(items: { regimenes?: TaxpayerRegimen[] }[]) {
   return [...seen.values()].sort((a, b) => a.satCode.localeCompare(b.satCode))
 }
 
-/** Filtros compartidos del padrón: RFC + régimen. */
+const SELECT_STYLE = {
+  background: 'var(--input)',
+  border: '1px solid var(--border)',
+  color: 'var(--ink-700)',
+} as const
+
+const MIN_SALES_OPTIONS = [2, 3, 4, 5, 6]
+
+/**
+ * Filtro por mínimo de ventas pagadas. `allLabel` cambia según la pantalla:
+ * en el padrón "" son todos los contribuyentes; en clientes/mi cartera el
+ * endpoint ya exige al menos una venta.
+ */
+export function MinSalesFilter({
+  value,
+  onChange,
+  allLabel = 'Todas las ventas',
+  className = '',
+}: {
+  value: number | ''
+  onChange: (v: number | '') => void
+  allLabel?: string
+  className?: string
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value ? Number(e.target.value) : '')}
+      title="Mínimo de ventas pagadas"
+      className={`px-3 py-2.5 rounded-lg text-[13px] font-semibold ${className}`}
+      style={SELECT_STYLE}
+    >
+      <option value="">{allLabel}</option>
+      {MIN_SALES_OPTIONS.map((n) => (
+        <option key={n} value={n}>
+          {n}+ ventas pagadas{n === 2 ? ' (renovaron)' : ''}
+        </option>
+      ))}
+    </select>
+  )
+}
+
+/** Filtros compartidos del padrón: RFC + régimen + ventas pagadas. */
 export function TaxpayerFilters({
   rfc,
   onRfcChange,
@@ -134,6 +196,9 @@ export function TaxpayerFilters({
   onRegimeChange,
   regimenes,
   placeholder,
+  minSales,
+  onMinSalesChange,
+  minSalesAllLabel,
 }: {
   rfc: string
   onRfcChange: (v: string) => void
@@ -141,7 +206,11 @@ export function TaxpayerFilters({
   onRegimeChange: (v: number | '') => void
   regimenes: TaxpayerRegimen[]
   placeholder?: string
+  minSales?: number | ''
+  onMinSalesChange?: (v: number | '') => void
+  minSalesAllLabel?: string
 }) {
+  const hasMinSales = onMinSalesChange !== undefined
   return (
     <div className="flex flex-col sm:flex-row gap-3">
       <div className="flex-1 min-w-0">
@@ -151,7 +220,7 @@ export function TaxpayerFilters({
         value={regimeId}
         onChange={(e) => onRegimeChange(e.target.value ? Number(e.target.value) : '')}
         className="px-3 py-2.5 rounded-lg text-[13px] font-semibold sm:w-[290px]"
-        style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--ink-700)' }}
+        style={SELECT_STYLE}
       >
         <option value="">Todos los regímenes</option>
         {regimenes.map((r) => (
@@ -160,12 +229,21 @@ export function TaxpayerFilters({
           </option>
         ))}
       </select>
-      {(rfc || regimeId) && (
+      {hasMinSales && (
+        <MinSalesFilter
+          value={minSales ?? ''}
+          onChange={onMinSalesChange}
+          allLabel={minSalesAllLabel}
+          className="sm:w-[215px]"
+        />
+      )}
+      {(rfc || regimeId || (hasMinSales && minSales)) && (
         <button
           type="button"
           onClick={() => {
             onRfcChange('')
             onRegimeChange('')
+            onMinSalesChange?.('')
           }}
           className="px-3.5 py-2.5 rounded-lg text-[12.5px] font-bold whitespace-nowrap"
           style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--ink-700)' }}
@@ -230,6 +308,30 @@ export function RegimenesCell({ regimenes }: { regimenes: TaxpayerRegimen[] }) {
           style={{ background: 'var(--ink-50)', color: 'var(--ink-500)' }}
         >
           +{rest}
+        </span>
+      )}
+    </div>
+  )
+}
+
+/** Conteo de ventas pagadas; resalta a los que renovaron (2+). */
+export function VentasPagadasCell({ ventas }: { ventas: number }) {
+  const recurrente = ventas >= 2
+  return (
+    <div className="flex items-center gap-2">
+      <span
+        className="inline-flex items-center justify-center min-w-[26px] px-2 py-0.5 rounded-md text-[12px] font-extrabold"
+        style={
+          recurrente
+            ? { background: 'var(--brand-100)', color: 'var(--brand-700)' }
+            : { background: 'var(--ink-50)', color: 'var(--ink-700)' }
+        }
+      >
+        {ventas ?? 0}
+      </span>
+      {recurrente && (
+        <span className="text-[11px] font-semibold" style={{ color: 'var(--ink-500)' }}>
+          renovó
         </span>
       )}
     </div>

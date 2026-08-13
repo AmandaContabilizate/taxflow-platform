@@ -18,11 +18,13 @@ export async function getTaxpayers(params: {
   rfc?: string;
   /** Id interno de Users.TaxRegimes (no el código SAT). */
   regimeId?: number;
+  /** Mínimo de ventas pagadas; 2+ deja sólo a quienes renovaron. */
+  minSales?: number;
 }): Promise<Result<Paged<TaxpayerListItem>, TaxpayersError>> {
-  const { skip = 0, take = 100, rfc, regimeId } = params;
+  const { skip = 0, take = 100, rfc, regimeId, minSales } = params;
   try {
     const data = await fetchGet<Paged<TaxpayerListItem>>(
-      API_ROUTES.TAXPAYERS_OPS.LIST(skip, take, rfc?.trim() || undefined, regimeId),
+      API_ROUTES.TAXPAYERS_OPS.LIST(skip, take, rfc?.trim() || undefined, regimeId, minSales),
       "taxpayers_reports",
     );
     return ok(data ?? EMPTY);
