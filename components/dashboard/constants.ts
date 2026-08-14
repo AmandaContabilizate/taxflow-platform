@@ -34,6 +34,7 @@ import {
   UserPlus,
   Users,
   Zap,
+  Megaphone,
 } from 'lucide-react'
 import type { NavDef, NavSection, RoleKey, Screen } from './types'
 
@@ -82,6 +83,7 @@ export const TITLES: Record<Screen, [string, string]> = {
   ventas: ['Ventas', 'Resumen de ventas registradas por cuenta'],
   roles: ['Roles y permisos', 'Administra roles, sus permisos y los roles de cada usuario'],
   partnership: ['Partnership', 'Administra CORS, llaves SSO y bitácora de logins'],
+  marketing: ['Marketing & Difusión', 'Envío masivo de notificaciones Push'],
 }
 
 const GUEST_NAV: NavDef[] = [
@@ -242,6 +244,12 @@ const PARTNERSHIP_ITEM: NavDef = {
   Icon: KeyRound,
   hint: 'CORS, llaves SSO y logins',
 }
+const MARKETING_ITEM: NavDef = {
+  id: 'marketing',
+  label: 'Marketing / Difusión',
+  Icon: Megaphone,
+  hint: 'Notificaciones masivas',
+}
 
 export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
   guest: GUEST_NAV,
@@ -250,6 +258,7 @@ export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
   // Perfil administrativo / superusuario: administración de roles y padrones.
   developer: [
     DASHBOARD_ITEM,
+    MARKETING_ITEM,
     USUARIOS_ITEM,
     CONTRIBUYENTES_ITEM,
     CLIENTES_ITEM,
@@ -267,6 +276,7 @@ export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
   ],
   'atencion-clientes': [
     DASHBOARD_ITEM,
+    MARKETING_ITEM,
     USUARIOS_ITEM,
     OPERACIONES_ITEM,
     RENOVACIONES_ITEM,
@@ -361,6 +371,8 @@ export function normalizeRole(raw: string | null | undefined): RoleKey {
       return 'seller'
     case 'atencion a clientes':
     case 'atencion clientes':
+    case 'service customer':
+    case 'service customers':
     case 'sac':
       return 'atencion-clientes'
     case 'accounter':

@@ -225,6 +225,16 @@ export const API_ROUTES = {
     ACTIVE_PLAN: (rfc: string) =>
       `/active-plan?rfc=${encodeURIComponent(rfc)}`,
   },
+  TIMBRAME: {
+    /** apiType "timbrame" · GET. Token SSO para portal de facturación. */
+    PORTAL_ACCESS: "/portal-access",
+  },
+  MARKETING: {
+    BROADCAST_PUSH: "/broadcast-push",
+  },
+  PUSH_TOKENS: {
+    REGISTER: "/register",
+  },
   GEORGE: {
     REGISTER_COMPANY: "/george/register-company",
     COMPANY: "/george/company",

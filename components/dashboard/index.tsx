@@ -1,14 +1,15 @@
-'use client'
+'use client';
 
-import { useState, useTransition, useEffect } from 'react'
-import { Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
-import { signOut } from '@/features/auth/actions'
-import { RfcProvider, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
-import SatConnectScreen from '@/components/sat-connect-screen'
-import { DashboardHeader } from './header'
-import { DISPLAY, TITLES, normalizeRole } from './constants'
-import { Sidebar } from './sidebar'
-import type { DashboardProps, Screen } from './types'
+import { useState, useTransition, useEffect } from 'react';
+import { Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { signOut } from '@/features/auth/actions';
+import { RfcProvider, useRfcStore } from '@/features/taxpayers/stores/rfcStore';
+import SatConnectScreen from '@/components/sat-connect-screen';
+import { DashboardHeader } from './header';
+import { PushNotificationPrompt } from './PushNotificationPrompt';
+import { DISPLAY, TITLES, normalizeRole } from './constants';
+import { Sidebar } from './sidebar';
+import type { DashboardProps, Screen } from './types';
 import {
   AprendeScreen,
   AyudaScreen,
@@ -23,6 +24,7 @@ import {
   GeorgeScreen,
   HomeScreen,
   ManualScreen,
+  MarketingScreen,
   MisClientesScreen,
   NotificacionesScreen,
   OperacionesScreen,
@@ -39,7 +41,7 @@ import {
   UsuariosScreen,
   VentasScreen,
   VistaFiscalScreen,
-} from './screens'
+} from './screens';
 
 // Pantallas de tablas/listados densos que aprovechan todo el ancho disponible.
 // El resto se mantiene en max-w-[1280px] para lectura cómoda.
@@ -66,83 +68,82 @@ const WIDE_SCREENS = new Set<Screen>([
   'manual',
   'ayuda',
   'partnership',
-])
+]);
 
 export default function Dashboard({ fullName, email, rfc, role, permissions, userId, phoneNumber }: DashboardProps) {
-  const [screen, setScreen] = useState<Screen>('home')
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [autoOpenPlanPicker, setAutoOpenPlanPicker] = useState(false)
-  const [signingOut, startSignOut] = useTransition()
-  const isClient = normalizeRole(role) === 'guest'
+  const [screen, setScreen] = useState<Screen>('home');
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [autoOpenPlanPicker, setAutoOpenPlanPicker] = useState(false);
+  const [signingOut, startSignOut] = useTransition();
+  const isClient = normalizeRole(role) === 'guest';
 
   // Cargar pantalla guardada al montar
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const savedScreen = localStorage.getItem('dashboard-screen')
+      const savedScreen = localStorage.getItem('dashboard-screen');
       if (savedScreen) {
-        setScreen(savedScreen as Screen)
+        setScreen(savedScreen as Screen);
       }
     }
-  }, [])
+  }, []);
 
   // Guardar pantalla actual en localStorage
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('dashboard-screen', screen)
+      localStorage.setItem('dashboard-screen', screen);
     }
-  }, [screen])
+  }, [screen]);
 
   const initials =
     (fullName || email)
       .split(' ')
       .slice(0, 2)
-      .map(w => w[0]?.toUpperCase())
-      .join('') || 'U'
-  const firstName = fullName.split(' ')[0] || 'Usuario'
+      .map((w) => w[0]?.toUpperCase())
+      .join('') || 'U';
+  const firstName = fullName.split(' ')[0] || 'Usuario';
 
   const go = (s: Screen) => {
-    setScreen(s)
-    setMobileOpen(false)
-    if (typeof window !== 'undefined') window.scrollTo(0, 0)
-  }
+    setScreen(s);
+    setMobileOpen(false);
+    if (typeof window !== 'undefined') window.scrollTo(0, 0);
+  };
   const handleLogout = () => {
     startSignOut(() => {
-      signOut()
-    })
-  }
+      signOut();
+    });
+  };
   // Desde Trámites: manda a "Mi plan" y deja que la pantalla abra el modal de pago.
   const goToPlanPicker = () => {
-    setAutoOpenPlanPicker(true)
-    go('plan')
-  }
+    setAutoOpenPlanPicker(true);
+    go('plan');
+  };
 
   return (
     <RfcProvider>
       <div
         className={`grid min-h-screen transition-all duration-300 ${sidebarCollapsed ? 'lg:grid-cols-[80px_1fr]' : 'lg:grid-cols-[260px_1fr]'}`}
-        style={{ background: 'var(--background)', color: 'var(--foreground)' }}
-      >
-          <Sidebar
-            screen={screen}
-            mobileOpen={mobileOpen}
-            onClose={() => setMobileOpen(false)}
-            go={go}
-            initials={initials}
-            firstName={firstName}
-            onLogout={handleLogout}
-            signingOut={signingOut}
-            role={role}
-            collapsed={sidebarCollapsed}
-            onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-          />
+        style={{ background: 'var(--background)', color: 'var(--foreground)' }}>
+        <Sidebar
+          screen={screen}
+          mobileOpen={mobileOpen}
+          onClose={() => setMobileOpen(false)}
+          go={go}
+          initials={initials}
+          firstName={firstName}
+          onLogout={handleLogout}
+          signingOut={signingOut}
+          role={role}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        />
 
         {/* Botón de colapso flotante */}
         <button
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
           aria-label={sidebarCollapsed ? 'Expandir menú' : 'Contraer menú'}
           title={sidebarCollapsed ? 'Expandir menú' : 'Contraer menú'}
-          className="hidden lg:flex fixed top-6 z-[85] items-center justify-center rounded-lg transition-all duration-300 hover:opacity-80"
+          className='hidden lg:flex fixed top-6 z-[85] items-center justify-center rounded-lg transition-all duration-300 hover:opacity-80'
           style={{
             width: '32px',
             height: '32px',
@@ -152,55 +153,49 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
             left: sidebarCollapsed ? 'calc(80px - 16px)' : 'calc(260px - 16px)',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(37, 99, 235, 0.15)'
-            e.currentTarget.style.borderColor = 'rgba(37, 99, 235, 0.3)'
+            e.currentTarget.style.background = 'rgba(37, 99, 235, 0.15)';
+            e.currentTarget.style.borderColor = 'rgba(37, 99, 235, 0.3)';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(37, 99, 235, 0.1)'
-            e.currentTarget.style.borderColor = 'rgba(37, 99, 235, 0.2)'
-          }}
-        >
-          {sidebarCollapsed ? (
-            <PanelLeftOpen size={16} />
-          ) : (
-            <PanelLeftClose size={16} />
-          )}
+            e.currentTarget.style.background = 'rgba(37, 99, 235, 0.1)';
+            e.currentTarget.style.borderColor = 'rgba(37, 99, 235, 0.2)';
+          }}>
+          {sidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
         </button>
 
-        <main
-          className={`min-w-0 px-5 py-6 lg:px-10 lg:py-7 pb-20 ${WIDE_SCREENS.has(screen) ? 'w-full' : 'max-w-[1280px]'
-            }`}
-        >
-          <div className="flex items-center justify-between gap-4 mb-7">
-            <div className="flex items-center gap-3 flex-1">
+        <main className={`min-w-0 px-5 py-6 lg:px-10 lg:py-7 pb-20 ${WIDE_SCREENS.has(screen) ? 'w-full' : 'max-w-[1280px]'}`}>
+          <div className='flex items-center justify-between gap-4 mb-7'>
+            <div className='flex items-center gap-3 flex-1'>
               <button
                 onClick={() => setMobileOpen(true)}
-                aria-label="Abrir menú"
-                className="lg:hidden w-10 h-10 rounded-full flex items-center justify-center"
-                style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
-              >
+                aria-label='Abrir menú'
+                className='lg:hidden w-10 h-10 rounded-full flex items-center justify-center'
+                style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
                 <Menu size={18} />
               </button>
               <div>
                 <div
-                  className="text-[26px] lg:text-[32px] font-extrabold tracking-tight leading-tight"
-                  style={{ ...DISPLAY, color: 'var(--ink-900)' }}
-                >
-                  {screen === 'home' ? `Hola, ${firstName} 👋` : TITLES[screen][0]}
+                  className='text-[26px] lg:text-[32px] font-extrabold tracking-tight leading-tight'
+                  style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
+                  {screen === 'home' ? `Hola, ${firstName} 👋` : (TITLES[screen]?.[0] ?? '')}
                 </div>
-                <div className="text-[14px] font-semibold mt-1" style={{ color: 'var(--ink-500)' }}>
-                  {TITLES[screen][1]}
+                <div
+                  className='text-[14px] font-semibold mt-1'
+                  style={{ color: 'var(--ink-500)' }}>
+                  {TITLES[screen]?.[1] ?? ''}
                 </div>
               </div>
             </div>
             {/* Selector de RFC y alta de RFC: solo para el cliente. Los roles
                 operativos no operan sobre un RFC propio. */}
             {isClient && (
-              <div className="hidden lg:flex">
+              <div className='hidden lg:flex'>
                 <DashboardHeader go={go} />
               </div>
             )}
           </div>
+
+          <PushNotificationPrompt userId={userId} />
 
           <ScreenRouter
             screen={screen}
@@ -223,53 +218,36 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
         </main>
       </div>
     </RfcProvider>
-  )
+  );
 }
 
 interface RouterProps {
-  screen: Screen
-  go: (s: Screen) => void
-  rfc: string | null
-  fullName: string
-  email: string
-  firstName: string
-  initials: string
-  onLogout: () => void
-  signingOut: boolean
-  role: string | null
-  permissions: string[]
-  userId?: string | null
-  phoneNumber?: string | null
-  autoOpenPlanPicker: boolean
-  onPlanPickerHandled: () => void
-  goToPlanPicker: () => void
+  screen: Screen;
+  go: (s: Screen) => void;
+  rfc: string | null;
+  fullName: string;
+  email: string;
+  firstName: string;
+  initials: string;
+  onLogout: () => void;
+  signingOut: boolean;
+  role: string | null;
+  permissions: string[];
+  userId?: string | null;
+  phoneNumber?: string | null;
+  autoOpenPlanPicker: boolean;
+  onPlanPickerHandled: () => void;
+  goToPlanPicker: () => void;
 }
 
-function ScreenRouter({
-  screen,
-  go,
-  rfc,
-  fullName,
-  email,
-  firstName,
-  initials,
-  onLogout,
-  signingOut,
-  role,
-  permissions,
-  userId,
-  phoneNumber,
-  autoOpenPlanPicker,
-  onPlanPickerHandled,
-  goToPlanPicker,
-}: RouterProps) {
-  const roleKey = normalizeRole(role)
-  const isGuest = roleKey === 'guest'
-  const { rfcs, selectedRfc } = useRfcStore()
+function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, onLogout, signingOut, role, permissions, userId, phoneNumber, autoOpenPlanPicker, onPlanPickerHandled, goToPlanPicker }: RouterProps) {
+  const roleKey = normalizeRole(role);
+  const isGuest = roleKey === 'guest';
+  const { rfcs, selectedRfc } = useRfcStore();
 
   // Pantallas compartidas por todos los roles
   if (screen === 'cuenta') {
-    const ciecState = rfcs.find(r => r.rfc === selectedRfc)?.ciecState
+    const ciecState = rfcs.find((r) => r.rfc === selectedRfc)?.ciecState;
     return (
       <CuentaScreen
         fullName={fullName}
@@ -284,13 +262,18 @@ function ScreenRouter({
         isClient={isGuest}
         go={go}
       />
-    )
+    );
   }
   if (screen === 'permisos') {
-    return <PermisosScreen initialPermissions={permissions} role={role} />
+    return (
+      <PermisosScreen
+        initialPermissions={permissions}
+        role={role}
+      />
+    );
   }
   if (screen === 'estatus-sat') {
-    return <SatConnectScreen go={go} />
+    return <SatConnectScreen go={go} />;
   }
 
   // Para roles operativos, todo es placeholder por ahora (Dashboard incluido).
@@ -298,10 +281,10 @@ function ScreenRouter({
     if (screen === 'home') {
       return (
         <PlaceholderScreen
-          title="Dashboard"
-          description="Aquí verás tus indicadores y accesos directos según tu rol."
+          title='Dashboard'
+          description='Aquí verás tus indicadores y accesos directos según tu rol.'
         />
-      )
+      );
     }
     if (screen === 'operaciones') {
       return <OperacionesScreen currentUser={{ userId: userId ?? '', fullName }} />
@@ -313,58 +296,71 @@ function ScreenRouter({
       return <RenovacionesScreen />
     }
     if (screen === 'tramites-adicionales') {
-      return <TramitesAdicionalesScreen go={go} />
+      return <TramitesAdicionalesScreen go={go} />;
     }
     if (screen === 'mis-clientes') {
-      return <MisClientesScreen />
+      return <MisClientesScreen />;
     }
     if (screen === 'clientes') {
-      return <ClientesScreen permissions={permissions} />
+      return <ClientesScreen permissions={permissions} />;
     }
     if (screen === 'contribuyentes') {
-      return <ContribuyentesScreen />
+      return <ContribuyentesScreen />;
     }
     if (screen === 'usuarios') {
-      return <UsuariosScreen />
+      return <UsuariosScreen />;
     }
     if (screen === 'ventas') {
-      return <VentasScreen />
+      return <VentasScreen />;
     }
     if (screen === 'roles') {
-      return <RolesScreen currentUserId={userId ?? undefined} />
+      return <RolesScreen currentUserId={userId ?? undefined} />;
     }
     if (screen === 'partnership') {
-      return <PartnershipScreen />
+      return <PartnershipScreen />;
+    }
+    if (screen === 'marketing') {
+      return <MarketingScreen />;
     }
     if (screen === 'notificaciones') {
-      return <NotificacionesScreen />
+      return <NotificacionesScreen />;
     }
-    const [title, hint] = TITLES[screen] ?? ['Próximamente', '']
-    return <PlaceholderScreen title={title} description={hint || undefined} />
+    const [title, hint] = TITLES[screen] ?? ['Próximamente', ''];
+    return (
+      <PlaceholderScreen
+        title={title}
+        description={hint || undefined}
+      />
+    );
   }
 
   // Flujo Guest existente
   switch (screen) {
     case 'home':
-      return <HomeScreen go={go} firstName={firstName} />
+      return (
+        <HomeScreen
+          go={go}
+          firstName={firstName}
+        />
+      );
     case 'vista-fiscal':
-      return <VistaFiscalScreen go={go} firstName={firstName} />
+      return <VistaFiscalScreen go={go} firstName={firstName} />;
     case 'declaraciones':
       return <DeclaracionesScreen go={go} currentUser={{ userId: userId ?? '', fullName }} />
     case 'facturas':
-      return <FacturasScreen go={go} />
+      return <FacturasScreen go={go} />;
     case 'george':
-      return <GeorgeScreen go={go} />
+      return <GeorgeScreen go={go} />;
     case 'documentos':
-      return <DocumentosScreen go={go} />
+      return <DocumentosScreen go={go} />;
     case 'diagnostico':
-      return <DiagnosticoScreen go={go} />
+      return <DiagnosticoScreen go={go} />;
     case 'estatussat':
-      return <EstatusSatScreen go={go} />
+      return <EstatusSatScreen go={go} />;
     case 'tip-detail':
-      return <TipDetailScreen go={go} />
+      return <TipDetailScreen go={go} />;
     case 'tramites':
-      return <TramitesScreen onContratar={goToPlanPicker} go={go} />
+      return <TramitesScreen onContratar={goToPlanPicker} go={go} />;
     case 'plan':
       return (
         <PlanScreen
@@ -372,12 +368,12 @@ function ScreenRouter({
           autoOpenPicker={autoOpenPlanPicker}
           onAutoOpenHandled={onPlanPickerHandled}
         />
-      )
+      );
     case 'ayuda':
-      return <AyudaScreen />
+      return <AyudaScreen />;
     case 'manual':
-      return <ManualScreen go={go} />
+      return <ManualScreen go={go} />;
     default:
-      return null
+      return null;
   }
 }
