@@ -39,14 +39,20 @@ function statusStyle(code: string): { label: string; bg: string; color: string }
   }
 }
 
+interface CurrentUser {
+  userId: string
+  fullName: string
+}
+
 interface Props {
   kind: DeclarationKind
   help: string
   searchPlaceholder?: string
   emptyText?: string
+  currentUser: CurrentUser
 }
 
-export function PaidPendingList({ kind, help, searchPlaceholder, emptyText }: Props) {
+export function PaidPendingList({ kind, help, searchPlaceholder, emptyText, currentUser }: Props) {
   const [rows, setRows] = useState<PaidPendingDeclaration[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -84,7 +90,14 @@ export function PaidPendingList({ kind, help, searchPlaceholder, emptyText }: Pr
 
   // Vista detalle — se abre al pulsar "Ver".
   if (selected) {
-    return <DeclarationDetail declaration={selected} onBack={() => setSelected(null)} />
+    return (
+      <DeclarationDetail
+        declaration={selected}
+        onBack={() => setSelected(null)}
+        viewerRole="contador"
+        currentUser={currentUser}
+      />
+    )
   }
 
   return (

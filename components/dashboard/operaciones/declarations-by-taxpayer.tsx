@@ -517,12 +517,24 @@ function DeclarationsTable({
 /*  Orquestador de los tres pasos                                              */
 /* -------------------------------------------------------------------------- */
 
-export function DeclarationsByTaxpayer() {
+interface CurrentUser {
+  userId: string
+  fullName: string
+}
+
+export function DeclarationsByTaxpayer({ currentUser }: { currentUser: CurrentUser }) {
   const [selection, setSelection] = useState<Selection | null>(null)
   const [subject, setSubject] = useState<DeclarationSubject | null>(null)
 
   if (subject) {
-    return <DeclarationDetail declaration={subject} onBack={() => setSubject(null)} />
+    return (
+      <DeclarationDetail
+        declaration={subject}
+        onBack={() => setSubject(null)}
+        viewerRole="contador"
+        currentUser={currentUser}
+      />
+    )
   }
 
   if (selection) {

@@ -304,10 +304,10 @@ function ScreenRouter({
       )
     }
     if (screen === 'operaciones') {
-      return <OperacionesScreen />
+      return <OperacionesScreen currentUser={{ userId: userId ?? '', fullName }} />
     }
     if (screen === 'regularizaciones') {
-      return <RegularizacionesScreen />
+      return <RegularizacionesScreen currentUser={{ userId: userId ?? '', fullName }} />
     }
     if (screen === 'renovaciones') {
       return <RenovacionesScreen />
@@ -350,7 +350,7 @@ function ScreenRouter({
     case 'vista-fiscal':
       return <VistaFiscalScreen go={go} firstName={firstName} />
     case 'declaraciones':
-      return <DeclaracionesScreen go={go} />
+      return <DeclaracionesScreen go={go} currentUser={{ userId: userId ?? '', fullName }} />
     case 'facturas':
       return <FacturasScreen go={go} />
     case 'george':

@@ -2,6 +2,11 @@
 
 import { DeclarationsByTaxpayer } from '../operaciones/declarations-by-taxpayer'
 
-export function OperacionesScreen() {
-  return <DeclarationsByTaxpayer />
+interface CurrentUser {
+  userId: string
+  fullName: string
+}
+
+export function OperacionesScreen({ currentUser }: { currentUser: CurrentUser }) {
+  return <DeclarationsByTaxpayer currentUser={currentUser} />
 }

@@ -169,6 +169,9 @@ export const API_ROUTES = {
     FUTURE_PLAN: (rfc: string) => `/future-plan?rfc=${encodeURIComponent(rfc)}`,
     ANNUALS: (rfc: string) => `/annuals?rfc=${encodeURIComponent(rfc)}`,
     ALL: (rfc: string) => `/all?rfc=${encodeURIComponent(rfc)}`,
+    // Hilo de comentarios de una declaración — mismo declarationId, visible
+    // pa' contador (asignado o no) y contribuyente dueño.
+    COMMENTS: (declarationId: number) => `/${declarationId}/comments`,
   },
   VAULT: {
     ISSUED_COUNT: (rfc: string, email: string) =>

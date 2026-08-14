@@ -14,6 +14,7 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { DeclarationComments } from '@/components/dashboard/declaraciones/declaration-comments'
 import { getDeclarationGeneral } from '@/features/operations/actions/getDeclarationGeneral.action'
 import type { DeclarationGeneral, DeclarationSubject } from '@/features/operations/types'
 import { CalculosTab } from './calculos-tab'
@@ -29,7 +30,8 @@ import { Card } from '../ui'
 const money = (n: number) =>
   n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2 })
 
-const TAB_ITEMS = ['Comprobantes', 'Cálculos', 'Clasificación', 'Reporte Cliente'] as const
+const TAB_ITEMS = ['Comprobantes', 'Cálculos', 'Clasificación', 'Reporte Cliente', 'Comentarios'] as const
+const COMMENTS_TAB_INDEX = TAB_ITEMS.length - 1
 
 // Datos dummy — el EP /general aún no entrega datos; reconectar cuando esté listo.
 const DUMMY = {
@@ -39,12 +41,21 @@ const DUMMY = {
   ivaPorPagar: 2880,
 }
 
+interface CurrentUser {
+  userId: string
+  fullName: string
+}
+
 interface Props {
   declaration: DeclarationSubject
   onBack: () => void
+  /** 'contribuyente' = solo lectura (dueño de la declaración), sin acciones de contador. */
+  viewerRole: 'contador' | 'contribuyente'
+  currentUser: CurrentUser
 }
 
-export function DeclarationDetail({ declaration: d, onBack }: Props) {
+export function DeclarationDetail({ declaration: d, onBack, viewerRole, currentUser }: Props) {
+  const readOnly = viewerRole === 'contribuyente'
   const [tab, setTab] = useState(0)
   const [general, setGeneral] = useState<DeclarationGeneral | null>(null)
 
@@ -99,9 +110,20 @@ export function DeclarationDetail({ declaration: d, onBack }: Props) {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <HeaderBtn icon={<Download size={15} />} label="Exportar PDF" kind="ghost" />
-          <HeaderBtn icon={<Send size={15} />} label="Enviar Predeclaración" kind="info" />
-          <HeaderBtn icon={<Send size={15} />} label="Presentar Declaración" kind="brand" />
+          {readOnly ? (
+            <HeaderBtn
+              icon={<MessageSquarePlus size={15} />}
+              label="Dejar comentario"
+              kind="brand"
+              onClick={() => setTab(COMMENTS_TAB_INDEX)}
+            />
+          ) : (
+            <>
+              <HeaderBtn icon={<Download size={15} />} label="Exportar PDF" kind="ghost" />
+              <HeaderBtn icon={<Send size={15} />} label="Enviar Predeclaración" kind="info" />
+              <HeaderBtn icon={<Send size={15} />} label="Presentar Declaración" kind="brand" />
+            </>
+          )}
         </div>
       </div>
 
@@ -136,7 +158,7 @@ export function DeclarationDetail({ declaration: d, onBack }: Props) {
 
       {/* Tab content */}
       {tab === 0 && <ComprobantesTab declarationId={d.declarationId} periodo={`${periodo} ${ejercicio}`} />}
-      {tab === 1 && <CalculosTab declarationId={d.declarationId} />}
+      {tab === 1 && <CalculosTab declarationId={d.declarationId} readOnly={readOnly} />}
       {tab === 2 && (
         <ClasificacionTab
           declarationId={d.declarationId}
@@ -152,7 +174,11 @@ export function DeclarationDetail({ declaration: d, onBack }: Props) {
           general={general}
           periodo={periodo}
           fiscalYear={ejercicio}
+          onGoToComments={() => setTab(COMMENTS_TAB_INDEX)}
         />
+      )}
+      {tab === COMMENTS_TAB_INDEX && (
+        <DeclarationComments declarationId={d.declarationId} currentUser={currentUser} />
       )}
     </div>
   )
@@ -186,10 +212,12 @@ function HeaderBtn({
   icon,
   label,
   kind,
+  onClick,
 }: {
   icon: React.ReactNode
   label: string
   kind: 'ghost' | 'info' | 'brand'
+  onClick?: () => void
 }) {
   const styles: Record<typeof kind, React.CSSProperties> = {
     ghost: { background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' },
@@ -198,6 +226,7 @@ function HeaderBtn({
   }
   return (
     <button
+      onClick={onClick}
       className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition hover:opacity-95 active:scale-[0.98]"
       style={styles[kind]}
     >
@@ -268,7 +297,14 @@ function ClasificacionTab({ declarationId, general, periodo, fiscalYear }: Resum
 /*  Tab: Reporte Cliente                                                      */
 /* -------------------------------------------------------------------------- */
 
-function ReporteClienteTab({ d, declarationId, general, periodo, fiscalYear }: ResumenProps & { d: DeclarationSubject }) {
+function ReporteClienteTab({
+  d,
+  declarationId,
+  general,
+  periodo,
+  fiscalYear,
+  onGoToComments,
+}: ResumenProps & { d: DeclarationSubject; onGoToComments: () => void }) {
   const initials =
     d.legalName
       .split(' ')
@@ -316,7 +352,11 @@ function ReporteClienteTab({ d, declarationId, general, periodo, fiscalYear }: R
           <button className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12.5px] font-bold" style={{ background: 'linear-gradient(135deg,#10DA92 0%,#00B073 100%)', color: '#fff' }}>
             <Mail size={15} /> Enviar por Email
           </button>
-          <button className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12.5px] font-bold" style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}>
+          <button
+            onClick={onGoToComments}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12.5px] font-bold"
+            style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+          >
             <MessageSquarePlus size={15} /> Agregar Comentario
           </button>
         </div>
