@@ -6,6 +6,7 @@ import {
   ChevronRight,
   DollarSign,
   Download,
+  Loader2,
   Mail,
   MessageSquarePlus,
   Search,
@@ -47,12 +48,17 @@ interface Props {
 export function DeclarationDetail({ declaration: d, onBack }: Props) {
   const [tab, setTab] = useState(0)
   const [general, setGeneral] = useState<DeclarationGeneral | null>(null)
+  const [generalError, setGeneralError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
+    setGeneral(null)
+    setGeneralError(null)
     void (async () => {
       const res = await getDeclarationGeneral(d.declarationId)
-      if (!cancelled && res.success) setGeneral(res.value)
+      if (cancelled) return
+      if (res.success) setGeneral(res.value)
+      else setGeneralError(res.error.message)
     })()
     return () => {
       cancelled = true
@@ -64,6 +70,44 @@ export function DeclarationDetail({ declaration: d, onBack }: Props) {
   const ejercicio = general?.fiscalYear ?? d.fiscalYear
   const periodo = general?.periodo ?? d.periodo
   const periodicidad = general?.periodicity ?? null
+  // Con un link directo (`?decl=`) no hubo listado previo: el nombre y el RFC
+  // salen de /general.
+  const legalName = general?.legalName || d.legalName
+  const rfc = general?.rfc || d.rfc
+
+  // Entrada por URL directa: sin el listado detrás no hay nada que pintar hasta
+  // que /general responda (las tabs necesitan ejercicio y periodo reales).
+  const bootstrapping = !general && !d.legalName
+
+  if (bootstrapping) {
+    return (
+      <div className="flex flex-col gap-5 max-w-full">
+        <button
+          onClick={onBack}
+          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-[13px] font-bold self-start transition hover:opacity-90"
+          style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+        >
+          <ArrowLeft size={16} /> Volver
+        </button>
+        <Card>
+          <div className="py-14 flex flex-col items-center justify-center gap-2 text-center px-5">
+            {generalError ? (
+              <>
+                <div className="text-[14px] font-bold" style={{ color: 'var(--ink-900)' }}>
+                  No pudimos abrir la declaración
+                </div>
+                <div className="text-[13px]" style={{ color: 'var(--ink-500)' }}>{generalError}</div>
+              </>
+            ) : (
+              <div className="flex items-center gap-2 text-[13.5px]" style={{ color: 'var(--ink-500)' }}>
+                <Loader2 size={18} className="animate-spin" /> Cargando declaración…
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
+    )
+  }
   const regimen = general?.regimeName
     ? `${general.regimeSatCode ?? ''} ${general.regimeName}`.trim()
     : null
@@ -85,10 +129,10 @@ export function DeclarationDetail({ declaration: d, onBack }: Props) {
               className="text-[24px] lg:text-[28px] font-extrabold tracking-tight leading-tight"
               style={{ ...DISPLAY, color: 'var(--ink-900)' }}
             >
-              Declaración — {d.legalName}
+              Declaración — {legalName}
             </h2>
             <div className="text-[13px] font-semibold mt-0.5" style={{ color: 'var(--ink-500)' }}>
-              <code style={MONO}>{d.rfc}</code> • {periodo} {ejercicio}
+              <code style={MONO}>{rfc}</code> • {periodo} {ejercicio}
               {periodicidad ? ` • ${periodicidad}` : ''}
             </div>
             <div className="flex items-center gap-2 mt-2 flex-wrap">

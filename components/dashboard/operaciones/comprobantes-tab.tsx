@@ -1,6 +1,6 @@
 'use client'
 
-import { AlertCircle, Loader2, Search } from 'lucide-react'
+import { AlertCircle, Check, Copy, Loader2, Search } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { getDeclarationInvoices } from '@/features/operations/actions/getDeclarationInvoices.action'
 import type { DeclarationInvoice, Paged } from '@/features/operations/types'
@@ -92,6 +92,64 @@ function Chip({
     >
       {children}
     </span>
+  )
+}
+
+/** El UUID va completo (es el dato con el que se busca en el SAT) y se copia al hacer click. */
+function FolioCell({ inv }: { inv: DeclarationInvoice }) {
+  const [copied, setCopied] = useState(false)
+  const folio = [inv.serie, inv.folio].filter(Boolean).join('-')
+
+  useEffect(() => {
+    if (!copied) return
+    const t = setTimeout(() => setCopied(false), 1600)
+    return () => clearTimeout(t)
+  }, [copied])
+
+  const copy = async () => {
+    if (!inv.uuid) return
+    try {
+      await navigator.clipboard.writeText(inv.uuid)
+      setCopied(true)
+    } catch {
+      /* clipboard bloqueado (http o permisos): el UUID igual se ve completo */
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1 min-w-[176px]">
+      <span className="font-semibold" style={{ color: 'var(--ink-900)' }}>
+        {folio || 'Sin folio'}
+      </span>
+      {inv.uuid ? (
+        <button
+          type="button"
+          onClick={copy}
+          title={copied ? 'UUID copiado' : 'Copiar UUID'}
+          className="group flex items-start gap-1 -mx-1 px-1 py-0.5 rounded text-left transition-colors hover:bg-[var(--ink-50)]"
+        >
+          <code
+            className="text-[10.5px] leading-[1.45] break-all uppercase"
+            style={{ ...MONO, color: 'var(--ink-500)' }}
+          >
+            {inv.uuid}
+          </code>
+          {copied ? (
+            <Check size={11} className="shrink-0 mt-[2px]" style={{ color: 'var(--brand-700)' }} />
+          ) : (
+            <Copy
+              size={11}
+              className="shrink-0 mt-[2px] opacity-0 transition-opacity group-hover:opacity-100"
+              style={{ color: 'var(--ink-500)' }}
+            />
+          )}
+        </button>
+      ) : (
+        <span className="text-[10.5px]" style={{ color: 'var(--ink-500)' }}>
+          Sin UUID
+        </span>
+      )}
+    </div>
   )
 }
 
@@ -331,7 +389,7 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
               <table className="w-full text-[12.5px]">
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Fecha', 'Folio', 'Tipo', 'Comprobante', 'Emisor', 'Receptor', 'Subtotal', 'Total', 'Clasificación'].map((h) => (
+                    {['Fecha', 'Folio / UUID', 'Tipo', 'Comprobante', 'Emisor', 'Receptor', 'Subtotal', 'Total', 'Clasificación'].map((h) => (
                       <th
                         key={h}
                         className="px-3 py-2.5 text-left font-extrabold whitespace-nowrap"
@@ -355,11 +413,8 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
                             </div>
                           )}
                         </td>
-                        <td className="px-3 py-3 align-top" style={{ color: 'var(--ink-900)' }}>
-                          <div className="font-semibold">{[inv.serie, inv.folio].filter(Boolean).join('-') || '—'}</div>
-                          <div className="text-[10.5px] mt-0.5" style={{ ...MONO, color: 'var(--ink-500)' }}>
-                            {inv.uuid?.slice(0, 8)}…
-                          </div>
+                        <td className="px-3 py-3 align-top">
+                          <FolioCell inv={inv} />
                         </td>
                         <td className="px-3 py-3 align-top">
                           <Chip

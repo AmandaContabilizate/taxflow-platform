@@ -9,6 +9,7 @@ import type { TaxpayerListItem, TaxpayerRegimen } from '@/features/taxpayers/typ
 import { Pagination, TaxpayerFilters, usePagedList, useRegimenOptions } from '../clientes/parts'
 import { DISPLAY, MONO } from '../constants'
 import { Card, HelpBox } from '../ui'
+import { numParam, useUrlState } from '../url-state'
 import { DeclarationDetail } from './declaration-detail'
 
 /* -------------------------------------------------------------------------- */
@@ -272,13 +273,17 @@ function DeclarationsTable({
 }) {
   const { taxpayer, regimen } = selection
 
+  const { params, setParams } = useUrlState()
+
   const [page, setPage] = useState<Paged<DeclarationListItem>>({ items: [], total: 0, skip: 0, take: TAKE })
   const [skip, setSkip] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [periodValueId, setPeriodValueId] = useState<number | ''>('')
-  const [statusId, setStatusId] = useState<number | ''>('')
-  const [year, setYear] = useState<number | ''>('')
+
+  // Los filtros viven en la URL para que el refresh no los pierda.
+  const periodValueId = numParam(params, 'period') ?? ''
+  const statusId = numParam(params, 'status') ?? ''
+  const year = numParam(params, 'year') ?? ''
 
   // Los catálogos de estatus/ejercicio no tienen endpoint propio: se acumulan
   // con lo que va llegando para no perder la opción activa al filtrar.
@@ -329,9 +334,10 @@ function DeclarationsTable({
   )
   const yearOptions = useMemo(() => [...seenYears].sort((a, b) => b - a), [seenYears])
 
-  const resetTo = (fn: () => void) => {
+  // Cambiar un filtro invalida la paginación actual.
+  const setFilter = (patch: Record<string, string | null>) => {
     setSkip(0)
-    fn()
+    setParams(patch, { replace: true })
   }
 
   const selectStyle = {
@@ -366,7 +372,7 @@ function DeclarationsTable({
         <div className="p-4 flex items-center gap-2 flex-wrap">
           <select
             value={periodValueId}
-            onChange={(e) => resetTo(() => setPeriodValueId(e.target.value ? Number(e.target.value) : ''))}
+            onChange={(e) => setFilter({ period: e.target.value || null })}
             className="px-3 py-2 rounded-lg text-[12.5px] font-semibold"
             style={selectStyle}
           >
@@ -378,7 +384,7 @@ function DeclarationsTable({
 
           <select
             value={statusId}
-            onChange={(e) => resetTo(() => setStatusId(e.target.value ? Number(e.target.value) : ''))}
+            onChange={(e) => setFilter({ status: e.target.value || null })}
             className="px-3 py-2 rounded-lg text-[12.5px] font-semibold"
             style={selectStyle}
           >
@@ -390,7 +396,7 @@ function DeclarationsTable({
 
           <select
             value={year}
-            onChange={(e) => resetTo(() => setYear(e.target.value ? Number(e.target.value) : ''))}
+            onChange={(e) => setFilter({ year: e.target.value || null })}
             className="px-3 py-2 rounded-lg text-[12.5px] font-semibold"
             style={selectStyle}
           >
@@ -403,7 +409,7 @@ function DeclarationsTable({
           {(periodValueId || statusId || year) && (
             <button
               type="button"
-              onClick={() => resetTo(() => { setPeriodValueId(''); setStatusId(''); setYear('') })}
+              onClick={() => setFilter({ period: null, status: null, year: null })}
               className="px-3 py-2 rounded-lg text-[12.5px] font-bold"
               style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--ink-700)' }}
             >
@@ -517,32 +523,112 @@ function DeclarationsTable({
 /*  Orquestador de los tres pasos                                              */
 /* -------------------------------------------------------------------------- */
 
+/** Subject vacío para entradas por link directo; el detalle lo llena con /general. */
+const stubSubject = (declarationId: number, rfc: string | null): DeclarationSubject => ({
+  declarationId,
+  rfc: rfc ?? '',
+  legalName: '',
+  periodo: '',
+  fiscalYear: 0,
+  accountantName: null,
+})
+
 export function DeclarationsByTaxpayer() {
+  const { params, setParams } = useUrlState()
+  const rfcParam = params.get('rfc')
+  const regimeParam = numParam(params, 'regimen')
+  const declarationId = numParam(params, 'decl')
+
   const [selection, setSelection] = useState<Selection | null>(null)
   const [subject, setSubject] = useState<DeclarationSubject | null>(null)
+  const [restoreError, setRestoreError] = useState<string | null>(null)
 
-  if (subject) {
-    return <DeclarationDetail declaration={subject} onBack={() => setSubject(null)} />
+  // Reconstruye contribuyente + régimen cuando la URL los trae pero no hubo
+  // navegación previa (refresh, link compartido, botón atrás del navegador).
+  useEffect(() => {
+    if (!rfcParam || !regimeParam) {
+      setSelection(null)
+      setRestoreError(null)
+      return
+    }
+    if (selection?.taxpayer.rfc === rfcParam && selection.regimen.id === regimeParam) return
+
+    let cancelled = false
+    void (async () => {
+      const res = await getTaxpayers({ rfc: rfcParam, take: 20 })
+      if (cancelled) return
+      if (!res.success) {
+        setRestoreError(res.error.message)
+        return
+      }
+      const taxpayer = res.value.items.find((t) => t.rfc === rfcParam)
+      const regimen = taxpayer?.regimenes?.find((r) => r.id === regimeParam)
+      if (taxpayer && regimen) {
+        setSelection({ taxpayer, regimen })
+        setRestoreError(null)
+      } else {
+        setRestoreError('No encontramos ese contribuyente o régimen.')
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [rfcParam, regimeParam, selection])
+
+  const openTaxpayer = (s: Selection) => {
+    setSelection(s)
+    setParams({ rfc: s.taxpayer.rfc, regimen: s.regimen.id, decl: null })
   }
 
-  if (selection) {
+  const openDeclaration = (d: DeclarationListItem) => {
+    setSubject({
+      declarationId: d.id,
+      rfc: d.rfc,
+      legalName: selection?.taxpayer.legalName ?? '',
+      periodo: `${periodLabel(d.periodValueId)} ${d.fiscalYear}`,
+      fiscalYear: d.fiscalYear,
+      accountantName: null,
+    })
+    setParams({ decl: d.id })
+  }
+
+  const backToTaxpayers = () =>
+    setParams({ rfc: null, regimen: null, decl: null, period: null, status: null, year: null })
+
+  if (declarationId) {
+    const current = subject?.declarationId === declarationId ? subject : stubSubject(declarationId, rfcParam)
+    return <DeclarationDetail declaration={current} onBack={() => setParams({ decl: null })} />
+  }
+
+  if (restoreError) {
     return (
-      <DeclarationsTable
-        selection={selection}
-        onBack={() => setSelection(null)}
-        onOpen={(d) =>
-          setSubject({
-            declarationId: d.id,
-            rfc: d.rfc,
-            legalName: selection.taxpayer.legalName,
-            periodo: `${periodLabel(d.periodValueId)} ${d.fiscalYear}`,
-            fiscalYear: d.fiscalYear,
-            accountantName: null,
-          })
-        }
-      />
+      <Card>
+        <div className="py-14 px-5 flex flex-col items-center justify-center gap-3 text-center">
+          <AlertCircle size={20} style={{ color: '#9E3A15' }} />
+          <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>{restoreError}</div>
+          <button
+            type="button"
+            onClick={backToTaxpayers}
+            className="px-3.5 py-2 rounded-xl text-[12.5px] font-bold"
+            style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}
+          >
+            Ver contribuyentes
+          </button>
+        </div>
+      </Card>
     )
   }
 
-  return <TaxpayerPicker onOpen={setSelection} />
+  if (rfcParam && regimeParam) {
+    if (!selection) {
+      return (
+        <div className="py-16 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
+          <Loader2 size={18} className="animate-spin" /> Cargando contribuyente…
+        </div>
+      )
+    }
+    return <DeclarationsTable selection={selection} onBack={backToTaxpayers} onOpen={openDeclaration} />
+  }
+
+  return <TaxpayerPicker onOpen={openTaxpayer} />
 }

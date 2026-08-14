@@ -1,15 +1,16 @@
 'use client';
 
-import { useState, useTransition, useEffect } from 'react';
-import { Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
-import { signOut } from '@/features/auth/actions';
-import { RfcProvider, useRfcStore } from '@/features/taxpayers/stores/rfcStore';
-import SatConnectScreen from '@/components/sat-connect-screen';
-import { DashboardHeader } from './header';
-import { PushNotificationPrompt } from './PushNotificationPrompt';
-import { DISPLAY, TITLES, normalizeRole } from './constants';
-import { Sidebar } from './sidebar';
-import type { DashboardProps, Screen } from './types';
+import { useState, useTransition, useEffect } from 'react'
+import { Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { signOut } from '@/features/auth/actions'
+import { RfcProvider, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
+import SatConnectScreen from '@/components/sat-connect-screen'
+import { DashboardHeader } from './header'
+import { PushNotificationPrompt } from './PushNotificationPrompt'
+import { DISPLAY, TITLES, normalizeRole } from './constants'
+import { Sidebar } from './sidebar'
+import type { DashboardProps, Screen } from './types'
+import { useUrlState } from './url-state'
 import {
   AprendeScreen,
   AyudaScreen,
@@ -70,30 +71,31 @@ const WIDE_SCREENS = new Set<Screen>([
   'partnership',
 ]);
 
+const isScreen = (v: string | null): v is Screen =>
+  !!v && Object.prototype.hasOwnProperty.call(TITLES, v)
+
 export default function Dashboard({ fullName, email, rfc, role, permissions, userId, phoneNumber }: DashboardProps) {
-  const [screen, setScreen] = useState<Screen>('home');
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [autoOpenPlanPicker, setAutoOpenPlanPicker] = useState(false);
-  const [signingOut, startSignOut] = useTransition();
-  const isClient = normalizeRole(role) === 'guest';
+  const { params, setParams } = useUrlState()
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [autoOpenPlanPicker, setAutoOpenPlanPicker] = useState(false)
+  const [signingOut, startSignOut] = useTransition()
+  const isClient = normalizeRole(role) === 'guest'
 
-  // Cargar pantalla guardada al montar
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedScreen = localStorage.getItem('dashboard-screen');
-      if (savedScreen) {
-        setScreen(savedScreen as Screen);
-      }
-    }
-  }, []);
+  // La URL manda. `localStorage` solo cubre la entrada limpia a /dashboard
+  // (sin query), para seguir cayendo en la última pantalla usada.
+  const fromUrl = params.get('s')
+  const screen: Screen = isScreen(fromUrl) ? fromUrl : 'home'
 
-  // Guardar pantalla actual en localStorage
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('dashboard-screen', screen);
-    }
-  }, [screen]);
+    if (isScreen(fromUrl)) return
+    const saved = localStorage.getItem('dashboard-screen')
+    if (isScreen(saved) && saved !== 'home') setParams({ s: saved }, { replace: true })
+  }, [fromUrl, setParams])
+
+  useEffect(() => {
+    localStorage.setItem('dashboard-screen', screen)
+  }, [screen])
 
   const initials =
     (fullName || email)
@@ -103,11 +105,13 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
       .join('') || 'U';
   const firstName = fullName.split(' ')[0] || 'Usuario';
 
+  // Cambiar de pantalla limpia el estado profundo de la anterior (contribuyente,
+  // declaración abierta, filtros); si no, quedan parámetros huérfanos en la URL.
   const go = (s: Screen) => {
-    setScreen(s);
-    setMobileOpen(false);
-    if (typeof window !== 'undefined') window.scrollTo(0, 0);
-  };
+    setParams({ s, rfc: null, regimen: null, decl: null, year: null, period: null, status: null })
+    setMobileOpen(false)
+    window.scrollTo(0, 0)
+  }
   const handleLogout = () => {
     startSignOut(() => {
       signOut();
