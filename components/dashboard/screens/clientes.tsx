@@ -6,25 +6,42 @@ import { getClientsWithPaidSales } from '@/features/taxpayers/actions/getClients
 import type { ClientListItem } from '@/features/taxpayers/types'
 import { MONO } from '../constants'
 import { Card, HelpBox } from '../ui'
-import { Pagination, RegimenesCell, SearchBar, usePagedList } from '../clientes/parts'
+import {
+  MinSalesFilter,
+  Pagination,
+  RegimenesCell,
+  SearchBar,
+  VentasPagadasCell,
+  usePagedList,
+} from '../clientes/parts'
 import { ReassignModal } from '../clientes/reassign-modal'
 
 const ASSIGN_PERMISSION = 'AssignAccountant'
+const DEFAULT_MIN_SALES = 2
 
 export function ClientesScreen({ permissions = [] }: { permissions?: string[] }) {
-  const list = usePagedList(getClientsWithPaidSales, 50)
+  const list = usePagedList(getClientsWithPaidSales, 50, DEFAULT_MIN_SALES)
   const canAssign = permissions.includes(ASSIGN_PERMISSION)
   const [target, setTarget] = useState<ClientListItem | null>(null)
 
   return (
     <div className="flex flex-col gap-5 max-w-full h-[calc(100dvh-8.5rem)]">
       <HelpBox>
-        Contribuyentes que ya tienen ventas pagadas. Aquí ves sus compras y los planes que contrataron.
+        Contribuyentes con ventas pagadas. Aquí ves cuántas veces ha pagado cada uno, sus compras y
+        los planes que contrataron. Con el filtro de ventas dejas fuera a los de una sola compra.
       </HelpBox>
 
       <Card className="shrink-0">
-        <div className="p-4">
-          <SearchBar value={list.rfc} onChange={list.setRfc} placeholder="Buscar por RFC…" />
+        <div className="p-4 flex flex-col sm:flex-row gap-3">
+          <div className="flex-1 min-w-0">
+            <SearchBar value={list.rfc} onChange={list.setRfc} placeholder="Buscar por RFC…" />
+          </div>
+          <MinSalesFilter
+            value={list.minSales}
+            onChange={list.setMinSales}
+            allLabel="Todos (1 venta o más)"
+            className="sm:w-[240px]"
+          />
         </div>
       </Card>
 
@@ -55,7 +72,7 @@ export function ClientesScreen({ permissions = [] }: { permissions?: string[] })
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Cliente', 'RFC', 'Regímenes', 'Compras', 'Planes', 'Contador'].map((h) => (
+                    {['Cliente', 'RFC', 'Regímenes', 'Ventas pagadas', 'Compras', 'Planes', 'Contador'].map((h) => (
                       <th
                         key={h}
                         className="px-5 py-3 text-left font-extrabold"
@@ -82,6 +99,9 @@ export function ClientesScreen({ permissions = [] }: { permissions?: string[] })
                       </td>
                       <td className="px-5 py-4">
                         <RegimenesCell regimenes={c.regimenes} />
+                      </td>
+                      <td className="px-5 py-4">
+                        <VentasPagadasCell ventas={c.ventasPagadas} />
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex flex-col gap-0.5 text-xs" style={{ color: 'var(--ink-700)' }}>

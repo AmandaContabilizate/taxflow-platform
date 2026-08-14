@@ -4,16 +4,26 @@ import { AlertCircle, Loader2 } from 'lucide-react'
 import { getTaxpayers } from '@/features/taxpayers/actions/getTaxpayers.action'
 import { MONO } from '../constants'
 import { Card, HelpBox } from '../ui'
-import { Pagination, RegimenesCell, TaxpayerFilters, usePagedList, useRegimenOptions } from '../clientes/parts'
+import {
+  Pagination,
+  RegimenesCell,
+  TaxpayerFilters,
+  VentasPagadasCell,
+  usePagedList,
+  useRegimenOptions,
+} from '../clientes/parts'
+
+const DEFAULT_MIN_SALES = 2
 
 export function ContribuyentesScreen() {
-  const list = usePagedList(getTaxpayers, 50)
+  const list = usePagedList(getTaxpayers, 50, DEFAULT_MIN_SALES)
   const regimenOptions = useRegimenOptions(list.items)
 
   return (
     <div className="flex flex-col gap-5 max-w-full h-[calc(100dvh-8.5rem)]">
       <HelpBox>
-        Padrón completo de contribuyentes. Filtra por RFC o por régimen fiscal y navega entre páginas.
+        Padrón de contribuyentes. Filtra por RFC, régimen fiscal o por número de ventas pagadas
+        (con 2+ ves solo a los que renovaron).
       </HelpBox>
 
       <Card className="shrink-0">
@@ -25,6 +35,9 @@ export function ContribuyentesScreen() {
             onRegimeChange={list.setRegimeId}
             regimenes={regimenOptions}
             placeholder="Buscar por RFC…"
+            minSales={list.minSales}
+            onMinSalesChange={list.setMinSales}
+            minSalesAllLabel="Todos (con o sin venta)"
           />
         </div>
       </Card>
@@ -56,7 +69,7 @@ export function ContribuyentesScreen() {
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Contribuyente', 'RFC', 'Correo', 'Regímenes'].map((h) => (
+                    {['Contribuyente', 'RFC', 'Correo', 'Regímenes', 'Ventas pagadas'].map((h) => (
                       <th
                         key={h}
                         className="px-5 py-3 text-left font-extrabold"
@@ -85,6 +98,9 @@ export function ContribuyentesScreen() {
                       </td>
                       <td className="px-5 py-4">
                         <RegimenesCell regimenes={t.regimenes} />
+                      </td>
+                      <td className="px-5 py-4">
+                        <VentasPagadasCell ventas={t.ventasPagadas} />
                       </td>
                     </tr>
                   ))}

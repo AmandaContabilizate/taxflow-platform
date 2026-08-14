@@ -6,7 +6,6 @@ import {
   ChevronRight,
   DollarSign,
   Download,
-  FileText,
   Mail,
   MessageSquarePlus,
   Search,
@@ -19,6 +18,7 @@ import { getDeclarationGeneral } from '@/features/operations/actions/getDeclarat
 import type { DeclarationGeneral, DeclarationSubject } from '@/features/operations/types'
 import { CalculosTab } from './calculos-tab'
 import { ComprobantesTab } from './comprobantes-tab'
+import { ResumenDeclaracion } from './resumen-declaracion'
 import { DISPLAY, MONO } from '../constants'
 import { Card } from '../ui'
 
@@ -137,8 +137,23 @@ export function DeclarationDetail({ declaration: d, onBack }: Props) {
       {/* Tab content */}
       {tab === 0 && <ComprobantesTab declarationId={d.declarationId} periodo={`${periodo} ${ejercicio}`} />}
       {tab === 1 && <CalculosTab declarationId={d.declarationId} />}
-      {tab === 2 && <ClasificacionTab />}
-      {tab === 3 && <ReporteClienteTab d={d} />}
+      {tab === 2 && (
+        <ClasificacionTab
+          declarationId={d.declarationId}
+          general={general}
+          periodo={periodo}
+          fiscalYear={ejercicio}
+        />
+      )}
+      {tab === 3 && (
+        <ReporteClienteTab
+          d={d}
+          declarationId={d.declarationId}
+          general={general}
+          periodo={periodo}
+          fiscalYear={ejercicio}
+        />
+      )}
     </div>
   )
 }
@@ -224,53 +239,28 @@ function StatCard({
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Tokens de color compartidos por Clasificación y Reporte Cliente            */
+/*  Props compartidas por Clasificación y Reporte Cliente                      */
 /* -------------------------------------------------------------------------- */
 
-type CellTone = 'red' | 'green' | 'blue' | 'violet' | 'amber' | 'neutral'
-
-const CELL_BG: Record<CellTone, string> = {
-  red: 'var(--coral-soft)',
-  green: 'var(--brand-50)',
-  blue: 'var(--sky-soft)',
-  violet: 'var(--violet-soft)',
-  amber: 'var(--amber-soft)',
-  neutral: 'var(--muted)',
+interface ResumenProps {
+  declarationId: number
+  general: DeclarationGeneral | null
+  periodo: string
+  fiscalYear: number
 }
-
 
 /* -------------------------------------------------------------------------- */
 /*  Tab: Clasificación                                                        */
 /* -------------------------------------------------------------------------- */
 
-function ClasificacionTab() {
+function ClasificacionTab({ declarationId, general, periodo, fiscalYear }: ResumenProps) {
   return (
-    <Card>
-      <div className="p-5 flex flex-col gap-5">
-        <div>
-          <h3 className="text-[17px] font-extrabold" style={{ color: 'var(--ink-900)' }}>Clasificación de Comprobantes</h3>
-          <p className="text-[13px] mt-0.5" style={{ color: 'var(--ink-500)' }}>Categorización de CFDIs por tipo y concepto</p>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="flex flex-col gap-3">
-            <h4 className="text-[15px] font-extrabold" style={{ color: 'var(--ink-900)' }}>Ingresos por Clasificación</h4>
-            <div className="flex items-center justify-between rounded-xl px-4 py-3" style={{ background: 'var(--brand-50)', border: '1px solid var(--brand-200)' }}>
-              <span className="text-[13.5px] font-semibold" style={{ color: 'var(--ink-900)' }}>Servicios Profesionales</span>
-              <span className="text-[15px] font-extrabold" style={{ color: 'var(--brand-700)' }}>{money(29000)}</span>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            <h4 className="text-[15px] font-extrabold" style={{ color: 'var(--ink-900)' }}>Gastos por Clasificación</h4>
-            <div className="flex items-center justify-between rounded-xl px-4 py-3" style={{ background: 'var(--coral-soft)', border: '1px solid var(--border)' }}>
-              <span className="text-[13.5px] font-semibold" style={{ color: 'var(--ink-900)' }}>Gastos Deducibles</span>
-              <span className="text-[15px] font-extrabold" style={{ color: 'var(--danger)' }}>{money(8120)}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Card>
+    <ResumenDeclaracion
+      declarationId={declarationId}
+      general={general}
+      periodo={periodo}
+      fiscalYear={fiscalYear}
+    />
   )
 }
 
@@ -278,7 +268,7 @@ function ClasificacionTab() {
 /*  Tab: Reporte Cliente                                                      */
 /* -------------------------------------------------------------------------- */
 
-function ReporteClienteTab({ d }: { d: DeclarationSubject }) {
+function ReporteClienteTab({ d, declarationId, general, periodo, fiscalYear }: ResumenProps & { d: DeclarationSubject }) {
   const initials =
     d.legalName
       .split(' ')
@@ -331,88 +321,13 @@ function ReporteClienteTab({ d }: { d: DeclarationSubject }) {
           </button>
         </div>
       </div>
-
-      {/* Resumen ejecutivo */}
-      <Card>
-        <div className="p-5 flex flex-col gap-4">
-          <div>
-            <h3 className="text-[16px] font-extrabold flex items-center gap-2" style={{ color: 'var(--sky)' }}>
-              <FileText size={17} /> Resumen Ejecutivo de su Declaración
-            </h3>
-            <p className="text-[13px] mt-1" style={{ color: 'var(--ink-500)' }}>
-              Estimado cliente, aquí encontrará un resumen claro de su situación fiscal para el período {d.periodo}
-            </p>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <ResumenCard value={money(29000)} label="Ingresos Totales" hint="Sus ingresos del periodo" tone="green" />
-            <ResumenCard value={money(8120)} label="Gastos Deducibles" hint="Gastos que reducen sus impuestos" tone="red" />
-            <ResumenCard value={money(2610)} label="ISR a Pagar" hint="Impuesto sobre la renta" tone="blue" />
-            <ResumenCard value={money(2880)} label="IVA a Pagar" hint="Impuesto al valor agregado" tone="violet" />
-          </div>
-        </div>
-      </Card>
-
-      {/* Cálculos detallados y recomendaciones */}
-      <Card>
-        <div className="p-5 flex flex-col gap-5">
-          <div>
-            <h3 className="text-[16px] font-extrabold" style={{ color: 'var(--ink-900)' }}>Cálculos Detallados y Recomendaciones</h3>
-            <p className="text-[13px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
-              Desglose completo de sus cálculos fiscales con recomendaciones de nuestros contadores expertos
-            </p>
-          </div>
-
-          <RecomBlock
-            tone="blue"
-            title="Enajenación y Prestación de Servicios"
-            subtitle="Ingresos por venta de bienes y servicios a través de plataformas"
-            cells={[
-              ['Ingresos por Intermediarios (Bienes)', money(0)],
-              ['Ingresos por Intermediarios (Servicios)', money(0)],
-              ['Ingresos Directos (Bienes)', money(0)],
-              ['Ingresos Directos (Servicios)', money(0)],
-              ['Total del Mes', money(29000)],
-              ['Tasa de ISR Aplicable', '1.25%'],
-              ['ISR Causado', money(261)],
-              ['Retenciones por Plataformas', money(0)],
-            ]}
-            recomendacion="Sus ingresos por plataformas tecnológicas están sujetos a una tasa preferencial del 1.25% de ISR. Le recomendamos mantener un registro detallado de todos sus ingresos por plataforma."
-          />
-
-          <RecomBlock
-            tone="green"
-            title="Servicio de Hospedaje"
-            subtitle="Ingresos por servicios de alojamiento temporal"
-            cells={[
-              ['Ingresos por Intermediarios', money(0)],
-              ['Ingresos Directos', money(0)],
-              ['Total del Mes', money(0)],
-              ['Tasa ISR', '4%'],
-              ['ISR Causado', money(0)],
-            ]}
-            recomendacion="Los servicios de hospedaje tienen una tasa del 4% de ISR. Si planea incursionar en este sector, asegúrese de cumplir con todos los requisitos locales de hospedaje."
-          />
-
-          <RecomBlock
-            tone="violet"
-            title="Impuesto al Valor Agregado (IVA)"
-            subtitle="Cálculo del IVA causado y acreditable"
-            cells={[
-              ['Ingresos por Intermediarios', money(0)],
-              ['Ingresos Directos', money(0)],
-              ['Total Ingresos', money(29000)],
-              ['Tasa IVA', '16%'],
-              ['IVA Causado', money(4000)],
-              ['Retenciones IVA', money(0)],
-              ['IVA de Gastos (Acreditable)', money(1120)],
-              ['IVA a Pagar', money(2880)],
-              ['IVA Periodos Anteriores', money(0)],
-              ['IVA a Favor', money(0)],
-            ]}
-            recomendacion="Tiene IVA por pagar de $2,880.00. Asegúrese de realizar el pago antes del día 17 del mes siguiente para evitar recargos."
-          />
-        </div>
-      </Card>
+      {/* Resumen y desglose del periodo, con los datos del EP de cálculos */}
+      <ResumenDeclaracion
+        declarationId={declarationId}
+        general={general}
+        periodo={periodo}
+        fiscalYear={fiscalYear}
+      />
     </div>
   )
 }
@@ -422,51 +337,6 @@ function MiniField({ label, value, mono }: { label: string; value: string; mono?
     <div className="rounded-lg px-3 py-1.5" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
       <div className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--ink-500)' }}>{label}</div>
       <div className="text-[12.5px] font-bold" style={{ ...(mono ? MONO : {}), color: 'var(--ink-900)' }}>{value}</div>
-    </div>
-  )
-}
-
-function ResumenCard({ value, label, hint, tone }: { value: string; label: string; hint: string; tone: CellTone }) {
-  const colorMap: Record<string, string> = { green: 'var(--brand-700)', red: 'var(--danger)', blue: 'var(--sky)', violet: 'var(--violet)' }
-  return (
-    <div className="rounded-2xl p-4" style={{ background: CELL_BG[tone], border: '1px solid var(--border)' }}>
-      <div className="text-[22px] font-extrabold tracking-tight" style={{ ...DISPLAY, color: colorMap[tone] }}>{value}</div>
-      <div className="text-[13px] font-bold mt-1" style={{ color: 'var(--ink-900)' }}>{label}</div>
-      <div className="text-[11.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>{hint}</div>
-    </div>
-  )
-}
-
-function RecomBlock({
-  tone,
-  title,
-  subtitle,
-  cells,
-  recomendacion,
-}: {
-  tone: CellTone
-  title: string
-  subtitle: string
-  cells: [string, string][]
-  recomendacion: string
-}) {
-  const accent: Record<string, string> = { green: 'var(--brand-700)', blue: 'var(--sky)', violet: 'var(--violet)' }
-  return (
-    <div className="rounded-2xl p-4" style={{ background: CELL_BG[tone], border: '1px solid var(--border)' }}>
-      <h4 className="text-[15px] font-extrabold" style={{ color: accent[tone] ?? 'var(--ink-900)' }}>{title}</h4>
-      <p className="text-[12px] mt-0.5" style={{ color: 'var(--ink-500)' }}>{subtitle}</p>
-      <div className="grid gap-2 mt-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {cells.map(([label, value]) => (
-          <div key={label} className="rounded-xl p-3" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
-            <div className="text-[11px] font-semibold" style={{ color: 'var(--ink-500)' }}>{label}</div>
-            <div className="text-[14px] font-extrabold mt-1" style={{ color: 'var(--ink-900)' }}>{value}</div>
-          </div>
-        ))}
-      </div>
-      <div className="rounded-xl p-3 mt-3" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
-        <div className="text-[12px] font-extrabold" style={{ color: accent[tone] ?? 'var(--ink-900)' }}>💡 Recomendación de su Contador:</div>
-        <p className="text-[12px] mt-1 leading-relaxed" style={{ color: 'var(--ink-700)' }}>{recomendacion}</p>
-      </div>
     </div>
   )
 }

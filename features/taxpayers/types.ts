@@ -26,6 +26,8 @@ export interface TaxpayerListItem {
   legalName: string;
   email: string;
   regimenes: TaxpayerRegimen[];
+  /** Ventas pagadas (StatusSaleId=2 con referencia de Stripe). */
+  ventasPagadas: number;
 }
 
 /**

@@ -10,6 +10,49 @@ import { Card } from '../ui'
 
 const TAKE = 100
 
+/** Catálogo de `invoiceTypeId` del backend; fuera de 1-5 responde INVALID_REQUEST. */
+type InvoiceTypeId = 1 | 2 | 3 | 4 | 5
+
+const INVOICE_TYPES: [InvoiceTypeId, string][] = [
+  [1, 'Ingreso'],
+  [2, 'Egreso'],
+  [3, 'Traslado'],
+  [4, 'Pago'],
+  [5, 'Nómina'],
+]
+
+function FilterSelect<T extends string>({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string
+  value: T
+  onChange: (v: T) => void
+  options: [T, string][]
+}) {
+  return (
+    <label className="flex flex-col gap-1 min-w-[150px] flex-1">
+      <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+        {label}
+      </span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value as T)}
+        className="w-full px-3 py-2.5 rounded-lg text-[13px]"
+        style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+      >
+        {options.map(([v, l]) => (
+          <option key={v} value={v}>
+            {l}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
 const money = (v: string | number | null) => {
   const n = typeof v === 'string' ? Number(v) : v
   if (n == null || !Number.isFinite(n)) return '—'
@@ -114,13 +157,24 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
   const [error, setError] = useState<string | null>(null)
   const [subTab, setSubTab] = useState(0)
   const [query, setQuery] = useState('')
+  // '' = sin filtro (el EP los trae todos cuando el query param se omite).
+  const [origen, setOrigen] = useState<'' | 'true' | 'false'>('')
+  const [tipo, setTipo] = useState('')
+  const [clasificada, setClasificada] = useState<'' | 'true' | 'false'>('')
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setError(null)
     void (async () => {
-      const res = await getDeclarationInvoices({ declarationId, skip, take: TAKE })
+      const res = await getDeclarationInvoices({
+        declarationId,
+        isIssued: origen === '' ? undefined : origen === 'true',
+        invoiceTypeId: tipo === '' ? undefined : Number(tipo),
+        clasificada: clasificada === '' ? undefined : clasificada === 'true',
+        skip,
+        take: TAKE,
+      })
       if (cancelled) return
       if (res.success) setPage(res.value)
       else {
@@ -132,7 +186,13 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
     return () => {
       cancelled = true
     }
-  }, [declarationId, skip])
+  }, [declarationId, skip, origen, tipo, clasificada])
+
+  // Cambiar un filtro reinicia la paginación: el `total` del backend cambia.
+  const onFilter = <T,>(setter: (v: T) => void) => (v: T) => {
+    setSkip(0)
+    setter(v)
+  }
 
   // El backend no filtra por texto: se busca sobre la página cargada.
   const rows = useMemo(() => {
@@ -178,6 +238,50 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
           />
         </div>
 
+        {/* Filtros del EP: los tres son opcionales, "Todos" omite el query param. */}
+        <div className="flex flex-wrap gap-3 items-end">
+          <FilterSelect
+            label="Emitidas / Recibidas"
+            value={origen}
+            onChange={onFilter(setOrigen)}
+            options={[
+              ['', 'Todas'],
+              ['true', 'Emitidas'],
+              ['false', 'Recibidas'],
+            ]}
+          />
+          <FilterSelect
+            label="Tipo de comprobante"
+            value={tipo}
+            onChange={onFilter(setTipo)}
+            options={[['', 'Todos'], ...INVOICE_TYPES.map(([v, l]) => [String(v), l] as [string, string])]}
+          />
+          <FilterSelect
+            label="Clasificación"
+            value={clasificada}
+            onChange={onFilter(setClasificada)}
+            options={[
+              ['', 'Todos'],
+              ['true', 'Clasificados'],
+              ['false', 'Sin clasificar'],
+            ]}
+          />
+          {(origen || tipo || clasificada) && (
+            <button
+              onClick={() => {
+                setSkip(0)
+                setOrigen('')
+                setTipo('')
+                setClasificada('')
+              }}
+              className="px-3.5 py-2.5 rounded-lg text-[12.5px] font-bold transition hover:opacity-90"
+              style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+            >
+              Limpiar filtros
+            </button>
+          )}
+        </div>
+
         <div className="flex p-1 rounded-xl" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
           {['CFDIs Normales', 'CFDIs de Retenciones'].map((t, i) => (
             <button
@@ -210,9 +314,16 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
           </div>
         ) : rows.length === 0 ? (
           <div className="text-center py-10 text-[13px]" style={{ color: 'var(--ink-500)' }}>
-            {page.items.length === 0
-              ? 'No hay comprobantes en este período.'
-              : 'Ningún comprobante coincide con la búsqueda.'}
+            {page.items.length > 0
+              ? 'Ningún comprobante coincide con la búsqueda.'
+              : origen || tipo || clasificada
+                ? 'No hay comprobantes con esos filtros.'
+                : 'No hay comprobantes en este período.'}
+            {page.items.length === 0 && clasificada === 'true' && (
+              <div className="mt-1.5 text-[12.5px]">
+                Si la declaración no tiene periodo asignado, el clasificador no ha corrido y esta vista sale vacía.
+              </div>
+            )}
           </div>
         ) : (
           <>

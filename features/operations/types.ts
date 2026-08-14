@@ -224,5 +224,59 @@ export interface VentaResumen {
   userId: string;
   userFullName: string;
   userEmail: string;
+  paymentIntentId: string | null;
   productos: ProductoVenta[];
+}
+
+export type TipoRenovacion = "subscription" | "one_time";
+
+/**
+ * Item de `/sales/upcoming-renewals` (VentaPorVencerDto).
+ * En `one_time` los campos de suscripción vienen null y `fechaEstimada` es true.
+ */
+export interface VentaPorVencer {
+  userId: string;
+  fullName: string;
+  email: string;
+  phoneNumber: string | null;
+  taxpayerId: number;
+  rfc: string;
+  legalName: string;
+  planId: number;
+  planNombre: string;
+  planDescripcion: string | null;
+  billingPeriod: string;
+  planPrecio: number;
+  moneda: string;
+  fechaVencimiento: string;
+  diasParaVencer: number;
+  /** true cuando la fecha se calculó en SQL y no vino de Stripe. */
+  fechaEstimada: boolean;
+  tipo: TipoRenovacion;
+  saleId: number;
+  saleDate: string;
+  amount: number;
+  checkoutId: string | null;
+  paymentIntentId: string | null;
+  stripeSubscriptionId: string | null;
+  estatusSuscripcion: string | null;
+  /** false = el cliente ya canceló en Stripe: contacto urgente. */
+  renovaraAutomaticamente: boolean | null;
+  montoProximoCobro: number | null;
+}
+
+/** Respuesta de `/sales/detail/{saleId}` (VentaDetalleStripeDto). */
+export interface VentaDetalleStripe {
+  saleId: number;
+  rfc: string;
+  taxpayerId: number;
+  saleDate: string;
+  amount: number;
+  userId: string;
+  userFullName: string;
+  userEmail: string;
+  checkoutId: string | null;
+  paymentIntentId: string | null;
+  stripeSubscriptionId: string | null;
+  stripeCustomerId: string | null;
 }

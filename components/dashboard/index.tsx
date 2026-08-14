@@ -19,21 +19,26 @@ import {
   DeclaracionesScreen,
   DiagnosticoScreen,
   DocumentosScreen,
+  EstatusSatScreen,
   FacturasScreen,
+  GeorgeScreen,
   HomeScreen,
   ManualScreen,
   MarketingScreen,
   MisClientesScreen,
+  NotificacionesScreen,
   OperacionesScreen,
   PartnershipScreen,
   PermisosScreen,
   PlaceholderScreen,
   PlanScreen,
   RegularizacionesScreen,
+  RenovacionesScreen,
   RolesScreen,
   TipDetailScreen,
   TramitesScreen,
   TramitesAdicionalesScreen,
+  UsuariosScreen,
   VentasScreen,
   VistaFiscalScreen,
 } from './screens';
@@ -48,13 +53,17 @@ const WIDE_SCREENS = new Set<Screen>([
   'mis-clientes',
   'clientes',
   'contribuyentes',
+  'usuarios',
+  'renovaciones',
   'ventas',
   'roles',
   'plan',
   'home',
   'vista-fiscal',
   'diagnostico',
+  'estatussat',
   'facturas',
+  'george',
   'documentos',
   'manual',
   'ayuda',
@@ -250,6 +259,7 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
         onLogout={onLogout}
         signingOut={signingOut}
         role={null}
+        isClient={isGuest}
         go={go}
       />
     );
@@ -282,8 +292,11 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
     if (screen === 'regularizaciones') {
       return <RegularizacionesScreen />;
     }
+    if (screen === 'renovaciones') {
+      return <RenovacionesScreen />
+    }
     if (screen === 'tramites-adicionales') {
-      return <TramitesAdicionalesScreen />;
+      return <TramitesAdicionalesScreen go={go} />;
     }
     if (screen === 'mis-clientes') {
       return <MisClientesScreen />;
@@ -293,6 +306,9 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
     }
     if (screen === 'contribuyentes') {
       return <ContribuyentesScreen />;
+    }
+    if (screen === 'usuarios') {
+      return <UsuariosScreen />;
     }
     if (screen === 'ventas') {
       return <VentasScreen />;
@@ -305,6 +321,9 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
     }
     if (screen === 'marketing') {
       return <MarketingScreen />;
+    }
+    if (screen === 'notificaciones') {
+      return <NotificacionesScreen />;
     }
     const [title, hint] = TITLES[screen] ?? ['Próximamente', ''];
     return (
@@ -325,19 +344,23 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
         />
       );
     case 'vista-fiscal':
-      return <VistaFiscalScreen go={go} />;
+      return <VistaFiscalScreen go={go} firstName={firstName} />;
     case 'declaraciones':
       return <DeclaracionesScreen go={go} />;
     case 'facturas':
       return <FacturasScreen go={go} />;
+    case 'george':
+      return <GeorgeScreen go={go} />;
     case 'documentos':
       return <DocumentosScreen go={go} />;
     case 'diagnostico':
       return <DiagnosticoScreen go={go} />;
+    case 'estatussat':
+      return <EstatusSatScreen go={go} />;
     case 'tip-detail':
       return <TipDetailScreen go={go} />;
     case 'tramites':
-      return <TramitesScreen onContratar={goToPlanPicker} />;
+      return <TramitesScreen onContratar={goToPlanPicker} go={go} />;
     case 'plan':
       return (
         <PlanScreen

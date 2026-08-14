@@ -171,6 +171,12 @@ export interface RegisterSaleNewRequest {
   items: RegisterSaleItem[];
 }
 
+export interface RegisterSaleNewResponse {
+  success: boolean;
+  discountApplied: boolean;
+  discountMessage: string | null;
+}
+
 export interface PromotionCodeValidateRequest {
   discountCode: string;
   priceId: string;

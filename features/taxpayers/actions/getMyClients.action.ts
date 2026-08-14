@@ -21,8 +21,10 @@ export async function getMyClients(params: {
   take?: number;
   rfc?: string;
   accountantUserId?: string;
+  /** Mínimo de ventas pagadas; el endpoint ya exige 1, así que sólo aplica con 2+. */
+  minSales?: number;
 }): Promise<Result<Paged<ClientListItem>, ClientsError>> {
-  const { skip = 0, take = 100, rfc, accountantUserId } = params;
+  const { skip = 0, take = 100, rfc, accountantUserId, minSales } = params;
   try {
     const data = await fetchGet<Paged<ClientListItem>>(
       API_ROUTES.TAXPAYERS_OPS.MY_CLIENTS(
@@ -30,6 +32,7 @@ export async function getMyClients(params: {
         take,
         rfc?.trim() || undefined,
         accountantUserId?.trim() || undefined,
+        minSales,
       ),
       "taxpayers_reports",
     );

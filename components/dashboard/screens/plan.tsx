@@ -36,7 +36,7 @@ interface PlanScreenProps {
 }
 
 export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled, go }: PlanScreenProps) {
-  const { selectedRfc, setSelectedRfc } = useRfcStore()
+  const { selectedRfc, setSelectedRfc, selectedRfcInfo } = useRfcStore()
   const { hasRfc, loading } = useHasRfc()
 
   const [account, setAccount] = useState<PlanAccount | null>(null)
@@ -101,6 +101,7 @@ export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled, go }: Pl
 
   if (loading) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tus planes" />
+  if (selectedRfcInfo?.ciecState !== 1) return <NeedsSatConnect go={go} feature="ver tus planes" />
 
   return (
     <div className="flex flex-col gap-6">

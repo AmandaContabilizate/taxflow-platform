@@ -29,6 +29,7 @@ export function ComplianceCard({
   const errored = state === 'error' && !blocked
   const notFound = state === 'rfc-not-found' && !blocked
   const forbidden = state === 'forbidden' && !blocked
+  const isDownloading = busy === 'opinion:download' || busy === 'opinion:view'
 
   return (
     <DocCardShell
@@ -41,16 +42,18 @@ export function ComplianceCard({
         blocked
           ? 'Falta tu CSF'
           : state === 'loading'
-            ? 'Buscando…'
-            : available
-              ? 'Lista para consultar'
-              : notFound
-                ? 'No encontramos este RFC'
-                : forbidden
-                  ? 'Sin acceso'
-                  : errored
-                    ? 'Servicio en pruebas'
-                    : 'Aún no disponible'
+            ? 'Cargando…'
+            : isDownloading
+              ? 'Cargando…'
+              : available
+                ? 'Lista para consultar'
+                : notFound
+                  ? 'No encontramos este RFC'
+                  : forbidden
+                    ? 'Sin acceso'
+                    : errored
+                      ? 'Servicio en pruebas'
+                      : 'Aún no disponible'
       }
       desc={
         blocked

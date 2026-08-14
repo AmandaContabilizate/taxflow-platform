@@ -35,20 +35,39 @@ function normalize(
 /**
  * Facturas del periodo de una declaración, con su clasificación cuando existe.
  * Solo contadores (policy Contador.ReadDeclaraciones).
+ *
+ * `isIssued` / `invoiceTypeId` / `clasificada` son opcionales: omitirlos trae
+ * todo. El filtrado ocurre en el backend, así que `total` respeta los filtros.
  */
 export async function getDeclarationInvoices(params: {
   declarationId: number;
+  /** true = emitidas, false = recibidas, omitir = todas. */
+  isIssued?: boolean;
+  /** 1 Ingreso, 2 Egreso, 3 Traslado, 4 Pago, 5 Nómina. */
+  invoiceTypeId?: number;
+  /** true = clasificados, false = sin clasificar, omitir = todos. */
+  clasificada?: boolean;
   skip?: number;
   take?: number;
 }): Promise<Result<Paged<DeclarationInvoice>, OpsError>> {
-  const { declarationId, skip = 0, take = 100 } = params;
+  const { declarationId, isIssued, invoiceTypeId, clasificada, skip = 0, take = 100 } = params;
   if (!declarationId || declarationId <= 0) {
     return err({ statusCode: 400, message: "Declaración inválida." });
+  }
+  if (invoiceTypeId != null && (invoiceTypeId < 1 || invoiceTypeId > 5)) {
+    return err({ statusCode: 400, message: "Tipo de comprobante inválido." });
   }
 
   try {
     const data = await fetchGet<unknown>(
-      API_ROUTES.DECLARATIONS_OPS.INVOICES(declarationId, skip, take),
+      API_ROUTES.DECLARATIONS_OPS.INVOICES({
+        declarationId,
+        isIssued,
+        invoiceTypeId,
+        clasificada,
+        skip,
+        take,
+      }),
       "declarations_reports",
     );
     return ok(data == null ? EMPTY : normalize(data, skip, take));

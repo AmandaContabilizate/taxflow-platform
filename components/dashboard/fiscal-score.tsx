@@ -1,13 +1,14 @@
 'use client'
 
 import { ArrowUpRight, Loader2, RefreshCw } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getFiscalScore } from '@/features/declarations/actions/getFiscalScore.action'
 import type { FiscalScore } from '@/features/declarations/types'
 import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import { DISPLAY, MONO } from './constants'
 import type { GoFn } from './types'
 import { Btn } from './ui'
+import { scoreLabel, scoreColor } from './fiscal-score.utils'
 
 type State =
   | { status: 'idle' }
@@ -30,22 +31,6 @@ interface Props {
    * de este endpoint. Se pasa como prop; si no, se muestra un texto neutro.
    */
   satSyncedLabel?: string
-}
-
-/** Etiqueta cualitativa a partir del score numérico. */
-function scoreLabel(score: number): string {
-  if (score >= 90) return 'Excelente'
-  if (score >= 75) return 'Muy bueno'
-  if (score >= 50) return 'Vas bien'
-  if (score >= 25) return 'A mejorar'
-  return 'Necesita atención'
-}
-
-/** Color del arco según el score. */
-function scoreColor(score: number): string {
-  if (score >= 75) return '#0ED18A' // brand-500
-  if (score >= 50) return '#F5B037' // amber
-  return '#FF8862' // coral
 }
 
 /**
@@ -106,6 +91,8 @@ function headerBadge(
 export function FiscalScore({ go, planTier, satSyncedLabel }: Props) {
   const { selectedRfc } = useRfcStore()
   const [state, setState] = useState<State>({ status: 'idle' })
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
+  const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!selectedRfc) return
@@ -137,11 +124,31 @@ export function FiscalScore({ go, planTier, satSyncedLabel }: Props) {
   const badgeInfo = headerBadge(state.status, satSyncedLabel)
   const badge = { ...BADGE_TONES[badgeInfo.tone], label: badgeInfo.label, pulse: badgeInfo.pulse }
 
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+    setMousePos({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    })
+  }
+
   return (
     <div
+      ref={containerRef}
+      onMouseMove={handleMouseMove}
       className="rounded-3xl p-7 lg:p-8 text-white relative overflow-hidden"
-      style={{ background: 'linear-gradient(155deg,#1E1952 0%,#15113F 100%)', boxShadow: 'var(--sh-ink)' }}
+      style={{ background: 'linear-gradient(155deg,#1E1952 0%,#15113F 100%)' }}
     >
+      {/* Light follow effect */}
+      <div
+        className="absolute inset-0 pointer-events-none transition-all duration-100"
+        style={{
+          background: `radial-gradient(circle 400px at ${mousePos.x}px ${mousePos.y}px, rgba(14, 209, 138, 0.25), transparent 80%)`,
+        }}
+      />
+
+      <div className="relative z-10">
       {/* Encabezado: estado de sincronización + nivel de plan */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div
@@ -177,6 +184,7 @@ export function FiscalScore({ go, planTier, satSyncedLabel }: Props) {
       ) : (
         <ReadyBody value={state.value} go={go} />
       )}
+      </div>
     </div>
   )
 }

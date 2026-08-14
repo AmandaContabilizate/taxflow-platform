@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { AlertTriangle, Download, FileDown, Search, Sliders, ChevronDown } from 'lucide-react'
-import { useHasRfc, useSelectedRfc } from '@/features/taxpayers/stores/rfcStore'
+import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import {
   getIssuedInvoices,
   getReceivedInvoices,
@@ -52,6 +52,17 @@ function formatDate(s: string): string {
   return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })
 }
 
+function sameDay(a: string, b: string): boolean {
+  const da = new Date(a)
+  const db = new Date(b)
+  if (Number.isNaN(da.getTime()) || Number.isNaN(db.getTime())) return true
+  return (
+    da.getFullYear() === db.getFullYear() &&
+    da.getMonth() === db.getMonth() &&
+    da.getDate() === db.getDate()
+  )
+}
+
 type DocType = 'invoice' | 'expense'
 
 interface Row {
@@ -61,14 +72,23 @@ interface Row {
   name: string
   rfc: string
   meta: string
+  // Nota visible solo cuando la factura se timbró en un día distinto al de
+  // su fecha de expedición (p.ej. facturas de Público en General timbradas
+  // ya iniciado el mes siguiente al que resumen).
+  stampNote?: string
   monto: string
   revisar: boolean
 }
 
 function toRow(inv: VaultInvoice, side: 'issued' | 'received'): Row {
   const party = side === 'issued' ? inv.receiver : inv.issuer
-  const fecha = formatDate(inv.date)
+  const invoiceDate = inv.invoiceDate || inv.date
+  const fecha = formatDate(invoiceDate)
   const uso = inv.uso?.trim()
+  const stampNote =
+    inv.stampDate && !sameDay(invoiceDate, inv.stampDate)
+      ? `Timbrado ${formatDate(inv.stampDate)}`
+      : undefined
   return {
     key: inv.uuid || String(inv.id),
     id: String(inv.id),
@@ -76,6 +96,7 @@ function toRow(inv: VaultInvoice, side: 'issued' | 'received'): Row {
     name: party?.name?.trim() || party?.rfc || 'Sin nombre',
     rfc: party?.rfc || '—',
     meta: [fecha, uso].filter(Boolean).join(' · '),
+    stampNote,
     monto: moneyFull.format(inv.total ?? 0),
     revisar: inv.statusComprobante !== CFDI_STATUS_VIGENTE,
   }
@@ -133,7 +154,7 @@ const TABS = ['Recibidas', 'Emitidas', 'Canceladas'] as const
 
 export function DocumentosScreen({ go }: Props) {
   const { hasRfc, loading } = useHasRfc()
-  const rfc = useSelectedRfc()
+  const { selectedRfc: rfc, selectedRfcInfo } = useRfcStore()
   const [tab, setTab] = useState(0)
 
   const [dataLoading, setDataLoading] = useState(true)
@@ -270,6 +291,7 @@ export function DocumentosScreen({ go }: Props) {
 
   if (loading) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tu bóveda" />
+  if (selectedRfcInfo?.ciecState !== 1) return <NeedsSatConnect go={go} feature="ver tu bóveda" />
 
   const rows = rowsByTab[tab]
 
@@ -515,6 +537,11 @@ export function DocumentosScreen({ go }: Props) {
                         {f.rfc}
                         {f.meta ? ` · ${f.meta}` : ''}
                       </div>
+                      {f.stampNote && (
+                        <div className="text-[11px] mt-0.5 truncate" style={{ ...MONO, color: 'var(--ink-400)' }}>
+                          {f.stampNote}
+                        </div>
+                      )}
                     </div>
                     <div className="text-[14.5px] font-extrabold" style={MONO}>
                       {f.monto}

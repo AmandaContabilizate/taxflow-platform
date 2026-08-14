@@ -28,6 +28,7 @@ interface PaymentsState {
 const INITIAL_PAYMENTS: PaymentsState = { loading: true, error: null, items: [], total: 0 };
 
 interface Props {
+<<<<<<< HEAD
   fullName: string;
   email: string;
   rfc: string | null;
@@ -44,6 +45,25 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
   const { theme, setTheme } = useTheme();
   const { selectedRfc } = useRfcStore();
   const [plan, setPlan] = useState<ActivePlan | null>(null);
+=======
+  fullName: string
+  email: string
+  rfc: string | null
+  role: string | null
+  initials: string
+  phoneNumber?: string
+  ciecState?: number
+  isClient?: boolean
+  go: GoFn
+  onLogout: () => void
+  signingOut: boolean
+}
+
+export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber, ciecState, isClient = true, go, onLogout, signingOut }: Props) {
+  const { theme, setTheme } = useTheme()
+  const { selectedRfc } = useRfcStore()
+  const [plan, setPlan] = useState<ActivePlan | null>(null)
+>>>>>>> origin/dev
   const [accountant, setAccountant] = useState<{ loading: boolean; name: string | null }>({
     loading: true,
     name: null,
@@ -57,6 +77,7 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
   const [pushPermission, setPushPermission] = useState<string>('default');
 
   useEffect(() => {
+<<<<<<< HEAD
     if (typeof window !== 'undefined' && 'Notification' in window) {
       setPushPermission(Notification.permission);
     }
@@ -81,6 +102,12 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
     let cancelled = false;
     setAccountant({ loading: true, name: null });
     setPayments(INITIAL_PAYMENTS);
+=======
+    if (!isClient || !activeRfc) return
+    let cancelled = false
+    setAccountant({ loading: true, name: null })
+    setPayments(INITIAL_PAYMENTS)
+>>>>>>> origin/dev
 
     void (async () => {
       const [planRes, accRes, payRes] = await Promise.all([getActivePlan(activeRfc), getAccountantByRfc(activeRfc), getSalePayments(activeRfc, 1, 50)]);
@@ -91,9 +118,15 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
     })();
 
     return () => {
+<<<<<<< HEAD
       cancelled = true;
     };
   }, [activeRfc]);
+=======
+      cancelled = true
+    }
+  }, [activeRfc, isClient])
+>>>>>>> origin/dev
 
   const planLabel = plan?.hasPlan ? `${plan.planName ?? 'Tu plan'}${plan.billingPeriod ? ` · ${periodLabel(plan.billingPeriod)}` : ''}` : 'Sin plan activo';
 
@@ -130,7 +163,7 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
                   style={DISPLAY}>
                   {fullName}
                 </div>
-                {activeRfc && (
+                {isClient && activeRfc && (
                   <div
                     className='text-[12px] mt-0.5 truncate'
                     style={{ ...MONO, color: 'var(--ink-500)' }}>
@@ -163,32 +196,36 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
               </div>
             )}
 
-            <Divider />
+            {isClient && (
+              <>
+                <Divider />
 
-            <div className='flex items-center justify-between gap-3 pt-1'>
-              <div className='min-w-0'>
-                <div
-                  className='text-[11px] font-extrabold uppercase tracking-wider'
-                  style={{ color: 'var(--ink-500)' }}>
-                  Mi plan
+                <div className='flex items-center justify-between gap-3 pt-1'>
+                  <div className='min-w-0'>
+                    <div
+                      className='text-[11px] font-extrabold uppercase tracking-wider'
+                      style={{ color: 'var(--ink-500)' }}>
+                      Mi plan
+                    </div>
+                    <div
+                      className='text-[14.5px] font-bold mt-0.5 truncate'
+                      style={{ color: 'var(--ink-900)' }}>
+                      {planLabel}
+                    </div>
+                  </div>
+                  <Btn
+                    size='sm'
+                    kind='primary'
+                    onClick={() => go('plan')}>
+                    Gestionar
+                  </Btn>
                 </div>
-                <div
-                  className='text-[14.5px] font-bold mt-0.5 truncate'
-                  style={{ color: 'var(--ink-900)' }}>
-                  {planLabel}
-                </div>
-              </div>
-              <Btn
-                size='sm'
-                kind='primary'
-                onClick={() => go('plan')}>
-                Gestionar
-              </Btn>
-            </div>
+              </>
+            )}
           </div>
         </Card>
 
-        {/* Estado de CIEC */}
+        {isClient && (
         <Card>
           <div className='p-6'>
             <div
@@ -220,10 +257,12 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
             </div>
           </div>
         </Card>
+        )}
       </div>
 
       {/* Listas */}
       <div className='flex-1 min-w-0 w-full flex flex-col gap-6'>
+        {isClient && (
         <Section title='Gestión'>
           <Card>
             <AccountRow
@@ -307,6 +346,7 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
             )}
           </Card>
         </Section>
+        )}
 
         <Section title='Preferencias'>
           <Card>

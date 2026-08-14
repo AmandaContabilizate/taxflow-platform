@@ -4,21 +4,37 @@ import { useEffect, useState } from 'react'
 import { Stethoscope, FileText, FilePlus, FolderLock, FilePlus2, Gem, ArrowRight } from 'lucide-react'
 import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import { getFiscalScore } from '@/features/declarations/actions/getFiscalScore.action'
+import { getTaxRegimes, type TaxRegime } from '@/features/taxpayers/actions/getTaxRegimes.action'
+import { getTaxpayerByRfc } from '@/features/taxpayers/actions/getTaxpayerByRfc.action'
 import { MONO } from '../constants'
 import type { GoFn } from '../types'
 import { Card, HelpBox } from '../ui'
 import { NeedsSatConnect } from './needs-sat-connect'
 import type { FiscalScore } from '@/features/declarations/types'
+import { scoreLabel } from '../fiscal-score.utils'
+import { Card3D } from '../card-3d'
 
 interface Props {
   go: GoFn
+  firstName?: string
 }
 
-export function VistaFiscalScreen({ go }: Props) {
+export function VistaFiscalScreen({ go, firstName }: Props) {
   const { hasRfc, loading } = useHasRfc()
   const { selectedRfcInfo, selectedRfc } = useRfcStore()
   const [score, setScore] = useState<FiscalScore | null>(null)
   const [loadingData, setLoadingData] = useState(true)
+  const [taxRegimes, setTaxRegimes] = useState<TaxRegime[]>([])
+  const [rfcTaxRegimes, setRfcTaxRegimes] = useState<Array<{ regimeId: number; idActivities?: number[] }>>([])
+
+  useEffect(() => {
+    void (async () => {
+      const res = await getTaxRegimes()
+      if (res.success) {
+        setTaxRegimes(res.value)
+      }
+    })()
+  }, [])
 
   useEffect(() => {
     if (!selectedRfc) return
@@ -26,13 +42,21 @@ export function VistaFiscalScreen({ go }: Props) {
     setLoadingData(true)
     void (async () => {
       try {
-        const scoreRes = await getFiscalScore(selectedRfc)
+        const [scoreRes, taxpayerRes] = await Promise.all([
+          getFiscalScore(selectedRfc),
+          getTaxpayerByRfc(selectedRfc),
+        ])
+
         if (!cancelled) {
           setScore(scoreRes.success ? scoreRes.value : null)
+          if (taxpayerRes.success && taxpayerRes.value?.taxRegimes) {
+            setRfcTaxRegimes(taxpayerRes.value.taxRegimes)
+          }
           setLoadingData(false)
         }
       } catch (e) {
         if (!cancelled) {
+          console.error('[VistaFiscal] Error loading data:', e)
           setLoadingData(false)
         }
       }
@@ -44,6 +68,7 @@ export function VistaFiscalScreen({ go }: Props) {
 
   if (loading) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="acceder a tu vista fiscal" />
+  if (selectedRfcInfo?.ciecState !== 1) return <NeedsSatConnect go={go} feature="acceder a tu vista fiscal" />
 
   return (
     <div className="flex flex-col gap-6">
@@ -56,20 +81,33 @@ export function VistaFiscalScreen({ go }: Props) {
                 <div className="text-[11px] font-extrabold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-700)' }}>
                   Tu régimen fiscal
                 </div>
-                <div className="text-[32px] font-extrabold tracking-tight" style={{ color: 'var(--ink-900)' }}>
-                  {selectedRfcInfo.legalName}
-                </div>
-                {(selectedRfcInfo as any)?.regimenes && (selectedRfcInfo as any).regimenes.length > 0 && (
-                  <div className="text-[13.5px] mt-2 mb-2">
-                    <div className="flex flex-wrap gap-1.5">
-                      {(selectedRfcInfo as any).regimenes.map((r: any) => (
-                        <span key={r.id || r.satCode} className="inline-block px-3 py-1.5 rounded-lg text-[12px] font-medium" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#059669' }}>
-                          {r.name}
-                        </span>
-                      ))}
+                {rfcTaxRegimes && rfcTaxRegimes.length > 0 && (
+                  <div className="mb-4">
+                    <div className="flex flex-col gap-1.5">
+                      {rfcTaxRegimes.map((regime: any, idx: number) => {
+                        const regimeName = taxRegimes.find(r => r.id === regime.regimeId)?.name || `Régimen ${regime.regimeId}`
+                        const isFirst = idx === 0
+                        return (
+                          <span
+                            key={regime.regimeId}
+                            className={isFirst ? "text-[24px] font-extrabold tracking-tight" : "text-[14px] font-semibold tracking-wide"}
+                            style={{ color: 'rgb(21, 17, 63)' }}
+                          >
+                            {regimeName}
+                          </span>
+                        )
+                      })}
                     </div>
+                    {rfcTaxRegimes.length > 1 && (
+                      <div className="text-[12px] font-medium mt-2" style={{ color: 'var(--brand-600)' }}>
+                        +{rfcTaxRegimes.length - 1} régimen{rfcTaxRegimes.length - 1 > 1 ? 'es' : ''} más
+                      </div>
+                    )}
                   </div>
                 )}
+                <div className="text-[18px] font-extrabold tracking-tight mb-2" style={{ color: 'var(--ink-900)' }}>
+                  {selectedRfcInfo.legalName}
+                </div>
                 <div className="text-[13.5px]" style={{ ...MONO, color: 'var(--ink-600)' }}>
                   {selectedRfcInfo.rfc}
                 </div>
@@ -87,10 +125,11 @@ export function VistaFiscalScreen({ go }: Props) {
           </HelpBox>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Card>
-              <button
-                onClick={() => go('diagnostico')}
-                className="w-full p-6 text-left hover:opacity-80 transition"
+            <Card3D>
+              <Card>
+                <button
+                  onClick={() => go('diagnostico')}
+                  className="w-full p-6 text-left"
               >
                 <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'var(--brand-50)', color: 'var(--brand-700)' }}>
                   <Stethoscope size={24} />
@@ -102,92 +141,103 @@ export function VistaFiscalScreen({ go }: Props) {
                   Tu situación fiscal
                 </div>
               </button>
-            </Card>
+              </Card>
+            </Card3D>
 
-            <Card>
-              <button
-                onClick={() => go('declaraciones')}
-                className="w-full p-6 text-left hover:opacity-80 transition"
-              >
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'var(--amber-soft)', color: '#7B5312' }}>
-                  <FileText size={24} />
-                </div>
-                <div className="font-bold text-[15px]" style={{ color: 'var(--ink-900)' }}>
-                  Declaraciones
-                </div>
-                <div className="text-[13px] mt-1" style={{ color: 'var(--ink-500)' }}>
-                  Tus impuestos del mes
-                </div>
-              </button>
-            </Card>
+            <Card3D>
+              <Card>
+                <button
+                  onClick={() => go('declaraciones')}
+                  className="w-full p-6 text-left"
+                >
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'var(--amber-soft)', color: '#7B5312' }}>
+                    <FileText size={24} />
+                  </div>
+                  <div className="font-bold text-[15px]" style={{ color: 'var(--ink-900)' }}>
+                    Declaraciones
+                  </div>
+                  <div className="text-[13px] mt-1" style={{ color: 'var(--ink-500)' }}>
+                    Tus impuestos del mes
+                  </div>
+                </button>
+              </Card>
+            </Card3D>
 
-            <Card>
-              <button
-                onClick={() => go('facturas')}
-                className="w-full p-6 text-left hover:opacity-80 transition"
-              >
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: '#1e293b', color: '#fff' }}>
-                  <FilePlus size={24} />
-                </div>
-                <div className="font-bold text-[15px]" style={{ color: 'var(--ink-900)' }}>
-                  Facturación
-                </div>
-                <div className="text-[13px] mt-1" style={{ color: 'var(--ink-500)' }}>
-                  Emite y revisa facturas
-                </div>
-              </button>
-            </Card>
+            <Card3D>
+              <Card>
+                <button
+                  onClick={() => go('facturas')}
+                  className="w-full p-6 text-left"
+                >
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: '#1e293b', color: '#fff' }}>
+                    <FilePlus size={24} />
+                  </div>
+                  <div className="font-bold text-[15px]" style={{ color: 'var(--ink-900)' }}>
+                    Facturación
+                  </div>
+                  <div className="text-[13px] mt-1" style={{ color: 'var(--ink-500)' }}>
+                    Emite y revisa facturas
+                  </div>
+                </button>
+              </Card>
+            </Card3D>
 
-            <Card>
-              <button
-                onClick={() => go('documentos')}
-                className="w-full p-6 text-left hover:opacity-80 transition"
-              >
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'var(--sky-soft)', color: '#1C4C96' }}>
-                  <FolderLock size={24} />
-                </div>
-                <div className="font-bold text-[15px]" style={{ color: 'var(--ink-900)' }}>
-                  Bóveda
-                </div>
-                <div className="text-[13px] mt-1" style={{ color: 'var(--ink-500)' }}>
-                  Tu bóveda digital de CFDI
-                </div>
-              </button>
-            </Card>
+            <Card3D>
+              <Card>
+                <button
+                  onClick={() => go('documentos')}
+                  className="w-full p-6 text-left"
+                >
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'var(--sky-soft)', color: '#1C4C96' }}>
+                    <FolderLock size={24} />
+                  </div>
+                  <div className="font-bold text-[15px]" style={{ color: 'var(--ink-900)' }}>
+                    Bóveda
+                  </div>
+                  <div className="text-[13px] mt-1" style={{ color: 'var(--ink-500)' }}>
+                    Tu bóveda digital de CFDI
+                  </div>
+                </button>
+              </Card>
+            </Card3D>
 
-            <Card>
-              <button
-                onClick={() => go('tramites')}
-                className="w-full p-6 text-left hover:opacity-80 transition"
-              >
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}>
-                  <FilePlus2 size={24} />
-                </div>
-                <div className="font-bold text-[15px]" style={{ color: 'var(--ink-900)' }}>
-                  Trámites
-                </div>
-                <div className="text-[13px] mt-1" style={{ color: 'var(--ink-500)' }}>
-                  Servicios extra
-                </div>
-              </button>
-            </Card>
+            <Card3D>
+              <Card>
+                <button
+                  onClick={() => go('tramites')}
+                  className="w-full p-6 text-left"
+                >
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}>
+                    <FilePlus2 size={24} />
+                  </div>
+                  <div className="font-bold text-[15px]" style={{ color: 'var(--ink-900)' }}>
+                    Trámites
+                  </div>
+                  <div className="text-[13px] mt-1" style={{ color: 'var(--ink-500)' }}>
+                    Servicios extra
+                  </div>
+                </button>
+              </Card>
+            </Card3D>
 
-            <Card>
-              <button
-                onClick={() => go('plan')}
-                className="w-full p-6 text-left hover:opacity-80 transition"
-              >
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'var(--violet-soft)', color: '#5A4DCC' }}>
-                  <Gem size={24} />
-                </div>
-                <div className="font-bold text-[15px]" style={{ color: 'var(--ink-900)' }}>
-                  Mi plan
-                </div>
-                <div className="text-[13px] mt-1" style={{ color: 'var(--ink-500)' }}>
-                  Tu suscripción
-                </div>
-              </button>
-            </Card>
+            <Card3D>
+              <Card>
+                <button
+                  onClick={() => go('plan')}
+                  className="w-full p-6 text-left"
+                >
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'var(--violet-soft)', color: '#5A4DCC' }}>
+                    <Gem size={24} />
+                  </div>
+                  <div className="font-bold text-[15px]" style={{ color: 'var(--ink-900)' }}>
+                    Mi plan
+                  </div>
+                  <div className="text-[13px] mt-1" style={{ color: 'var(--ink-500)' }}>
+                    Tu suscripción
+                  </div>
+                </button>
+              </Card>
+            </Card3D>
           </div>
         </div>
 
@@ -232,10 +282,10 @@ export function VistaFiscalScreen({ go }: Props) {
                     Tu score fiscal
                   </div>
                   <div className="text-[24px] font-extrabold tracking-tight">
-                    {score.score >= 75 ? 'Muy bueno' : score.score >= 50 ? 'Bueno' : score.score >= 25 ? 'Regular' : 'Crítico'}
+                    {scoreLabel(score.score)}
                   </div>
                   <div className="text-[13px] mt-1" style={{ color: 'rgba(255,255,255,0.8)' }}>
-                    {score.pending > 0 ? `Suma +19 pts regularizando ${score.pending} declaraciones pendientes.` : 'Todo está en orden'}
+                    {score.pending > 0 ? `Suma +${Math.max(0, 100 - Math.round(score.score))} pts regularizando ${score.pending} ${score.pending === 1 ? 'declaración pendiente' : 'declaraciones pendientes'}.` : 'Todo está en orden'}
                   </div>
                 </div>
               </div>
