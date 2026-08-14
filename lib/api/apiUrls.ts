@@ -28,12 +28,16 @@ export const API_BASE_URLS = {
   george: BASE_GEORGE,
   // Administración de partnerships externos (SSO). OJO: NO lleva /SQLServer.
   partnership: `${BASE_PROCEDURES}/partnership`,
+  // Timbrame SSO. Incluye DbOrigin (/SQLServer).
+  timbrame: `${BASE_PROCEDURES}/timbrame${DbOrigin}`,
   // Reports
   sales_procedures: `${BASE_PROCEDURES}/sales`,
   dashboard_reports: `${BASE_REPORTS}/dashboard${DbOrigin}`,
   declarations_reports: `${BASE_REPORTS}/declarations`,
   sales_reports: `${BASE_REPORTS}/sales`,
   taxpayers_reports: `${BASE_REPORTS}/taxpayers`,
+  marketing: `${BASE_IDENTITY}/Marketing`,
+  push_tokens: `${BASE_IDENTITY}/PushTokens`,
   users_reports: `${BASE_REPORTS}/users`,
 } as const;
 

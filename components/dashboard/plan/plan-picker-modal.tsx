@@ -56,6 +56,7 @@ export function PlanPickerModal({
   const [discountCode, setDiscountCode] = useState('')
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [discountNotice, setDiscountNotice] = useState<string | null>(null)
   const [processing, setProcessing] = useState(false)
 
   const planList = catalog.futurePlans
@@ -94,6 +95,7 @@ export function PlanPickerModal({
     setDiscountCode('')
     setClientSecret(null)
     setError(null)
+    setDiscountNotice(null)
     setProcessing(false)
   }, [open])
 
@@ -195,6 +197,9 @@ export function PlanPickerModal({
       return
     }
 
+    // Cupón no aplicable a los productos del carrito: se avisa, pero el pago continúa sin descuento.
+    setDiscountNotice(sale.value.discountMessage)
+
     // 3) Mostrar el formulario de pago embebido.
     setClientSecret(sheet.value.paymentIntentClientSecret)
     setStep('paying')
@@ -243,6 +248,15 @@ export function PlanPickerModal({
                 : 'Elige tu plan y los trámites que necesites.'}
           </DialogDescription>
         </DialogHeader>
+
+        {discountNotice && (
+          <div
+            className="flex-shrink-0 text-[12.5px] font-semibold px-3 py-2 rounded-xl"
+            style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}
+          >
+            {discountNotice}
+          </div>
+        )}
 
         {step === 'cart' && (
           <>
