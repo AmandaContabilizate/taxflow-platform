@@ -256,6 +256,33 @@
   animation: slide-in-left 0.5s ease-out both;
 }
 
+/* Reporte público (/reporte): "descargar en PDF" es el diálogo de impresión del
+   navegador sobre esta misma pantalla. Medio de color fijo (papel blanco), por
+   eso aquí sí van literales en vez de tokens. */
+@media print {
+  .report-print-root {
+    padding: 0 !important;
+    background: #FFFFFF !important;
+    min-height: 0 !important;
+  }
+  .report-print-card {
+    max-width: none !important;
+    border-radius: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+  .print-hidden {
+    display: none !important;
+  }
+  .report-print-card details {
+    break-inside: avoid;
+  }
+  .report-print-root * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
 .benefit-item:nth-child(1).animate-slide-in-left { animation-delay: 0.05s; }
 .benefit-item:nth-child(2).animate-slide-in-left { animation-delay: 0.15s; }
 .benefit-item:nth-child(3).animate-slide-in-left { animation-delay: 0.25s; }

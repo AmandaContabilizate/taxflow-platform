@@ -170,6 +170,18 @@ export const API_ROUTES = {
     ANNUALS: (rfc: string) => `/annuals?rfc=${encodeURIComponent(rfc)}`,
     ALL: (rfc: string) => `/all?rfc=${encodeURIComponent(rfc)}`,
   },
+  // apiType "declaration_report". Flujo público: el cliente abre /reporte?t={token}
+  // desde el correo. El token AES (Base64 url-safe) es la única credencial, los
+  // tres endpoints son AllowAnonymous → se consumen con las variantes *Public
+  // (sin header Authorization) y el token se reenvía tal cual llegó.
+  DECLARATION_REPORT: {
+    // GET · DeclarationReportDto con la ficha, totales y el desglose crudo.
+    REPORT: (token: string) => `/report?t=${encodeURIComponent(token)}`,
+    // POST { token } · "Autorizar y presentar": 9 (EnRevisionCliente) → 11 (PorPresentar).
+    AUTHORIZE: "/authorize",
+    // POST { token, comment } · "Tengo una duda": 9|10 → 10 (RebotadaCliente).
+    COMMENT: "/comment",
+  },
   VAULT: {
     ISSUED_COUNT: (rfc: string, email: string) =>
       `/issued-count?rfc=${encodeURIComponent(rfc)}&email=${encodeURIComponent(email)}`,

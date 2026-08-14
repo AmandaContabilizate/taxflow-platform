@@ -238,5 +238,17 @@
   "TIMBRAME_REGISTRATION_FAILED": {
     "es": "No se pudo completar el registro automático. Asegúrate de tener al menos un régimen fiscal activo configurado en tu perfil.",
     "en": "Could not complete automatic registration on Tímbrame. Make sure to have at least one active tax regime configured in your profile."
+  },
+  "REPORT_TOKEN_INVALID": {
+    "es": "El enlace del reporte no es válido o fue modificado. Abre el último correo que te enviamos.",
+    "en": "The report link is invalid or was modified. Please open the latest email we sent you."
+  },
+  "DECLARATION_NOT_FOUND": {
+    "es": "No encontramos la declaración de este enlace.",
+    "en": "We could not find the declaration for this link."
+  },
+  "INVALID_STATUS_TRANSITION": {
+    "es": "Esta declaración ya no está en revisión: tu contador ya la retomó.",
+    "en": "This declaration is no longer under review: your accountant already picked it up."
   }
 }

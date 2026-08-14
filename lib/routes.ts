@@ -18,6 +18,8 @@ export const PUBLIC_ROUTES = {
   FORGOT_PASSWORD: "/auth/forgot-password",
   RESET_PASSWORD: "/auth/reset-password",
   COMPLETE_PROFILE: "/auth/complete-profile",
+  /** Reporte de la declaración: /reporte?t={token cifrado del correo}. */
+  DECLARATION_REPORT: "/reporte",
 } as const;
 
 export const PROTECTED_ROUTES = {
@@ -39,6 +41,7 @@ export const PUBLIC_NONAUTH_ROUTES: string[] = [
   PUBLIC_ROUTES.LOGIN_CALLBACK,
   PUBLIC_ROUTES.FORGOT_PASSWORD,
   PUBLIC_ROUTES.RESET_PASSWORD,
+  PUBLIC_ROUTES.DECLARATION_REPORT,
 ];
 
 export const PUBLIC_NO_AUTH_PATTERNS: RegExp[] = [

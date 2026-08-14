@@ -16,6 +16,9 @@ export const API_BASE_URLS = {
   metadata: `${BASE_IDENTITY}/metadata${DbOrigin}`,
   roles: `${BASE_IDENTITY}/roles${DbOrigin}`,
   declaration: `${BASE_PROCEDURES}/declaration${DbOrigin}`,
+  // Reporte público de la declaración (enlace del correo, sin JWT).
+  // OJO: NO lleva /SQLServer — el controlador expone la variante sin dbOrigin.
+  declaration_report: `${BASE_PROCEDURES}/DeclarationReport`,
   vault: `${BASE_PROCEDURES}/vault${DbOrigin}`,
   cfdi: `${BASE_PROCEDURES}/cfdi${DbOrigin}`,
   catalogs_procedures: `${BASE_PROCEDURES}/catalogs${DbOrigin}`,
