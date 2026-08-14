@@ -14,9 +14,13 @@ export async function sendBroadcastPushAction(
   request: BroadcastPushRequest
 ): Promise<Result<BroadcastPushResponse, BroadcastError>> {
   try {
+    const payload: BroadcastPushRequest = {
+      ...request,
+      dbOrigin: 2, // Fuerza siempre 2 = SQL Server (MSSQL)
+    };
     const data = await fetchPost<BroadcastPushResponse>(
       API_ROUTES.MARKETING.BROADCAST_PUSH,
-      request,
+      payload,
       "marketing"
     );
     return ok(data);
