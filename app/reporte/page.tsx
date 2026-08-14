@@ -38,7 +38,11 @@ export default async function ReportePage({
       ) : (
         <InvalidLink
           notFound={result.error.code === 'DECLARATION_NOT_FOUND'}
-          message={result.error.code === 'REPORT_TOKEN_INVALID' ? undefined : result.error.message}
+          message={
+            result.error.code && result.error.code !== 'REPORT_TOKEN_INVALID'
+              ? result.error.message
+              : undefined
+          }
         />
       )}
     </main>
