@@ -28,7 +28,6 @@ interface PaymentsState {
 const INITIAL_PAYMENTS: PaymentsState = { loading: true, error: null, items: [], total: 0 };
 
 interface Props {
-<<<<<<< HEAD
   fullName: string;
   email: string;
   rfc: string | null;
@@ -36,34 +35,16 @@ interface Props {
   initials: string;
   phoneNumber?: string;
   ciecState?: number;
+  isClient?: boolean;
   go: GoFn;
   onLogout: () => void;
   signingOut: boolean;
 }
 
-export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber, ciecState, go, onLogout, signingOut }: Props) {
+export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber, ciecState, isClient = true, go, onLogout, signingOut }: Props) {
   const { theme, setTheme } = useTheme();
   const { selectedRfc } = useRfcStore();
   const [plan, setPlan] = useState<ActivePlan | null>(null);
-=======
-  fullName: string
-  email: string
-  rfc: string | null
-  role: string | null
-  initials: string
-  phoneNumber?: string
-  ciecState?: number
-  isClient?: boolean
-  go: GoFn
-  onLogout: () => void
-  signingOut: boolean
-}
-
-export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber, ciecState, isClient = true, go, onLogout, signingOut }: Props) {
-  const { theme, setTheme } = useTheme()
-  const { selectedRfc } = useRfcStore()
-  const [plan, setPlan] = useState<ActivePlan | null>(null)
->>>>>>> origin/dev
   const [accountant, setAccountant] = useState<{ loading: boolean; name: string | null }>({
     loading: true,
     name: null,
@@ -77,7 +58,6 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
   const [pushPermission, setPushPermission] = useState<string>('default');
 
   useEffect(() => {
-<<<<<<< HEAD
     if (typeof window !== 'undefined' && 'Notification' in window) {
       setPushPermission(Notification.permission);
     }
@@ -98,16 +78,10 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
   };
 
   useEffect(() => {
-    if (!activeRfc) return;
+    if (!isClient || !activeRfc) return;
     let cancelled = false;
     setAccountant({ loading: true, name: null });
     setPayments(INITIAL_PAYMENTS);
-=======
-    if (!isClient || !activeRfc) return
-    let cancelled = false
-    setAccountant({ loading: true, name: null })
-    setPayments(INITIAL_PAYMENTS)
->>>>>>> origin/dev
 
     void (async () => {
       const [planRes, accRes, payRes] = await Promise.all([getActivePlan(activeRfc), getAccountantByRfc(activeRfc), getSalePayments(activeRfc, 1, 50)]);
@@ -118,15 +92,9 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
     })();
 
     return () => {
-<<<<<<< HEAD
       cancelled = true;
     };
-  }, [activeRfc]);
-=======
-      cancelled = true
-    }
-  }, [activeRfc, isClient])
->>>>>>> origin/dev
+  }, [activeRfc, isClient]);
 
   const planLabel = plan?.hasPlan ? `${plan.planName ?? 'Tu plan'}${plan.billingPeriod ? ` · ${periodLabel(plan.billingPeriod)}` : ''}` : 'Sin plan activo';
 

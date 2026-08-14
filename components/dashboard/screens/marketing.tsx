@@ -74,7 +74,7 @@ export function MarketingScreen() {
       targetAudience,
       roleName: targetAudience === 'Role' ? roleName.trim() : undefined,
       userIds: targetAudience === 'SpecificUsers' ? userIds : undefined,
-      dbOrigin: 0,
+      dbOrigin: 2, // 2 = SQL Server (MSSQL)
     }
 
     const res = await sendBroadcastPushAction(payload)
