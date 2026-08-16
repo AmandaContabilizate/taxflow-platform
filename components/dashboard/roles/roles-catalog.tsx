@@ -4,8 +4,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { AlertCircle, Loader2, Pencil, Plus, Star, Trash2 } from 'lucide-react'
 import { getRolesList } from '@/features/roles/actions/getRolesList.action'
 import { deleteRole } from '@/features/roles/actions/deleteRole.action'
-import type { RoleOverviewDto } from '@/features/roles/types'
-import { Badge, Btn, Card } from '../ui'
+import { roleLabel, type RoleOverviewDto } from '@/features/roles/types'
+import { Badge, Btn, Card, ErrorState } from '../ui'
 import { RoleEditor } from './role-editor'
 
 export function RolesCatalog() {
@@ -23,8 +23,10 @@ export function RolesCatalog() {
     setLoading(true)
     setError(null)
     const res = await getRolesList()
-    if (res.success) setRoles(res.value)
-    else setError(res.error.message)
+    if (res.success) {
+      // Orden alfabético por el nombre visible (español, con fallback al técnico)
+      setRoles([...res.value].sort((a, b) => roleLabel(a).localeCompare(roleLabel(b), 'es')))
+    } else setError(res.error.message)
     setLoading(false)
   }, [])
 
@@ -79,10 +81,7 @@ export function RolesCatalog() {
         >
           <div className="overflow-hidden">
         {error ? (
-          <div className="px-5 py-8 text-center flex flex-col items-center gap-2">
-            <AlertCircle size={20} style={{ color: '#9E3A15' }} />
-            <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>{error}</div>
-          </div>
+          <ErrorState message={error} />
         ) : loading ? (
           <div className="px-5 py-10 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
             <Loader2 size={18} className="animate-spin" /> Cargando roles…
@@ -104,7 +103,8 @@ export function RolesCatalog() {
                   <tr key={r.id} style={{ borderBottom: '1px solid var(--border)' }}>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold" style={{ color: 'var(--ink-900)' }}>{r.name}</span>
+                        <span className="font-semibold" style={{ color: 'var(--ink-900)' }}>{roleLabel(r)}</span>
+                        <code style={{ fontFamily: 'var(--font-mono)', fontSize: '10.5px', color: 'var(--ink-400)' }}>{r.name}</code>
                         {r.isDefault && (
                           <Badge kind="brand">
                             <Star size={10} /> Default
@@ -126,9 +126,12 @@ export function RolesCatalog() {
                         <button
                           type="button"
                           onClick={() => openEdit(r)}
-                          disabled={r.isSystem}
-                          title={r.isSystem ? 'Los roles del sistema no se pueden editar' : 'Editar'}
-                          className="w-8 h-8 rounded-lg flex items-center justify-center transition hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
+                          title={
+                            r.isSystem
+                              ? 'Editar permisos y descripción (el nombre técnico está protegido)'
+                              : 'Editar'
+                          }
+                          className="w-8 h-8 rounded-lg flex items-center justify-center transition hover:opacity-80"
                           style={{ background: 'var(--ink-50)', color: 'var(--ink-700)', border: '1px solid var(--border)' }}
                         >
                           <Pencil size={14} />

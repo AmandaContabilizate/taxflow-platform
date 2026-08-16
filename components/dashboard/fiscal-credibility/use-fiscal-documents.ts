@@ -60,8 +60,11 @@ export function useFiscalDocuments(selectedRfc: string | null, isSyncingWithSat:
           }
           : { state: classifyError(opRes.error.statusCode, opRes.error.message), errorMessage: opRes.error.message },
       )
-      const lastConsulted = (statusRes.value as any).lastConsultedAt || (statusRes.value as any).consultedAt || (statusRes.value as any).checkedAt
-      console.log('[DEBUG] RFC Status completo:', JSON.stringify(statusRes.value, null, 2))
+      const lastConsulted = statusRes.success
+        ? ((statusRes.value as { lastConsultedAt?: string }).lastConsultedAt ||
+           (statusRes.value as { consultedAt?: string }).consultedAt ||
+           (statusRes.value as { checkedAt?: string }).checkedAt)
+        : undefined
 
       setBlacklist(
         statusRes.success

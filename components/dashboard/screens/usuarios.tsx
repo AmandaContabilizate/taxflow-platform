@@ -1,11 +1,11 @@
 'use client'
 
-import { AlertCircle, Loader2, Lock, MailCheck, MailWarning } from 'lucide-react'
+import { Loader2, Lock, MailCheck, MailWarning } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { getUsers } from '@/features/users/actions/getUsers.action'
 import type { UserListItem, UserTaxpayer } from '@/features/users/types'
 import { MONO } from '../constants'
-import { Card, HelpBox } from '../ui'
+import { Card, ErrorState, HelpBox } from '../ui'
 import { Pagination, SearchBar } from '../clientes/parts'
 
 const TAKE = 50
@@ -166,11 +166,8 @@ export function UsuariosScreen() {
         </div>
 
         {error ? (
-          <div className="flex-1 px-5 py-8 text-center flex flex-col items-center justify-center gap-2">
-            <AlertCircle size={20} style={{ color: '#9E3A15' }} />
-            <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>
-              {error}
-            </div>
+          <div className="flex-1 flex flex-col justify-center">
+            <ErrorState message={error} />
           </div>
         ) : loading ? (
           <div className="flex-1 px-5 py-10 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>

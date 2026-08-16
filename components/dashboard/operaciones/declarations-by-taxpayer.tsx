@@ -1,6 +1,6 @@
 'use client'
 
-import { AlertCircle, ArrowLeft, ArrowRight, Loader2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getDeclarations } from '@/features/operations/actions/getDeclarations.action'
 import type { DeclarationListItem, DeclarationSubject, Paged } from '@/features/operations/types'
@@ -8,7 +8,7 @@ import { getTaxpayers } from '@/features/taxpayers/actions/getTaxpayers.action'
 import type { TaxpayerListItem, TaxpayerRegimen } from '@/features/taxpayers/types'
 import { Pagination, TaxpayerFilters, usePagedList, useRegimenOptions } from '../clientes/parts'
 import { DISPLAY, MONO } from '../constants'
-import { Card, HelpBox } from '../ui'
+import { Card, ErrorState, HelpBox } from '../ui'
 import { DeclarationDetail } from './declaration-detail'
 
 /* -------------------------------------------------------------------------- */
@@ -166,9 +166,8 @@ function TaxpayerPicker({ onOpen }: { onOpen: (s: Selection) => void }) {
         </div>
 
         {list.error ? (
-          <div className="flex-1 px-5 py-8 text-center flex flex-col items-center justify-center gap-2">
-            <AlertCircle size={20} style={{ color: '#9E3A15' }} />
-            <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>{list.error}</div>
+          <div className="flex-1 flex flex-col justify-center">
+            <ErrorState message={list.error} />
           </div>
         ) : list.loading ? (
           <div className="flex-1 px-5 py-10 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
@@ -425,9 +424,8 @@ function DeclarationsTable({
         </div>
 
         {error ? (
-          <div className="flex-1 px-5 py-8 text-center flex flex-col items-center justify-center gap-2">
-            <AlertCircle size={20} style={{ color: '#9E3A15' }} />
-            <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>{error}</div>
+          <div className="flex-1 flex flex-col justify-center">
+            <ErrorState message={error} />
           </div>
         ) : loading ? (
           <div className="flex-1 px-5 py-10 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>

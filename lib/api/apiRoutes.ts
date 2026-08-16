@@ -20,9 +20,46 @@ export const API_ROUTES = {
     ROLES: (userId: string) => `/${encodeURIComponent(userId)}/roles`,
     SWITCH_ROLE: "/switch-role",
   },
+  // Equipo comercial — módulo de comisiones. apiType "team" (Identity)
+  TEAM: {
+    INVITE: "/invite",
+    MEMBERS: "/members",
+    MEMBER_PROFILE: (userId: string) =>
+      `/members/${encodeURIComponent(userId)}/profile`,
+  },
+  // Partners y alianzas B2B2C. apiType "partners" (Procedures)
+  PARTNERS: {
+    LIST: "",
+    CREATE: "",
+    UPDATE: (id: number) => `/${id}`,
+  },
+  // Códigos de descuento. apiType "discount_codes" (Procedures)
+  DISCOUNT_CODES: {
+    LIST: "",
+    LOOKUPS: "/lookups",
+    CREATE: "",
+    UPDATE: (id: number) => `/${id}`,
+  },
+  // Comisiones. apiType "commissions" (Procedures)
+  COMMISSIONS: {
+    MY_SUMMARY: (period: string) => `/my-summary?period=${encodeURIComponent(period)}`,
+    MY_OPERATIONS: (period: string) => `/my-operations?period=${encodeURIComponent(period)}`,
+    TEAM_SUMMARY: (period: string) => `/team-summary?period=${encodeURIComponent(period)}`,
+  },
+  // Asignaciones de venta. apiType "assignments" (Procedures)
+  ASSIGNMENTS: {
+    UNASSIGNED: "/unassigned",
+    REQUESTS: "/requests",
+    APPROVE: (id: number) => `/requests/${id}/approve`,
+    REJECT: (id: number) => `/requests/${id}/reject`,
+    /** Retira una solicitud PENDIENTE (solo quien la creó). */
+    CANCEL: (id: number) => `/requests/${id}/cancel`,
+  },
   ROLES: {
     LIST: "/roles-list",
     GET: (roleId: string) => `/roles/${encodeURIComponent(roleId)}`,
+    /** Usuarios que tienen asignado un rol (con flag de rol activo/por defecto). */
+    USERS: (roleId: string) => `/${encodeURIComponent(roleId)}/users`,
     CREATE: "/roles",
     UPDATE: "/roles",
     DELETE: (roleId: string) => `/roles/${encodeURIComponent(roleId)}`,
@@ -197,6 +234,9 @@ export const API_ROUTES = {
   },
   FINANCES: {
     REGISTER_SALE_NEW: "/register-sale/new",
+    /** Preview del código de descuento (mismas validaciones que el registro). 404 = inválido/agotado. */
+    DISCOUNT_CODE_PREVIEW: (code: string, rfc: string) =>
+      `/discount-code?code=${encodeURIComponent(code)}&rfc=${encodeURIComponent(rfc)}`,
   },
   // Administración de partnerships externos (SSO). apiType "partnership"
   PARTNERSHIP: {

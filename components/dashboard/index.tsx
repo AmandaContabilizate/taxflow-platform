@@ -17,8 +17,12 @@ import {
   ContribuyentesScreen,
   CuentaScreen,
   DeclaracionesScreen,
+  AsignacionesScreen,
+  CodigosDescuentoScreen,
+  ComisionesScreen,
   DiagnosticoScreen,
   DocumentosScreen,
+  EquipoScreen,
   EstatusSatScreen,
   FacturasScreen,
   GeorgeScreen,
@@ -28,6 +32,7 @@ import {
   MisClientesScreen,
   NotificacionesScreen,
   OperacionesScreen,
+  PartnersScreen,
   PartnershipScreen,
   PermisosScreen,
   PlaceholderScreen,
@@ -134,6 +139,7 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
           onLogout={handleLogout}
           signingOut={signingOut}
           role={role}
+          permissions={permissions}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
@@ -313,8 +319,25 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
     if (screen === 'ventas') {
       return <VentasScreen />;
     }
+    if (screen === 'equipo') {
+      return <EquipoScreen />;
+    }
+    if (screen === 'partners') {
+      return <PartnersScreen />;
+    }
+    if (screen === 'codigos-descuento') {
+      return <CodigosDescuentoScreen />;
+    }
+    if (screen === 'asignaciones') {
+      // Claim-driven: quien tiene Admin.ApproveAssignments revisa/aprueba;
+      // la gerencia comercial (ManageAssignments) solicita/retira.
+      return <AsignacionesScreen isAdmin={permissions.includes('Admin.ApproveAssignments')} />;
+    }
+    if (screen === 'comisiones') {
+      return <ComisionesScreen permissions={permissions} />;
+    }
     if (screen === 'roles') {
-      return <RolesScreen currentUserId={userId ?? undefined} />;
+      return <RolesScreen currentUserId={userId ?? undefined} currentUserEmail={email || undefined} />;
     }
     if (screen === 'partnership') {
       return <PartnershipScreen />;
@@ -357,6 +380,8 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
       return <DiagnosticoScreen go={go} />;
     case 'estatussat':
       return <EstatusSatScreen go={go} />;
+    case 'aprende':
+      return <AprendeScreen go={go} />;
     case 'tip-detail':
       return <TipDetailScreen go={go} />;
     case 'tramites':

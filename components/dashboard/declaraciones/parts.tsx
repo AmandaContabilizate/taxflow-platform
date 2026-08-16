@@ -1,11 +1,11 @@
 'use client'
 
-import { AlertCircle, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import type { Result } from '@/lib/common'
 import { DISPLAY } from '../constants'
-import { Card } from '../ui'
+import { Card, ErrorState } from '../ui'
 
 const MONTHS = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -68,12 +68,7 @@ export function TabLoading({ label }: { label: string }) {
 export function TabError({ message }: { message: string }) {
   return (
     <Card>
-      <div className="px-5 py-8 text-center flex flex-col items-center gap-2">
-        <AlertCircle size={20} style={{ color: '#9E3A15' }} />
-        <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>
-          {message}
-        </div>
-      </div>
+      <ErrorState message={message} />
     </Card>
   )
 }

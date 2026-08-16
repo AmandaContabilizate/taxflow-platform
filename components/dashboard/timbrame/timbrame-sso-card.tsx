@@ -186,7 +186,7 @@ export function TimbrameSSOCard({ go }: Props) {
 
               {(errorCode === 'TIMBRAME_USER_NOT_FOUND' ||
                 errorCode === 'TIMBRAME_REGISTRATION_FAILED') && (
-                <Btn size="md" kind="outline" onClick={() => go('cuenta')}>
+                <Btn size="md" kind="ghost" onClick={() => go('cuenta')}>
                   <Settings size={16} /> Configurar Datos Fiscales
                 </Btn>
               )}

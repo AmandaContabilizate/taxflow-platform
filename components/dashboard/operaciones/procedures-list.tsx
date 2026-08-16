@@ -1,11 +1,11 @@
 'use client'
 
-import { AlertCircle, ExternalLink, Loader2, Search } from 'lucide-react'
+import { ExternalLink, Loader2, Search } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { getProcedureSales } from '@/features/operations/actions/getProcedureSales.action'
 import type { ProcedureSale } from '@/features/operations/types'
 import { MONO } from '../constants'
-import { Card, HelpBox } from '../ui'
+import { Card, ErrorState, HelpBox } from '../ui'
 
 function fmtDate(value: string | null): string {
   if (!value) return '—'
@@ -102,12 +102,7 @@ export function ProceduresList() {
         </div>
 
         {error ? (
-          <div className="px-5 py-8 text-center flex flex-col items-center gap-2">
-            <AlertCircle size={20} style={{ color: '#9E3A15' }} />
-            <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>
-              {error}
-            </div>
-          </div>
+          <ErrorState message={error} />
         ) : loading ? (
           <div className="px-5 py-10 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
             <Loader2 size={18} className="animate-spin" /> Cargando trámites…

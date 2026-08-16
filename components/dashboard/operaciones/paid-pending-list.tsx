@@ -1,11 +1,11 @@
 'use client'
 
-import { AlertCircle, Eye, Loader2, Search } from 'lucide-react'
+import { Eye, Loader2, Search } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { getPaidPendingDeclarations } from '@/features/operations/actions/getPaidPendingDeclarations.action'
 import type { DeclarationKind, PaidPendingDeclaration } from '@/features/operations/types'
 import { MONO } from '../constants'
-import { Card, HelpBox } from '../ui'
+import { Card, ErrorState, HelpBox } from '../ui'
 import { DeclarationDetail } from './declaration-detail'
 
 function fmtDate(value: string | null): string {
@@ -131,12 +131,7 @@ export function PaidPendingList({ kind, help, searchPlaceholder, emptyText }: Pr
 
       {error ? (
         <Card>
-          <div className="px-5 py-8 text-center flex flex-col items-center gap-2">
-            <AlertCircle size={20} style={{ color: '#9E3A15' }} />
-            <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>
-              {error}
-            </div>
-          </div>
+          <ErrorState message={error} />
         </Card>
       ) : loading ? (
         <Card>

@@ -15,7 +15,12 @@ export type Screen =
   | 'manual'
   | 'cuenta'
   | 'estatussat'
+  // Pantalla para conectar el SAT (SatConnectScreen); distinta de 'estatussat' (monitoreo)
+  | 'estatus-sat'
+  | 'aprende'
   | 'permisos'
+  // Difusión masiva de notificaciones push (módulo marketing)
+  | 'marketing'
   // Roles operativos
   | 'usuarios'
   | 'clientes'
@@ -35,6 +40,9 @@ export type Screen =
   | 'renovaciones'
   | 'asignaciones'
   | 'equipo'
+  // Catálogos comerciales del módulo de comisiones
+  | 'partners'
+  | 'codigos-descuento'
   | 'reportes-ejecutivos'
   | 'operaciones'
   | 'tramites-adicionales'
@@ -46,6 +54,7 @@ export type RoleKey =
   | 'guest'
   | 'external-provider'
   | 'developer'
+  | 'administrator'
   | 'seller'
   | 'atencion-clientes'
   | 'accounter'

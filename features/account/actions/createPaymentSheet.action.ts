@@ -14,10 +14,13 @@ interface PaymentSheetError {
 /**
  * Crea el PaymentSheet en Stripe (paso 4 de la spec). El `email` se toma de la
  * cookie de sesión (httpOnly), no se recibe del cliente.
+ * `discountCode` (opcional) se valida server-side: si aplica, el cobro de
+ * Stripe sale ya descontado (coincide con el Sale.Amount del registro).
  */
 export async function createPaymentSheet(
   rfc: string,
   items: RegisterSaleItem[],
+  discountCode?: string | null,
 ): Promise<Result<PaymentSheetParams, PaymentSheetError>> {
   try {
     const cookieStore = await cookies();
@@ -25,7 +28,7 @@ export async function createPaymentSheet(
 
     const data = await fetchPost<PaymentSheetParams>(
       API_ROUTES.STRIPE.PAYMENT_SHEET,
-      { rfc, email, items },
+      { rfc, email, items, discountCode: discountCode?.trim() || null },
       "stripe",
     );
 

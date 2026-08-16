@@ -1,12 +1,12 @@
 'use client'
 
-import { AlertCircle, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import Image from 'next/image'
 import { useState } from 'react'
 import { getSalesSummary } from '@/features/operations/actions/getSalesSummary.action'
 import type { ProductoVenta } from '@/features/operations/types'
 import { MONO } from '../constants'
-import { Card, HelpBox } from '../ui'
+import { Card, ErrorState, HelpBox } from '../ui'
 import { Pagination, SearchBar, usePagedList } from '../clientes/parts'
 import { StripeDetailModal } from '../ventas/stripe-detail-modal'
 
@@ -96,12 +96,7 @@ export function VentasScreen() {
         </div>
 
         {list.error ? (
-          <div className="px-5 py-8 text-center flex flex-col items-center gap-2">
-            <AlertCircle size={20} style={{ color: '#9E3A15' }} />
-            <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>
-              {list.error}
-            </div>
-          </div>
+          <ErrorState message={list.error} />
         ) : list.loading ? (
           <div className="px-5 py-10 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
             <Loader2 size={18} className="animate-spin" /> Cargando ventas…
