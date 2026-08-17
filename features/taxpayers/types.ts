@@ -44,3 +44,16 @@ export interface ClientListItem extends TaxpayerListItem {
   accountantName: string | null;
   accountantEmail: string | null;
 }
+
+/**
+ * Celda de la matriz régimen × actividad de un contribuyente (última CSF leída).
+ * `taxPayerTaxRegimeActivityId` es null si ese par nunca se ha vinculado.
+ */
+export interface RegimeActivityMatrixItem {
+  regimeId: number;
+  regimeName: string;
+  activityId: number;
+  activityDescription: string;
+  taxPayerTaxRegimeActivityId: number | null;
+  isActive: boolean;
+}

@@ -36,9 +36,6 @@ export function RemotionPlayer() {
         loop
         acknowledgeRemotionLicense
         numberOfSharedAudioTags={5}
-        onAutoPlayError={(error) => {
-          console.log('Autoplay blocked:', error)
-        }}
       />
 
       {/* Play button overlay */}

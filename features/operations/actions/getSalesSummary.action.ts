@@ -16,11 +16,13 @@ export async function getSalesSummary(params: {
   skip?: number;
   take?: number;
   rfc?: string;
+  /** Filtro por estatus (Catalogs.StatusSale): 1 En proceso, 2 Pagado, 3 Cancelado. */
+  status?: number;
 }): Promise<Result<Paged<VentaResumen>, OpsError>> {
-  const { skip = 0, take = 100, rfc } = params;
+  const { skip = 0, take = 100, rfc, status } = params;
   try {
     const data = await fetchGet<Paged<VentaResumen>>(
-      API_ROUTES.SALES_OPS.SUMMARY(skip, take, rfc?.trim() || undefined),
+      API_ROUTES.SALES_OPS.SUMMARY(skip, take, rfc?.trim() || undefined, status),
       "sales_reports",
     );
     return ok(data ?? EMPTY);

@@ -177,6 +177,22 @@ export interface RegisterSaleNewResponse {
   discountMessage: string | null;
 }
 
+/**
+ * Preview de un código de descuento (GET /Finances/discount-code).
+ * El backend valida activo + whitelist de RFCs + usos disponibles; 404 = inválido.
+ * DiscountTypeId: 1 = Porcentaje (descuenta el total), 2 = Declaraciones
+ * (precio completo + regularizaciones de regalo, solo en compra de planes).
+ */
+export interface DiscountCodePreview {
+  id: number;
+  code: string;
+  description: string | null;
+  discountPercent: number;
+  discountTypeId: number;
+  declarationsCount: number | null;
+  subscriptionPlanIds: number[];
+}
+
 export interface PromotionCodeValidateRequest {
   discountCode: string;
   priceId: string;

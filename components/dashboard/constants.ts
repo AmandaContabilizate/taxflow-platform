@@ -50,7 +50,8 @@ export const TITLES: Record<Screen, [string, string]> = {
   documentos: ['Mi bóveda', 'Tus documentos y facturas del SAT, en un solo lugar'],
   diagnostico: ['Diagnóstico fiscal', 'Cómo estás y qué puedes mejorar'],
   estatussat: ['Estatus ante SAT', 'Monitoreo continuo de listas y cumplimiento'],
-  // aprende: ['Aprende', 'Lecciones cortas para entender tus impuestos'],
+  'estatus-sat': ['Conecta tu SAT', 'Vincula tu RFC para activar tu información fiscal'],
+  aprende: ['Aprende', 'Lecciones cortas para entender tus impuestos'],
   'tip-detail': ['Lección', 'Aprende algo útil en pocos minutos'],
   tramites: ['Trámites adicionales', 'Servicios extra que puedes contratar cuando los necesites'],
   plan: ['Mi plan', 'Tu suscripción y opciones de pago'],
@@ -75,8 +76,10 @@ export const TITLES: Record<Screen, [string, string]> = {
   'declaraciones-anuales': ['Declaraciones anuales', 'Declaraciones del ejercicio'],
   catalogos: ['Catálogos', 'Catálogos maestros del sistema'],
   renovaciones: ['Renovaciones', 'Planes por vencer y quién ya canceló su renovación'],
-  asignaciones: ['Asignaciones', 'Reparto de cartera al equipo'],
-  equipo: ['Equipo', 'Tu equipo de trabajo'],
+  asignaciones: ['Asignaciones de venta', 'Gestiona clientes sin vendedor y solicita reasignaciones para aprobación de Administración'],
+  equipo: ['Equipo', 'Tu plantilla comercial. Da de alta nuevos miembros desde aquí.'],
+  partners: ['Partners', 'Alta de partners y alianzas B2B2C, con sus códigos automáticos'],
+  'codigos-descuento': ['Códigos de descuento', 'Códigos por dueño: ejecutivos, finder fees y partners'],
   'reportes-ejecutivos': ['Reportes ejecutivos', 'KPIs y resultados del área'],
   operaciones: ['Centro de Operaciones', 'Gestión y supervisión de declaraciones fiscales'],
   'tramites-adicionales': ['Trámites adicionales', 'Seguimiento de trámites vendidos a tus clientes'],
@@ -214,6 +217,18 @@ const ASIGNACIONES_ITEM: NavDef = {
   hint: 'Reparto de cartera',
 }
 const EQUIPO_ITEM: NavDef = { id: 'equipo', label: 'Equipo', Icon: Users, hint: 'Tu equipo' }
+const PARTNERS_ITEM: NavDef = {
+  id: 'partners',
+  label: 'Partners',
+  Icon: Briefcase,
+  hint: 'Partners y alianzas B2B2C',
+}
+const CODIGOS_DESCUENTO_ITEM: NavDef = {
+  id: 'codigos-descuento',
+  label: 'Códigos de descuento',
+  Icon: Receipt,
+  hint: 'Códigos por dueño y campaña',
+}
 const REPORTES_ITEM: NavDef = {
   id: 'reportes-ejecutivos',
   label: 'Reportes ejecutivos',
@@ -256,14 +271,20 @@ export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
   // Partner externo con SSO: solo administra su propia integración.
   'external-provider': [DASHBOARD_ITEM, PARTNERSHIP_ITEM],
   // Perfil administrativo / superusuario: administración de roles y padrones.
+  // Developer conserva todo lo de Administrator (superusuario técnico).
   developer: [
     DASHBOARD_ITEM,
     MARKETING_ITEM,
     USUARIOS_ITEM,
     CONTRIBUYENTES_ITEM,
     CLIENTES_ITEM,
+    ASIGNACIONES_ITEM,
     ROLES_ITEM,
   ],
+  // Administración del negocio: ve TODOS los módulos del sistema.
+  // Se llena debajo de MASTER_NAV_SECTIONS para derivarse del mapa maestro
+  // (un módulo nuevo en el mapa queda visible para admin automáticamente).
+  administrator: [],
   seller: [
     DASHBOARD_ITEM,
     USUARIOS_ITEM,
@@ -319,6 +340,8 @@ export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
     COMISIONES_ITEM,
     MIS_TAREAS_ITEM,
     EQUIPO_ITEM,
+    PARTNERS_ITEM,
+    CODIGOS_DESCUENTO_ITEM,
     REPORTES_ITEM,
   ],
   'gerente-sac': [
@@ -351,6 +374,133 @@ export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
   ],
 }
 
+/**
+ * DISEÑO ÚNICO del sidebar interno: un solo mapa maestro de secciones para
+ * TODOS los roles. Qué módulos ve cada rol lo decide su lista de ROLE_NAV
+ * (los permisos); esta estructura solo define el orden y la agrupación.
+ * Las secciones sin ítems permitidos para el rol no se muestran.
+ */
+export const MASTER_NAV_SECTIONS: NavSection[] = [
+  { section: 'PANEL', items: [DASHBOARD_ITEM] },
+  {
+    section: 'VENTAS',
+    items: [
+      VENTAS_ITEM,
+      USUARIOS_ITEM,
+      CLIENTES_ITEM,
+      CONTRIBUYENTES_ITEM,
+      ASIGNACIONES_ITEM,
+      COMISIONES_ITEM,
+      RENOVACIONES_ITEM,
+      UPSELL_ITEM,
+      PIPELINES_ITEM,
+    ],
+  },
+  {
+    section: 'ATENCIÓN',
+    items: [BANDEJA_ITEM, NOTIFICACIONES_ITEM, CLIENTES_ASIGNADOS_ITEM],
+  },
+  {
+    section: 'OPERACIÓN',
+    items: [
+      OPERACIONES_ITEM,
+      MIS_CLIENTES_ITEM,
+      REGULARIZACIONES_ITEM,
+      TRAMITES_ADICIONALES_ITEM,
+      DECLARACIONES_ANUALES_ITEM,
+    ],
+  },
+  {
+    section: 'GESTIÓN',
+    items: [
+      EQUIPO_ITEM,
+      PARTNERS_ITEM,
+      CODIGOS_DESCUENTO_ITEM,
+      MARKETING_ITEM,
+      REPORTES_ITEM,
+      ACTIVIDAD_ITEM,
+      MIS_TAREAS_ITEM,
+    ],
+  },
+  {
+    section: 'SISTEMA',
+    items: [ROLES_ITEM, CATALOGOS_ITEM, PARTNERSHIP_ITEM],
+  },
+]
+
+// Administrador ve TODOS los módulos: se deriva del mapa maestro para que un
+// módulo nuevo quede visible para admin sin tocar dos listas.
+ROLE_NAV.administrator = MASTER_NAV_SECTIONS.flatMap((s) => s.items)
+
+/**
+ * Permisos que abren cada módulo del backoffice (los claims que su pantalla
+ * consume). El menú se deriva de aquí: un módulo aparece solo si el token del
+ * usuario trae al menos uno de sus permisos — misma arquitectura que los
+ * endpoints. Un módulo SIN entrada aquí no aparece para nadie (aún no tiene
+ * permisos configurables, p. ej. Partnership, Bandeja, Upsell); cuando reciba
+ * su primer claim, se agrega aquí y se administra desde Roles y permisos.
+ */
+export const MODULE_CLAIMS: Record<string, string[]> = {
+  // El item Dashboard del sidebar usa id 'home' (la pantalla del cliente y la
+  // del backoffice comparten id de navegación, pero son pantallas distintas).
+  // Se abre con cualquier permiso de dashboard: cada Dashboard.* decide cuál se pinta.
+  home: [
+    'Backoffice.ViewDashboard',
+    'Dashboard.GerenciaComercial',
+    'Dashboard.Ventas',
+    'Dashboard.GerenciaContable',
+    'Dashboard.Contador',
+  ],
+  ventas: ['Contador.ReadVentas'],
+  // Ver todos, o solo los registrados con su código de vendedor (alcance en el endpoint)
+  usuarios: ['Backoffice.ReadUsers', 'Comercial.ReadOwnUsers'],
+  clientes: ['Comercial.ReadClientes'],
+  contribuyentes: ['Contador.ReadPadron'],
+  asignaciones: ['GerenciaComercial.ManageAssignments', 'Admin.ApproveAssignments'],
+  comisiones: [
+    'Comercial.ReadOwnCommissions',
+    'GerenciaComercial.ReadTeamCommissions',
+    'Admin.RunCommissionClose',
+  ],
+  renovaciones: ['Comercial.ReadRenovaciones'],
+  operaciones: ['Contador.ReadDeclaraciones'],
+  // Cartera propia (contador) o todas las carteras (gerencia con AssignAccountant)
+  'mis-clientes': ['Contador.ReadMisClientes', 'AssignAccountant'],
+  regularizaciones: ['Contador.ReadDeclaraciones'],
+  'tramites-adicionales': ['Contador.ReadTramites'],
+  'declaraciones-anuales': ['Contador.ReadDeclaraciones'],
+  equipo: ['GerenciaComercial.InviteTeamMember', 'GerenciaComercial.ManageTeamProfiles'],
+  partners: ['GerenciaComercial.ManagePartners'],
+  'codigos-descuento': ['GerenciaComercial.ManageDiscountCodes'],
+  marketing: ['Marketing.SendBroadcast'],
+  notificaciones: ['Atencion.SendNotifications'],
+  // Administrar roles, no solo verlos (ViewRole lo tienen roles operativos
+  // para llenar dropdowns, p. ej. el modal de invitar al equipo).
+  roles: ['AssignRole', 'CreateRole', 'EditRole', 'DeleteRole', 'RemoveRole'],
+  // Catálogos aún no tiene permisos propios (los de actividades por régimen se
+  // movieron a Mis clientes, donde vive la función): oculto hasta que los tenga.
+}
+
+/**
+ * Secciones del sidebar: guest y el proveedor externo (portal SSO) usan su nav
+ * fijo; los roles internos derivan el menú de los PERMISOS del token contra
+ * MODULE_CLAIMS (Dashboard siempre visible). Las secciones vacías se ocultan.
+ */
+export function roleNavSections(roleKey: RoleKey, permissions: string[] = []): NavSection[] {
+  if (roleKey === 'guest') return GUEST_NAV_GROUPED
+  if (roleKey === 'external-provider') {
+    const allowed = new Set(ROLE_NAV['external-provider'].map((i) => i.id))
+    return MASTER_NAV_SECTIONS
+      .map((s) => ({ ...s, items: s.items.filter((i) => allowed.has(i.id)) }))
+      .filter((s) => s.items.length > 0)
+  }
+  const perms = new Set(permissions)
+  const visible = (id: string) => MODULE_CLAIMS[id]?.some((c) => perms.has(c)) ?? false
+  return MASTER_NAV_SECTIONS
+    .map((s) => ({ ...s, items: s.items.filter((i) => visible(i.id)) }))
+    .filter((s) => s.items.length > 0)
+}
+
 export function normalizeRole(raw: string | null | undefined): RoleKey {
   if (!raw) return 'guest'
   const slug = raw
@@ -366,6 +516,11 @@ export function normalizeRole(raw: string | null | undefined): RoleKey {
     case 'developer':
     case 'dev':
       return 'developer'
+    case 'administrator':
+    case 'administrador':
+    case 'administration':
+    case 'admin':
+      return 'administrator'
     case 'seller':
     case 'ventas':
       return 'seller'
@@ -376,11 +531,25 @@ export function normalizeRole(raw: string | null | undefined): RoleKey {
     case 'sac':
       return 'atencion-clientes'
     case 'accounter':
+    case 'contador':
+    // Gerente de contabilidad: persona de backoffice; el menú sale de sus
+    // permisos (claims), así que comparte roleKey con el contador.
+    case 'accountingmanager':
+    case 'accounting manager':
+    case 'gerente de contabilidad':
+    case 'gerente contabilidad':
       return 'accounter'
+    case 'finderfee':
+    case 'finder fee':
+      return 'seller'
     case 'renovaciones':
       return 'renovaciones'
+    case 'commercialmanager':
+    case 'commercial manager':
     case 'gerencia comercial':
       return 'gerencia-comercial'
+    case 'sacmanager':
+    case 'sac manager':
     case 'gerente sac':
     case 'gerente de sac':
       return 'gerente-sac'

@@ -58,3 +58,54 @@ export interface AssignmentsError {
   statusCode: number;
   message: string;
 }
+
+// =====================================================================
+// Asignaciones de VENTA (módulo de comisiones, spec §6.4).
+// - GET  /assignments/unassigned → operaciones sin vendedor.
+// - POST /assignments/requests   → solicitud con aprobación de Administración.
+// =====================================================================
+
+export interface UnassignedOperation {
+  operationId: number;
+  rfc: string;
+  clientName: string | null;
+  clientEmail: string | null;
+  saleDate: string;
+  operationType: string;
+  amountNet: number;
+  products: string;
+  pendingReview: boolean;
+  hasPendingRequest: boolean;
+}
+
+/** Ids del catálogo Catalogs.AssignmentRequestStatus. */
+export const REQUEST_STATUS = {
+  Pending: 1,
+  Approved: 2,
+  Rejected: 3,
+  /** Retirada por el gerente solicitante antes de la revisión. */
+  Cancelled: 4,
+} as const;
+
+export interface AssignmentRequest {
+  id: number;
+  operationId: number;
+  rfc: string;
+  clientName: string | null;
+  requestedByName: string;
+  proposedExecutiveName: string;
+  reason: string;
+  evidenceUrl: string | null;
+  statusId: number;
+  status: string;
+  reviewNotes: string | null;
+  createdAt: string;
+  reviewedAt: string | null;
+}
+
+export interface CreateAssignmentRequestInput {
+  operationId: number;
+  proposedExecutiveUserId: string;
+  reason: string;
+  evidenceUrl?: string;
+}

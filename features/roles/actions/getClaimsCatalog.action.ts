@@ -3,6 +3,7 @@
 import { cookies } from "next/headers";
 import { getBaseUrl } from "@/lib/api";
 import { API_ROUTES } from "@/lib/api/apiRoutes";
+import { readAuthToken } from "@/lib/api/tokenCookie";
 import { type Result, err, ok } from "@/lib/common";
 import { toRolesError } from "../errors";
 import type {
@@ -16,7 +17,9 @@ export async function getClaimsCatalog(): Promise<
 > {
   // ── DEBUG (temporal): loguea request + response crudo del backend ──────────
   const url = `${getBaseUrl("roles")}${API_ROUTES.ROLES.CLAIMS_CATALOG}`;
-  const token = (await cookies()).get("auth_token")?.value;
+  // El token viaja troceado en cookies (auth_token + auth_token_1..n)
+  const cookieStore = await cookies();
+  const token = readAuthToken((name) => cookieStore.get(name)?.value);
 
   console.log("\n[claims-catalog] ▶ REQUEST");
   console.log("  method :", "GET");

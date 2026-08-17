@@ -3,14 +3,14 @@
 import { ApiError, fetchGet } from "@/lib/api";
 import { API_ROUTES } from "@/lib/api/apiRoutes";
 import { type Result, err, ok } from "@/lib/common";
-import type { Paged, UserListItem } from "../types";
+import type { UsuariosPage } from "../types";
 
 interface UsersError {
   statusCode: number;
   message: string;
 }
 
-const EMPTY: Paged<UserListItem> = { items: [], total: 0, skip: 0, take: 0 };
+const EMPTY: UsuariosPage = { items: [], total: 0, skip: 0, take: 0, estatus: [] };
 
 /** Padrón de cuentas registradas (GET /users). Sin filtros trae todas. */
 export async function getUsers(params: {
@@ -22,20 +22,23 @@ export async function getUsers(params: {
   role?: string;
   /** true confirmados, false pendientes, ausente todos. */
   emailConfirmed?: boolean;
-}): Promise<Result<Paged<UserListItem>, UsersError>> {
-  const { skip = 0, take = 100, search, role, emailConfirmed } = params;
+  /** Avance del alta: legacy | creado | correo-enviado | correo-verificado | completo | rfc. */
+  estatus?: string;
+}): Promise<Result<UsuariosPage, UsersError>> {
+  const { skip = 0, take = 100, search, role, emailConfirmed, estatus } = params;
   try {
-    const data = await fetchGet<Paged<UserListItem>>(
+    const data = await fetchGet<UsuariosPage>(
       API_ROUTES.USERS_OPS.LIST(
         skip,
         take,
         search?.trim() || undefined,
         role?.trim() || undefined,
         emailConfirmed,
+        estatus?.trim() || undefined,
       ),
       "users_reports",
     );
-    return ok(data ?? EMPTY);
+    return ok(data ? { ...data, estatus: data.estatus ?? [] } : EMPTY);
   } catch (e) {
     if (e instanceof ApiError) {
       return err({ statusCode: e.status, message: e.message });

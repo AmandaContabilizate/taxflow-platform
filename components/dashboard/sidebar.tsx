@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { ChevronDown, LogOut, Moon, Plus, Sun, PanelLeftClose, PanelLeftOpen, UserPlus, PlusCircle, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
-import { DISPLAY, MONO, ROLE_NAV, GUEST_NAV_GROUPED, normalizeRole } from './constants'
+import { DISPLAY, MONO, ROLE_NAV, roleNavSections, normalizeRole } from './constants'
 import type { GoFn, NavDef, Screen } from './types'
 import { RFCSelector } from './rfc-selector'
 
@@ -19,6 +19,7 @@ interface SidebarProps {
   onLogout: () => void
   signingOut: boolean
   role: string | null
+  permissions?: string[]
   collapsed?: boolean
   onToggleCollapse?: () => void
 }
@@ -33,6 +34,7 @@ export function Sidebar({
   onLogout,
   signingOut,
   role,
+  permissions = [],
   collapsed = false,
   onToggleCollapse,
 }: SidebarProps) {
@@ -55,7 +57,10 @@ export function Sidebar({
 
   const roleKey = normalizeRole(role)
   const isClient = roleKey === 'guest'
-  const baseNav = ROLE_NAV[roleKey] ?? ROLE_NAV.guest
+  // Diseño único: el menú se deriva de los PERMISOS del token (MODULE_CLAIMS);
+  // guest y proveedor externo usan su nav fijo. Colapsado (solo íconos) va plano.
+  const groupedNav = roleNavSections(roleKey, permissions)
+  const baseNav = isClient ? (ROLE_NAV[roleKey] ?? ROLE_NAV.guest) : groupedNav.flatMap((s) => s.items)
 
   const {
     rfcs,
@@ -113,45 +118,71 @@ export function Sidebar({
 
 
         <nav className="flex flex-col gap-0 py-0 flex-1 min-h-0 overflow-y-auto overflow-x-hidden -mx-1 px-1">
-          {roleKey === 'guest' && !collapsed ? (
-            GUEST_NAV_GROUPED.map((section, idx) => {
-              // El primer grupo (Inicio) no tiene título; necesita una key propia.
+          {groupedNav && !collapsed ? (
+            groupedNav.map((section, idx) => {
+              // El primer grupo (Inicio del guest) no tiene título; necesita una key propia.
               const sectionKey = section.section ?? `group-${idx}`
-              const isCollapsed = collapsedSections.has(section.section ?? '')
-              const isCollapsible = ['FISCAL', 'CUENTA', 'AYUDA'].includes(section.section ?? '')
+              // Toda sección con título es colapsable (diseño único para todos los roles).
+              const isCollapsible = Boolean(section.section)
+              const isCollapsed = isCollapsible && collapsedSections.has(section.section ?? '')
               const isFirst = idx === 0
+              // Si la sección colapsada contiene la pantalla activa, se marca con un
+              // punto de marca para no "perder" dónde estás.
+              const hasActive = section.items.some(n => n.id === screen)
 
               return (
                 <div key={sectionKey} className="flex flex-col gap-1">
                   {section.section && (
                     <button
-                      onClick={() => isCollapsible && toggleSection(section.section ?? '')}
-                      className={`px-2.5 ${isFirst ? 'pt-0' : 'pt-3'} pb-1.5 text-[10px] font-extrabold uppercase tracking-widest flex items-center justify-between transition-colors ${isCollapsible ? 'hover:opacity-70 cursor-pointer' : ''}`}
-                      style={{ color: 'var(--ink-400)' }}
+                      onClick={() => toggleSection(section.section ?? '')}
+                      aria-expanded={!isCollapsed}
+                      className={`group mx-0.5 px-2 ${isFirst ? 'mt-0' : 'mt-3'} py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-widest flex items-center gap-2 cursor-pointer`}
+                      style={{ color: 'var(--ink-400)', transition: 'background-color 150ms ease, color 150ms ease' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--sidebar-accent)'; e.currentTarget.style.color = 'var(--ink-700)' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--ink-400)' }}
+                      onFocus={(e) => { e.currentTarget.style.color = 'var(--ink-700)' }}
+                      onBlur={(e) => { e.currentTarget.style.color = 'var(--ink-400)' }}
                     >
                       <span>{section.section}</span>
-                      {isCollapsible && (
-                        <ChevronDown
-                          size={14}
-                          style={{
-                            transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
-                            transition: 'transform 200ms ease',
-                          }}
+                      {isCollapsed && hasActive && (
+                        <span
+                          className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                          style={{ background: 'var(--brand-500)' }}
+                          aria-hidden
                         />
                       )}
+                      <span className="flex-1" />
+                      <ChevronDown
+                        size={14}
+                        style={{
+                          transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+                          transition: 'transform 200ms cubic-bezier(0.23, 1, 0.32, 1)',
+                        }}
+                      />
                     </button>
                   )}
-                  {!isCollapsed && section.items.map(n => (
-                    <NavItem
-                      key={n.id}
-                      label={n.label}
-                      Icon={n.Icon}
-                      hint={n.hint}
-                      active={screen === n.id}
-                      onClick={() => go(n.id)}
-                      collapsed={false}
-                    />
-                  ))}
+                  {/* Colapso animado: grid-template-rows 1fr→0fr (suave, sin medir alturas). */}
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateRows: isCollapsed ? '0fr' : '1fr',
+                      transition: 'grid-template-rows 250ms cubic-bezier(0.23, 1, 0.32, 1)',
+                    }}
+                  >
+                    <div className="min-h-0 overflow-hidden flex flex-col gap-1">
+                      {section.items.map(n => (
+                        <NavItem
+                          key={n.id}
+                          label={n.label}
+                          Icon={n.Icon}
+                          hint={n.hint}
+                          active={screen === n.id}
+                          onClick={() => go(n.id)}
+                          collapsed={false}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )
             })

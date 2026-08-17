@@ -1,9 +1,11 @@
 'use client'
 
-import { AlertCircle, Loader2 } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { Loader2, Tags, UserCog, Users } from 'lucide-react'
 import { getMyClients } from '@/features/taxpayers/actions/getMyClients.action'
+import type { ClientListItem } from '@/features/taxpayers/types'
 import { MONO } from '../constants'
-import { Card, HelpBox } from '../ui'
+import { Card, ErrorState, HelpBox } from '../ui'
 import {
   MinSalesFilter,
   Pagination,
@@ -12,18 +14,86 @@ import {
   VentasPagadasCell,
   usePagedList,
 } from '../clientes/parts'
+import { ReassignModal } from '../clientes/reassign-modal'
+import { ActividadesModal } from '../clientes/actividades-modal'
 
 const DEFAULT_MIN_SALES = 2
 
-export function MisClientesScreen() {
-  const list = usePagedList(getMyClients, 50, DEFAULT_MIN_SALES)
+const ASSIGN_PERMISSION = 'AssignAccountant'
+const ACTIVITIES_PERMISSION = 'AccountingManager.GetRegimeActivities'
+
+interface MisClientesProps {
+  permissions?: string[]
+  /** Usuario autenticado, para la opción "Mi cartera" del filtro de gerencia. */
+  userId?: string | null
+}
+
+/**
+ * Cartera contable. Alcance por permisos (lo decide el backend con el token):
+ * - Contador: solo su cartera, como siempre.
+ * - Gerencia (AssignAccountant): todas las carteras del área, con columna y
+ *   filtro por contador, reasignación y actividades económicas por régimen.
+ */
+export function MisClientesScreen({ permissions = [], userId }: MisClientesProps) {
+  const isManager = permissions.includes(ASSIGN_PERMISSION)
+  const canActivities = permissions.includes(ACTIVITIES_PERMISSION)
+
+  // ''= todas las carteras (solo gerencia); un userId = cartera de ese contador.
+  const [contadorFiltro, setContadorFiltro] = useState('')
+  // Contadores vistos en los resultados: alimentan el dropdown sin endpoint extra.
+  const [contadores, setContadores] = useState<{ id: string; name: string }[]>([])
+
+  const fetcher = useCallback(
+    (p: { skip?: number; take?: number; rfc?: string; minSales?: number }) =>
+      getMyClients({
+        ...p,
+        accountantUserId: isManager ? contadorFiltro || undefined : undefined,
+      }),
+    [isManager, contadorFiltro],
+  )
+  const list = usePagedList(fetcher, 50, DEFAULT_MIN_SALES)
+
+  const [reassignTarget, setReassignTarget] = useState<ClientListItem | null>(null)
+  const [activitiesTarget, setActivitiesTarget] = useState<ClientListItem | null>(null)
+
+  useEffect(() => {
+    if (!isManager) return
+    setContadores((prev) => {
+      const next = new Map(prev.map((c) => [c.id, c.name]))
+      for (const item of list.items) {
+        if (item.accountantUserId && !next.has(item.accountantUserId)) {
+          next.set(item.accountantUserId, item.accountantName || item.accountantEmail || 'Sin nombre')
+        }
+      }
+      return next.size === prev.length ? prev : Array.from(next, ([id, name]) => ({ id, name }))
+    })
+  }, [isManager, list.items])
+
+  const changeContador = (value: string) => {
+    setContadorFiltro(value)
+    list.resetPage()
+  }
+
+  const headers = isManager
+    ? ['Cliente', 'RFC', 'Regímenes', 'Ventas pagadas', 'Compras', 'Planes', 'Contador', 'Acciones']
+    : ['Cliente', 'RFC', 'Regímenes', 'Ventas pagadas', 'Compras', 'Planes']
 
   return (
     <div className="flex flex-col gap-5 max-w-full h-[calc(100dvh-8.5rem)]">
       <HelpBox>
-        Tu cartera: los contribuyentes con venta que tienes asignados como contador. Aquí ves cuántas
-        veces ha pagado cada uno, sus compras y los planes que contrataron. Con el filtro de ventas
-        dejas fuera a los de una sola compra.
+        {isManager ? (
+          <>
+            Vista del área: las carteras de todos los contadores, con su contador asignado. Filtra
+            por contador (o &ldquo;Mi cartera&rdquo; si también atiendes clientes), reasigna carteras y
+            administra las actividades económicas por régimen de cada contribuyente.
+          </>
+        ) : (
+          <>
+            Tu cartera: los contribuyentes con venta que tienes asignados como contador. Aquí ves
+            cuántas veces ha pagado cada uno, sus compras y los planes que contrataron. Con el
+            filtro de ventas dejas fuera a los de una sola compra.
+          </>
+        )}
       </HelpBox>
 
       <Card className="shrink-0">
@@ -31,6 +101,23 @@ export function MisClientesScreen() {
           <div className="flex-1 min-w-0">
             <SearchBar value={list.rfc} onChange={list.setRfc} placeholder="Buscar por RFC…" />
           </div>
+          {isManager && (
+            <select
+              value={contadorFiltro}
+              onChange={(e) => changeContador(e.target.value)}
+              aria-label="Filtrar por contador"
+              className="px-3 py-2.5 rounded-lg text-[13px] font-semibold sm:w-[230px] outline-none cursor-pointer"
+              style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--ink-700)' }}
+            >
+              <option value="">Todos los contadores</option>
+              {userId && <option value={userId}>Mi cartera</option>}
+              {contadores
+                .filter((c) => c.id !== userId)
+                .map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+            </select>
+          )}
           <MinSalesFilter
             value={list.minSales}
             onChange={list.setMinSales}
@@ -51,15 +138,12 @@ export function MisClientesScreen() {
         </div>
 
         {list.error ? (
-          <div className="flex-1 px-5 py-8 text-center flex flex-col items-center justify-center gap-2">
-            <AlertCircle size={20} style={{ color: '#9E3A15' }} />
-            <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>
-              {list.error}
-            </div>
+          <div className="flex-1 flex flex-col justify-center">
+            <ErrorState message={list.error} />
           </div>
         ) : list.loading ? (
           <div className="flex-1 px-5 py-10 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
-            <Loader2 size={18} className="animate-spin" /> Cargando tu cartera…
+            <Loader2 size={18} className="animate-spin" /> Cargando cartera…
           </div>
         ) : (
           <>
@@ -67,7 +151,7 @@ export function MisClientesScreen() {
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Cliente', 'RFC', 'Regímenes', 'Ventas pagadas', 'Compras', 'Planes'].map((h) => (
+                    {headers.map((h) => (
                       <th
                         key={h}
                         className="px-5 py-3 text-left font-extrabold"
@@ -122,6 +206,54 @@ export function MisClientesScreen() {
                           <span className="text-xs" style={{ color: 'var(--ink-500)' }}>—</span>
                         )}
                       </td>
+                      {isManager && (
+                        <>
+                          <td className="px-5 py-4">
+                            {c.accountantName ? (
+                              <div className="flex items-center gap-1.5 text-[12.5px]" style={{ color: 'var(--ink-900)' }}>
+                                <Users size={13} style={{ color: 'var(--ink-400)' }} />
+                                {c.accountantName}
+                              </div>
+                            ) : (
+                              <span className="text-xs" style={{ color: 'var(--ink-500)' }}>Sin contador</span>
+                            )}
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setReassignTarget(c)}
+                                title={c.accountantUserId ? 'Reasignar contador' : 'Asignar contador'}
+                                className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11.5px] font-bold cursor-pointer active:scale-[0.97]"
+                                style={{
+                                  background: 'var(--ink-50)',
+                                  color: 'var(--ink-700)',
+                                  border: '1px solid var(--border)',
+                                  transition: 'transform 120ms cubic-bezier(0.23, 1, 0.32, 1)',
+                                }}
+                              >
+                                <UserCog size={13} /> {c.accountantUserId ? 'Reasignar' : 'Asignar'}
+                              </button>
+                              {canActivities && (
+                                <button
+                                  type="button"
+                                  onClick={() => setActivitiesTarget(c)}
+                                  title="Actividades económicas por régimen"
+                                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11.5px] font-bold cursor-pointer active:scale-[0.97]"
+                                  style={{
+                                    background: 'var(--hero-brand-soft)',
+                                    color: 'var(--brand-700)',
+                                    border: '1px solid var(--brand-500)',
+                                    transition: 'transform 120ms cubic-bezier(0.23, 1, 0.32, 1)',
+                                  }}
+                                >
+                                  <Tags size={13} /> Actividades
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -130,7 +262,11 @@ export function MisClientesScreen() {
 
             {list.items.length === 0 ? (
               <div className="text-center py-8 shrink-0">
-                <div style={{ color: 'var(--ink-500)' }}>Aún no tienes clientes asignados</div>
+                <div style={{ color: 'var(--ink-500)' }}>
+                  {isManager && contadorFiltro === ''
+                    ? 'No hay carteras asignadas todavía'
+                    : 'Sin clientes en esta cartera'}
+                </div>
               </div>
             ) : (
               <Pagination
@@ -147,6 +283,25 @@ export function MisClientesScreen() {
           </>
         )}
       </Card>
+
+      {isManager && (
+        <>
+          <ReassignModal
+            open={reassignTarget !== null}
+            onOpenChange={(open) => !open && setReassignTarget(null)}
+            client={reassignTarget}
+            onReassigned={() => {
+              setReassignTarget(null)
+              list.reload()
+            }}
+          />
+          <ActividadesModal
+            open={activitiesTarget !== null}
+            onOpenChange={(open) => !open && setActivitiesTarget(null)}
+            client={activitiesTarget}
+          />
+        </>
+      )}
     </div>
   )
 }

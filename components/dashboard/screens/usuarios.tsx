@@ -1,11 +1,11 @@
 'use client'
 
-import { AlertCircle, Loader2, Lock, MailCheck, MailWarning } from 'lucide-react'
+import { Database, Globe, Loader2, Lock, MailCheck, MailWarning, Smartphone, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { getUsers } from '@/features/users/actions/getUsers.action'
-import type { UserListItem, UserTaxpayer } from '@/features/users/types'
+import type { EstatusConteo, UserListItem, UserTaxpayer } from '@/features/users/types'
 import { MONO } from '../constants'
-import { Card, HelpBox } from '../ui'
+import { Card, ErrorState, HelpBox } from '../ui'
 import { Pagination, SearchBar } from '../clientes/parts'
 
 const TAKE = 50
@@ -39,13 +39,19 @@ function useRoleOptions(items: UserListItem[]) {
   return seen
 }
 
-export function UsuariosScreen() {
+/**
+ * @param scopedToSeller true cuando el rol activo solo tiene Comercial.ReadOwnUsers:
+ * el backend acota la lista a su propio embudo (código de referido y/o de descuento).
+ */
+export function UsuariosScreen({ scopedToSeller = false }: { scopedToSeller?: boolean }) {
   const [items, setItems] = useState<UserListItem[]>([])
   const [total, setTotal] = useState(0)
   const [skip, setSkip] = useState(0)
   const [search, setSearchState] = useState('')
   const [role, setRoleState] = useState('')
   const [confirmed, setConfirmedState] = useState<ConfirmedFilter>('')
+  const [estatus, setEstatusState] = useState('')
+  const [estatusCounts, setEstatusCounts] = useState<EstatusConteo[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const roleOptions = useRoleOptions(items)
@@ -62,15 +68,18 @@ export function UsuariosScreen() {
         search: search.trim() || undefined,
         role: role || undefined,
         emailConfirmed: confirmed === '' ? undefined : confirmed === 'true',
+        estatus: estatus || undefined,
       })
       if (cancelled) return
       if (res.success) {
         setItems(res.value.items)
         setTotal(res.value.total)
+        setEstatusCounts(res.value.estatus)
       } else {
         setError(res.error.message)
         setItems([])
         setTotal(0)
+        setEstatusCounts([])
       }
       setLoading(false)
     }, delay)
@@ -78,7 +87,7 @@ export function UsuariosScreen() {
       cancelled = true
       clearTimeout(handle)
     }
-  }, [skip, search, role, confirmed])
+  }, [skip, search, role, confirmed, estatus])
 
   const setSearch = (v: string) => {
     setSkip(0)
@@ -92,6 +101,11 @@ export function UsuariosScreen() {
     setSkip(0)
     setConfirmedState(v)
   }
+  /** Click en un chip: alterna el filtro (volver a pulsarlo lo quita). */
+  const toggleEstatus = (key: string) => {
+    setSkip(0)
+    setEstatusState((prev) => (prev === key ? '' : key))
+  }
 
   const selectStyle = {
     background: 'var(--input)',
@@ -102,8 +116,17 @@ export function UsuariosScreen() {
   return (
     <div className="flex flex-col gap-5 max-w-full h-[calc(100dvh-8.5rem)]">
       <HelpBox>
-        Todos los usuarios registrados en la plataforma, hayan comprado o no. Busca por nombre,
-        correo o teléfono, y filtra por rol o por estado del correo.
+        {scopedToSeller ? (
+          <>
+            Usuarios registrados con tu código de referido y/o código de descuento. Aquí ves
+            todo el embudo del onboarding: desde que se crea la cuenta hasta que registra su RFC.
+          </>
+        ) : (
+          <>
+            Todos los usuarios registrados en la plataforma, hayan comprado o no. Busca por nombre,
+            correo o teléfono, y filtra por rol, estado del correo o avance del alta.
+          </>
+        )}
       </HelpBox>
 
       <Card className="shrink-0">
@@ -138,13 +161,15 @@ export function UsuariosScreen() {
             <option value="true">Solo confirmados</option>
             <option value="false">Solo pendientes</option>
           </select>
-          {(search || role || confirmed) && (
+          {(search || role || confirmed || estatus) && (
             <button
               type="button"
               onClick={() => {
                 setSearch('')
                 setRole('')
                 setConfirmed('')
+                setEstatusState('')
+                setSkip(0)
               }}
               className="px-3.5 py-2.5 rounded-lg text-[12.5px] font-bold whitespace-nowrap"
               style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--ink-700)' }}
@@ -153,6 +178,46 @@ export function UsuariosScreen() {
             </button>
           )}
         </div>
+
+        {/* Chips de avance del alta: cada uno filtra y muestra cuántos hay en la
+            búsqueda actual. Volver a pulsar el activo quita el filtro. */}
+        {estatusCounts.length > 0 && (
+          <div
+            className="px-4 pb-4 -mt-1 flex items-center gap-2 flex-wrap"
+            role="group"
+            aria-label="Filtrar por avance del alta"
+          >
+            {estatusCounts.map((c) => {
+              const active = estatus === c.key
+              return (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => toggleEstatus(c.key)}
+                  aria-pressed={active}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[12.5px] font-bold cursor-pointer active:scale-[0.97]"
+                  style={{
+                    background: active ? 'var(--nav-active-bg)' : 'var(--ink-50)',
+                    color: active ? 'var(--nav-active-fg)' : 'var(--ink-700)',
+                    border: `1px solid ${active ? 'var(--nav-active-bg)' : 'var(--border)'}`,
+                    transition: 'background-color 150ms ease, color 150ms ease, transform 120ms cubic-bezier(0.23, 1, 0.32, 1)',
+                  }}
+                >
+                  {c.label}
+                  <span
+                    className="px-1.5 rounded-full text-[11px] font-extrabold"
+                    style={{
+                      background: active ? 'rgba(255,255,255,0.22)' : 'var(--card)',
+                      color: active ? 'var(--nav-active-fg)' : 'var(--ink-500)',
+                    }}
+                  >
+                    {c.total}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        )}
       </Card>
 
       <Card className="flex-1 min-h-0 flex flex-col">
@@ -166,11 +231,8 @@ export function UsuariosScreen() {
         </div>
 
         {error ? (
-          <div className="flex-1 px-5 py-8 text-center flex flex-col items-center justify-center gap-2">
-            <AlertCircle size={20} style={{ color: '#9E3A15' }} />
-            <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>
-              {error}
-            </div>
+          <div className="flex-1 flex flex-col justify-center">
+            <ErrorState message={error} />
           </div>
         ) : loading ? (
           <div className="flex-1 px-5 py-10 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
@@ -182,7 +244,7 @@ export function UsuariosScreen() {
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Usuario', 'Teléfono', 'Roles', 'Contribuyentes', 'Estado', 'Registro'].map((h) => (
+                    {['Usuario', 'Teléfono', 'Roles', 'Contribuyentes', 'Estatus', 'Origen', 'Código de vendedor', 'Código de descuento', 'Vendedor', 'Estado', 'Registro'].map((h) => (
                       <th
                         key={h}
                         className="px-5 py-3 text-left font-extrabold"
@@ -225,6 +287,21 @@ export function UsuariosScreen() {
                       </td>
                       <td className="px-5 py-4">
                         <TaxpayersCell total={u.contribuyentes} taxpayers={u.taxpayers} />
+                      </td>
+                      <td className="px-5 py-4">
+                        <EstatusCell user={u} />
+                      </td>
+                      <td className="px-5 py-4">
+                        <OrigenCell user={u} />
+                      </td>
+                      <td className="px-5 py-4">
+                        <CodigoCell user={u} />
+                      </td>
+                      <td className="px-5 py-4">
+                        <DescuentoCell user={u} />
+                      </td>
+                      <td className="px-5 py-4">
+                        <VendedorCell user={u} />
                       </td>
                       <td className="px-5 py-4">
                         <EstadoCell user={u} />
@@ -339,9 +416,122 @@ function EstadoCell({ user }: { user: UserListItem }) {
           <Lock size={12} /> Bloqueado
         </span>
       )}
-      <span className="text-[11px]" style={{ color: 'var(--ink-500)' }}>
-        Alta: paso {user.registrationStatus} · origen {user.systemOriginId}
-      </span>
+    </div>
+  )
+}
+
+/**
+ * Avance del alta con punto de color: gris creado · azul correo verificado ·
+ * tinta usuario completo · verde RFC registrado. La etiqueta la resuelve el backend.
+ */
+function EstatusCell({ user }: { user: UserListItem }) {
+  const label = user.estatusRegistro ?? `Paso ${user.registrationStatus}`
+  const dot =
+    user.contribuyentes > 0
+      ? 'var(--brand-500)'
+      : user.registrationStatus >= 4
+        ? 'var(--ink-900)'
+        : user.registrationStatus === 3
+          ? 'var(--primary)'
+          : 'var(--ink-400)'
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[11.5px] font-semibold whitespace-nowrap"
+      style={{ background: 'var(--ink-50)', color: 'var(--ink-700)' }}
+    >
+      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: dot }} />
+      {label}
+    </span>
+  )
+}
+
+/** Origen del registro (Catalogs.SystemsOrigin) con icono según el tipo de alta. */
+function OrigenCell({ user }: { user: UserListItem }) {
+  const name = user.origen
+  if (!name) {
+    return <span className="text-xs" style={{ color: 'var(--ink-500)' }}>—</span>
+  }
+  const lower = name.toLowerCase()
+  const Icon = lower.includes('móvil') || lower.includes('movil') || lower.includes('app')
+    ? Smartphone
+    : lower.includes('emplead')
+      ? Users
+      : lower.includes('legacy')
+        ? Database
+        : Globe
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[12.5px]" style={{ color: 'var(--ink-700)' }}>
+      <Icon size={13} style={{ color: 'var(--ink-400)' }} /> {name}
+    </span>
+  )
+}
+
+/** Código de vendedor (referido) con el que se registró la cuenta. */
+function CodigoCell({ user }: { user: UserListItem }) {
+  if (user.sellerCode) {
+    return (
+      <code
+        className="inline-block px-2 py-0.5 rounded-md"
+        style={{ ...MONO, fontSize: '11px', background: 'var(--brand-100)', color: 'var(--brand-900)' }}
+      >
+        {user.sellerCode}
+      </code>
+    )
+  }
+  // Hay vendedor ligado pero sin perfil comercial: el código aún no existe en el módulo.
+  const hint = user.sellerUserId
+    ? 'El vendedor aún no tiene código comercial asignado'
+    : 'Registro sin código de vendedor'
+  return <span className="text-xs" title={hint} style={{ color: 'var(--ink-500)' }}>—</span>
+}
+
+/** Códigos de descuento con los que ha comprado la cuenta. */
+function DescuentoCell({ user }: { user: UserListItem }) {
+  const codes = user.discountCodes ?? []
+  if (codes.length === 0) {
+    return <span className="text-xs" title="No compró con código de descuento" style={{ color: 'var(--ink-500)' }}>—</span>
+  }
+  const shown = codes.slice(0, 2)
+  const rest = codes.length - shown.length
+  return (
+    <div className="flex flex-col gap-1 items-start">
+      {shown.map((c) => (
+        <code
+          key={c}
+          className="inline-block px-2 py-0.5 rounded-md"
+          style={{ ...MONO, fontSize: '11px', background: 'var(--amber-soft)', color: '#7B5312' }}
+        >
+          {c}
+        </code>
+      ))}
+      {rest > 0 && (
+        <span className="text-[11px] font-semibold" title={codes.slice(2).join('\n')} style={{ color: 'var(--ink-500)' }}>
+          +{rest} más
+        </span>
+      )}
+    </div>
+  )
+}
+
+/** Vendedor dueño del código con el que se registró la cuenta. */
+function VendedorCell({ user }: { user: UserListItem }) {
+  if (!user.sellerName && !user.sellerUserId) {
+    return <span className="text-xs" title="Registro directo" style={{ color: 'var(--ink-500)' }}>—</span>
+  }
+  return (
+    <div className="min-w-0">
+      <div
+        className="text-[12.5px] font-semibold truncate max-w-[160px]"
+        title={user.sellerEmail ?? undefined}
+        style={{ color: 'var(--ink-900)' }}
+      >
+        {user.sellerName || 'Sin nombre'}
+      </div>
+      {user.sellerEmail && (
+        <div className="text-[11px] truncate max-w-[160px]" style={{ color: 'var(--ink-500)' }}>
+          {user.sellerEmail}
+        </div>
+      )}
     </div>
   )
 }

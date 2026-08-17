@@ -7,7 +7,7 @@ import { addProviderCors } from '@/features/partnership/actions/addProviderCors.
 import { deleteProviderCors } from '@/features/partnership/actions/deleteProviderCors.action'
 import type { ProviderCorsItem } from '@/features/partnership/types'
 import { Input } from '@/components/ui/input'
-import { Btn, Card } from '../ui'
+import { Btn, Card, ErrorState } from '../ui'
 
 export function CorsTab() {
   const [items, setItems] = useState<ProviderCorsItem[]>([])
@@ -93,10 +93,7 @@ export function CorsTab() {
       )}
 
       {error ? (
-        <div className="px-5 py-8 text-center flex flex-col items-center gap-2">
-          <AlertCircle size={20} style={{ color: '#9E3A15' }} />
-          <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>{error}</div>
-        </div>
+        <ErrorState message={error} />
       ) : loading ? (
         <div className="px-5 py-10 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
           <Loader2 size={18} className="animate-spin" /> Cargando hosts…

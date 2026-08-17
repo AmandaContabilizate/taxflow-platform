@@ -36,6 +36,13 @@ export const API_BASE_URLS = {
   marketing: `${BASE_IDENTITY}/Marketing`,
   push_tokens: `${BASE_IDENTITY}/PushTokens`,
   users_reports: `${BASE_REPORTS}/users`,
+  // Equipo comercial (módulo de comisiones). OJO: NO lleva /SQLServer.
+  team: `${BASE_IDENTITY}/team`,
+  // Catálogos comerciales del módulo de comisiones (Procedures). NO llevan /SQLServer.
+  partners: `${BASE_PROCEDURES}/partners`,
+  discount_codes: `${BASE_PROCEDURES}/discount-codes`,
+  commissions: `${BASE_PROCEDURES}/commissions`,
+  assignments: `${BASE_PROCEDURES}/assignments`,
 } as const;
 
 export type ApiType = keyof typeof API_BASE_URLS;
