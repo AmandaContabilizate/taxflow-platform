@@ -250,5 +250,17 @@
   "INVALID_STATUS_TRANSITION": {
     "es": "Esta declaración ya no está en revisión: tu contador ya la retomó.",
     "en": "This declaration is no longer under review: your accountant already picked it up."
+  },
+  "REGIMES_NOT_FOUND": {
+    "es": "El régimen de esta declaración no existe en el catálogo.",
+    "en": "The regime of this declaration does not exist in the catalog."
+  },
+  "RECLASSIFICATION_NOT_SUPPORTED": {
+    "es": "Este régimen no admite reclasificación manual. Recalcula sin ajustes.",
+    "en": "This regime does not support manual reclassification. Recalculate without adjustments."
+  },
+  "CLASSIFICATION_SERVICE_ERROR": {
+    "es": "El clasificador no respondió. Intenta recalcular de nuevo en un momento.",
+    "en": "The classifier did not respond. Try recalculating again in a moment."
   }
 }

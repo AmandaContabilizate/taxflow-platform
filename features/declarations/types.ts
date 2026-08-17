@@ -116,6 +116,129 @@ export interface Annuals {
   history: AnnualHistoryItem[]
 }
 
+// --- Recálculo y reclasificación manual ---
+
+/**
+ * Corrección manual del contador sobre un CFDI. Solo se mandan los campos que
+ * se quieren cambiar: el clasificador aplica los ajustes con `exclude_unset`, así
+ * que enviar `classification: null` borraría la categoría en vez de dejarla igual.
+ */
+export interface ClassificationAdjustment {
+  uuid: string
+  /** `name` del catálogo de clasificaciones; si no existe, el backend responde 422. */
+  classification?: string
+  isDeductible?: boolean
+  /** true = gasto, false = ingreso. */
+  isExpense?: boolean
+  activityId?: number
+  reason?: string
+}
+
+/** Categoría de `classification.clasificacion` (GET catalogs/classifications). */
+export interface ClassificationCategory {
+  id: number
+  name: string
+  isExpense: boolean
+  description: string | null
+}
+
+/** Clasificación de un comprobante dentro del resultado del recálculo. */
+export interface RecalculatedClassification {
+  uuid: string
+  classification: string | null
+  isDeductible: boolean
+  isExpense: boolean
+  reason: string | null
+}
+
+/**
+ * Cuántos XML llegaron realmente al clasificador. Va a propósito en el contrato:
+ * si el cálculo se ve raro, aquí se ve si el problema está en el payload.
+ */
+export interface RecalculationInputSummary {
+  issuedXmlCount: number
+  receivedXmlCount: number
+  totalXmlCount: number
+  manualDeductions: number
+  yearToDateIvaFavor: number | null
+}
+
+/**
+ * Respuesta de `POST declaration/recalculate`. Ya trae los datos nuevos, así que
+ * la pantalla se repinta sin un segundo round-trip al terminar el spinner.
+ */
+export interface RecalculationResult {
+  declarationId: number
+  rfc: string
+  fiscalYear: number
+  periodValueId: number | null
+  regimeSatCode: string
+  statusId: number
+  /** true = corrió con ajustes manuales (reclasificación). */
+  reclassified: boolean
+  /** UUID de los ajustes que el clasificador alcanzó a aplicar. */
+  appliedAdjustments: string[]
+  accumulatedIncome: number | null
+  annualTax: number | null
+  withheldTax: number | null
+  totalDeclaration: number | null
+  personalDeductions: number | null
+  income: number | null
+  ivaCargo: number | null
+  ivaFavor: number | null
+  ivaIngresos: number | null
+  ivaGastos: number | null
+  ivaRetenido: number | null
+  isrRetenido: number | null
+  /** JSON crudo del clasificador; su forma depende del régimen. */
+  isrDetail: Record<string, unknown> | null
+  ivaDetail: Record<string, unknown> | null
+  classifications: RecalculatedClassification[]
+  input: RecalculationInputSummary
+}
+
+/**
+ * Factura del periodo con su clasificación (`DeclarationInvoiceItemDto`).
+ * OJO: no es el mismo DTO que `DeclarationInvoice` de operaciones — este sale de
+ * Procedures y trae el universo completo del periodo, incluidas las no deducibles
+ * y las de declaraciones en proceso.
+ */
+export interface DeclarationPeriodInvoice {
+  id: number
+  uuid: string
+  folio: string | null
+  issuer: { rfc: string; name: string } | null
+  receiver: { rfc: string; name: string } | null
+  /** Fecha de expedición del CFDI. */
+  invoiceDate: string
+  /** Fecha de timbrado. */
+  stampDate: string
+  total: number
+  uso: string | null
+  /** Descripción del tipo de CFDI ("Ingreso", "Egreso", …). */
+  typeId: string
+  /** Enum TipoComprobante: 0 desconocido, 1 I, 2 E, 3 T, 4 N, 5 P. */
+  tipoComprobante: number
+  /** Enum StatusComprobante: 0 desconocido, 1 vigente, 2 cancelado, 3 pendiente. */
+  statusComprobante: number
+  status: string
+  /** true = el contribuyente es el emisor. */
+  isIssued: boolean
+  declarationId: number | null
+  /** null = todavía no se ha clasificado. */
+  isDeductible: boolean | null
+  reason: string | null
+  classification: string | null
+  classificationId: number | null
+  isExpense: boolean | null
+  activityId: number | null
+  /** Claves prod/serv SAT de los conceptos. */
+  productServiceKeys: string[]
+  /** Suma de Invoices.Withholds; null si el CFDI no trae retenciones. */
+  withheldAmount: number | null
+  withheldTaxableAmount: number | null
+}
+
 // --- Comentarios ---
 export interface DeclarationComment {
   id: number

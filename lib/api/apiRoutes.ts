@@ -1,3 +1,24 @@
+/** Query de `issued|received-invoices-declaration`: el rango de meses es cerrado. */
+export interface DeclarationPeriodInvoicesParams {
+  rfc: string
+  year: number
+  beginMonth: number
+  endMonth: number
+  /** Id interno de Users.TaxRegimes, no el código SAT. */
+  idRegime: number
+}
+
+function periodInvoicesQuery(p: DeclarationPeriodInvoicesParams): string {
+  const qs = new URLSearchParams({
+    rfc: p.rfc,
+    year: String(p.year),
+    beginMonth: String(p.beginMonth),
+    endMonth: String(p.endMonth),
+    idRegime: String(p.idRegime),
+  })
+  return `?${qs.toString()}`
+}
+
 export const API_ROUTES = {
   AUTH: {
     LOGIN: "/login",
@@ -224,6 +245,20 @@ export const API_ROUTES = {
     // Hilo de comentarios de una declaración — mismo declarationId, visible
     // pa' contador (asignado o no) y contribuyente dueño.
     COMMENTS: (declarationId: number) => `/${declarationId}/comments`,
+    // apiType "declaration" · POST RecalculateDeclarationRequestDto. Botón
+    // "Recalcular" del contador: el RFC va explícito (el GET
+    // recalculate-declaration viejo resuelve al contribuyente por el email del
+    // token, así que solo sirve cuando el cliente recalcula lo suyo).
+    // `adjustments` vacío/ausente = reclasifica desde cero. El cálculo puede
+    // tardar minutos (timeout del clasificador: 180s).
+    RECALCULATE: "/recalculate",
+    // apiType "declaration" · GET. Todas las facturas del periodo con su
+    // clasificación (mismo universo que se le manda al clasificador).
+    // idRegime = Id interno de Users.TaxRegimes (p.ej. 18), NO el código SAT.
+    ISSUED_INVOICES_DECLARATION: (p: DeclarationPeriodInvoicesParams) =>
+      `/issued-invoices-declaration${periodInvoicesQuery(p)}`,
+    RECEIVED_INVOICES_DECLARATION: (p: DeclarationPeriodInvoicesParams) =>
+      `/received-invoices-declaration${periodInvoicesQuery(p)}`,
   },
   // apiType "declaration_report". Flujo público: el cliente abre /reporte?t={token}
   // desde el correo. El token AES (Base64 url-safe) es la única credencial, los
@@ -261,6 +296,11 @@ export const API_ROUTES = {
     PLANS: (rfc: string) => `/plans?rfc=${encodeURIComponent(rfc)}`,
     ADDITIONAL_PROCEDURES: "/additional-procedures",
     TAX_REGIMES: "/taxregimes",
+    // apiType "catalogs_procedures" · GET. Categorías de classification.clasificacion:
+    // el `name` de aquí es el único valor que acepta `adjustments[].classification`
+    // al recalcular. `isExpense` omitido = gastos e ingresos.
+    CLASSIFICATIONS: (isExpense?: boolean) =>
+      `/classifications${isExpense == null ? "" : `?isExpense=${isExpense}`}`,
   },
   FINANCES: {
     REGISTER_SALE_NEW: "/register-sale/new",

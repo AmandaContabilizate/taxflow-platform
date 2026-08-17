@@ -3,23 +3,24 @@
 import {
   ArrowLeft,
   Calculator,
-  ChevronRight,
   DollarSign,
   Download,
   Loader2,
   Mail,
   MessageSquarePlus,
-  Search,
+  RotateCcw,
   Send,
-  SlidersHorizontal,
   TrendingUp,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { DeclarationComments } from '@/components/dashboard/declaraciones/declaration-comments'
+import { useRecalculation } from '@/features/declarations/hooks/useRecalculation'
 import { getDeclarationGeneral } from '@/features/operations/actions/getDeclarationGeneral.action'
 import type { DeclarationGeneral, DeclarationSubject } from '@/features/operations/types'
+import { num, toNumber } from './calc-read'
 import { CalculosTab } from './calculos-tab'
 import { ComprobantesTab } from './comprobantes-tab'
+import { RecalculoTab } from './recalculo-tab'
 import { ResumenDeclaracion } from './resumen-declaracion'
 import { DISPLAY, MONO } from '../constants'
 import { Card } from '../ui'
@@ -31,7 +32,15 @@ import { Card } from '../ui'
 const money = (n: number) =>
   n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2 })
 
-const TAB_ITEMS = ['Comprobantes', 'Cálculos', 'Clasificación', 'Reporte Cliente', 'Comentarios'] as const
+const TAB_ITEMS = [
+  'Comprobantes',
+  'Cálculos',
+  'Recálculo',
+  'Clasificación',
+  'Reporte Cliente',
+  'Comentarios',
+] as const
+const RECALCULO_TAB_INDEX = 2
 const COMMENTS_TAB_INDEX = TAB_ITEMS.length - 1
 
 // Datos dummy — el EP /general aún no entrega datos; reconectar cuando esté listo.
@@ -86,6 +95,16 @@ export function DeclarationDetail({ declaration: d, onBack, viewerRole, currentU
   const legalName = general?.legalName || d.legalName
   const rfc = general?.rfc || d.rfc
 
+  // El recálculo vive aquí y no en la pestaña: el botón del header y la pestaña
+  // "Recálculo" comparten estado, y las tarjetas de arriba se repintan con el
+  // resultado.
+  const recalc = useRecalculation({
+    rfc,
+    fiscalYear: ejercicio,
+    periodValueId: general?.periodValueId,
+    regimeSatCode: general?.regimeSatCode,
+  })
+
   // Entrada por URL directa: sin el listado detrás no hay nada que pintar hasta
   // que /general responda (las tabs necesitan ejercicio y periodo reales).
   const bootstrapping = !general && !d.legalName
@@ -119,6 +138,18 @@ export function DeclarationDetail({ declaration: d, onBack, viewerRole, currentU
       </div>
     )
   }
+  // Con el resultado del recálculo ya no hay que volver a pedir /general: el
+  // response del EP trae los totales nuevos.
+  const r = recalc.result
+  const stats = {
+    ingresosBrutos: r?.income ?? r?.accumulatedIncome ?? toNumber(general?.accumulatedIncome) ?? DUMMY.ingresosBrutos,
+    gastosDeducibles:
+      num(r?.ivaDetail ?? null, ['totalExpenses', 'expenseTotal', 'subtotalExpenses']) ??
+      DUMMY.gastosDeducibles,
+    isrCalculado: r?.annualTax ?? toNumber(general?.annualTax) ?? DUMMY.isrCalculado,
+    ivaPorPagar: r?.ivaCargo ?? DUMMY.ivaPorPagar,
+  }
+
   const regimen = general?.regimeName
     ? `${general.regimeSatCode ?? ''} ${general.regimeName}`.trim()
     : null
@@ -163,6 +194,27 @@ export function DeclarationDetail({ declaration: d, onBack, viewerRole, currentU
             />
           ) : (
             <>
+              <HeaderBtn
+                icon={
+                  recalc.running ? (
+                    <Loader2 size={15} className="animate-spin" />
+                  ) : (
+                    <RotateCcw size={15} />
+                  )
+                }
+                label={recalc.running ? `Calculando… ${recalc.seconds}s` : 'Recalcular'}
+                kind="ghost"
+                disabled={recalc.running || !recalc.ready}
+                title={
+                  recalc.ready
+                    ? 'Vuelve a calcular ISR/IVA con los comprobantes del período'
+                    : 'La declaración no tiene período o régimen asignado'
+                }
+                onClick={() => {
+                  setTab(RECALCULO_TAB_INDEX)
+                  void recalc.run()
+                }}
+              />
               <HeaderBtn icon={<Download size={15} />} label="Exportar PDF" kind="ghost" />
               <HeaderBtn icon={<Send size={15} />} label="Enviar Predeclaración" kind="info" />
               <HeaderBtn icon={<Send size={15} />} label="Presentar Declaración" kind="brand" />
@@ -173,10 +225,10 @@ export function DeclarationDetail({ declaration: d, onBack, viewerRole, currentU
 
       {/* Stat cards */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Ingresos Brutos" value={money(DUMMY.ingresosBrutos)} color="var(--brand-700)" icon={<TrendingUp size={18} />} />
-        <StatCard label="Gastos Deducibles" value={money(DUMMY.gastosDeducibles)} color="var(--danger)" icon={<DollarSign size={18} />} />
-        <StatCard label="ISR Calculado" value={money(DUMMY.isrCalculado)} color="var(--sky)" icon={<Calculator size={18} />} />
-        <StatCard label="IVA Por Pagar" value={money(DUMMY.ivaPorPagar)} color="#E8730F" icon={<DollarSign size={18} />} />
+        <StatCard label="Ingresos Brutos" value={money(stats.ingresosBrutos)} color="var(--brand-700)" icon={<TrendingUp size={18} />} />
+        <StatCard label="Gastos Deducibles" value={money(stats.gastosDeducibles)} color="var(--danger)" icon={<DollarSign size={18} />} />
+        <StatCard label="ISR Calculado" value={money(stats.isrCalculado)} color="var(--sky)" icon={<Calculator size={18} />} />
+        <StatCard label="IVA Por Pagar" value={money(stats.ivaPorPagar)} color="#E8730F" icon={<DollarSign size={18} />} />
       </div>
 
       {/* Tabs */}
@@ -203,7 +255,18 @@ export function DeclarationDetail({ declaration: d, onBack, viewerRole, currentU
       {/* Tab content */}
       {tab === 0 && <ComprobantesTab declarationId={d.declarationId} periodo={`${periodo} ${ejercicio}`} />}
       {tab === 1 && <CalculosTab declarationId={d.declarationId} readOnly={readOnly} />}
-      {tab === 2 && (
+      {tab === RECALCULO_TAB_INDEX && (
+        <RecalculoTab
+          rfc={rfc}
+          fiscalYear={ejercicio}
+          periodValueId={general?.periodValueId ?? null}
+          taxRegimeId={general?.taxRegimeId ?? null}
+          periodo={`${periodo} ${ejercicio}`}
+          recalc={recalc}
+          readOnly={readOnly}
+        />
+      )}
+      {tab === 3 && (
         <ClasificacionTab
           declarationId={d.declarationId}
           general={general}
@@ -211,7 +274,7 @@ export function DeclarationDetail({ declaration: d, onBack, viewerRole, currentU
           fiscalYear={ejercicio}
         />
       )}
-      {tab === 3 && (
+      {tab === 4 && (
         <ReporteClienteTab
           d={d}
           declarationId={d.declarationId}
@@ -257,11 +320,15 @@ function HeaderBtn({
   label,
   kind,
   onClick,
+  disabled,
+  title,
 }: {
   icon: React.ReactNode
   label: string
   kind: 'ghost' | 'info' | 'brand'
   onClick?: () => void
+  disabled?: boolean
+  title?: string
 }) {
   const styles: Record<typeof kind, React.CSSProperties> = {
     ghost: { background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' },
@@ -271,7 +338,9 @@ function HeaderBtn({
   return (
     <button
       onClick={onClick}
-      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition hover:opacity-95 active:scale-[0.98]"
+      disabled={disabled}
+      title={title}
+      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition hover:opacity-95 active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100"
       style={styles[kind]}
     >
       {icon} {label}
