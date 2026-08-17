@@ -3,7 +3,7 @@
 import { AlertCircle, Check, Copy, Loader2, Search } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { getDeclarationInvoices } from '@/features/operations/actions/getDeclarationInvoices.action'
-import type { DeclarationInvoice, Paged } from '@/features/operations/types'
+import type { DeclarationInvoice, Paged, Retencion } from '@/features/operations/types'
 import { Pagination } from '../clientes/parts'
 import { MONO } from '../constants'
 import { Card } from '../ui'
@@ -208,6 +208,56 @@ function ClasificacionCell({ inv }: { inv: DeclarationInvoice }) {
   )
 }
 
+const MESES = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+
+/** Periodo que declara el propio CFDI de retención; puede no ser el de la declaración. */
+const retencionPeriodo = (r: Retencion) => {
+  const ini = MESES[r.beginMonth] ?? r.beginMonth
+  const fin = MESES[r.endMonth] ?? r.endMonth
+  return r.beginMonth === r.endMonth ? `${ini} ${r.year}` : `${ini}–${fin} ${r.year}`
+}
+
+/** Colores por impuesto; el backend ya resuelve 001/002/003, el code es el fallback. */
+const IMPUESTO_STYLE: Record<string, { bg: string; fg: string }> = {
+  ISR: { bg: 'var(--violet-soft)', fg: 'var(--violet)' },
+  IVA: { bg: 'var(--sky-soft)', fg: 'var(--sky)' },
+  IEPS: { bg: 'var(--hero-amber-icon-bg)', fg: 'var(--ink-900)' },
+}
+
+function RetencionBlock({ r }: { r: Retencion }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Chip bg="var(--ink-50)" fg="var(--ink-700)" title="Periodo declarado por el CFDI de retención">
+          {retencionPeriodo(r)}
+        </Chip>
+        <span style={{ ...MONO, fontSize: '11.5px', color: 'var(--ink-500)' }}>
+          Base {money(r.totalTaxableAmount)}
+        </span>
+      </div>
+      <div className="flex flex-col gap-1">
+        {r.detalle.map((d, i) => {
+          const nombre = d.impuesto || d.retentionTaxCode || '—'
+          const st = IMPUESTO_STYLE[nombre] ?? { bg: 'var(--muted)', fg: 'var(--ink-700)' }
+          return (
+            <div key={`${d.retentionTaxCode}-${i}`} className="flex flex-wrap items-center gap-1.5">
+              <Chip bg={st.bg} fg={st.fg} title={d.retentionPaymentType ?? undefined}>
+                {nombre}
+              </Chip>
+              <span style={{ ...MONO, fontSize: '11.5px', color: 'var(--ink-900)' }}>
+                {money(d.retentionAmount)}
+              </span>
+              <span className="text-[11px]" style={{ color: 'var(--ink-500)' }}>
+                sobre {money(d.retentionBaseAmount)}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export function ComprobantesTab({ declarationId, periodo }: { declarationId: number; periodo: string }) {
   const [page, setPage] = useState<Paged<DeclarationInvoice>>({ items: [], total: 0, skip: 0, take: TAKE })
   const [skip, setSkip] = useState(0)
@@ -263,6 +313,12 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
         )
     return [...filtered].sort((a, b) => periodDate(b).localeCompare(periodDate(a)))
   }, [page.items, query])
+
+  // Los CFDI de retenciones no tienen TipoDeComprobante: el backend los marca con
+  // `esRetencion` y viven en su propia sub-pestaña.
+  const normales = useMemo(() => rows.filter((i) => !i.esRetencion), [rows])
+  const retenciones = useMemo(() => rows.filter((i) => i.esRetencion), [rows])
+  const visibles = subTab === 1 ? retenciones : normales
 
   const totalPages = Math.max(1, Math.ceil(page.total / TAKE))
   const currentPage = Math.floor(skip / TAKE) + 1
@@ -341,7 +397,10 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
         </div>
 
         <div className="flex p-1 rounded-xl" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
-          {['CFDIs Normales', 'CFDIs de Retenciones'].map((t, i) => (
+          {[
+            ['CFDIs Normales', normales.length],
+            ['CFDIs de Retenciones', retenciones.length],
+          ].map(([t, n], i) => (
             <button
               key={t}
               onClick={() => setSubTab(i)}
@@ -353,15 +412,12 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
               }
             >
               {t}
+              {!loading && <span className="ml-1.5 font-semibold opacity-70">({n})</span>}
             </button>
           ))}
         </div>
 
-        {subTab === 1 ? (
-          <div className="text-center py-10 text-[13px]" style={{ color: 'var(--ink-500)' }}>
-            No hay CFDIs de retenciones en este período.
-          </div>
-        ) : error ? (
+        {error ? (
           <div className="py-8 text-center flex flex-col items-center gap-2">
             <AlertCircle size={20} style={{ color: '#9E3A15' }} />
             <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>{error}</div>
@@ -370,19 +426,106 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
           <div className="py-10 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
             <Loader2 size={18} className="animate-spin" /> Cargando comprobantes…
           </div>
-        ) : rows.length === 0 ? (
+        ) : visibles.length === 0 ? (
           <div className="text-center py-10 text-[13px]" style={{ color: 'var(--ink-500)' }}>
-            {page.items.length > 0
+            {rows.length > 0 && page.items.length > 0 && query.trim()
               ? 'Ningún comprobante coincide con la búsqueda.'
-              : origen || tipo || clasificada
-                ? 'No hay comprobantes con esos filtros.'
-                : 'No hay comprobantes en este período.'}
-            {page.items.length === 0 && clasificada === 'true' && (
+              : subTab === 1
+                ? 'No hay CFDIs de retenciones en este período.'
+                : origen || tipo || clasificada
+                  ? 'No hay comprobantes con esos filtros.'
+                  : 'No hay comprobantes en este período.'}
+            {subTab === 1 && tipo && (
+              <div className="mt-1.5 text-[12.5px]">
+                Los CFDI de retenciones no tienen tipo de comprobante, así que el filtro
+                “Tipo de comprobante” los deja fuera. Ponlo en “Todos” para verlos.
+              </div>
+            )}
+            {subTab === 0 && page.items.length === 0 && clasificada === 'true' && (
               <div className="mt-1.5 text-[12.5px]">
                 Si la declaración no tiene periodo asignado, el clasificador no ha corrido y esta vista sale vacía.
               </div>
             )}
           </div>
+        ) : subTab === 1 ? (
+          <>
+            <div className="overflow-x-auto -mx-1">
+              <table className="w-full text-[12.5px]">
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                    {['Fecha', 'Folio / UUID', 'Origen', 'Emisor', 'Receptor', 'Retenciones', 'Total retenido'].map((h) => (
+                      <th
+                        key={h}
+                        className="px-3 py-2.5 text-left font-extrabold whitespace-nowrap"
+                        style={{ color: 'var(--ink-700)' }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibles.map((inv) => (
+                    <tr key={inv.invoiceId} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td className="px-3 py-3 whitespace-nowrap align-top" style={{ color: 'var(--ink-900)' }}>
+                        {fmtDate(inv.invoiceDate)}
+                      </td>
+                      <td className="px-3 py-3 align-top">
+                        <FolioCell inv={inv} />
+                      </td>
+                      <td className="px-3 py-3 align-top">
+                        <Chip
+                          bg={inv.isIssued ? 'var(--sky-soft)' : 'var(--ink-50)'}
+                          fg={inv.isIssued ? 'var(--sky)' : 'var(--ink-700)'}
+                        >
+                          {inv.isIssued ? 'Emitida' : 'Recibida'}
+                        </Chip>
+                      </td>
+                      <td className="px-3 py-3 align-top">
+                        <div style={{ color: 'var(--ink-900)' }}>{inv.emitterName}</div>
+                        <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-500)' }}>{inv.emitterRfc}</code>
+                      </td>
+                      <td className="px-3 py-3 align-top">
+                        <div style={{ color: 'var(--ink-900)' }}>{inv.receiverName}</div>
+                        <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-500)' }}>{inv.receivedRfc}</code>
+                      </td>
+                      <td className="px-3 py-3 align-top min-w-[260px]">
+                        <div className="flex flex-col gap-2.5">
+                          {(inv.retenciones ?? []).map((r, i) => (
+                            <RetencionBlock key={`${inv.invoiceId}-${i}`} r={r} />
+                          ))}
+                        </div>
+                      </td>
+                      <td
+                        className="px-3 py-3 whitespace-nowrap align-top font-semibold"
+                        style={{ ...MONO, color: 'var(--ink-900)' }}
+                      >
+                        {money(inv.totalRetenido ?? null)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <p className="text-[11.5px]" style={{ color: 'var(--ink-500)' }}>
+              El periodo que aparece en cada retención es el que declara el propio CFDI y puede no
+              coincidir con el de la declaración ({periodo}).
+            </p>
+
+            {page.total > TAKE && (
+              <Pagination
+                page={currentPage}
+                totalPages={totalPages}
+                total={page.total}
+                skip={skip}
+                take={TAKE}
+                itemCount={page.items.length}
+                onPrev={() => setSkip((s) => Math.max(0, s - TAKE))}
+                onNext={() => setSkip((s) => (s + TAKE < page.total ? s + TAKE : s))}
+              />
+            )}
+          </>
         ) : (
           <>
             <div className="overflow-x-auto -mx-1">
@@ -401,7 +544,7 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((inv) => {
+                  {visibles.map((inv) => {
                     const desfasada = inv.esNomina && inv.fechaPagoNomina
                     return (
                       <tr key={inv.invoiceId} style={{ borderBottom: '1px solid var(--border)' }}>

@@ -35,6 +35,34 @@ export interface DeclarationListItem {
 }
 
 /**
+ * Renglón de `WithholdsDetails` dentro de un CFDI de retenciones.
+ */
+export interface RetencionDetalle {
+  /** c_Impuesto del SAT: "001", "002", "003". */
+  retentionTaxCode: string | null;
+  /** Ya resuelto por el backend: 001 ISR, 002 IVA, 003 IEPS. */
+  impuesto: string | null;
+  retentionBaseAmount: Money;
+  retentionAmount: Money;
+  retentionPaymentType: string | null;
+}
+
+/**
+ * Bloque `Invoices.Withholds` de un CFDI de retenciones. El periodo que declara
+ * el propio comprobante puede NO coincidir con el de la declaración.
+ */
+export interface Retencion {
+  year: number;
+  beginMonth: number;
+  endMonth: number;
+  totalOperationAmount: Money;
+  totalTaxableAmount: Money;
+  totalExemptAmount: Money;
+  totalWithheldAmount: Money;
+  detalle: RetencionDetalle[];
+}
+
+/**
  * Item de `GET /declarations/{id}/invoices` (DeclaracionFacturaDto): factura del
  * periodo + su clasificación (LEFT JOIN, por eso `clasificada`).
  */
@@ -80,6 +108,15 @@ export interface DeclarationInvoice {
   actividad: string | null;
   /** Viene de `DeclarationInvoice.Note`, con fallback al motivo de uuid_clasificado. */
   motivo: string | null;
+  /**
+   * true si el CFDI tiene renglones en `Invoices.Withholds`. Los comprobantes de
+   * retenciones no traen TipoDeComprobante, así que esta es la única marca.
+   */
+  esRetencion?: boolean;
+  /** Suma de `TotalWithheldAmount`. null si no es retención. */
+  totalRetenido?: Money;
+  /** Vacío si no es retención (1-N: un CFDI puede traer varios bloques). */
+  retenciones?: Retencion[];
 }
 
 /**
