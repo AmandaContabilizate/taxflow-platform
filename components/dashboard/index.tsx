@@ -16,10 +16,17 @@ import {
   AyudaScreen,
   ClientesScreen,
   ContribuyentesScreen,
+  PanelComercialScreen,
+  PanelContadorScreen,
+  PanelGerenciaContableScreen,
   CuentaScreen,
   DeclaracionesScreen,
+  AsignacionesScreen,
+  CodigosDescuentoScreen,
+  ComisionesScreen,
   DiagnosticoScreen,
   DocumentosScreen,
+  EquipoScreen,
   EstatusSatScreen,
   FacturasScreen,
   GeorgeScreen,
@@ -29,6 +36,7 @@ import {
   MisClientesScreen,
   NotificacionesScreen,
   OperacionesScreen,
+  PartnersScreen,
   PartnershipScreen,
   PermisosScreen,
   PlaceholderScreen,
@@ -138,6 +146,7 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
           onLogout={handleLogout}
           signingOut={signingOut}
           role={role}
+          permissions={permissions}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
@@ -280,9 +289,30 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
     return <SatConnectScreen go={go} />;
   }
 
-  // Para roles operativos, todo es placeholder por ahora (Dashboard incluido).
   if (!isGuest) {
     if (screen === 'home') {
+      // Cada dashboard tiene su propio permiso (Dashboard.*), administrable por rol.
+      // Orden de especificidad: gerencia (embudo global) > ventas (embudo propio) >
+      // contador (su cartera). Los dashboards futuros se agregan aquí.
+      const dashGerencia = permissions.includes('Dashboard.GerenciaComercial');
+      const dashVentas = permissions.includes('Dashboard.Ventas');
+      const dashGerenciaContable = permissions.includes('Dashboard.GerenciaContable');
+      const dashContador = permissions.includes('Dashboard.Contador');
+      if (dashGerencia || dashVentas) {
+        return (
+          <PanelComercialScreen
+            go={go}
+            scopedToSeller={dashVentas && !dashGerencia}
+            canReadCommissions={permissions.includes('Comercial.ReadOwnCommissions')}
+          />
+        );
+      }
+      if (dashGerenciaContable) {
+        return <PanelGerenciaContableScreen />;
+      }
+      if (dashContador) {
+        return <PanelContadorScreen go={go} />;
+      }
       return (
         <PlaceholderScreen
           title='Dashboard'
@@ -291,10 +321,10 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
       );
     }
     if (screen === 'operaciones') {
-      return <OperacionesScreen />;
+      return <OperacionesScreen currentUser={{ userId: userId ?? '', fullName }} />
     }
     if (screen === 'regularizaciones') {
-      return <RegularizacionesScreen />;
+      return <RegularizacionesScreen currentUser={{ userId: userId ?? '', fullName }} />
     }
     if (screen === 'renovaciones') {
       return <RenovacionesScreen />
@@ -303,7 +333,8 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
       return <TramitesAdicionalesScreen go={go} />;
     }
     if (screen === 'mis-clientes') {
-      return <MisClientesScreen />;
+      // Contador ve su cartera; gerencia (AssignAccountant) ve todas con filtro.
+      return <MisClientesScreen permissions={permissions} userId={userId} />;
     }
     if (screen === 'clientes') {
       return <ClientesScreen permissions={permissions} />;
@@ -312,13 +343,38 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
       return <ContribuyentesScreen />;
     }
     if (screen === 'usuarios') {
-      return <UsuariosScreen />;
+      // Alcance de vendedor: solo su embudo (referidos y códigos de descuento propios).
+      return (
+        <UsuariosScreen
+          scopedToSeller={
+            permissions.includes('Comercial.ReadOwnUsers') &&
+            !permissions.includes('Backoffice.ReadUsers')
+          }
+        />
+      );
     }
     if (screen === 'ventas') {
       return <VentasScreen />;
     }
+    if (screen === 'equipo') {
+      return <EquipoScreen />;
+    }
+    if (screen === 'partners') {
+      return <PartnersScreen />;
+    }
+    if (screen === 'codigos-descuento') {
+      return <CodigosDescuentoScreen />;
+    }
+    if (screen === 'asignaciones') {
+      // Claim-driven: quien tiene Admin.ApproveAssignments revisa/aprueba;
+      // la gerencia comercial (ManageAssignments) solicita/retira.
+      return <AsignacionesScreen isAdmin={permissions.includes('Admin.ApproveAssignments')} />;
+    }
+    if (screen === 'comisiones') {
+      return <ComisionesScreen permissions={permissions} />;
+    }
     if (screen === 'roles') {
-      return <RolesScreen currentUserId={userId ?? undefined} />;
+      return <RolesScreen currentUserId={userId ?? undefined} currentUserEmail={email || undefined} />;
     }
     if (screen === 'partnership') {
       return <PartnershipScreen />;
@@ -350,7 +406,7 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
     case 'vista-fiscal':
       return <VistaFiscalScreen go={go} firstName={firstName} />;
     case 'declaraciones':
-      return <DeclaracionesScreen go={go} />;
+      return <DeclaracionesScreen go={go} currentUser={{ userId: userId ?? '', fullName }} />
     case 'facturas':
       return <FacturasScreen go={go} />;
     case 'george':
@@ -361,6 +417,8 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
       return <DiagnosticoScreen go={go} />;
     case 'estatussat':
       return <EstatusSatScreen go={go} />;
+    case 'aprende':
+      return <AprendeScreen go={go} />;
     case 'tip-detail':
       return <TipDetailScreen go={go} />;
     case 'tramites':

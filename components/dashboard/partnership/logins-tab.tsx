@@ -1,11 +1,11 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { AlertCircle, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { getAuthLogs } from '@/features/partnership/actions/getAuthLogs.action'
 import type { AuthLogItem } from '@/features/partnership/types'
 import { MONO } from '../constants'
-import { Badge, Card } from '../ui'
+import { Badge, Card, ErrorState } from '../ui'
 
 export function LoginsTab() {
   const [items, setItems] = useState<AuthLogItem[]>([])
@@ -34,10 +34,7 @@ export function LoginsTab() {
       </div>
 
       {error ? (
-        <div className="px-5 py-8 text-center flex flex-col items-center gap-2">
-          <AlertCircle size={20} style={{ color: '#9E3A15' }} />
-          <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>{error}</div>
-        </div>
+        <ErrorState message={error} />
       ) : loading ? (
         <div className="px-5 py-10 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
           <Loader2 size={18} className="animate-spin" /> Cargando logs…

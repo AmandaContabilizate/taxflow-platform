@@ -309,7 +309,7 @@ export function MarketingScreen() {
             const sentCount = rawObj.sentCount ?? rawObj.SentCount ?? 0
             const failedCount = rawObj.failedCount ?? rawObj.FailedCount ?? 0
             const message = rawObj.message ?? rawObj.Message ?? ''
-            const detailsList = rawObj.details ?? rawObj.Details ?? []
+            const detailsList: Record<string, string | undefined>[] = rawObj.details ?? rawObj.Details ?? []
 
             return (
               <Card className="p-6 flex flex-col gap-4 border-emerald-500/50 shadow-md flex-1">

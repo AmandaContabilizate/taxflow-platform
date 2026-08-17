@@ -20,9 +20,46 @@ export const API_ROUTES = {
     ROLES: (userId: string) => `/${encodeURIComponent(userId)}/roles`,
     SWITCH_ROLE: "/switch-role",
   },
+  // Equipo comercial — módulo de comisiones. apiType "team" (Identity)
+  TEAM: {
+    INVITE: "/invite",
+    MEMBERS: "/members",
+    MEMBER_PROFILE: (userId: string) =>
+      `/members/${encodeURIComponent(userId)}/profile`,
+  },
+  // Partners y alianzas B2B2C. apiType "partners" (Procedures)
+  PARTNERS: {
+    LIST: "",
+    CREATE: "",
+    UPDATE: (id: number) => `/${id}`,
+  },
+  // Códigos de descuento. apiType "discount_codes" (Procedures)
+  DISCOUNT_CODES: {
+    LIST: "",
+    LOOKUPS: "/lookups",
+    CREATE: "",
+    UPDATE: (id: number) => `/${id}`,
+  },
+  // Comisiones. apiType "commissions" (Procedures)
+  COMMISSIONS: {
+    MY_SUMMARY: (period: string) => `/my-summary?period=${encodeURIComponent(period)}`,
+    MY_OPERATIONS: (period: string) => `/my-operations?period=${encodeURIComponent(period)}`,
+    TEAM_SUMMARY: (period: string) => `/team-summary?period=${encodeURIComponent(period)}`,
+  },
+  // Asignaciones de venta. apiType "assignments" (Procedures)
+  ASSIGNMENTS: {
+    UNASSIGNED: "/unassigned",
+    REQUESTS: "/requests",
+    APPROVE: (id: number) => `/requests/${id}/approve`,
+    REJECT: (id: number) => `/requests/${id}/reject`,
+    /** Retira una solicitud PENDIENTE (solo quien la creó). */
+    CANCEL: (id: number) => `/requests/${id}/cancel`,
+  },
   ROLES: {
     LIST: "/roles-list",
     GET: (roleId: string) => `/roles/${encodeURIComponent(roleId)}`,
+    /** Usuarios que tienen asignado un rol (con flag de rol activo/por defecto). */
+    USERS: (roleId: string) => `/${encodeURIComponent(roleId)}/users`,
     CREATE: "/roles",
     UPDATE: "/roles",
     DELETE: (roleId: string) => `/roles/${encodeURIComponent(roleId)}`,
@@ -33,6 +70,12 @@ export const API_ROUTES = {
     GET: (id: string) => `/${id}`,
     GET_BY_RFC: (rfc: string) => `/2/taxpayer?rfc=${encodeURIComponent(rfc)}`,
     UPDATECIEC: "/updateCiec",
+    // Actividades económicas por régimen (matriz de la última CSF). apiType "taxpayers"
+    REGIME_ACTIVITIES: (rfc: string) => `/regime-activities?rfc=${encodeURIComponent(rfc)}`,
+    REGIME_ACTIVITY_ACTIVATE: (rfc: string, regimeId: number, activityId: number) =>
+      `/regime-activities/activate?rfc=${encodeURIComponent(rfc)}&regimeId=${regimeId}&activityId=${activityId}`,
+    REGIME_ACTIVITY_DEACTIVATE: (rfc: string, regimeId: number, activityId: number) =>
+      `/regime-activities/deactivate?rfc=${encodeURIComponent(rfc)}&regimeId=${regimeId}&activityId=${activityId}`,
     // Crea contribuyente para cualquier régimen (no limitado a 605); valida CIEC sin
     // descargar constancia, régimen/razón social se completan async. apiType "taxpayers"
     CREATE_BY_CIEC: "/create-by-ciec",
@@ -81,6 +124,12 @@ export const API_ROUTES = {
       qs.set("take", String(params.take ?? 100))
       return `?${qs.toString()}`
     },
+    // GET declarations_reports — panel del contador (cartera, periodo y CIEC).
+    CONTADOR_DASHBOARD: (year: number, month: number) =>
+      `/contador-dashboard?year=${year}&month=${month}`,
+    // GET declarations_reports — panel de gerencia contable (área + desglose).
+    GERENCIA_CONTABLE_DASHBOARD: (year: number, month: number, accountantUserId?: string) =>
+      `/gerencia-contable-dashboard?year=${year}&month=${month}${accountantUserId ? `&accountantUserId=${encodeURIComponent(accountantUserId)}` : ""}`,
     PAID_PENDING: (kind: number, skip = 0, take = 500, accountantUserId?: string) =>
       `/paid-pending?kind=${kind}&skip=${skip}&take=${take}${accountantUserId ? `&accountantUserId=${encodeURIComponent(accountantUserId)}` : ""
       }`,
@@ -111,8 +160,8 @@ export const API_ROUTES = {
   SALES_OPS: {
     PROCEDURES: (skip = 0, take = 500) =>
       `/procedures?skip=${skip}&take=${take}`,
-    SUMMARY: (skip = 0, take = 100, rfc?: string) =>
-      `/summary?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}`,
+    SUMMARY: (skip = 0, take = 100, rfc?: string, status?: number) =>
+      `/summary?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${status ? `&status=${status}` : ""}`,
     // GET sales_reports — trazabilidad Stripe de una venta (policy Contador.ReadVentas).
     DETAIL: (saleId: number) => `/detail/${saleId}`,
     // GET sales_reports — planes por vencer en los próximos `dias`.
@@ -150,9 +199,12 @@ export const API_ROUTES = {
       search?: string,
       role?: string,
       emailConfirmed?: boolean,
+      estatus?: string,
     ) =>
       `?skip=${skip}&take=${take}${search ? `&search=${encodeURIComponent(search)}` : ""}${role ? `&role=${encodeURIComponent(role)}` : ""
-      }${emailConfirmed === undefined ? "" : `&emailConfirmed=${emailConfirmed}`}`,
+      }${emailConfirmed === undefined ? "" : `&emailConfirmed=${emailConfirmed}`}${estatus ? `&estatus=${encodeURIComponent(estatus)}` : ""}`,
+    // GET users_reports — panel comercial: embudo, altas recientes y clientes con RFC.
+    SELLER_DASHBOARD: "/seller-dashboard",
   },
   ACCOUNTANT_ASSIGNMENTS: {
     GET: (taxpayerId: number) => `/${taxpayerId}`,
@@ -169,6 +221,9 @@ export const API_ROUTES = {
     FUTURE_PLAN: (rfc: string) => `/future-plan?rfc=${encodeURIComponent(rfc)}`,
     ANNUALS: (rfc: string) => `/annuals?rfc=${encodeURIComponent(rfc)}`,
     ALL: (rfc: string) => `/all?rfc=${encodeURIComponent(rfc)}`,
+    // Hilo de comentarios de una declaración — mismo declarationId, visible
+    // pa' contador (asignado o no) y contribuyente dueño.
+    COMMENTS: (declarationId: number) => `/${declarationId}/comments`,
   },
   // apiType "declaration_report". Flujo público: el cliente abre /reporte?t={token}
   // desde el correo. El token AES (Base64 url-safe) es la única credencial, los
@@ -209,6 +264,9 @@ export const API_ROUTES = {
   },
   FINANCES: {
     REGISTER_SALE_NEW: "/register-sale/new",
+    /** Preview del código de descuento (mismas validaciones que el registro). 404 = inválido/agotado. */
+    DISCOUNT_CODE_PREVIEW: (code: string, rfc: string) =>
+      `/discount-code?code=${encodeURIComponent(code)}&rfc=${encodeURIComponent(rfc)}`,
   },
   // Administración de partnerships externos (SSO). apiType "partnership"
   PARTNERSHIP: {

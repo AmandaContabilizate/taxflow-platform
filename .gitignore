@@ -25,3 +25,6 @@ deploy/
 # Logs
 *.log
 server.log
+# Config local y artefactos de herramientas
+.env*.local
+.impeccable/

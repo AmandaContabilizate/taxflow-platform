@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { getBaseUrl, type ApiType } from "./apiUrls";
 import { getErrorMessage, hasErrorCode } from "./errorMessages";
+import { readAuthToken } from "./tokenCookie";
 
 // El backend .NET en dev local usa un certificado HTTPS autofirmado.
 // Se desactiva la verificación aquí para garantizar que aplique en development.
@@ -47,8 +48,9 @@ type RequestOptions = Omit<RequestInit, "method" | "body" | "headers"> & {
 
 async function buildAuthHeaders(): Promise<Record<string, string>> {
   const cookieStore = await cookies();
-  const authToken = cookieStore.get("auth_token");
-  return authToken ? { Authorization: `Bearer ${authToken.value}` } : {};
+  // El token viaja troceado en cookies (auth_token + auth_token_1..n)
+  const authToken = readAuthToken((name) => cookieStore.get(name)?.value);
+  return authToken ? { Authorization: `Bearer ${authToken}` } : {};
 }
 
 function isFormData(body: unknown): body is FormData {

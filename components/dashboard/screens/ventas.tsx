@@ -1,12 +1,12 @@
 'use client'
 
-import { AlertCircle, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import Image from 'next/image'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { getSalesSummary } from '@/features/operations/actions/getSalesSummary.action'
 import type { ProductoVenta } from '@/features/operations/types'
 import { MONO } from '../constants'
-import { Card, HelpBox } from '../ui'
+import { Card, ErrorState, HelpBox } from '../ui'
 import { Pagination, SearchBar, usePagedList } from '../clientes/parts'
 import { StripeDetailModal } from '../ventas/stripe-detail-modal'
 
@@ -20,6 +20,34 @@ function formatDate(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
   return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+/** Opciones del filtro (ids de Catalogs.StatusSale). */
+const ESTATUS_OPTIONS = [
+  { value: 0, label: 'Todos los estatus' },
+  { value: 1, label: 'En proceso' },
+  { value: 2, label: 'Pagado' },
+  { value: 3, label: 'Cancelado' },
+] as const
+
+const PAGE_SIZES = [5, 10, 25, 50, 100] as const
+
+/** Pill de estatus: verde pagado, ámbar en proceso, coral cancelado. */
+function EstatusBadge({ statusSaleId, estatus }: { statusSaleId: number; estatus: string | null }) {
+  const palette =
+    statusSaleId === 2
+      ? { background: 'var(--brand-100)', color: 'var(--brand-900)' }
+      : statusSaleId === 3
+        ? { background: 'var(--coral-soft)', color: '#9E3A15' }
+        : { background: 'var(--amber-soft)', color: '#7B5312' }
+  return (
+    <span
+      className="inline-flex px-2 py-0.5 rounded-full text-[11.5px] font-bold whitespace-nowrap"
+      style={palette}
+    >
+      {estatus ?? '—'}
+    </span>
+  )
 }
 
 function ProductosCell({ productos }: { productos: ProductoVenta[] }) {
@@ -67,8 +95,26 @@ function StripeButton({ onClick }: { onClick: () => void }) {
 }
 
 export function VentasScreen() {
-  const list = usePagedList(getSalesSummary, 50)
+  const [status, setStatus] = useState(0)
+  const [pageSize, setPageSize] = useState(50)
+  // El fetcher captura el filtro de estatus: al cambiar, el hook re-consulta.
+  const fetcher = useCallback(
+    (p: { skip?: number; take?: number; rfc?: string }) =>
+      getSalesSummary({ ...p, status: status || undefined }),
+    [status],
+  )
+  const list = usePagedList(fetcher, pageSize)
   const [stripeSaleId, setStripeSaleId] = useState<number | null>(null)
+
+  const changeStatus = (value: number) => {
+    setStatus(value)
+    list.resetPage()
+  }
+
+  const changePageSize = (value: number) => {
+    setPageSize(value)
+    list.resetPage()
+  }
 
   return (
     <div className="flex flex-col gap-5 max-w-full">
@@ -80,8 +126,32 @@ export function VentasScreen() {
       </HelpBox>
 
       <Card>
-        <div className="p-4">
-          <SearchBar value={list.rfc} onChange={list.setRfc} placeholder="Buscar por RFC…" />
+        <div className="p-4 flex items-center gap-3 flex-wrap">
+          <div className="flex-1 min-w-[220px]">
+            <SearchBar value={list.rfc} onChange={list.setRfc} placeholder="Buscar por RFC…" />
+          </div>
+          <select
+            value={status}
+            onChange={(e) => changeStatus(Number(e.target.value))}
+            aria-label="Filtrar por estatus"
+            className="px-3 py-2.5 rounded-xl text-[13px] font-semibold outline-none cursor-pointer"
+            style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+          >
+            {ESTATUS_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+          <select
+            value={pageSize}
+            onChange={(e) => changePageSize(Number(e.target.value))}
+            aria-label="Registros por página"
+            className="px-3 py-2.5 rounded-xl text-[13px] font-semibold outline-none cursor-pointer"
+            style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+          >
+            {PAGE_SIZES.map((n) => (
+              <option key={n} value={n}>{n} por página</option>
+            ))}
+          </select>
         </div>
       </Card>
 
@@ -96,12 +166,7 @@ export function VentasScreen() {
         </div>
 
         {list.error ? (
-          <div className="px-5 py-8 text-center flex flex-col items-center gap-2">
-            <AlertCircle size={20} style={{ color: '#9E3A15' }} />
-            <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>
-              {list.error}
-            </div>
-          </div>
+          <ErrorState message={list.error} />
         ) : list.loading ? (
           <div className="px-5 py-10 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
             <Loader2 size={18} className="animate-spin" /> Cargando ventas…
@@ -112,7 +177,7 @@ export function VentasScreen() {
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Venta', 'Cuenta', 'RFC', 'Productos', 'Monto', 'Stripe'].map((h) => (
+                    {['Venta', 'Cuenta', 'RFC', 'Productos', 'Monto', 'Estatus', 'Stripe'].map((h) => (
                       <th
                         key={h}
                         className={`px-5 py-3 font-extrabold ${h === 'Monto' ? 'text-right' : h === 'Stripe' ? 'text-center' : 'text-left'}`}
@@ -152,6 +217,9 @@ export function VentasScreen() {
                         <span className="font-bold" style={{ ...MONO, color: 'var(--ink-900)' }}>
                           {money.format(v.amount)}
                         </span>
+                      </td>
+                      <td className="px-5 py-4 align-top">
+                        <EstatusBadge statusSaleId={v.statusSaleId} estatus={v.estatus} />
                       </td>
                       <td className="px-5 py-4 align-top text-center">
                         <StripeButton onClick={() => setStripeSaleId(v.saleId)} />

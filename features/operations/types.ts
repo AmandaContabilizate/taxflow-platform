@@ -263,6 +263,61 @@ export interface VentaResumen {
   userEmail: string;
   paymentIntentId: string | null;
   productos: ProductoVenta[];
+  /** Estatus (Catalogs.StatusSale): 1 En proceso, 2 Pagado, 3 Cancelado. */
+  statusSaleId: number;
+  /** Nombre del estatus tal como está en el catálogo de la BD. */
+  estatus: string | null;
+}
+
+/** Declaración pendiente de la cartera (panel del contador). */
+export interface DeclaracionPendiente {
+  declarationId: number;
+  rfc: string | null;
+  legalName: string | null;
+  fiscalYear: number;
+  periodValueId: number;
+  totalDeclaration: number | null;
+  estatus: string;
+  fechaLimite: string;
+}
+
+/** CIEC actualizada recientemente en la cartera. */
+export interface CiecActualizada {
+  rfc: string | null;
+  legalName: string | null;
+  fecha: string;
+}
+
+/** Respuesta de `/declarations/contador-dashboard`. */
+export interface ContadorDashboard {
+  carteraAsignada: number;
+  porPresentar: number;
+  vencenEstaSemana: number;
+  presentadas: number;
+  ciecInvalidas: number;
+  declaracionesPorPresentar: DeclaracionPendiente[];
+  ciecActualizadas: CiecActualizada[];
+}
+
+/** Fila del desglose por contador (panel de gerencia contable). */
+export interface ContadorDesglose {
+  accountantUserId: string;
+  nombre: string;
+  email: string;
+  cartera: number;
+  porPresentar: number;
+  presentadas: number;
+  ciecBloqueadas: number;
+  avancePorcentaje: number;
+}
+
+/** Respuesta de `/declarations/gerencia-contable-dashboard`. */
+export interface GerenciaContableDashboard {
+  carteraTotal: number;
+  porPresentar: number;
+  presentadas: number;
+  ciecInvalidas: number;
+  desglose: ContadorDesglose[];
 }
 
 export type TipoRenovacion = "subscription" | "one_time";

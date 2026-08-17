@@ -1,11 +1,11 @@
 'use client'
 
-import { AlertCircle, Eye, Loader2, Search } from 'lucide-react'
+import { Eye, Loader2, Search } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { getPaidPendingDeclarations } from '@/features/operations/actions/getPaidPendingDeclarations.action'
 import type { DeclarationKind, PaidPendingDeclaration } from '@/features/operations/types'
 import { MONO } from '../constants'
-import { Card, HelpBox } from '../ui'
+import { Card, ErrorState, HelpBox } from '../ui'
 import { DeclarationDetail } from './declaration-detail'
 
 function fmtDate(value: string | null): string {
@@ -39,14 +39,20 @@ function statusStyle(code: string): { label: string; bg: string; color: string }
   }
 }
 
+interface CurrentUser {
+  userId: string
+  fullName: string
+}
+
 interface Props {
   kind: DeclarationKind
   help: string
   searchPlaceholder?: string
   emptyText?: string
+  currentUser: CurrentUser
 }
 
-export function PaidPendingList({ kind, help, searchPlaceholder, emptyText }: Props) {
+export function PaidPendingList({ kind, help, searchPlaceholder, emptyText, currentUser }: Props) {
   const [rows, setRows] = useState<PaidPendingDeclaration[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -84,7 +90,14 @@ export function PaidPendingList({ kind, help, searchPlaceholder, emptyText }: Pr
 
   // Vista detalle — se abre al pulsar "Ver".
   if (selected) {
-    return <DeclarationDetail declaration={selected} onBack={() => setSelected(null)} />
+    return (
+      <DeclarationDetail
+        declaration={selected}
+        onBack={() => setSelected(null)}
+        viewerRole="contador"
+        currentUser={currentUser}
+      />
+    )
   }
 
   return (
@@ -131,12 +144,7 @@ export function PaidPendingList({ kind, help, searchPlaceholder, emptyText }: Pr
 
       {error ? (
         <Card>
-          <div className="px-5 py-8 text-center flex flex-col items-center gap-2">
-            <AlertCircle size={20} style={{ color: '#9E3A15' }} />
-            <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>
-              {error}
-            </div>
-          </div>
+          <ErrorState message={error} />
         </Card>
       ) : loading ? (
         <Card>

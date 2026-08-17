@@ -1,10 +1,19 @@
 'use client'
 
-import { CheckCircle2, Download, FileText } from 'lucide-react'
+import { CheckCircle2, Download, FileText, MessageSquare } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { getAllDeclarations } from '@/features/declarations/actions/getAllDeclarations.action'
+import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
+import type { DeclarationSubject } from '@/features/operations/types'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Badge, type BadgeKind, Card, Divider } from '../ui'
+import { DeclarationComments } from './declaration-comments'
 import { TabEmpty, TabError, TabLoading, monthYear, useRfcResource } from './parts'
+
+interface CurrentUser {
+  userId: string
+  fullName: string
+}
 
 const PRESENTED_CODES = new Set(['Presentada', 'PresentadaManual', 'PresentadaPrevio', 'PresentadaExterno'])
 
@@ -27,10 +36,17 @@ const STATUS_BADGE: Record<string, { kind: BadgeKind; label: string }> = {
 const ALL_YEARS = 'todos'
 const ALL_REGIMES = 'todos'
 
-export function TodasTab() {
+interface Props {
+  onViewDetail: (subject: DeclarationSubject) => void
+  currentUser: CurrentUser
+}
+
+export function TodasTab({ onViewDetail, currentUser }: Props) {
   const state = useRfcResource(getAllDeclarations)
+  const { selectedRfcInfo } = useRfcStore()
   const [yearFilter, setYearFilter] = useState(ALL_YEARS)
   const [regimeFilter, setRegimeFilter] = useState(ALL_REGIMES)
+  const [commentFor, setCommentFor] = useState<number | null>(null)
 
   const items = state.status === 'ready' ? state.data.items : []
 
@@ -157,17 +173,43 @@ export function TodasTab() {
                         {[d.regimeName, d.statusLabel].filter(Boolean).join(' · ')}
                       </div>
                     </div>
-                    {d.acknowledgmentPdfUrl && (
-                      <a
-                        href={d.acknowledgmentPdfUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-bold flex-shrink-0 transition hover:opacity-90"
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        onClick={() => setCommentFor(d.declarationId)}
+                        title="Comentarios"
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-bold transition hover:opacity-90"
                         style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
                       >
-                        <Download size={14} /> Acuse
-                      </a>
-                    )}
+                        <MessageSquare size={14} /> Comentarios
+                      </button>
+                      {d.acknowledgmentPdfUrl && (
+                        <a
+                          href={d.acknowledgmentPdfUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-bold transition hover:opacity-90"
+                          style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+                        >
+                          <Download size={14} /> Acuse
+                        </a>
+                      )}
+                      <button
+                        onClick={() =>
+                          onViewDetail({
+                            declarationId: d.declarationId,
+                            rfc: selectedRfcInfo?.rfc ?? (state.status === 'ready' ? state.data.rfc : ''),
+                            legalName: selectedRfcInfo?.legalName ?? '',
+                            periodo: title,
+                            fiscalYear: d.fiscalYear,
+                            accountantName: null,
+                          })
+                        }
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-bold transition hover:opacity-90"
+                        style={{ background: 'linear-gradient(135deg,#10DA92 0%,#00B073 100%)', color: '#fff' }}
+                      >
+                        Ver detalle
+                      </button>
+                    </div>
                   </div>
                   {i < filtered.length - 1 && <Divider />}
                 </div>
@@ -176,6 +218,17 @@ export function TodasTab() {
           </div>
         )}
       </Card>
+
+      <Sheet open={commentFor != null} onOpenChange={(open) => !open && setCommentFor(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-md flex flex-col gap-4 p-5">
+          <SheetHeader className="p-0">
+            <SheetTitle>Comentarios</SheetTitle>
+          </SheetHeader>
+          {commentFor != null && (
+            <DeclarationComments declarationId={commentFor} currentUser={currentUser} />
+          )}
+        </SheetContent>
+      </Sheet>
     </>
   )
 }

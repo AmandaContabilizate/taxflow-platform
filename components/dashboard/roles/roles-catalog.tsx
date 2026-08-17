@@ -1,11 +1,11 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
-import { AlertCircle, Loader2, Pencil, Plus, Star, Trash2 } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { AlertCircle, Loader2, Pencil, Plus, Search, Star, Trash2, X } from 'lucide-react'
 import { getRolesList } from '@/features/roles/actions/getRolesList.action'
 import { deleteRole } from '@/features/roles/actions/deleteRole.action'
-import type { RoleOverviewDto } from '@/features/roles/types'
-import { Badge, Btn, Card } from '../ui'
+import { roleLabel, type RoleOverviewDto } from '@/features/roles/types'
+import { Badge, Btn, Card, ErrorState } from '../ui'
 import { RoleEditor } from './role-editor'
 
 export function RolesCatalog() {
@@ -18,13 +18,28 @@ export function RolesCatalog() {
 
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
+  const [searchFocused, setSearchFocused] = useState(false)
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return roles
+    return roles.filter(
+      (r) =>
+        roleLabel(r).toLowerCase().includes(q) ||
+        r.name.toLowerCase().includes(q) ||
+        (r.description ?? '').toLowerCase().includes(q),
+    )
+  }, [roles, query])
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     const res = await getRolesList()
-    if (res.success) setRoles(res.value)
-    else setError(res.error.message)
+    if (res.success) {
+      // Orden alfabético por el nombre visible (español, con fallback al técnico)
+      setRoles([...res.value].sort((a, b) => roleLabel(a).localeCompare(roleLabel(b), 'es')))
+    } else setError(res.error.message)
     setLoading(false)
   }, [])
 
@@ -59,12 +74,52 @@ export function RolesCatalog() {
           className="px-5 py-4 flex items-center justify-between flex-wrap gap-2 border-b"
           style={{ borderColor: 'var(--border)' }}
         >
-          <div className="text-[15px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
-            {loading ? 'Cargando…' : `${roles.length} roles`}
+          <div className="text-[15px] font-extrabold flex-shrink-0" style={{ color: 'var(--ink-900)' }}>
+            {loading
+              ? 'Cargando…'
+              : query.trim()
+                ? `${filtered.length} de ${roles.length} roles`
+                : `${roles.length} roles`}
           </div>
-          <Btn kind="primary" size="sm" onClick={openCreate} disabled={editorOpen && editing === null}>
-            <Plus size={15} /> Nuevo rol
-          </Btn>
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative w-full sm:w-[240px]">
+              <Search
+                size={14}
+                style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-500)' }}
+              />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
+                placeholder="Buscar rol…"
+                className="w-full pl-8 pr-8 py-2 rounded-xl text-[13px] outline-none"
+                style={{
+                  background: 'var(--input)',
+                  border: `1px solid ${searchFocused ? 'var(--ring)' : 'var(--border)'}`,
+                  boxShadow: searchFocused
+                    ? '0 0 0 3px color-mix(in oklab, var(--ring) 22%, transparent)'
+                    : 'none',
+                  color: 'var(--foreground)',
+                  transition: 'border-color 150ms ease, box-shadow 150ms ease',
+                }}
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => setQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center"
+                  style={{ background: 'var(--ink-50)', color: 'var(--ink-700)' }}
+                  aria-label="Limpiar búsqueda"
+                >
+                  <X size={11} />
+                </button>
+              )}
+            </div>
+            <Btn kind="primary" size="sm" onClick={openCreate} disabled={editorOpen && editing === null}>
+              <Plus size={15} /> Nuevo rol
+            </Btn>
+          </div>
         </div>
 
         {actionError && (
@@ -79,10 +134,7 @@ export function RolesCatalog() {
         >
           <div className="overflow-hidden">
         {error ? (
-          <div className="px-5 py-8 text-center flex flex-col items-center gap-2">
-            <AlertCircle size={20} style={{ color: '#9E3A15' }} />
-            <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>{error}</div>
-          </div>
+          <ErrorState message={error} />
         ) : loading ? (
           <div className="px-5 py-10 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
             <Loader2 size={18} className="animate-spin" /> Cargando roles…
@@ -100,11 +152,12 @@ export function RolesCatalog() {
                 </tr>
               </thead>
               <tbody>
-                {roles.map((r) => (
+                {filtered.map((r) => (
                   <tr key={r.id} style={{ borderBottom: '1px solid var(--border)' }}>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold" style={{ color: 'var(--ink-900)' }}>{r.name}</span>
+                        <span className="font-semibold" style={{ color: 'var(--ink-900)' }}>{roleLabel(r)}</span>
+                        <code style={{ fontFamily: 'var(--font-mono)', fontSize: '10.5px', color: 'var(--ink-400)' }}>{r.name}</code>
                         {r.isDefault && (
                           <Badge kind="brand">
                             <Star size={10} /> Default
@@ -126,9 +179,12 @@ export function RolesCatalog() {
                         <button
                           type="button"
                           onClick={() => openEdit(r)}
-                          disabled={r.isSystem}
-                          title={r.isSystem ? 'Los roles del sistema no se pueden editar' : 'Editar'}
-                          className="w-8 h-8 rounded-lg flex items-center justify-center transition hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
+                          title={
+                            r.isSystem
+                              ? 'Editar permisos y descripción (el nombre técnico está protegido)'
+                              : 'Editar'
+                          }
+                          className="w-8 h-8 rounded-lg flex items-center justify-center transition hover:opacity-80"
                           style={{ background: 'var(--ink-50)', color: 'var(--ink-700)', border: '1px solid var(--border)' }}
                         >
                           <Pencil size={14} />
@@ -149,9 +205,11 @@ export function RolesCatalog() {
                 ))}
               </tbody>
             </table>
-            {roles.length === 0 && (
+            {filtered.length === 0 && (
               <div className="text-center py-8">
-                <div style={{ color: 'var(--ink-500)' }}>No hay roles registrados</div>
+                <div style={{ color: 'var(--ink-500)' }}>
+                  {query.trim() ? 'Sin roles que coincidan con la búsqueda.' : 'No hay roles registrados'}
+                </div>
               </div>
             )}
           </div>

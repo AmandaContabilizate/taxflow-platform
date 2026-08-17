@@ -2,6 +2,7 @@
 
 import { decodeJwt } from "jose";
 import { cookies } from "next/headers";
+import { MAX_TOKEN_CHUNKS, splitAuthToken } from "@/lib/api/tokenCookie";
 
 interface SessionData {
   token: string;
@@ -63,10 +64,26 @@ export async function setSessionCookies(
 
   const sessionMaxAge = options.rememberMe ? 60 * 60 * 24 * 30 : maxAge;
 
-  cookieStore.set("auth_token", sessionData.token, {
+  // El JWT crece con cada permiso del rol y puede rebasar los 4,096 bytes por
+  // cookie del navegador (el de Administrador ya lo hizo): se guarda troceado.
+  // `auth_token` lleva el primer tramo — el middleware solo checa su presencia —
+  // y `auth_token_1..n` el resto; los lectores lo reconstruyen con readAuthToken.
+  const chunks = splitAuthToken(sessionData.token);
+  cookieStore.set("auth_token", chunks[0], {
     ...baseCookie,
     maxAge: sessionMaxAge,
   });
+  for (let i = 1; i < MAX_TOKEN_CHUNKS; i++) {
+    if (i < chunks.length) {
+      cookieStore.set(`auth_token_${i}`, chunks[i], {
+        ...baseCookie,
+        maxAge: sessionMaxAge,
+      });
+    } else if (cookieStore.get(`auth_token_${i}`)) {
+      // Tramos sobrantes de un token anterior más largo
+      cookieStore.delete(`auth_token_${i}`);
+    }
+  }
 
   if (sessionData.refreshToken) {
     cookieStore.set("refresh_token", sessionData.refreshToken, baseCookie);
@@ -122,6 +139,11 @@ export async function clearSessionCookies(): Promise<void> {
 
   for (const name of TOKEN_COOKIE_NAMES) {
     cookieStore.delete(name);
+  }
+
+  // Tramos del token (auth_token_1..n)
+  for (let i = 1; i < MAX_TOKEN_CHUNKS; i++) {
+    cookieStore.delete(`auth_token_${i}`);
   }
 
   const claimKeys = cookieStore.get("token_claim_keys")?.value;

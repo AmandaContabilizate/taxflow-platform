@@ -2,16 +2,24 @@
 
 import { useState } from 'react'
 import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
+import type { DeclarationSubject } from '@/features/operations/types'
 import { AnualesTab } from '../declaraciones/anuales-tab'
 import { FuturoTab } from '../declaraciones/futuro-tab'
 import { RegularizacionesTab } from '../declaraciones/regularizaciones-tab'
 import { TodasTab } from '../declaraciones/todas-tab'
+import { DeclarationDetail } from '../operaciones/declaration-detail'
 import type { GoFn } from '../types'
 import { HelpBox, Tabs, VideoSlot } from '../ui'
 import { NeedsSatConnect } from './needs-sat-connect'
 
+interface CurrentUser {
+  userId: string
+  fullName: string
+}
+
 interface Props {
   go: GoFn
+  currentUser: CurrentUser
 }
 
 type TabKey = 'todas' | 'regularizaciones' | 'futuro' | 'anuales'
@@ -43,14 +51,26 @@ const TAB_VIDEOS: Record<TabKey, [string, string][]> = {
 // defecto sigue siendo "Regularizaciones" (ver useState más abajo).
 const ORDER: TabKey[] = ['todas', 'regularizaciones', 'futuro', 'anuales']
 
-export function DeclaracionesScreen({ go }: Props) {
+export function DeclaracionesScreen({ go, currentUser }: Props) {
   const { hasRfc, loading } = useHasRfc()
   const { selectedRfcInfo } = useRfcStore()
   const [tab, setTab] = useState<TabKey>('regularizaciones')
+  const [detail, setDetail] = useState<DeclarationSubject | null>(null)
 
   if (loading) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tus declaraciones" />
   if (selectedRfcInfo?.ciecState !== 1) return <NeedsSatConnect go={go} feature="ver tus declaraciones" />
+
+  if (detail) {
+    return (
+      <DeclarationDetail
+        declaration={detail}
+        onBack={() => setDetail(null)}
+        viewerRole="contribuyente"
+        currentUser={currentUser}
+      />
+    )
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -61,7 +81,7 @@ export function DeclaracionesScreen({ go }: Props) {
 
       <Tabs items={ORDER.map((k) => TAB_LABELS[k])} active={ORDER.indexOf(tab)} onChange={(i) => setTab(ORDER[i])} />
 
-      {tab === 'todas' && <TodasTab />}
+      {tab === 'todas' && <TodasTab onViewDetail={setDetail} currentUser={currentUser} />}
       {tab === 'regularizaciones' && <RegularizacionesTab />}
       {tab === 'futuro' && <FuturoTab />}
       {tab === 'anuales' && <AnualesTab />}

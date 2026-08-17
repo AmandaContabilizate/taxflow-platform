@@ -29,10 +29,17 @@ export interface RoleDetailDto {
 export interface RoleOverviewDto {
   id: string;
   name: string;
+  /** Nombre en español para mostrar (columna AspNetRoles.DisplayName); el name técnico va en inglés. */
+  displayName: string | null;
   description: string | null;
   isDefault: boolean;
   isSystem: boolean;
   claims: RoleClaimDto[];
+}
+
+/** Nombre visible de un rol: el español si existe, si no el técnico. */
+export function roleLabel(r: { name: string; displayName?: string | null }): string {
+  return r.displayName?.trim() || r.name;
 }
 
 /** Envoltura de GET /roles-list. */
@@ -70,11 +77,25 @@ export interface UserRoleDto {
   isSystemRole: boolean;
 }
 
+/** Usuario que tiene asignado un rol (GET /roles/{roleId}/users). */
+export interface RoleUserDto {
+  userId: string;
+  fullName: string | null;
+  email: string;
+  /** true = este rol es el ACTIVO del usuario (el que carga su token al entrar). */
+  isDefault: boolean;
+}
+
+export interface GetRoleUsersResponse {
+  users: RoleUserDto[];
+}
+
 // ── Peticiones (inferidas — ajustar si el backend difiere) ───────────────────
 
 /** POST /roles — crear rol. Los claims se envían por claimCatalogId. */
 export interface CreateRolePayload {
   name: string;
+  displayName?: string | null;
   description: string | null;
   claimCatalogIds: number[];
 }
@@ -94,6 +115,7 @@ export interface UpdateRoleClaimDto {
  */
 export interface UpdateRolePayload {
   roleId: string;
+  displayName?: string | null;
   description: string | null;
   claims: UpdateRoleClaimDto[];
 }

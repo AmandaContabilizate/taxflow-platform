@@ -7,6 +7,8 @@ interface Props {
   go: GoFn
 }
 
-export function TramitesAdicionalesScreen({ go }: Props) {
-  return <ProceduresList go={go} />
+// ProceduresList no navega hacia fuera; se conserva la prop go por la firma
+// homogénea de screens en components/dashboard/index.tsx.
+export function TramitesAdicionalesScreen(_props: Props) {
+  return <ProceduresList />
 }

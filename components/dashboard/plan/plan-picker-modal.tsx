@@ -2,7 +2,7 @@
 
 import { Elements } from '@stripe/react-stripe-js'
 import type { Stripe } from '@stripe/stripe-js'
-import { Check, CheckCircle2, Loader2, Minus, Plus } from 'lucide-react'
+import { Check, CheckCircle2, Gift, Loader2, Minus, Plus, TicketPercent } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import {
   Dialog,
@@ -13,12 +13,14 @@ import {
 } from '@/components/ui/dialog'
 import { createPaymentSheet } from '@/features/account/actions/createPaymentSheet.action'
 import { getStripePublishableKey } from '@/features/account/actions/getStripePublishableKey.action'
+import { previewDiscountCode } from '@/features/account/actions/previewDiscountCode.action'
 import { registerSaleNew } from '@/features/account/actions/registerSaleNew.action'
 import {
   formatMXN,
   isAvailableForMode,
   paymentIntentIdFromSecret,
   periodLabel,
+  type DiscountCodePreview,
   type PaymentMode,
   type PlansCatalog,
   type RegisterSaleItem,
@@ -54,6 +56,10 @@ export function PlanPickerModal({
   // Regularizaciones seleccionadas, por declarationId.
   const [selectedDecls, setSelectedDecls] = useState<Set<number>>(new Set())
   const [discountCode, setDiscountCode] = useState('')
+  // Preview del código validado por el backend (null = sin código aplicado).
+  const [appliedDiscount, setAppliedDiscount] = useState<DiscountCodePreview | null>(null)
+  const [applyingCode, setApplyingCode] = useState(false)
+  const [codeError, setCodeError] = useState<string | null>(null)
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [discountNotice, setDiscountNotice] = useState<string | null>(null)
@@ -93,6 +99,9 @@ export function PlanPickerModal({
     setQty({})
     setSelectedDecls(new Set())
     setDiscountCode('')
+    setAppliedDiscount(null)
+    setApplyingCode(false)
+    setCodeError(null)
     setClientSecret(null)
     setError(null)
     setDiscountNotice(null)
@@ -134,6 +143,46 @@ export function PlanPickerModal({
   )
   const total = (selectedPlan?.price ?? 0) + proceduresTotal + regsTotal
 
+  // ===== Preview del código de descuento (misma regla que el backend) =====
+  // Porcentaje: aplica si ALGÚN producto del carrito está ligado al código y
+  // descuenta el TOTAL. Declaraciones: solo aplica comprando un PLAN ligado
+  // (precio completo + regularizaciones de regalo).
+  const cartProductIds = useMemo(() => {
+    const ids = new Set<number>()
+    if (selectedPlan) ids.add(selectedPlan.id)
+    for (const addon of procedures) if ((qty[addon.id] ?? 0) > 0) ids.add(addon.id)
+    for (const reg of regularizations)
+      if (reg.plan && selectedDecls.has(reg.declarationId)) ids.add(reg.plan.id)
+    return ids
+  }, [selectedPlan, procedures, qty, regularizations, selectedDecls])
+
+  const isGiftCode = appliedDiscount?.discountTypeId === 2
+  const discountApplies = useMemo(() => {
+    if (!appliedDiscount) return false
+    if (isGiftCode) return !!selectedPlan && appliedDiscount.subscriptionPlanIds.includes(selectedPlan.id)
+    return appliedDiscount.subscriptionPlanIds.some((id) => cartProductIds.has(id))
+  }, [appliedDiscount, isGiftCode, selectedPlan, cartProductIds])
+
+  const discountedTotal =
+    appliedDiscount && discountApplies && !isGiftCode
+      ? total - total * (appliedDiscount.discountPercent / 100)
+      : total
+
+  async function applyCode() {
+    const code = discountCode.trim()
+    if (!code || applyingCode) return
+    setApplyingCode(true)
+    setCodeError(null)
+    setAppliedDiscount(null)
+    const res = await previewDiscountCode(code, rfc)
+    setApplyingCode(false)
+    if (!res.success) {
+      setCodeError(res.error.message)
+      return
+    }
+    setAppliedDiscount(res.value)
+  }
+
   function buildItems(): RegisterSaleItem[] {
     if (!selectedPlan) return []
     const items: RegisterSaleItem[] = [
@@ -174,8 +223,8 @@ export function PlanPickerModal({
 
     const items = buildItems()
 
-    // 1) Pedir parámetros de pago a Stripe.
-    const sheet = await createPaymentSheet(rfc, items)
+    // 1) Pedir parámetros de pago a Stripe (con el código: el cobro sale descontado).
+    const sheet = await createPaymentSheet(rfc, items, discountCode)
     if (!sheet.success) {
       setError(sheet.error.message)
       setProcessing(false)
@@ -487,25 +536,98 @@ export function PlanPickerModal({
                   {error}
                 </div>
               )}
+              {/* Avisos del código aplicado */}
+              {codeError && (
+                <div
+                  className="text-[12.5px] font-semibold px-3 py-2 rounded-xl"
+                  style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}
+                >
+                  {codeError}
+                </div>
+              )}
+              {appliedDiscount && !discountApplies && (
+                <div
+                  className="text-[12.5px] font-semibold px-3 py-2 rounded-xl"
+                  style={{ background: 'var(--amber-soft)', color: '#7B5312' }}
+                >
+                  {isGiftCode
+                    ? `El código ${appliedDiscount.code} regala declaraciones al comprar un plan; elige el plan participante para usarlo.`
+                    : `El código ${appliedDiscount.code} no aplica a los productos seleccionados.`}
+                </div>
+              )}
+              {appliedDiscount && discountApplies && (
+                <div
+                  className="flex items-center gap-2 text-[12.5px] font-semibold px-3 py-2 rounded-xl"
+                  style={{ background: 'var(--hero-brand-soft)', color: 'var(--ink-700)' }}
+                >
+                  {isGiftCode ? (
+                    <>
+                      <Gift size={14} style={{ color: 'var(--brand-700)' }} className="flex-shrink-0" />
+                      <span>
+                        Código <b>{appliedDiscount.code}</b>: pagas el precio completo y recibes{' '}
+                        <b>{appliedDiscount.declarationsCount}</b> declaraciones de regularización de regalo.
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <TicketPercent size={14} style={{ color: 'var(--brand-700)' }} className="flex-shrink-0" />
+                      <span>
+                        Código <b>{appliedDiscount.code}</b> aplicado: <b>−{appliedDiscount.discountPercent}%</b>
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
+
               <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                <input
-                  value={discountCode}
-                  onChange={(e) => setDiscountCode(e.target.value)}
-                  placeholder="Código de descuento (opcional)"
-                  className="rounded-xl px-3.5 py-2.5 text-[13px] outline-none sm:flex-1"
-                  style={{
-                    background: 'var(--input)',
-                    border: '1px solid var(--border)',
-                    color: 'var(--foreground)',
-                  }}
-                />
+                <div className="flex gap-2 sm:flex-1">
+                  <input
+                    value={discountCode}
+                    onChange={(e) => {
+                      setDiscountCode(e.target.value)
+                      setAppliedDiscount(null)
+                      setCodeError(null)
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') void applyCode()
+                    }}
+                    placeholder="Código de descuento (opcional)"
+                    className="rounded-xl px-3.5 py-2.5 text-[13px] outline-none focus:ring-2 flex-1 uppercase"
+                    style={{
+                      background: 'var(--input)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--foreground)',
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void applyCode()}
+                    disabled={!discountCode.trim() || applyingCode}
+                    className="px-4 py-2 rounded-xl text-[12.5px] font-bold transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-default"
+                    style={{ border: '1px solid var(--border)', color: 'var(--ink-700)', background: 'var(--card)' }}
+                  >
+                    {applyingCode ? <Loader2 size={14} className="animate-spin" /> : 'Aplicar'}
+                  </button>
+                </div>
                 <div className="flex flex-col items-end leading-none">
                   <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
                     Total
                   </span>
-                  <span className="text-[24px] font-extrabold mt-0.5" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
-                    {formatMXN(total)} <span className="text-[12px]" style={{ color: 'var(--ink-500)' }}>MXN</span>
-                  </span>
+                  {discountedTotal !== total ? (
+                    <span className="text-[24px] font-extrabold mt-0.5" style={{ ...DISPLAY, color: 'var(--brand-700)' }}>
+                      <span
+                        className="text-[14px] font-semibold mr-2 line-through"
+                        style={{ color: 'var(--ink-400)' }}
+                      >
+                        {formatMXN(total)}
+                      </span>
+                      {formatMXN(discountedTotal)} <span className="text-[12px]" style={{ color: 'var(--ink-500)' }}>MXN</span>
+                    </span>
+                  ) : (
+                    <span className="text-[24px] font-extrabold mt-0.5" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
+                      {formatMXN(total)} <span className="text-[12px]" style={{ color: 'var(--ink-500)' }}>MXN</span>
+                    </span>
+                  )}
                 </div>
               </div>
               <Btn kind="brand" block disabled={!selectedPlan || processing} onClick={handlePay}>
@@ -536,7 +658,7 @@ export function PlanPickerModal({
               }}
             >
               <PaymentForm
-                payLabel={`Pagar ${formatMXN(total)}`}
+                payLabel={`Pagar ${formatMXN(discountedTotal)}`}
                 onSuccess={() => setStep('success')}
                 onCancel={() => setStep('cart')}
               />

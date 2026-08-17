@@ -31,6 +31,8 @@ interface PagedListState<T> {
   nextPage: () => void
   prevPage: () => void
   reload: () => void
+  /** Regresa a la primera página (útil al cambiar filtros externos al hook). */
+  resetPage: () => void
 }
 
 /**
@@ -116,6 +118,7 @@ export function usePagedList<T>(
     nextPage: () => setSkip((s) => (s + take < total ? s + take : s)),
     prevPage: () => setSkip((s) => Math.max(0, s - take)),
     reload: () => setReloadKey((k) => k + 1),
+    resetPage: () => setSkip(0),
   }
 }
 

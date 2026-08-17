@@ -115,3 +115,14 @@ export interface Annuals {
   current: AnnualCurrent
   history: AnnualHistoryItem[]
 }
+
+// --- Comentarios ---
+export interface DeclarationComment {
+  id: number
+  declarationId: number
+  authorUserId: string
+  authorName: string
+  authorRole: string | null
+  body: string
+  createdAt: string
+}

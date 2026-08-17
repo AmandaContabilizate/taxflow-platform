@@ -167,11 +167,13 @@ function RowList({
   data,
   drafts,
   setDraft,
+  readOnly,
 }: {
   rows: RowSpec[]
   data: Json | null
   drafts: Record<string, string>
   setDraft: (id: string, v: string) => void
+  readOnly?: boolean
 }) {
   return (
     <div>
@@ -183,7 +185,7 @@ function RowList({
             key={row.id}
             label={row.label}
             value={value}
-            editable={row.editable}
+            editable={row.editable && !readOnly}
             draft={drafts[row.id] ?? (raw != null ? String(raw) : '')}
             onDraftChange={(v) => setDraft(row.id, v)}
             last={i === rows.length - 1}
@@ -198,7 +200,7 @@ function RowList({
 /*  Tab principal                                                              */
 /* -------------------------------------------------------------------------- */
 
-export function CalculosTab({ declarationId }: { declarationId: number }) {
+export function CalculosTab({ declarationId, readOnly }: { declarationId: number; readOnly?: boolean }) {
   const [calc, setCalc] = useState<DeclarationCalculations | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -284,7 +286,7 @@ export function CalculosTab({ declarationId }: { declarationId: number }) {
         {/* IVA */}
         <Card>
           <PanelHeader title="IVA" />
-          <RowList rows={IVA_ROWS} data={ivaData} drafts={drafts} setDraft={setDraft} />
+          <RowList rows={IVA_ROWS} data={ivaData} drafts={drafts} setDraft={setDraft} readOnly={readOnly} />
         </Card>
 
         {/* ISR con pestañas por régimen */}
@@ -315,7 +317,7 @@ export function CalculosTab({ declarationId }: { declarationId: number }) {
               </button>
             ))}
           </div>
-          <RowList rows={activeIsr.rows} data={isrSection} drafts={drafts} setDraft={setDraft} />
+          <RowList rows={activeIsr.rows} data={isrSection} drafts={drafts} setDraft={setDraft} readOnly={readOnly} />
         </Card>
       </div>
     </div>
