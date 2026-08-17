@@ -443,9 +443,17 @@ ROLE_NAV.administrator = MASTER_NAV_SECTIONS.flatMap((s) => s.items)
 export const MODULE_CLAIMS: Record<string, string[]> = {
   // El item Dashboard del sidebar usa id 'home' (la pantalla del cliente y la
   // del backoffice comparten id de navegación, pero son pantallas distintas).
-  home: ['Backoffice.ViewDashboard'],
+  // Se abre con cualquier permiso de dashboard: cada Dashboard.* decide cuál se pinta.
+  home: [
+    'Backoffice.ViewDashboard',
+    'Dashboard.GerenciaComercial',
+    'Dashboard.Ventas',
+    'Dashboard.GerenciaContable',
+    'Dashboard.Contador',
+  ],
   ventas: ['Contador.ReadVentas'],
-  usuarios: ['CreateUser', 'ChangeOtherPassword', 'Contador.UpdateUser'],
+  // Ver todos, o solo los registrados con su código de vendedor (alcance en el endpoint)
+  usuarios: ['Backoffice.ReadUsers', 'Comercial.ReadOwnUsers'],
   clientes: ['Comercial.ReadClientes'],
   contribuyentes: ['Contador.ReadPadron'],
   asignaciones: ['GerenciaComercial.ManageAssignments', 'Admin.ApproveAssignments'],
@@ -456,7 +464,8 @@ export const MODULE_CLAIMS: Record<string, string[]> = {
   ],
   renovaciones: ['Comercial.ReadRenovaciones'],
   operaciones: ['Contador.ReadDeclaraciones'],
-  'mis-clientes': ['Contador.ReadMisClientes'],
+  // Cartera propia (contador) o todas las carteras (gerencia con AssignAccountant)
+  'mis-clientes': ['Contador.ReadMisClientes', 'AssignAccountant'],
   regularizaciones: ['Contador.ReadDeclaraciones'],
   'tramites-adicionales': ['Contador.ReadTramites'],
   'declaraciones-anuales': ['Contador.ReadDeclaraciones'],
@@ -468,12 +477,8 @@ export const MODULE_CLAIMS: Record<string, string[]> = {
   // Administrar roles, no solo verlos (ViewRole lo tienen roles operativos
   // para llenar dropdowns, p. ej. el modal de invitar al equipo).
   roles: ['AssignRole', 'CreateRole', 'EditRole', 'DeleteRole', 'RemoveRole'],
-  catalogos: [
-    'AccountingManager.GetRegimeActivities',
-    'AccountingManager.ActivateRegimeActivity',
-    'AccountingManager.DeactivateRegimeActivity',
-    'Contador.UpdateRegimeActivities',
-  ],
+  // Catálogos aún no tiene permisos propios (los de actividades por régimen se
+  // movieron a Mis clientes, donde vive la función): oculto hasta que los tenga.
 }
 
 /**
@@ -526,7 +531,17 @@ export function normalizeRole(raw: string | null | undefined): RoleKey {
     case 'sac':
       return 'atencion-clientes'
     case 'accounter':
+    case 'contador':
+    // Gerente de contabilidad: persona de backoffice; el menú sale de sus
+    // permisos (claims), así que comparte roleKey con el contador.
+    case 'accountingmanager':
+    case 'accounting manager':
+    case 'gerente de contabilidad':
+    case 'gerente contabilidad':
       return 'accounter'
+    case 'finderfee':
+    case 'finder fee':
+      return 'seller'
     case 'renovaciones':
       return 'renovaciones'
     case 'commercialmanager':

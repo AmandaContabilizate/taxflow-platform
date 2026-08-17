@@ -70,6 +70,12 @@ export const API_ROUTES = {
     GET: (id: string) => `/${id}`,
     GET_BY_RFC: (rfc: string) => `/2/taxpayer?rfc=${encodeURIComponent(rfc)}`,
     UPDATECIEC: "/updateCiec",
+    // Actividades económicas por régimen (matriz de la última CSF). apiType "taxpayers"
+    REGIME_ACTIVITIES: (rfc: string) => `/regime-activities?rfc=${encodeURIComponent(rfc)}`,
+    REGIME_ACTIVITY_ACTIVATE: (rfc: string, regimeId: number, activityId: number) =>
+      `/regime-activities/activate?rfc=${encodeURIComponent(rfc)}&regimeId=${regimeId}&activityId=${activityId}`,
+    REGIME_ACTIVITY_DEACTIVATE: (rfc: string, regimeId: number, activityId: number) =>
+      `/regime-activities/deactivate?rfc=${encodeURIComponent(rfc)}&regimeId=${regimeId}&activityId=${activityId}`,
     // Crea contribuyente para cualquier régimen (no limitado a 605); valida CIEC sin
     // descargar constancia, régimen/razón social se completan async. apiType "taxpayers"
     CREATE_BY_CIEC: "/create-by-ciec",
@@ -118,6 +124,12 @@ export const API_ROUTES = {
       qs.set("take", String(params.take ?? 100))
       return `?${qs.toString()}`
     },
+    // GET declarations_reports — panel del contador (cartera, periodo y CIEC).
+    CONTADOR_DASHBOARD: (year: number, month: number) =>
+      `/contador-dashboard?year=${year}&month=${month}`,
+    // GET declarations_reports — panel de gerencia contable (área + desglose).
+    GERENCIA_CONTABLE_DASHBOARD: (year: number, month: number, accountantUserId?: string) =>
+      `/gerencia-contable-dashboard?year=${year}&month=${month}${accountantUserId ? `&accountantUserId=${encodeURIComponent(accountantUserId)}` : ""}`,
     PAID_PENDING: (kind: number, skip = 0, take = 500, accountantUserId?: string) =>
       `/paid-pending?kind=${kind}&skip=${skip}&take=${take}${accountantUserId ? `&accountantUserId=${encodeURIComponent(accountantUserId)}` : ""
       }`,
@@ -148,8 +160,8 @@ export const API_ROUTES = {
   SALES_OPS: {
     PROCEDURES: (skip = 0, take = 500) =>
       `/procedures?skip=${skip}&take=${take}`,
-    SUMMARY: (skip = 0, take = 100, rfc?: string) =>
-      `/summary?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}`,
+    SUMMARY: (skip = 0, take = 100, rfc?: string, status?: number) =>
+      `/summary?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${status ? `&status=${status}` : ""}`,
     // GET sales_reports — trazabilidad Stripe de una venta (policy Contador.ReadVentas).
     DETAIL: (saleId: number) => `/detail/${saleId}`,
     // GET sales_reports — planes por vencer en los próximos `dias`.
@@ -187,9 +199,12 @@ export const API_ROUTES = {
       search?: string,
       role?: string,
       emailConfirmed?: boolean,
+      estatus?: string,
     ) =>
       `?skip=${skip}&take=${take}${search ? `&search=${encodeURIComponent(search)}` : ""}${role ? `&role=${encodeURIComponent(role)}` : ""
-      }${emailConfirmed === undefined ? "" : `&emailConfirmed=${emailConfirmed}`}`,
+      }${emailConfirmed === undefined ? "" : `&emailConfirmed=${emailConfirmed}`}${estatus ? `&estatus=${encodeURIComponent(estatus)}` : ""}`,
+    // GET users_reports — panel comercial: embudo, altas recientes y clientes con RFC.
+    SELLER_DASHBOARD: "/seller-dashboard",
   },
   ACCOUNTANT_ASSIGNMENTS: {
     GET: (taxpayerId: number) => `/${taxpayerId}`,

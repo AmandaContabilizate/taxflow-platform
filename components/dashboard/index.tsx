@@ -15,6 +15,9 @@ import {
   AyudaScreen,
   ClientesScreen,
   ContribuyentesScreen,
+  PanelComercialScreen,
+  PanelContadorScreen,
+  PanelGerenciaContableScreen,
   CuentaScreen,
   DeclaracionesScreen,
   AsignacionesScreen,
@@ -282,9 +285,30 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
     return <SatConnectScreen go={go} />;
   }
 
-  // Para roles operativos, todo es placeholder por ahora (Dashboard incluido).
   if (!isGuest) {
     if (screen === 'home') {
+      // Cada dashboard tiene su propio permiso (Dashboard.*), administrable por rol.
+      // Orden de especificidad: gerencia (embudo global) > ventas (embudo propio) >
+      // contador (su cartera). Los dashboards futuros se agregan aquí.
+      const dashGerencia = permissions.includes('Dashboard.GerenciaComercial');
+      const dashVentas = permissions.includes('Dashboard.Ventas');
+      const dashGerenciaContable = permissions.includes('Dashboard.GerenciaContable');
+      const dashContador = permissions.includes('Dashboard.Contador');
+      if (dashGerencia || dashVentas) {
+        return (
+          <PanelComercialScreen
+            go={go}
+            scopedToSeller={dashVentas && !dashGerencia}
+            canReadCommissions={permissions.includes('Comercial.ReadOwnCommissions')}
+          />
+        );
+      }
+      if (dashGerenciaContable) {
+        return <PanelGerenciaContableScreen />;
+      }
+      if (dashContador) {
+        return <PanelContadorScreen go={go} />;
+      }
       return (
         <PlaceholderScreen
           title='Dashboard'
@@ -305,7 +329,8 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
       return <TramitesAdicionalesScreen go={go} />;
     }
     if (screen === 'mis-clientes') {
-      return <MisClientesScreen />;
+      // Contador ve su cartera; gerencia (AssignAccountant) ve todas con filtro.
+      return <MisClientesScreen permissions={permissions} userId={userId} />;
     }
     if (screen === 'clientes') {
       return <ClientesScreen permissions={permissions} />;
@@ -314,7 +339,15 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
       return <ContribuyentesScreen />;
     }
     if (screen === 'usuarios') {
-      return <UsuariosScreen />;
+      // Alcance de vendedor: solo su embudo (referidos y códigos de descuento propios).
+      return (
+        <UsuariosScreen
+          scopedToSeller={
+            permissions.includes('Comercial.ReadOwnUsers') &&
+            !permissions.includes('Backoffice.ReadUsers')
+          }
+        />
+      );
     }
     if (screen === 'ventas') {
       return <VentasScreen />;
