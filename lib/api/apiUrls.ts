@@ -46,6 +46,8 @@ export const API_BASE_URLS = {
   discount_codes: `${BASE_PROCEDURES}/discount-codes`,
   commissions: `${BASE_PROCEDURES}/commissions`,
   assignments: `${BASE_PROCEDURES}/assignments`,
+  // Preferencias de notificación del usuario autenticado (autoservicio). Incluye DbOrigin.
+  notification_prefs: `${BASE_PROCEDURES}/Notification${DbOrigin}`,
 } as const;
 
 export type ApiType = keyof typeof API_BASE_URLS;

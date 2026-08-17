@@ -46,6 +46,10 @@ export const API_ROUTES = {
     MY_OPERATIONS: (period: string) => `/my-operations?period=${encodeURIComponent(period)}`,
     TEAM_SUMMARY: (period: string) => `/team-summary?period=${encodeURIComponent(period)}`,
   },
+  // Preferencias de notificación del usuario autenticado. apiType "notification_prefs" (Procedures)
+  NOTIFICATION_PREFS: {
+    INFO: "/info",
+  },
   // Asignaciones de venta. apiType "assignments" (Procedures)
   ASSIGNMENTS: {
     UNASSIGNED: "/unassigned",

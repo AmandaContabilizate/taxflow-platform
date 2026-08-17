@@ -37,6 +37,7 @@ export type Screen =
   | 'regularizaciones'
   | 'declaraciones-anuales'
   | 'catalogos'
+  | 'configuracion'
   | 'renovaciones'
   | 'asignaciones'
   | 'equipo'

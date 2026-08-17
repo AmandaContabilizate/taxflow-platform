@@ -3,7 +3,7 @@
 import { Check, Copy, KeyRound, Loader2, Send } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { getRolesList } from '@/features/roles/actions/getRolesList.action'
-import type { RoleOverviewDto } from '@/features/roles/types'
+import { roleLabel, type RoleOverviewDto } from '@/features/roles/types'
 import { inviteTeamMember } from '@/features/team/actions/inviteTeamMember.action'
 import { B2C_CHANNELS, SEGMENTS, type MemberType } from '@/features/team/types'
 import { MONO } from '../constants'
@@ -17,6 +17,13 @@ interface Props {
 
 // Roles que la gerencia comercial puede invitar (el backend valida de nuevo).
 const ALLOWED_ROLE_NAMES = new Set(['seller', 'ventas', 'finder fee', 'finderfee'])
+
+// El tipo de miembro determina el rol: Ejecutivo de ventas → Vendedor (Seller),
+// Finder Fee → FinderFee. El campo queda bloqueado cuando el rol se resolvió.
+function defaultRoleFor(type: MemberType, list: RoleOverviewDto[]): string {
+  const wanted = type === 2 ? new Set(['finder fee', 'finderfee']) : new Set(['seller', 'ventas'])
+  return list.find((r) => wanted.has(normalizeName(r.name)))?.id ?? ''
+}
 
 function normalizeName(raw: string): string {
   return raw
@@ -54,9 +61,19 @@ export function InvitarMiembroModal({ open, onClose, onInvited }: Props) {
       if (res.success) {
         const allowed = res.value.filter((r) => ALLOWED_ROLE_NAMES.has(normalizeName(r.name)))
         setRoles(allowed.length > 0 ? allowed : res.value)
+      } else {
+        // Sin ViewRole (u otro error) el dropdown quedaría vacío en silencio:
+        // mejor decirlo para que sea diagnosticable desde la UI.
+        setError(`No pudimos cargar los roles: ${res.error.message}`)
       }
     })()
   }, [open])
+
+  // Autoselecciona el rol según el tipo de miembro (y lo re-selecciona al cambiarlo).
+  useEffect(() => {
+    if (roles.length === 0) return
+    setRoleId(defaultRoleFor(memberType, roles))
+  }, [memberType, roles])
 
   const isB2C = segmentId === 1 || segmentId === 2
   const canSubmit =
@@ -241,20 +258,22 @@ export function InvitarMiembroModal({ open, onClose, onInvited }: Props) {
           <label className="block text-[12px] font-bold mb-1.5" style={{ color: 'var(--ink-700)' }}>
             Rol
           </label>
+          {/* El rol lo fija el tipo de miembro; solo se habilita el combo como
+              respaldo si el catálogo no trae el rol esperado. */}
           <select
             value={roleId}
             onChange={(e) => setRoleId(e.target.value)}
-            className="w-full px-3 py-2.5 rounded-lg text-[14px] outline-none cursor-pointer"
-            style={inputStyle}
-            disabled={loading}
+            className="w-full px-3 py-2.5 rounded-lg text-[14px] outline-none cursor-pointer disabled:cursor-not-allowed"
+            style={{ ...inputStyle, opacity: roleId !== '' ? 0.75 : 1 }}
+            disabled={loading || roleId !== ''}
           >
             <option value="">Selecciona un rol…</option>
             {roles.map((r) => (
-              <option key={r.id} value={r.id}>{r.name}</option>
+              <option key={r.id} value={r.id}>{roleLabel(r)}</option>
             ))}
           </select>
           <p className="text-[11.5px] mt-1" style={{ color: 'var(--ink-400)' }}>
-            Tu rol solo permite invitar ventas y finder fee.
+            El rol se asigna automáticamente según el tipo de miembro.
           </p>
         </div>
 

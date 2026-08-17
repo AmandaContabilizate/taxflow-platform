@@ -24,6 +24,7 @@ import {
   Receipt,
   RefreshCw,
   RotateCcw,
+  Settings,
   ShieldCheck,
   ShoppingCart,
   Sparkles,
@@ -75,6 +76,7 @@ export const TITLES: Record<Screen, [string, string]> = {
   regularizaciones: ['Regularizaciones', 'Casos en regularización fiscal'],
   'declaraciones-anuales': ['Declaraciones anuales', 'Declaraciones del ejercicio'],
   catalogos: ['Catálogos', 'Catálogos maestros del sistema'],
+  configuracion: ['Configuración', 'Selecciona la sección a la que quieres entrar. El acceso depende de tu rol y permisos.'],
   renovaciones: ['Renovaciones', 'Planes por vencer y quién ya canceló su renovación'],
   asignaciones: ['Asignaciones de venta', 'Gestiona clientes sin vendedor y solicita reasignaciones para aprobación de Administración'],
   equipo: ['Equipo', 'Tu plantilla comercial. Da de alta nuevos miembros desde aquí.'],
@@ -204,6 +206,12 @@ const TRAMITES_ADICIONALES_ITEM: NavDef = {
   hint: 'Trámites vendidos',
 }
 const CATALOGOS_ITEM: NavDef = { id: 'catalogos', label: 'Catálogos', Icon: Layers, hint: 'Maestros del sistema' }
+const CONFIGURACION_ITEM: NavDef = {
+  id: 'configuracion',
+  label: 'Configuración',
+  Icon: Settings,
+  hint: 'Preferencias y gobierno',
+}
 const RENOVACIONES_ITEM: NavDef = {
   id: 'renovaciones',
   label: 'Renovaciones',
@@ -424,7 +432,7 @@ export const MASTER_NAV_SECTIONS: NavSection[] = [
   },
   {
     section: 'SISTEMA',
-    items: [ROLES_ITEM, CATALOGOS_ITEM, PARTNERSHIP_ITEM],
+    items: [ROLES_ITEM, CATALOGOS_ITEM, CONFIGURACION_ITEM, PARTNERSHIP_ITEM],
   },
 ]
 
@@ -479,6 +487,12 @@ export const MODULE_CLAIMS: Record<string, string[]> = {
   roles: ['AssignRole', 'CreateRole', 'EditRole', 'DeleteRole', 'RemoveRole'],
   // Catálogos aún no tiene permisos propios (los de actividades por régimen se
   // movieron a Mis clientes, donde vive la función): oculto hasta que los tenga.
+  // Hub de configuración: el menú abre con cualquiera; cada card/tab exige el suyo.
+  configuracion: [
+    'Sistema.ReadConfiguracion',
+    'Sistema.ManageNotificacionesInternas',
+    'Sistema.ReadConfiguracionSistema',
+  ],
 }
 
 /**

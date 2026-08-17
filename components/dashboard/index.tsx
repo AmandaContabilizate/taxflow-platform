@@ -24,6 +24,7 @@ import {
   AsignacionesScreen,
   CodigosDescuentoScreen,
   ComisionesScreen,
+  ConfiguracionScreen,
   DiagnosticoScreen,
   DocumentosScreen,
   EquipoScreen,
@@ -375,6 +376,10 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
     }
     if (screen === 'roles') {
       return <RolesScreen currentUserId={userId ?? undefined} currentUserEmail={email || undefined} />;
+    }
+    if (screen === 'configuracion') {
+      // Hub de configuración: cada card/tab se pinta según los claims Sistema.*
+      return <ConfiguracionScreen permissions={permissions} />;
     }
     if (screen === 'partnership') {
       return <PartnershipScreen />;
