@@ -268,7 +268,9 @@ export function RecalculoTab({
               <p className="text-[13px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
                 {loading
                   ? 'Cargando comprobantes…'
-                  : `${invoices.length} comprobantes entran al cálculo${sinClasificar > 0 ? ` · ${sinClasificar} sin clasificar` : ''}`}
+                  : listError
+                    ? 'No pudimos cargar los comprobantes del período.'
+                    : `${invoices.length} comprobantes entran al cálculo${sinClasificar > 0 ? ` · ${sinClasificar} sin clasificar` : ''}`}
               </p>
             </div>
           </div>
@@ -318,7 +320,7 @@ export function RecalculoTab({
 
           {listError ? (
             <div className="py-8 text-center flex flex-col items-center gap-2">
-              <AlertCircle size={20} style={{ color: '#9E3A15' }} />
+              <AlertCircle size={20} style={{ color: 'var(--danger)' }} />
               <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>
                 {listError}
               </div>
@@ -647,7 +649,7 @@ function ClasificacionActual({ inv }: { inv: DeclarationPeriodInvoice }) {
         {inv.isDeductible ? (
           <Chip bg="var(--brand-50)" fg="var(--brand-700)">Deducible</Chip>
         ) : (
-          <Chip bg="var(--coral-soft)" fg="#9E3A15">No deducible</Chip>
+          <Chip bg="var(--coral-soft)" fg="var(--ink-900)">No deducible</Chip>
         )}
         {inv.isExpense != null && (
           <Chip bg="var(--ink-50)" fg="var(--ink-700)">{inv.isExpense ? 'Gasto' : 'Ingreso'}</Chip>
@@ -661,7 +663,7 @@ function ClasificacionActual({ inv }: { inv: DeclarationPeriodInvoice }) {
       {inv.reason && (
         <span
           className="text-[11.5px] leading-snug"
-          style={{ color: inv.isDeductible ? 'var(--ink-500)' : '#9E3A15' }}
+          style={{ color: inv.isDeductible ? 'var(--ink-500)' : 'var(--ink-900)' }}
         >
           {inv.reason}
         </span>
@@ -685,7 +687,7 @@ function Note({ tone, children }: { tone: 'info' | 'warn' | 'error'; children: R
   const styles = {
     info: { background: 'var(--hero-info)', border: '1px solid var(--hero-info-border)', color: 'var(--ink-700)' },
     warn: { background: 'var(--hero-amber)', border: '1px solid var(--border-strong)', color: 'var(--ink-700)' },
-    error: { background: 'var(--coral-soft)', border: '1px solid var(--border-strong)', color: '#9E3A15' },
+    error: { background: 'var(--coral-soft)', border: '1px solid var(--border-strong)', color: 'var(--ink-900)' },
   }[tone]
 
   return (

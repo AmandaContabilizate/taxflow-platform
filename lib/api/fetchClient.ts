@@ -42,6 +42,24 @@ type RequestOptions = Omit<RequestInit, "method" | "body" | "headers"> & {
   headers?: Record<string, string>;
 };
 
+/**
+ * Cuando el backend responde con la Developer Exception Page de ASP.NET, el body
+ * es texto plano con el stack trace COMPLETO y el volcado de headers — incluido
+ * `Authorization: Bearer <jwt>`. Ese texto terminaba pintado tal cual en pantalla.
+ * Solo se deja pasar un body de texto corto y sin pinta de volcado; el resto cae
+ * al mensaje genérico por status.
+ */
+function safeRawMessage(raw: string): string | undefined {
+  const text = raw.trim();
+  if (!text) return undefined;
+  const looksLikeDump =
+    text.length > 300 ||
+    /\n/.test(text) ||
+    /\bat [A-Za-z0-9_.]+\(/.test(text) ||
+    /Authorization:|HEADERS|Exception|Stack trace/i.test(text);
+  return looksLikeDump ? undefined : text;
+}
+
 // =============================================================
 // Headers helpers
 // =============================================================
@@ -137,7 +155,7 @@ async function request<T>(
     // desconocido".
     const message =
       (hasErrorCode(errorCode) ? getErrorMessage(errorCode) : null) ??
-      (typeof data === "string" ? data : undefined) ??
+      (typeof data === "string" ? safeRawMessage(data) : undefined) ??
       parsed?.message ??
       parsed?.error ??
       parsed?.detail ??
