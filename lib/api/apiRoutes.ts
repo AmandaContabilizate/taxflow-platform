@@ -29,7 +29,9 @@ export const API_ROUTES = {
     ROOT: "",
     GET: (id: string) => `/${id}`,
     MY_INFO: "/my-info",
-    SEND_CODE: "/SendCode",
+    /** POST users (Identity). El systemOriginId va en ruta; sin el, el back asume 1 (Contabox). */
+    SEND_CODE: (systemOriginId?: number) =>
+      systemOriginId == null ? "/SendCode" : `/SendCode/${systemOriginId}`,
     EXIST_EMAIL: (email: string) => `/ExistEmail/${encodeURIComponent(email)}`,
     VALIDATE_CODE: "/ValidateConfirmationCode",
     COMPLETE_PROFILE: "/CompleteUserProfile",

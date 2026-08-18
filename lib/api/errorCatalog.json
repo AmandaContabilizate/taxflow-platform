@@ -23,6 +23,10 @@
     "es": "El correo ya está registrado.",
     "en": "The email is already registered."
   },
+  "SYSTEM_ORIGIN_INVALID": {
+    "es": "El origen de registro no es válido.",
+    "en": "The registration origin is not valid."
+  },
   "USER_ROLE_ASSIGN_FAILED": {
     "es": "No se pudo asignar el rol por defecto al usuario.",
     "en": "Failed to assign default role to user."

@@ -62,10 +62,19 @@ export function getBaseUrl(apiType: ApiType = "default"): string {
   return url;
 }
 
-const SYSTEM_ORIGIN_ID = process.env.SYSTEM_ORIGIN_ID || "4";
+/**
+ * Origen del alta (Catalogs.SystemsOrigin): 0 app movil, 1 Contabox, 4 Taxflow 2.
+ * Este front es Taxflow 2; el back cae a 1 si no se manda, asi que hay que
+ * enviarlo explicito en todo endpoint que cree usuario.
+ */
+const SYSTEM_ORIGIN_ID = Number(process.env.SYSTEM_ORIGIN_ID ?? 4);
+
+export function getSystemOriginId(): number {
+  return Number.isInteger(SYSTEM_ORIGIN_ID) ? SYSTEM_ORIGIN_ID : 4;
+}
 
 export function getExternalAuthUrl(provider: "google" | "facebook" | "apple"): string {
-  return `${getBaseUrl("auth")}/${provider}/${SYSTEM_ORIGIN_ID}`;
+  return `${getBaseUrl("auth")}/${provider}/${getSystemOriginId()}`;
 }
 
 export { SYSTEM_ORIGIN_ID };
