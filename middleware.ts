@@ -17,11 +17,18 @@ import {
  * La validación real del token la hace `getCurrentUser` en server actions.
  */
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname: rawPathname } = request.nextUrl;
+
+  // Los deep links de la app movil llegan como /app/<ruta> (ver next.config.mjs:
+  // rewrites). El middleware corre ANTES del rewrite, asi que hay que quitar el
+  // prefijo antes de evaluar si la ruta es publica — si no, /app/auth/reset-password
+  // no matchea PUBLIC_ROUTES y termina redirigido al login.
+  const pathname = rawPathname.replace(/^\/app(?=\/|$)/, "") || "/";
 
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api/webhooks") || // Stripe webhooks (sin auth)
+    pathname.startsWith("/.well-known") || // Universal Links / App Links de la app movil
     pathname.startsWith("/favicon") ||
     /\.(svg|png|jpg|jpeg|gif|webp|ico|css|js|woff2?)$/.test(pathname)
   ) {
@@ -49,6 +56,6 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|api/webhooks|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/webhooks|\\.well-known|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

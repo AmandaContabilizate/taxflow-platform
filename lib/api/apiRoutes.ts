@@ -35,7 +35,9 @@ export const API_ROUTES = {
     EXIST_EMAIL: (email: string) => `/ExistEmail/${encodeURIComponent(email)}`,
     VALIDATE_CODE: "/ValidateConfirmationCode",
     COMPLETE_PROFILE: "/CompleteUserProfile",
-    FORGOT_PASSWORD: "/forgot-password",
+    /** POST users (Identity). El systemOriginId va en ruta; sin el, el back asume 1 (Contabox). */
+    FORGOT_PASSWORD: (systemOriginId?: number) =>
+      systemOriginId == null ? "/forgot-password" : `/forgot-password/${systemOriginId}`,
     RESET_PASSWORD: "/reset-password",
     UPDATE_PASSWORD: "/UpdatePassword",
     ASSIGN_ROLE: "/assign-role",

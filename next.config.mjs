@@ -11,6 +11,28 @@ const nextConfig = {
     unoptimized: true,
   },
   turbopack: {},
+  // apple-app-site-association va sin extension: Next/Azure lo servirian como
+  // octet-stream y iOS exige application/json.
+  async headers() {
+    return [
+      {
+        source: "/.well-known/apple-app-site-association",
+        headers: [{ key: "Content-Type", value: "application/json" }],
+      },
+    ]
+  },
+  // Los deep links de la app movil usan el prefijo /app (ver app.json de
+  // mi-app-contabilidad). Si el usuario NO tiene la app instalada, el link se
+  // abre en el navegador: este rewrite sirve la misma pagina web sin que la
+  // URL cambie, en vez de un 404.
+  async rewrites() {
+    return [
+      {
+        source: "/app/:path*",
+        destination: "/:path*",
+      },
+    ]
+  },
 }
 
 export default nextConfig
