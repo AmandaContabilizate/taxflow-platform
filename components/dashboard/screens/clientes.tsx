@@ -176,7 +176,7 @@ export function ClientesScreen({ permissions = [] }: { permissions?: string[] })
                           ) : (
                             <span
                               className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold"
-                              style={{ background: 'var(--amber-soft)', color: '#7B5312' }}
+                              style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
                             >
                               Sin asignar
                             </span>

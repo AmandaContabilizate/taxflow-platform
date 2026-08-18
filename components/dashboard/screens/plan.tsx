@@ -113,7 +113,7 @@ export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled, go }: Pl
       {/* Hero: plan actual */}
       <div
         className="rounded-3xl p-7 lg:p-8 text-white"
-        style={{ background: 'linear-gradient(155deg,#1E1952 0%,#15113F 100%)', boxShadow: 'var(--sh-ink)' }}
+        style={{ background: 'linear-gradient(155deg,#2A1C64 0%,#221158 100%)', boxShadow: 'var(--sh-ink)' }}
       >
         <div className="flex items-center gap-2 flex-wrap">
           <Pill kind="coral">{hasSub ? 'Tu plan actual' : 'Sin plan activo'}</Pill>
@@ -172,7 +172,7 @@ export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled, go }: Pl
               <Btn
                 size="md"
                 onClick={() => setPickerOpen(true)}
-                style={{ background: '#fff', color: '#0f172a', boxShadow: 'none' }}
+                style={{ background: '#fff', color: '#221158', boxShadow: 'none' }}
               >
                 Cambiar plan
               </Btn>
@@ -189,7 +189,7 @@ export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled, go }: Pl
             <Btn
               size="md"
               onClick={() => setPickerOpen(true)}
-              style={{ background: '#fff', color: '#0f172a', boxShadow: 'none' }}
+              style={{ background: '#fff', color: '#221158', boxShadow: 'none' }}
             >
               Ver planes
             </Btn>
@@ -244,7 +244,7 @@ export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled, go }: Pl
         {error && (
           <div
             className="text-[13px] font-semibold mb-3 px-4 py-2.5 rounded-xl"
-            style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}
+            style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}
           >
             {error}
           </div>

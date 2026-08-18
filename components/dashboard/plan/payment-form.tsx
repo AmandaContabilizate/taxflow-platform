@@ -63,12 +63,12 @@ export function PaymentForm({ payLabel, onSuccess, onCancel }: PaymentFormProps)
       <div
         className="flex items-center gap-2.5 px-4 py-3 rounded-xl"
         style={{
-          background: 'rgba(16, 185, 129, 0.08)',
-          border: '1px solid rgba(16, 185, 129, 0.2)',
+          background: 'rgba(0,173,135, 0.08)',
+          border: '1px solid rgba(0,173,135, 0.2)',
         }}
       >
-        <Lock size={16} style={{ color: '#10B981', flexShrink: 0 }} />
-        <span className="text-[12px] font-medium" style={{ color: '#059669' }}>
+        <Lock size={16} style={{ color: '#00AD87', flexShrink: 0 }} />
+        <span className="text-[12px] font-medium" style={{ color: '#00AD87' }}>
           Conexión segura. Tu información está encriptada.
         </span>
       </div>
@@ -99,11 +99,11 @@ export function PaymentForm({ payLabel, onSuccess, onCancel }: PaymentFormProps)
         <div
           className="flex items-start gap-3 px-4 py-3.5 rounded-xl border-l-4 animate-in fade-in-50 duration-200"
           style={{
-            background: 'rgba(239, 68, 68, 0.08)',
-            borderColor: '#EF4444',
+            background: 'rgba(232,77,77, 0.08)',
+            borderColor: '#E84D4D',
           }}
         >
-          <AlertCircle size={18} style={{ color: '#DC2626', flexShrink: 0, marginTop: '2px' }} />
+          <AlertCircle size={18} style={{ color: '#E84D4D', flexShrink: 0, marginTop: '2px' }} />
           <div>
             <div className="text-[13px] font-semibold" style={{ color: '#7F1D1D' }}>
               Error al procesar el pago
@@ -152,12 +152,12 @@ export function PaymentForm({ payLabel, onSuccess, onCancel }: PaymentFormProps)
       {/* Security Footer */}
       <div className="flex items-center justify-center gap-4 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
         <div className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--ink-500)' }}>
-          <CheckCircle2 size={14} style={{ color: '#10B981' }} />
+          <CheckCircle2 size={14} style={{ color: '#00AD87' }} />
           <span>Pago seguro con Stripe</span>
         </div>
         <div className="w-px h-3" style={{ background: 'var(--border)' }} />
         <div className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--ink-500)' }}>
-          <Lock size={14} style={{ color: '#10B981' }} />
+          <Lock size={14} style={{ color: '#00AD87' }} />
           <span>Datos encriptados</span>
         </div>
       </div>

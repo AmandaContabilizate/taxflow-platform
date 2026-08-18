@@ -122,7 +122,7 @@ export function PartnerModal({ open, partner, onClose, onSaved }: Props) {
               </div>
             ))}
           </div>
-          <div className="p-3 rounded-xl text-[12.5px]" style={{ background: 'var(--amber-soft)', color: '#7B5312' }}>
+          <div className="p-3 rounded-xl text-[12.5px]" style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}>
             Los códigos nacen <b>sin planes asignados</b>, así que todavía no aplican a ninguna
             compra. Configura sus planes, % y usos en la pantalla de Códigos de descuento.
           </div>
@@ -143,7 +143,7 @@ export function PartnerModal({ open, partner, onClose, onSaved }: Props) {
     <Modal isOpen onClose={onClose} title={partner ? `Editar partner — ${partner.name}` : 'Nuevo partner'}>
       <div className="flex flex-col gap-4">
         {error && (
-          <div className="p-3 rounded-lg text-[13px]" style={{ background: 'var(--hero-coral-soft-bg, #FEE2E2)', color: '#991B1B' }}>
+          <div className="p-3 rounded-lg text-[13px]" style={{ background: 'var(--hero-coral-soft-bg, #FCDCDC)', color: '#991B1B' }}>
             {error}
           </div>
         )}

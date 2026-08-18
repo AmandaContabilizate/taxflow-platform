@@ -24,7 +24,7 @@ export function BlacklistCard({ state, statusText, blocked, onConnect }: Blackli
       blocked={blocked}
       icon={<ShieldCheck size={22} />}
       iconBg={flagged ? 'var(--coral-soft)' : 'var(--ink-50)'}
-      iconColor={flagged ? '#9E3A15' : 'var(--ink-500)'}
+      iconColor={flagged ? 'var(--violet-ink)' : 'var(--ink-500)'}
       eyebrow="Listas negras SAT"
       title={
         blocked

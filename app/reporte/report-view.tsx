@@ -149,7 +149,7 @@ export function ReportView({
         <section>
           <div
             className="px-6 pb-5 pt-6"
-            style={{ background: 'linear-gradient(160deg,#1E1952 0%,#15113F 55%,#100D33 100%)' }}
+            style={{ background: 'linear-gradient(160deg,#2A1C64 0%,#221158 55%,#120A33 100%)' }}
           >
             <p
               className="mb-1.5 text-[11.5px] font-bold uppercase tracking-[0.08em]"
@@ -176,11 +176,11 @@ export function ReportView({
               <div
                 className="mt-4 flex items-start gap-3 rounded-2xl px-3.5 py-3"
                 style={{
-                  background: 'rgba(58,227,164,0.12)',
-                  border: '1px solid rgba(58,227,164,0.34)',
+                  background: 'rgba(0,211,161,0.12)',
+                  border: '1px solid rgba(0,211,161,0.34)',
                 }}
               >
-                <Check size={17} className="mt-0.5 shrink-0" style={{ color: '#3AE3A4' }} />
+                <Check size={17} className="mt-0.5 shrink-0" style={{ color: '#06FF94' }} />
                 <p className="text-[13px] leading-[19px]" style={{ color: 'rgba(255,255,255,0.86)' }}>
                   <strong style={{ color: '#FFFFFF' }}>
                     Tienes {formatMoney(report.ivaFavor)} de IVA a favor.

@@ -403,7 +403,7 @@ function EstadoCell({ user }: { user: UserListItem }) {
       ) : (
         <span
           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold"
-          style={{ background: 'var(--amber-soft)', color: '#7B5312' }}
+          style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
         >
           <MailWarning size={12} /> Sin confirmar
         </span>
@@ -411,7 +411,7 @@ function EstadoCell({ user }: { user: UserListItem }) {
       {user.bloqueado && (
         <span
           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold"
-          style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}
+          style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}
         >
           <Lock size={12} /> Bloqueado
         </span>
@@ -499,7 +499,7 @@ function DescuentoCell({ user }: { user: UserListItem }) {
         <code
           key={c}
           className="inline-block px-2 py-0.5 rounded-md"
-          style={{ ...MONO, fontSize: '11px', background: 'var(--amber-soft)', color: '#7B5312' }}
+          style={{ ...MONO, fontSize: '11px', background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
         >
           {c}
         </code>

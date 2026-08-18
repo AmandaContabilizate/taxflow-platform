@@ -405,7 +405,7 @@ export function RoleEditor({ role, onSaved, onCancel }: RoleEditorProps) {
         style={{
           background: 'var(--card)',
           borderColor: 'var(--border)',
-          boxShadow: stuck ? '0 10px 24px -14px rgba(15, 23, 42, 0.35)' : 'none',
+          boxShadow: stuck ? '0 10px 24px -14px rgba(34,17,88, 0.35)' : 'none',
           transition: 'box-shadow 200ms ease',
         }}
       >
@@ -496,7 +496,7 @@ export function RoleEditor({ role, onSaved, onCancel }: RoleEditorProps) {
           <div className="overflow-hidden min-h-0">
             <div
               className="px-5 py-2 flex items-center gap-2 text-[12.5px] font-semibold border-t"
-              style={{ background: 'var(--amber-soft)', color: '#7B5312', borderColor: 'var(--border)' }}
+              style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)', borderColor: 'var(--border)' }}
             >
               <AlertCircle size={14} className="flex-shrink-0" />
               <span>
@@ -510,7 +510,7 @@ export function RoleEditor({ role, onSaved, onCancel }: RoleEditorProps) {
           <div className="overflow-hidden min-h-0">
             <div
               className="px-5 py-2 flex items-center gap-2 text-[12.5px] font-semibold border-t"
-              style={{ background: 'var(--coral-soft)', color: '#9E3A15', borderColor: 'var(--border)' }}
+              style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)', borderColor: 'var(--border)' }}
             >
               <AlertCircle size={14} className="flex-shrink-0" />
               <span className="truncate">{saveError}</span>
@@ -546,7 +546,7 @@ export function RoleEditor({ role, onSaved, onCancel }: RoleEditorProps) {
         {role?.isSystem && (
           <div
             className="flex items-center gap-2 text-[12.5px] font-semibold px-3.5 py-2.5 rounded-xl"
-            style={{ background: 'var(--amber-soft)', color: '#7B5312' }}
+            style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
           >
             <Lock size={15} /> Rol del sistema: el nombre no se puede modificar.
           </div>
@@ -600,7 +600,7 @@ export function RoleEditor({ role, onSaved, onCancel }: RoleEditorProps) {
               className="flex flex-col items-center gap-2 text-center px-4 py-8 rounded-xl"
               style={{ background: 'var(--coral-soft)', border: '1px solid var(--border)' }}
             >
-              <AlertCircle size={22} style={{ color: '#9E3A15' }} />
+              <AlertCircle size={22} style={{ color: 'var(--violet-ink)' }} />
               <div className="text-[13px] font-semibold" style={{ color: 'var(--ink-900)' }}>
                 No se pudo cargar el catálogo de permisos
               </div>
@@ -711,7 +711,7 @@ export function RoleEditor({ role, onSaved, onCancel }: RoleEditorProps) {
                           </span>
                           <span
                             className="text-[10.5px] font-bold px-1.5 py-0.5 rounded-full"
-                            style={{ background: 'var(--amber-soft)', color: '#7B5312' }}
+                            style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
                           >
                             Sin permisos aún
                           </span>

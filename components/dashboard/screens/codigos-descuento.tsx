@@ -182,7 +182,7 @@ export function CodigosDescuentoScreen({ permissions = [] }: { permissions?: str
               <Loader2 size={16} className="animate-spin" /> Cargando bitácora…
             </div>
           ) : logError ? (
-            <div className="py-6 px-5 text-[13px]" style={{ color: '#9E3A15' }}>{logError}</div>
+            <div className="py-6 px-5 text-[13px]" style={{ color: 'var(--violet-ink)' }}>{logError}</div>
           ) : !log || log.length === 0 ? (
             <div className="py-8 px-5 text-center text-[13px]" style={{ color: 'var(--ink-500)' }}>
               Aún no hay autorizaciones registradas — la bitácora empieza a llenarse cuando se
@@ -258,7 +258,7 @@ export function CodigosDescuentoScreen({ permissions = [] }: { permissions?: str
       {!loading && canAuthorize && pendientesAutorizar.length > 0 && (
         <div
           className="flex items-center gap-2.5 px-4 py-3 rounded-2xl text-[13px] font-semibold"
-          style={{ background: 'var(--amber-soft)', color: '#7B5312', border: '1px solid var(--border)' }}
+          style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)', border: '1px solid var(--border)' }}
         >
           <ShieldCheck size={16} className="flex-shrink-0" />
           {pendientesAutorizar.length === 1
@@ -270,7 +270,7 @@ export function CodigosDescuentoScreen({ permissions = [] }: { permissions?: str
       {authError && (
         <div
           className="flex items-center gap-2 px-4 py-3 rounded-2xl text-[13px] font-semibold"
-          style={{ background: 'var(--coral-soft)', color: '#9E3A15', border: '1px solid var(--border)' }}
+          style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)', border: '1px solid var(--border)' }}
         >
           <AlertCircle size={15} className="flex-shrink-0" /> No se pudo autorizar — {authError}
         </div>
@@ -285,7 +285,7 @@ export function CodigosDescuentoScreen({ permissions = [] }: { permissions?: str
       ) : error ? (
         <Card>
           <div className="py-10 text-center flex flex-col items-center gap-3">
-            <AlertCircle size={22} style={{ color: '#9E3A15' }} />
+            <AlertCircle size={22} style={{ color: 'var(--violet-ink)' }} />
             <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>{error}</div>
             <button
               type="button"
@@ -358,7 +358,7 @@ export function CodigosDescuentoScreen({ permissions = [] }: { permissions?: str
                     </td>
                     <td className="py-3 px-3 text-[13px]" style={{ color: 'var(--ink-700)' }}>
                       {c.subscriptionPlanIds.length === 0 ? (
-                        <span className="inline-flex items-center gap-1" style={{ color: '#9E3A15' }}>
+                        <span className="inline-flex items-center gap-1" style={{ color: 'var(--violet-ink)' }}>
                           <AlertTriangle size={12} /> sin planes
                         </span>
                       ) : (

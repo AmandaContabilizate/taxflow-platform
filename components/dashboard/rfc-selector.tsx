@@ -35,8 +35,8 @@ export function RFCSelector({ compact = false }: RFCSelectorProps) {
         style={{
           background: 'rgba(255, 255, 255, 0.8)',
           backdropFilter: 'blur(10px)',
-          border: isOpen ? '1.5px solid #64748B' : '1px solid rgba(229, 231, 235, 0.8)',
-          color: '#374151',
+          border: isOpen ? '1.5px solid #5D50A5' : '1px solid rgba(231,228,244, 0.8)',
+          color: '#332670',
           ...MONO,
         }}
       >
@@ -44,7 +44,7 @@ export function RFCSelector({ compact = false }: RFCSelectorProps) {
         <ChevronDown
           size={compact ? 14 : 16}
           style={{
-            color: '#9ca3af',
+            color: '#857AC0',
             transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
             transition: 'transform 200ms'
           }}
@@ -57,7 +57,7 @@ export function RFCSelector({ compact = false }: RFCSelectorProps) {
           className={`absolute top-full left-0 right-0 ${compact ? 'mt-1' : 'mt-1'} rounded-xl shadow-lg z-50 overflow-hidden`}
           style={{
             background: 'white',
-            border: '1px solid #e5e7eb',
+            border: '1px solid #E7E4F4',
           }}
         >
           <div className={compact ? 'max-h-48' : 'max-h-64'}>
@@ -70,8 +70,8 @@ export function RFCSelector({ compact = false }: RFCSelectorProps) {
                 }}
                 className={`w-full text-left ${compact ? 'px-3 py-2 text-[12px]' : 'px-4 py-3 text-[13px]'} font-semibold transition-colors duration-150 hover:bg-gray-50`}
                 style={{
-                  background: selectedRfc === rfc.rfc ? '#150F3F' : 'white',
-                  color: selectedRfc === rfc.rfc ? 'white' : '#374151',
+                  background: selectedRfc === rfc.rfc ? '#150C3D' : 'white',
+                  color: selectedRfc === rfc.rfc ? 'white' : '#332670',
                   ...MONO,
                 }}
               >
@@ -87,8 +87,8 @@ export function RFCSelector({ compact = false }: RFCSelectorProps) {
         <div
           className="absolute inset-0 rounded-xl opacity-100 transition-opacity duration-200 pointer-events-none"
           style={{
-            border: '1.5px solid #64748B',
-            boxShadow: '0 0 12px rgba(100, 116, 139, 0.15)'
+            border: '1.5px solid #5D50A5',
+            boxShadow: '0 0 12px rgba(93,80,165, 0.15)'
           }}
         />
       )}

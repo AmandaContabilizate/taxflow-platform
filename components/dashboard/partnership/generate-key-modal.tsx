@@ -63,7 +63,7 @@ export function GenerateKeyModal({ open, onOpenChange, onGenerated }: GenerateKe
             <div className="flex items-start gap-3.5">
               <div
                 className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
-                style={{ background: 'var(--amber-soft)', color: '#7B5312' }}
+                style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
               >
                 <KeyRound size={22} />
               </div>
@@ -87,7 +87,7 @@ export function GenerateKeyModal({ open, onOpenChange, onGenerated }: GenerateKe
               className="flex flex-col gap-3 px-4 py-4 rounded-xl"
               style={{ background: 'var(--amber-soft)', border: '1px solid var(--border)' }}
             >
-              <div className="flex items-start gap-2 text-[13px] font-bold" style={{ color: '#7B5312' }}>
+              <div className="flex items-start gap-2 text-[13px] font-bold" style={{ color: 'var(--violet-ink)' }}>
                 <AlertTriangle size={16} className="flex-shrink-0 mt-0.5" />
                 Debe guardar esta llave de manera segura, no será posible volver a verla después de
                 salir de esta pantalla.
@@ -103,7 +103,7 @@ export function GenerateKeyModal({ open, onOpenChange, onGenerated }: GenerateKe
           ) : (
             <>
               {error && (
-                <div className="text-[13px] font-semibold" style={{ color: '#9E3A15' }}>
+                <div className="text-[13px] font-semibold" style={{ color: 'var(--violet-ink)' }}>
                   {error}
                 </div>
               )}

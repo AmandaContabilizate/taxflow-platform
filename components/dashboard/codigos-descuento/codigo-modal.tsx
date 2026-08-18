@@ -144,7 +144,7 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthoriz
     <Modal isOpen onClose={onClose} title={code ? `Editar código — ${code.code}` : 'Nuevo código de descuento'}>
       <div className="flex flex-col gap-4">
         {error && (
-          <div className="p-3 rounded-lg text-[13px]" style={{ background: 'var(--hero-coral-soft-bg, #FEE2E2)', color: '#991B1B' }}>
+          <div className="p-3 rounded-lg text-[13px]" style={{ background: 'var(--hero-coral-soft-bg, #FCDCDC)', color: '#991B1B' }}>
             {error}
           </div>
         )}
@@ -311,24 +311,24 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthoriz
               disabled={loading}
             />
             {isActive && !canAuthorize && Number(discountPercent) > 20 && (
-              <p className="text-[11.5px] mt-1 font-semibold" style={{ color: '#9E3A15' }}>
+              <p className="text-[11.5px] mt-1 font-semibold" style={{ color: 'var(--violet-ink)' }}>
                 Más de 20% requiere autorización: desmarca "Código activo" para guardarlo como
                 solicitud, y un administrador lo activará.
               </p>
             )}
             {isActive && canAuthorize && Number(discountPercent) > 20 && Number(discountPercent) <= 100 && (
-              <p className="text-[11.5px] mt-1 font-semibold" style={{ color: '#7B5312' }}>
+              <p className="text-[11.5px] mt-1 font-semibold" style={{ color: 'var(--violet-ink)' }}>
                 Estás autorizando un descuento fuera de tope. Sugerencia: usa RFCs permitidos y
                 pocos usos máximos para acotarlo.
               </p>
             )}
             {discountPercent !== '' && !Number.isInteger(Number(discountPercent)) && (
-              <p className="text-[11.5px] mt-1 font-semibold" style={{ color: '#9E3A15' }}>
+              <p className="text-[11.5px] mt-1 font-semibold" style={{ color: 'var(--violet-ink)' }}>
                 El porcentaje debe ser un número entero, sin decimales.
               </p>
             )}
             {Number(discountPercent) > 100 && (
-              <p className="text-[11.5px] mt-1 font-semibold" style={{ color: '#9E3A15' }}>
+              <p className="text-[11.5px] mt-1 font-semibold" style={{ color: 'var(--violet-ink)' }}>
                 El porcentaje no puede ser mayor a 100%.
               </p>
             )}
@@ -353,7 +353,7 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthoriz
               disabled={loading}
             />
             {isActive && !canAuthorize && Number(declarationsCount) > 3 && (
-              <p className="text-[11.5px] mt-1 font-semibold" style={{ color: '#9E3A15' }}>
+              <p className="text-[11.5px] mt-1 font-semibold" style={{ color: 'var(--violet-ink)' }}>
                 Más de 3 declaraciones requiere autorización: desmarca "Código activo" para
                 guardarlo como solicitud, y un administrador lo activará.
               </p>
@@ -409,7 +409,7 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthoriz
           {rfcTokens.length > 0 && (
             <p
               className="text-[11.5px] mt-1"
-              style={{ color: invalidRfcs.length > 0 ? '#9E3A15' : 'var(--ink-500)' }}
+              style={{ color: invalidRfcs.length > 0 ? 'var(--violet-ink)' : 'var(--ink-500)' }}
             >
               {validRfcs.length} RFC{validRfcs.length === 1 ? '' : 's'} válido{validRfcs.length === 1 ? '' : 's'}
               {invalidRfcs.length > 0 && (
@@ -439,7 +439,7 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthoriz
         {!canSubmit && faltantes.length > 0 && (
           <div
             className="px-3.5 py-2.5 rounded-xl text-[12.5px]"
-            style={{ background: 'var(--amber-soft)', color: '#7B5312' }}
+            style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
           >
             <b>Para guardar falta:</b> {faltantes.join(' · ')}
           </div>

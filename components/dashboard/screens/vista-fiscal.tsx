@@ -91,7 +91,7 @@ export function VistaFiscalScreen({ go, firstName }: Props) {
                           <span
                             key={regime.regimeId}
                             className={isFirst ? "text-[24px] font-extrabold tracking-tight" : "text-[14px] font-semibold tracking-wide"}
-                            style={{ color: 'rgb(21, 17, 63)' }}
+                            style={{ color: 'rgb(34,17,88)' }}
                           >
                             {regimeName}
                           </span>
@@ -150,7 +150,7 @@ export function VistaFiscalScreen({ go, firstName }: Props) {
                   onClick={() => go('declaraciones')}
                   className="w-full p-6 text-left"
                 >
-                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'var(--amber-soft)', color: '#7B5312' }}>
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}>
                     <FileText size={24} />
                   </div>
                   <div className="font-bold text-[15px]" style={{ color: 'var(--ink-900)' }}>
@@ -169,7 +169,7 @@ export function VistaFiscalScreen({ go, firstName }: Props) {
                   onClick={() => go('facturas')}
                   className="w-full p-6 text-left"
                 >
-                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: '#1e293b', color: '#fff' }}>
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: '#2A1C64', color: '#fff' }}>
                     <FilePlus size={24} />
                   </div>
                   <div className="font-bold text-[15px]" style={{ color: 'var(--ink-900)' }}>
@@ -188,7 +188,7 @@ export function VistaFiscalScreen({ go, firstName }: Props) {
                   onClick={() => go('documentos')}
                   className="w-full p-6 text-left"
                 >
-                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'var(--sky-soft)', color: '#1C4C96' }}>
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'var(--sky-soft)', color: 'var(--violet-ink)' }}>
                     <FolderLock size={24} />
                   </div>
                   <div className="font-bold text-[15px]" style={{ color: 'var(--ink-900)' }}>
@@ -207,7 +207,7 @@ export function VistaFiscalScreen({ go, firstName }: Props) {
                   onClick={() => go('tramites')}
                   className="w-full p-6 text-left"
                 >
-                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}>
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}>
                     <FilePlus2 size={24} />
                   </div>
                   <div className="font-bold text-[15px]" style={{ color: 'var(--ink-900)' }}>
@@ -226,7 +226,7 @@ export function VistaFiscalScreen({ go, firstName }: Props) {
                   onClick={() => go('plan')}
                   className="w-full p-6 text-left"
                 >
-                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'var(--violet-soft)', color: '#5A4DCC' }}>
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'var(--violet-soft)', color: '#7339FD' }}>
                     <Gem size={24} />
                   </div>
                   <div className="font-bold text-[15px]" style={{ color: 'var(--ink-900)' }}>
@@ -246,11 +246,11 @@ export function VistaFiscalScreen({ go, firstName }: Props) {
           <div className="w-full lg:w-[360px] flex-shrink-0">
             <div
               className="rounded-3xl p-6 lg:p-7 text-white"
-              style={{ background: 'linear-gradient(155deg,#1E1952 0%,#15113F 100%)', boxShadow: 'var(--sh-ink)' }}
+              style={{ background: 'linear-gradient(155deg,#2A1C64 0%,#221158 100%)', boxShadow: 'var(--sh-ink)' }}
             >
               {selectedRfcInfo?.status69B && (
-                <div className="text-[12px] font-semibold px-3 py-1.5 rounded-full inline-flex items-center gap-1.5 mb-4" style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#10B981' }}>
-                  <span className="w-2 h-2 rounded-full" style={{ background: '#10B981' }} />
+                <div className="text-[12px] font-semibold px-3 py-1.5 rounded-full inline-flex items-center gap-1.5 mb-4" style={{ background: 'rgba(0,173,135, 0.2)', color: '#00AD87' }}>
+                  <span className="w-2 h-2 rounded-full" style={{ background: '#00AD87' }} />
                   SAT sincronizado
                 </div>
               )}
@@ -264,7 +264,7 @@ export function VistaFiscalScreen({ go, firstName }: Props) {
                       cy="50"
                       r="45"
                       fill="none"
-                      stroke="#10DA92"
+                      stroke="#00D3A1"
                       strokeWidth="8"
                       strokeDasharray={`${(score.score / 100) * 282.7} 282.7`}
                       strokeLinecap="round"
@@ -304,7 +304,7 @@ export function VistaFiscalScreen({ go, firstName }: Props) {
                   <button
                     onClick={() => go('declaraciones')}
                     className="w-full px-4 py-2.5 rounded-full font-bold text-[14px] flex items-center justify-center gap-2 transition hover:opacity-90"
-                    style={{ background: '#fff', color: '#0f172a' }}
+                    style={{ background: '#fff', color: '#221158' }}
                   >
                     Ver detalle
                     <ArrowRight size={16} />

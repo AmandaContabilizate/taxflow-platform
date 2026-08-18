@@ -89,8 +89,8 @@ export function HeroTile({ label, value, highlight }: { label: string; value: st
     <div
       className="rounded-2xl p-3"
       style={{
-        background: highlight ? 'rgba(255,214,107,0.18)' : 'rgba(255,255,255,0.10)',
-        border: highlight ? '1px solid rgba(255,214,107,0.45)' : '1px solid rgba(255,255,255,0.18)',
+        background: highlight ? 'rgba(157,115,254,0.18)' : 'rgba(255,255,255,0.10)',
+        border: highlight ? '1px solid rgba(157,115,254,0.45)' : '1px solid rgba(255,255,255,0.18)',
       }}
     >
       <div className="text-[11px] font-extrabold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.75)' }}>

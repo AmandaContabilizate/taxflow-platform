@@ -34,9 +34,9 @@ function iconFor(plan: Plan): LucideIcon {
 }
 
 const ROW_ACCENTS = [
-  { bg: 'var(--coral-soft)', fg: '#9E3A15' },
+  { bg: 'var(--coral-soft)', fg: 'var(--violet-ink)' },
   { bg: 'var(--brand-50)', fg: 'var(--brand-700)' },
-  { bg: 'var(--amber-soft)', fg: '#7B5312' },
+  { bg: 'var(--amber-soft)', fg: 'var(--violet-ink)' },
 ]
 
 function description(plan: Plan): string | null {
@@ -95,7 +95,7 @@ export function TramitesScreen({ onContratar, go }: TramitesScreenProps) {
       {error && (
         <div
           className="text-[13px] font-semibold px-4 py-2.5 rounded-xl"
-          style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}
+          style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}
         >
           {error}
         </div>

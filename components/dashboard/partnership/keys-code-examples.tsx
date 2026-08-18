@@ -247,10 +247,10 @@ export function KeysCodeExamples({ providerName, identityBaseUrl }: KeysCodeExam
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Integración Contabox - Partnership</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #F3F1FA; }
     .container { max-width: 1200px; margin: 0 auto; }
-    h1 { color: #333; }
-    .iframe-container { width: 100%; height: 80vh; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; background: #fff; }
+    h1 { color: #332670; }
+    .iframe-container { width: 100%; height: 80vh; border: 1px solid #E7E4F4; border-radius: 8px; overflow: hidden; background: #fff; }
     iframe { width: 100%; height: 100%; border: none; }
   </style>
 </head>

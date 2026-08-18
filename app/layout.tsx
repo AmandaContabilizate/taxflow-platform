@@ -1,12 +1,13 @@
 import type { Metadata } from 'next'
-import { Montserrat, Assistant } from 'next/font/google'
+import { Poppins, Assistant } from 'next/font/google'
 import Script from 'next/script'
 import { ThemeProvider } from '@/components/theme-provider'
 import './globals.css'
 
 const CLARITY_PROJECT_ID = 'xy8b9l2b6i'
 
-const montserrat = Montserrat({
+// Sustituta libre de Basic Sans (tipografía de encabezados del manual de identidad)
+const poppins = Poppins({
   subsets: ['latin'],
   variable: '--font-display',
   weight: ['400', '500', '600', '700', '800', '900'],
@@ -34,7 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="es"
       suppressHydrationWarning
-      className={`${montserrat.variable} ${assistant.variable} bg-background`}
+      className={`${poppins.variable} ${assistant.variable} bg-background`}
     >
       <body className="font-sans antialiased text-foreground min-h-screen">
         <Script id="ms-clarity" strategy="afterInteractive">

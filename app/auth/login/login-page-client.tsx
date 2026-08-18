@@ -202,16 +202,16 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
   }
 
   return (
-    <main className="min-h-screen" style={{ background: "#F6F7FB", color: "#15113F" }}>
+    <main className="min-h-screen" style={{ background: "#F6F5FB", color: "#221158" }}>
       <div className="grid min-h-screen lg:grid-cols-[370px_1fr]">
         <aside
           className="hidden lg:flex flex-col text-white px-8 py-10"
-          style={{ background: "#15113F" }}
+          style={{ background: "linear-gradient(165deg, #221158 0%, #34197F 62%, #4B21B8 100%)" }}
         >
           <Link href="/" className="inline-flex items-center gap-2.5">
             <div
               className="w-9 h-9 rounded-xl flex items-center justify-center"
-              style={{ background: "#0ED18A" }}
+              style={{ background: "#00AD87" }}
             >
               <span className="text-base font-black text-white" style={DISPLAY_FONT}>
                 C
@@ -250,8 +250,8 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                   <span
                     className="w-6 h-6 rounded-lg flex items-center justify-center text-sm flex-shrink-0 font-bold"
                     style={{
-                      background: "rgba(14, 209, 138, 0.15)",
-                      color: "#3AE3A4",
+                      background: "rgba(0,211,161, 0.15)",
+                      color: "#06FF94",
                     }}
                   >
                     {symbol}
@@ -283,36 +283,36 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
             className="w-full max-w-[460px] rounded-3xl px-6 py-8 sm:px-8 sm:py-9"
             style={{
               background: "#FFFFFF",
-              boxShadow: "0 24px 45px rgba(21,17,63,0.10)",
-              border: "1px solid rgba(21,17,63,0.08)",
+              boxShadow: "0 24px 45px rgba(34,17,88,0.10)",
+              border: "1px solid rgba(34,17,88,0.08)",
             }}
           >
             <div className="flex flex-col items-center text-center mb-6">
               <div
                 className="w-14 h-14 rounded-xl flex items-center justify-center"
-                style={{ background: "#15113F" }}
+                style={{ background: "#221158" }}
               >
                 <span
                   className="text-2xl font-black"
-                  style={{ ...DISPLAY_FONT, color: "#3AE3A4" }}
+                  style={{ ...DISPLAY_FONT, color: "#06FF94" }}
                 >
                   C
                 </span>
               </div>
               <h2
                 className="mt-3 text-2xl font-black"
-                style={{ ...DISPLAY_FONT, color: "#15113F" }}
+                style={{ ...DISPLAY_FONT, color: "#221158" }}
               >
                 Contabilízate
               </h2>
-              <p className="mt-1 text-sm font-semibold" style={{ color: "#8982BC" }}>
+              <p className="mt-1 text-sm font-semibold" style={{ color: "#857AC0" }}>
                 Tu contador fiscal con inteligencia artificial
               </p>
             </div>
 
             <div
               className="rounded-2xl p-1 grid grid-cols-2 gap-1"
-              style={{ background: "#F4F2F9" }}
+              style={{ background: "#F3F1FA" }}
             >
               <button
                 type="button"
@@ -322,10 +322,10 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                   mode === "login"
                     ? {
                       background: "#FFFFFF",
-                      color: "#15113F",
-                      boxShadow: "0 1px 2px rgba(21,17,63,0.06)",
+                      color: "#221158",
+                      boxShadow: "0 1px 2px rgba(34,17,88,0.06)",
                     }
-                    : { color: "#8982BC", background: "transparent" }
+                    : { color: "#857AC0", background: "transparent" }
                 }
               >
                 Iniciar sesión
@@ -338,10 +338,10 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                   mode === "register"
                     ? {
                       background: "#FFFFFF",
-                      color: "#15113F",
-                      boxShadow: "0 1px 2px rgba(21,17,63,0.06)",
+                      color: "#221158",
+                      boxShadow: "0 1px 2px rgba(34,17,88,0.06)",
                     }
-                    : { color: "#8982BC", background: "transparent" }
+                    : { color: "#857AC0", background: "transparent" }
                 }
               >
                 Registrarse
@@ -363,7 +363,7 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                   <label
                     htmlFor="email"
                     className="mb-2 block text-sm font-bold"
-                    style={{ color: "#15113F" }}
+                    style={{ color: "#221158" }}
                   >
                     Correo electrónico
                   </label>
@@ -377,9 +377,9 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                     onChange={(e) => setEmail(e.target.value)}
                     className="h-11 w-full rounded-xl px-4 text-sm outline-none transition"
                     style={{
-                      background: "#F4F2F9",
-                      border: "1px solid rgba(21,17,63,0.08)",
-                      color: "#15113F",
+                      background: "#F3F1FA",
+                      border: "1px solid rgba(34,17,88,0.08)",
+                      color: "#221158",
                     }}
                   />
                 </div>
@@ -388,7 +388,7 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                   <label
                     htmlFor="password"
                     className="mb-2 block text-sm font-bold"
-                    style={{ color: "#15113F" }}
+                    style={{ color: "#221158" }}
                   >
                     Contraseña
                   </label>
@@ -404,16 +404,16 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                       onChange={(e) => setPassword(e.target.value)}
                       className="h-11 w-full rounded-xl px-4 pr-11 text-sm outline-none transition"
                       style={{
-                        background: "#F4F2F9",
-                        border: "1px solid rgba(21,17,63,0.08)",
-                        color: "#15113F",
+                        background: "#F3F1FA",
+                        border: "1px solid rgba(34,17,88,0.08)",
+                        color: "#221158",
                       }}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword((s) => !s)}
                       className="absolute inset-y-0 right-3 inline-flex items-center"
-                      style={{ color: "#8982BC" }}
+                      style={{ color: "#857AC0" }}
                       aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                     >
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -424,7 +424,7 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                 <Link
                   href={PUBLIC_ROUTES.FORGOT_PASSWORD}
                   className="block text-right text-xs font-semibold hover:underline"
-                  style={{ color: "#8982BC" }}
+                  style={{ color: "#857AC0" }}
                 >
                   ¿Olvidaste tu contraseña?
                 </Link>
@@ -433,7 +433,7 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                   type="submit"
                   disabled={loading}
                   className="h-11 w-full rounded-xl text-sm font-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
-                  style={{ background: "#0ED18A", color: "#FFFFFF" }}
+                  style={{ background: "#00AD87", color: "#FFFFFF" }}
                 >
                   {loading ? "Iniciando..." : "Entrar"}
                 </button>
@@ -444,7 +444,7 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                   <label
                     htmlFor="fullName"
                     className="mb-2 block text-sm font-bold"
-                    style={{ color: "#15113F" }}
+                    style={{ color: "#221158" }}
                   >
                     Nombre completo
                   </label>
@@ -458,9 +458,9 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                     onChange={(e) => setFullName(e.target.value)}
                     className="h-11 w-full rounded-xl px-4 text-sm outline-none transition"
                     style={{
-                      background: "#F4F2F9",
-                      border: "1px solid rgba(21,17,63,0.08)",
-                      color: "#15113F",
+                      background: "#F3F1FA",
+                      border: "1px solid rgba(34,17,88,0.08)",
+                      color: "#221158",
                     }}
                   />
                 </div>
@@ -469,7 +469,7 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                   <label
                     htmlFor="phone"
                     className="mb-2 block text-sm font-bold"
-                    style={{ color: "#15113F" }}
+                    style={{ color: "#221158" }}
                   >
                     Teléfono
                   </label>
@@ -485,9 +485,9 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                     onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
                     className="h-11 w-full rounded-xl px-4 text-sm outline-none transition"
                     style={{
-                      background: "#F4F2F9",
-                      border: "1px solid rgba(21,17,63,0.08)",
-                      color: "#15113F",
+                      background: "#F3F1FA",
+                      border: "1px solid rgba(34,17,88,0.08)",
+                      color: "#221158",
                     }}
                   />
                 </div>
@@ -496,10 +496,10 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                   <label
                     htmlFor="referralCode"
                     className="mb-2 block text-sm font-bold"
-                    style={{ color: "#15113F" }}
+                    style={{ color: "#221158" }}
                   >
                     Código de referido{" "}
-                    <span className="font-semibold" style={{ color: "#8982BC" }}>(opcional)</span>
+                    <span className="font-semibold" style={{ color: "#857AC0" }}>(opcional)</span>
                   </label>
                   <input
                     id="referralCode"
@@ -510,9 +510,9 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                     onChange={(e) => setReferralCode(e.target.value)}
                     className="h-11 w-full rounded-xl px-4 text-sm outline-none transition"
                     style={{
-                      background: "#F4F2F9",
-                      border: "1px solid rgba(21,17,63,0.08)",
-                      color: "#15113F",
+                      background: "#F3F1FA",
+                      border: "1px solid rgba(34,17,88,0.08)",
+                      color: "#221158",
                     }}
                   />
                 </div>
@@ -521,7 +521,7 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                   <label
                     htmlFor="email-register"
                     className="mb-2 block text-sm font-bold"
-                    style={{ color: "#15113F" }}
+                    style={{ color: "#221158" }}
                   >
                     Correo electrónico
                   </label>
@@ -535,9 +535,9 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                     onChange={(e) => setEmail(e.target.value)}
                     className="h-11 w-full rounded-xl px-4 text-sm outline-none transition"
                     style={{
-                      background: "#F4F2F9",
-                      border: "1px solid rgba(21,17,63,0.08)",
-                      color: "#15113F",
+                      background: "#F3F1FA",
+                      border: "1px solid rgba(34,17,88,0.08)",
+                      color: "#221158",
                     }}
                   />
                 </div>
@@ -546,10 +546,10 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                   <label
                     htmlFor="password-register"
                     className="mb-2 block text-sm font-bold"
-                    style={{ color: "#15113F" }}
+                    style={{ color: "#221158" }}
                   >
                     Contraseña{" "}
-                    <span className="font-semibold" style={{ color: "#8982BC" }}>
+                    <span className="font-semibold" style={{ color: "#857AC0" }}>
                       (mín. 8 caracteres, mayúscula, minúscula, número y símbolo)
                     </span>
                   </label>
@@ -565,16 +565,16 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                       onChange={(e) => setPassword(e.target.value)}
                       className="h-11 w-full rounded-xl px-4 pr-11 text-sm outline-none transition"
                       style={{
-                        background: "#F4F2F9",
-                        border: "1px solid rgba(21,17,63,0.08)",
-                        color: "#15113F",
+                        background: "#F3F1FA",
+                        border: "1px solid rgba(34,17,88,0.08)",
+                        color: "#221158",
                       }}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword((s) => !s)}
                       className="absolute inset-y-0 right-3 inline-flex items-center"
-                      style={{ color: "#8982BC" }}
+                      style={{ color: "#857AC0" }}
                       aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                     >
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -586,7 +586,7 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                   <label
                     htmlFor="confirm-password"
                     className="mb-2 block text-sm font-bold"
-                    style={{ color: "#15113F" }}
+                    style={{ color: "#221158" }}
                   >
                     Confirmar contraseña
                   </label>
@@ -601,9 +601,9 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className="h-11 w-full rounded-xl px-4 text-sm outline-none transition"
                     style={{
-                      background: "#F4F2F9",
-                      border: "1px solid rgba(21,17,63,0.08)",
-                      color: "#15113F",
+                      background: "#F3F1FA",
+                      border: "1px solid rgba(34,17,88,0.08)",
+                      color: "#221158",
                     }}
                   />
                 </div>
@@ -612,7 +612,7 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                   type="submit"
                   disabled={loading}
                   className="h-11 w-full rounded-xl text-sm font-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
-                  style={{ background: "#0ED18A", color: "#FFFFFF" }}
+                  style={{ background: "#00AD87", color: "#FFFFFF" }}
                 >
                   {loading ? "Enviando código..." : "Crear cuenta"}
                 </button>
@@ -620,18 +620,18 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
             ) : (
               <form onSubmit={handleVerifyCode} className="mt-6 space-y-4">
                 <div className="text-center">
-                  <p className="text-sm font-semibold" style={{ color: "#15113F" }}>
+                  <p className="text-sm font-semibold" style={{ color: "#221158" }}>
                     Te enviamos un código a
                   </p>
                   <p
                     className="text-sm font-black break-all"
-                    style={{ color: "#00B073" }}
+                    style={{ color: "#00AD87" }}
                   >
                     {email}
                   </p>
                   <p
                     className="mt-2 text-xs font-semibold"
-                    style={{ color: "#8982BC" }}
+                    style={{ color: "#857AC0" }}
                   >
                     Ingresa el código de 6 dígitos para confirmar tu cuenta.
                   </p>
@@ -641,7 +641,7 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                   <label
                     htmlFor="code"
                     className="mb-2 block text-sm font-bold"
-                    style={{ color: "#15113F" }}
+                    style={{ color: "#221158" }}
                   >
                     Código de verificación
                   </label>
@@ -658,9 +658,9 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                     onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
                     className="h-12 w-full rounded-xl px-4 text-center text-lg font-black tracking-[0.5em] outline-none transition"
                     style={{
-                      background: "#F4F2F9",
-                      border: "1px solid rgba(21,17,63,0.08)",
-                      color: "#15113F",
+                      background: "#F3F1FA",
+                      border: "1px solid rgba(34,17,88,0.08)",
+                      color: "#221158",
                     }}
                   />
                 </div>
@@ -669,7 +669,7 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                   type="submit"
                   disabled={loading || code.length !== 6}
                   className="h-11 w-full rounded-xl text-sm font-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
-                  style={{ background: "#0ED18A", color: "#FFFFFF" }}
+                  style={{ background: "#00AD87", color: "#FFFFFF" }}
                 >
                   {loading ? "Verificando..." : "Confirmar cuenta"}
                 </button>
@@ -682,7 +682,7 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                       setCode("");
                       setError(null);
                     }}
-                    style={{ color: "#8982BC" }}
+                    style={{ color: "#857AC0" }}
                     className="hover:underline"
                   >
                     ← Cambiar correo
@@ -691,7 +691,7 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                     type="button"
                     onClick={handleResendCode}
                     disabled={loading}
-                    style={{ color: "#00B073" }}
+                    style={{ color: "#00AD87" }}
                     className="hover:underline disabled:opacity-50"
                   >
                     Reenviar código
@@ -702,11 +702,11 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
 
             <div
               className="mt-6 flex items-center gap-3 text-xs font-black uppercase tracking-widest"
-              style={{ color: "#8982BC" }}
+              style={{ color: "#857AC0" }}
             >
-              <div className="h-px flex-1" style={{ background: "rgba(21,17,63,0.08)" }} />
+              <div className="h-px flex-1" style={{ background: "rgba(34,17,88,0.08)" }} />
               O continúa con
-              <div className="h-px flex-1" style={{ background: "rgba(21,17,63,0.08)" }} />
+              <div className="h-px flex-1" style={{ background: "rgba(34,17,88,0.08)" }} />
             </div>
 
             <div className="mt-5 space-y-3">
@@ -718,8 +718,8 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                 className="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-bold transition hover:opacity-90"
                 style={{
                   background: "#FFFFFF",
-                  border: "1px solid rgba(21,17,63,0.08)",
-                  color: "#15113F",
+                  border: "1px solid rgba(34,17,88,0.08)",
+                  color: "#221158",
                 }}
               >
                 <GoogleIcon />
@@ -751,11 +751,11 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
 
             <p
               className="mt-6 text-center text-xs font-semibold"
-              style={{ color: "#8982BC" }}
+              style={{ color: "#857AC0" }}
             >
               Al continuar aceptas nuestros{" "}
-              <span style={{ color: "#15113F" }}>Términos</span> y{" "}
-              <span style={{ color: "#00B073" }}>Privacidad</span>
+              <span style={{ color: "#221158" }}>Términos</span> y{" "}
+              <span style={{ color: "#00AD87" }}>Privacidad</span>
             </p>
           </div>
         </section>

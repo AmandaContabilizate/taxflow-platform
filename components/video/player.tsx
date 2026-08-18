@@ -58,7 +58,7 @@ export function RemotionPlayer() {
             style={{
               width: '80px',
               height: '80px',
-              background: 'rgba(16, 185, 129, 0.9)',
+              background: 'rgba(0,173,135, 0.9)',
               borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',

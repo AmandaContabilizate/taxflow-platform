@@ -46,7 +46,7 @@ export function HomeScreen({ go }: Props) {
         <div className="flex items-start gap-4 flex-wrap">
           <div
             className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
-            style={{ background: 'var(--hero-amber-icon-bg)', color: '#7B5312' }}
+            style={{ background: 'var(--hero-amber-icon-bg)', color: 'var(--violet-ink)' }}
           >
             <Sparkles size={22} />
           </div>

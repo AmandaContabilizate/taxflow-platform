@@ -209,7 +209,7 @@ export function RecalculoTab({
                   disabled={recalc.running || !recalc.ready}
                   className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition hover:opacity-95 active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100"
                   style={{
-                    background: 'linear-gradient(135deg,#10DA92 0%,#00B073 100%)',
+                    background: 'linear-gradient(135deg,#00D3A1 0%,#00AD87 100%)',
                     color: '#fff',
                     boxShadow: 'var(--sh-brand)',
                   }}

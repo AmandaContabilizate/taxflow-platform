@@ -170,7 +170,7 @@ function ClasificacionCell({ inv }: { inv: DeclarationInvoice }) {
           <Chip bg="var(--brand-50)" fg="var(--brand-700)">Deducible</Chip>
         )}
         {inv.isDeducible === false && (
-          <Chip bg="var(--coral-soft)" fg="#9E3A15" title={inv.motivo ?? undefined}>
+          <Chip bg="var(--coral-soft)" fg="var(--violet-ink)" title={inv.motivo ?? undefined}>
             No deducible
           </Chip>
         )}
@@ -199,7 +199,7 @@ function ClasificacionCell({ inv }: { inv: DeclarationInvoice }) {
       {inv.motivo && (
         <span
           className="text-[11.5px] leading-snug"
-          style={{ color: inv.isDeducible === false ? '#9E3A15' : 'var(--ink-500)' }}
+          style={{ color: inv.isDeducible === false ? 'var(--violet-ink)' : 'var(--ink-500)' }}
         >
           {inv.motivo}
         </span>
@@ -419,7 +419,7 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
 
         {error ? (
           <div className="py-8 text-center flex flex-col items-center gap-2">
-            <AlertCircle size={20} style={{ color: '#9E3A15' }} />
+            <AlertCircle size={20} style={{ color: 'var(--violet-ink)' }} />
             <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>{error}</div>
           </div>
         ) : loading ? (
@@ -577,7 +577,7 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
                             {inv.isValid === false && (
                               <Chip
                                 bg="var(--coral-soft)"
-                                fg="#9E3A15"
+                                fg="var(--violet-ink)"
                                 title="La factura entró a esta declaración marcada como no válida"
                               >
                                 No válida

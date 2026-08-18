@@ -23,7 +23,7 @@ export function ReadyBadge() {
 
 export function TestingBadge() {
   return (
-    <span className={BASE} style={{ background: 'var(--hero-amber)', color: '#7B5312' }}>
+    <span className={BASE} style={{ background: 'var(--hero-amber)', color: 'var(--violet-ink)' }}>
       En pruebas
     </span>
   )
@@ -31,7 +31,7 @@ export function TestingBadge() {
 
 export function NotFoundBadge() {
   return (
-    <span className={BASE} style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}>
+    <span className={BASE} style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}>
       RFC no encontrado
     </span>
   )
@@ -39,7 +39,7 @@ export function NotFoundBadge() {
 
 export function FlaggedBadge() {
   return (
-    <span className={BASE} style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}>
+    <span className={BASE} style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}>
       <AlertCircle size={12} /> Revisar
     </span>
   )

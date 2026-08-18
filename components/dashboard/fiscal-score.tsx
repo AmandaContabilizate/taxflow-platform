@@ -41,22 +41,22 @@ type BadgeTone = 'brand' | 'amber' | 'coral' | 'neutral'
 
 const BADGE_TONES: Record<BadgeTone, { bg: string; fg: string; border: string; dot: string }> = {
   brand: {
-    bg: 'rgba(14,209,138,0.18)',
-    fg: '#7BF0C6',
-    border: '1px solid rgba(14,209,138,0.3)',
-    dot: '#0ED18A',
+    bg: 'rgba(0,211,161,0.18)',
+    fg: '#93F1D6',
+    border: '1px solid rgba(0,211,161,0.3)',
+    dot: '#00AD87',
   },
   amber: {
-    bg: 'rgba(245,176,55,0.18)',
-    fg: '#FFD98A',
-    border: '1px solid rgba(245,176,55,0.32)',
-    dot: '#F5B037',
+    bg: 'rgba(115,57,253,0.18)',
+    fg: '#D9C8FE',
+    border: '1px solid rgba(115,57,253,0.32)',
+    dot: '#7339FD',
   },
   coral: {
-    bg: 'rgba(255,136,98,0.18)',
-    fg: '#FFB59E',
-    border: '1px solid rgba(255,136,98,0.32)',
-    dot: '#FF8862',
+    bg: 'rgba(115,57,253,0.18)',
+    fg: '#D9C8FE',
+    border: '1px solid rgba(115,57,253,0.32)',
+    dot: 'var(--violet-ink)',
   },
   neutral: {
     bg: 'rgba(255,255,255,0.08)',
@@ -138,13 +138,13 @@ export function FiscalScore({ go, planTier, satSyncedLabel }: Props) {
       ref={containerRef}
       onMouseMove={handleMouseMove}
       className="rounded-3xl p-7 lg:p-8 text-white relative overflow-hidden"
-      style={{ background: 'linear-gradient(155deg,#1E1952 0%,#15113F 100%)' }}
+      style={{ background: 'linear-gradient(155deg,#2A1C64 0%,#221158 100%)' }}
     >
       {/* Light follow effect */}
       <div
         className="absolute inset-0 pointer-events-none transition-all duration-100"
         style={{
-          background: `radial-gradient(circle 400px at ${mousePos.x}px ${mousePos.y}px, rgba(14, 209, 138, 0.25), transparent 80%)`,
+          background: `radial-gradient(circle 400px at ${mousePos.x}px ${mousePos.y}px, rgba(0,211,161, 0.25), transparent 80%)`,
         }}
       />
 
@@ -253,7 +253,7 @@ function ReadyBody({ value, go }: { value: FiscalScore; go: GoFn }) {
         <Btn
           size="lg"
           onClick={() => go('declaraciones')}
-          style={{ background: '#fff', color: '#0f172a', boxShadow: 'none' }}
+          style={{ background: '#fff', color: '#221158', boxShadow: 'none' }}
         >
           Ver detalle <ArrowUpRight size={18} />
         </Btn>
@@ -282,7 +282,7 @@ function EmptyBody({ onSeeDeclarations }: { onSeeDeclarations: () => void }) {
         <Btn
           size="lg"
           onClick={onSeeDeclarations}
-          style={{ background: '#fff', color: '#0f172a', boxShadow: 'none' }}
+          style={{ background: '#fff', color: '#221158', boxShadow: 'none' }}
         >
           Ver mis declaraciones <ArrowUpRight size={18} />
         </Btn>

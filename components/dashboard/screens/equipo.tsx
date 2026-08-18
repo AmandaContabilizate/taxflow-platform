@@ -60,7 +60,7 @@ export function EquipoScreen() {
       ) : error ? (
         <Card>
           <div className="py-10 text-center flex flex-col items-center gap-3">
-            <AlertCircle size={22} style={{ color: '#9E3A15' }} />
+            <AlertCircle size={22} style={{ color: 'var(--violet-ink)' }} />
             <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>{error}</div>
             <button
               type="button"

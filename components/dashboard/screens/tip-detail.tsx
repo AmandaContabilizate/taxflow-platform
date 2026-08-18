@@ -71,15 +71,15 @@ export function TipDetailScreen({ go }: Props) {
 
       <div
         className="rounded-3xl p-5 lg:p-6"
-        style={{ background: 'var(--coral-soft)', border: '1px solid rgba(255,136,98,0.35)' }}
+        style={{ background: 'var(--coral-soft)', border: '1px solid rgba(115,57,253,0.35)' }}
       >
-        <div className="text-[12px] font-extrabold uppercase tracking-wider" style={{ color: '#9E3A15' }}>
+        <div className="text-[12px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--violet-ink)' }}>
           Error común
         </div>
         <div className="text-[18px] font-extrabold tracking-tight mt-1" style={DISPLAY}>
           Pagar gasolina en efectivo
         </div>
-        <div className="text-[14px] mt-2 leading-relaxed" style={{ color: '#6B2512' }}>
+        <div className="text-[14px] mt-2 leading-relaxed" style={{ color: 'var(--violet-ink)' }}>
           Si pagas con efectivo, el SAT no te lo acepta como deducible. Usa tarjeta o monedero electrónico de
           gasolinera.
         </div>
@@ -87,7 +87,7 @@ export function TipDetailScreen({ go }: Props) {
 
       <div
         className="rounded-3xl p-6 text-white"
-        style={{ background: 'linear-gradient(135deg,#10DA92 0%,#00B073 100%)', boxShadow: 'var(--sh-brand)' }}
+        style={{ background: 'linear-gradient(135deg,#00D3A1 0%,#00AD87 100%)', boxShadow: 'var(--sh-brand)' }}
       >
         <div className="text-[12px] font-extrabold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.85)' }}>
           Lo que esto significa para ti

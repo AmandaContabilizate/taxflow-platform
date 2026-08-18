@@ -205,7 +205,7 @@ export function TodasTab({ onViewDetail, currentUser }: Props) {
                           })
                         }
                         className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-bold transition hover:opacity-90"
-                        style={{ background: 'linear-gradient(135deg,#10DA92 0%,#00B073 100%)', color: '#fff' }}
+                        style={{ background: 'linear-gradient(135deg,#00D3A1 0%,#00AD87 100%)', color: '#fff' }}
                       >
                         Ver detalle
                       </button>

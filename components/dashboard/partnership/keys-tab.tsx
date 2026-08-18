@@ -51,7 +51,7 @@ export function KeysTab() {
         </div>
 
         {error ? (
-          <div className="flex items-center gap-2 text-[13.5px]" style={{ color: '#9E3A15' }}>
+          <div className="flex items-center gap-2 text-[13.5px]" style={{ color: 'var(--violet-ink)' }}>
             <AlertCircle size={16} /> {error}
           </div>
         ) : loading ? (

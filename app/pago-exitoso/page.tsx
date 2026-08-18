@@ -47,7 +47,7 @@ export default function PagoExitosoPage() {
           <a
             href="/dashboard"
             className="flex items-center justify-center w-full py-3.5 rounded-2xl font-bold text-sm transition-all active:scale-95"
-            style={{ background: 'var(--brand-500)', color: '#fff', boxShadow: '0 14px 34px -10px rgba(14,209,138,0.45)' }}
+            style={{ background: 'var(--brand-500)', color: '#fff', boxShadow: '0 14px 34px -10px rgba(0,211,161,0.45)' }}
           >
             Ir a mi dashboard
           </a>

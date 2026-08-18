@@ -21,22 +21,22 @@ const STATUS_CONFIG = {
   pending: {
     label: 'Pendiente',
     icon: Clock,
-    color: '#F59E0B',
+    color: '#7339FD',
   },
   processing: {
     label: 'Procesando',
     icon: Loader2,
-    color: '#3B82F6',
+    color: '#7339FD',
   },
   completed: {
     label: 'Completado',
     icon: CheckCircle,
-    color: '#10B981',
+    color: '#00AD87',
   },
   failed: {
     label: 'Error',
     icon: AlertCircle,
-    color: '#EF4444',
+    color: '#E84D4D',
   },
 }
 

@@ -37,7 +37,7 @@ export function AyudaScreen() {
           </button>
         </div>
 
-        <div className="rounded-2xl overflow-hidden" style={{ aspectRatio: '9/16', maxWidth: '350px', margin: '0 auto', width: '100%', background: 'linear-gradient(135deg, #0a0e27 0%, #1a1f3a 25%, #16213e 50%, #0f3460 75%, #1a1f3a 100%)' }}>
+        <div className="rounded-2xl overflow-hidden" style={{ aspectRatio: '9/16', maxWidth: '350px', margin: '0 auto', width: '100%', background: 'linear-gradient(135deg, #120A33 0%, #1A0F47 25%, #221158 50%, #332670 75%, #1A0F47 100%)' }}>
           <Suspense
             fallback={
               <div className="w-full h-full flex items-center justify-center bg-black">
@@ -77,7 +77,7 @@ export function AyudaScreen() {
           >
             <div
               className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}
+              style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}
             >
               <span style={{ fontSize: '24px' }}>▶</span>
             </div>
@@ -128,7 +128,7 @@ export function AyudaScreen() {
         <div className="flex items-start gap-4 flex-wrap">
           <div
             className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
-            style={{ background: 'var(--hero-amber-icon-bg)', color: '#7B5312' }}
+            style={{ background: 'var(--hero-amber-icon-bg)', color: 'var(--violet-ink)' }}
           >
             <UserRound size={22} />
           </div>

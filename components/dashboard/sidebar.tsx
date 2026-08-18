@@ -78,7 +78,7 @@ export function Sidebar({
         <div
           onClick={onClose}
           className="fixed inset-0 z-[70] lg:hidden"
-          style={{ background: 'rgba(21,17,63,0.55)' }}
+          style={{ background: 'rgba(34,17,88,0.55)' }}
         />
       )}
 
@@ -213,7 +213,7 @@ export function Sidebar({
             border: '1px solid var(--sidebar-border)',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.boxShadow = 'var(--brand-500) 0 0 0 2px rgba(16,218,146,0.1)'
+            e.currentTarget.style.boxShadow = 'var(--brand-500) 0 0 0 2px rgba(0,211,161,0.1)'
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.boxShadow = 'none'
@@ -222,8 +222,8 @@ export function Sidebar({
           <span
             className={`rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 ${collapsed ? 'w-6 h-6' : 'w-9 h-9'}`}
             style={{
-              background: isDark ? 'rgba(245,176,55,0.18)' : 'var(--ink-50)',
-              color: isDark ? '#F5B037' : 'var(--ink-700)',
+              background: isDark ? 'rgba(115,57,253,0.18)' : 'var(--ink-50)',
+              color: isDark ? '#7339FD' : 'var(--ink-700)',
             }}
           >
             {isDark ? <Sun size={collapsed ? 14 : 18} /> : <Moon size={collapsed ? 14 : 18} />}
@@ -247,8 +247,8 @@ export function Sidebar({
               <div
                 className="w-9 h-9 rounded-full text-white font-extrabold flex items-center justify-center flex-shrink-0 transition-all duration-200"
                 style={{
-                  background: 'linear-gradient(135deg,#10DA92,#00B073)',
-                  boxShadow: '0 4px 12px rgba(16,218,146,0.25)',
+                  background: 'linear-gradient(135deg,#00D3A1,#00AD87)',
+                  boxShadow: '0 4px 12px rgba(0,211,161,0.25)',
                   ...DISPLAY
                 }}
               >
@@ -267,16 +267,16 @@ export function Sidebar({
               onClick={() => go('cuenta')}
               className="w-10 h-10 rounded-full text-white font-extrabold flex items-center justify-center flex-shrink-0 transition-all duration-200 group"
               style={{
-                background: 'linear-gradient(135deg,#10DA92,#00B073)',
-                boxShadow: '0 4px 12px rgba(16,218,146,0.25)',
+                background: 'linear-gradient(135deg,#00D3A1,#00AD87)',
+                boxShadow: '0 4px 12px rgba(0,211,161,0.25)',
                 ...DISPLAY
               }}
               title={firstName}
               onMouseEnter={(e) => {
-                e.currentTarget.style.boxShadow = '0 6px 16px rgba(16,218,146,0.4)'
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,211,161,0.4)'
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(16,218,146,0.25)'
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,211,161,0.25)'
               }}
             >
               {initials}
@@ -309,7 +309,7 @@ export function Sidebar({
         <div
           className="fixed inset-0 z-[70] lg:hidden"
           onClick={() => setMouseOverPanel(false)}
-          style={{ background: 'rgba(21,17,63,0.55)' }}
+          style={{ background: 'rgba(34,17,88,0.55)' }}
         />
       )}
 
@@ -319,8 +319,8 @@ export function Sidebar({
           onClick={() => setMouseOverPanel(true)}
           className="fixed right-0 bottom-6 z-[79] rounded-l-lg transition hover:opacity-85 flex items-center justify-center"
           style={{
-            background: '#1E1952',
-            border: '1px solid #0F0D2E',
+            background: '#2A1C64',
+            border: '1px solid #120A33',
             borderRight: 'none',
             color: 'white',
             padding: '8px 4px',
@@ -349,8 +349,8 @@ export function Sidebar({
             onClick={() => setMouseOverPanel(false)}
             className="absolute -left-6 bottom-6 w-6 h-10 rounded-l-lg transition"
             style={{
-              background: '#10B981',
-              border: '1px solid #059669',
+              background: '#00AD87',
+              border: '1px solid #00AD87',
               borderRight: 'none',
               display: 'flex',
               alignItems: 'center',
@@ -421,7 +421,7 @@ export function Sidebar({
           }}
           title="Agregar un RFC"
           className="mt-4 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg transition hover:opacity-80 font-semibold text-[12px] text-white"
-          style={{ background: '#10B981' }}
+          style={{ background: '#00AD87' }}
         >
           <Plus size={16} />
           <span>Agregar un RFC</span>

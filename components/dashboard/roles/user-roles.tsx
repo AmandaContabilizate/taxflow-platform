@@ -232,7 +232,7 @@ export function UserRoles({
         </div>
 
         {catalogError ? (
-          <div className="px-5 pb-5 flex items-center gap-2 text-[13px]" style={{ color: '#9E3A15' }}>
+          <div className="px-5 pb-5 flex items-center gap-2 text-[13px]" style={{ color: 'var(--violet-ink)' }}>
             <AlertCircle size={15} /> {catalogError}
           </div>
         ) : (
@@ -267,7 +267,7 @@ export function UserRoles({
                 <Loader2 size={16} className="animate-spin" /> Buscando usuarios con el rol…
               </div>
             ) : usersError ? (
-              <div className="px-5 py-6 flex items-center gap-2 text-[13px]" style={{ color: '#9E3A15' }}>
+              <div className="px-5 py-6 flex items-center gap-2 text-[13px]" style={{ color: 'var(--violet-ink)' }}>
                 <AlertCircle size={15} /> {usersError}
               </div>
             ) : roleUsers.length === 0 ? (
@@ -369,7 +369,7 @@ export function UserRoles({
           </div>
 
           {searchError && (
-            <div className="flex items-center gap-2 text-[12.5px]" style={{ color: '#9E3A15' }}>
+            <div className="flex items-center gap-2 text-[12.5px]" style={{ color: 'var(--violet-ink)' }}>
               <AlertCircle size={14} /> {searchError}
             </div>
           )}
@@ -404,7 +404,7 @@ export function UserRoles({
         </div>
 
         {actionError && (
-          <div className="px-5 pb-3 flex items-center gap-2 text-[13px]" style={{ color: '#9E3A15' }}>
+          <div className="px-5 pb-3 flex items-center gap-2 text-[13px]" style={{ color: 'var(--violet-ink)' }}>
             <AlertCircle size={15} /> {actionError}
           </div>
         )}

@@ -228,7 +228,7 @@ export function DeclarationDetail({ declaration: d, onBack, viewerRole, currentU
         <StatCard label="Ingresos Brutos" value={money(stats.ingresosBrutos)} color="var(--brand-700)" icon={<TrendingUp size={18} />} />
         <StatCard label="Gastos Deducibles" value={money(stats.gastosDeducibles)} color="var(--danger)" icon={<DollarSign size={18} />} />
         <StatCard label="ISR Calculado" value={money(stats.isrCalculado)} color="var(--sky)" icon={<Calculator size={18} />} />
-        <StatCard label="IVA Por Pagar" value={money(stats.ivaPorPagar)} color="#E8730F" icon={<DollarSign size={18} />} />
+        <StatCard label="IVA Por Pagar" value={money(stats.ivaPorPagar)} color="#7339FD" icon={<DollarSign size={18} />} />
       </div>
 
       {/* Tabs */}
@@ -333,7 +333,7 @@ function HeaderBtn({
   const styles: Record<typeof kind, React.CSSProperties> = {
     ghost: { background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' },
     info: { background: 'var(--card)', border: '1px solid var(--hero-info-border)', color: 'var(--sky)' },
-    brand: { background: 'linear-gradient(135deg,#10DA92 0%,#00B073 100%)', color: '#fff', boxShadow: 'var(--sh-brand)' },
+    brand: { background: 'linear-gradient(135deg,#00D3A1 0%,#00AD87 100%)', color: '#fff', boxShadow: 'var(--sh-brand)' },
   }
   return (
     <button
@@ -462,7 +462,7 @@ function ReporteClienteTab({
           <button className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12.5px] font-bold" style={{ background: 'var(--sky)', color: '#fff' }}>
             <Download size={15} /> Descargar Reporte PDF
           </button>
-          <button className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12.5px] font-bold" style={{ background: 'linear-gradient(135deg,#10DA92 0%,#00B073 100%)', color: '#fff' }}>
+          <button className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12.5px] font-bold" style={{ background: 'linear-gradient(135deg,#00D3A1 0%,#00AD87 100%)', color: '#fff' }}>
             <Mail size={15} /> Enviar por Email
           </button>
           <button

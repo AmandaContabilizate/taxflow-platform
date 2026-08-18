@@ -8,197 +8,216 @@
    global (ej. login, landing, checkouts públicos). */
 :root,
 .force-light {
-  /* Brand — verde Contabilízate */
-  --brand-50: #EEFEF6;
-  --brand-100: #D6FAE8;
-  --brand-200: #ADF5D5;
-  --brand-300: #74EFC0;
-  --brand-400: #3AE3A4;
-  --brand-500: #0ED18A;
-  --brand-600: #00B073;
-  --brand-700: #008A5B;
-  --brand-900: #064E3B;
+  /* Brand — paleta oficial del manual de identidad:
+     Medium Spring Green #06FF94 · Caribbean Green #00D3A1 ·
+     Persian Green #00AD87 · Blue-Violet #7339FD · Russian Violet #221158.
+     Los demás valores son tintes/sombras de esos cinco. */
+  --brand-50: #E6FCF6;
+  --brand-100: #C7F8EA;
+  --brand-200: #93F1D6;
+  --brand-300: #4FE8BE;
+  --brand-400: #06FF94;
+  --brand-500: #00D3A1;
+  --brand-600: #00AD87;
+  --brand-700: #00876B;
+  --brand-900: #054C3B;
 
-  /* Ink — violeta oscuro */
-  --ink-50: #F4F2F9;
-  --ink-100: #E8E5F1;
-  --ink-200: #D5D0E7;
-  --ink-300: #B3ACD4;
-  --ink-400: #8982BC;
-  --ink-500: #5A52A1;
-  --ink-600: #3E3783;
-  --ink-700: #2A2466;
-  --ink-800: #1E1952;
-  --ink-900: #15113F;
+  /* Ink — tintes de Russian Violet #221158 */
+  --ink-50: #F3F1FA;
+  --ink-100: #E7E4F4;
+  --ink-200: #D2CDE9;
+  --ink-300: #AFA7D6;
+  --ink-400: #857AC0;
+  --ink-500: #5D50A5;
+  --ink-600: #453889;
+  --ink-700: #332670;
+  --ink-800: #2A1C64;
+  --ink-900: #221158;
 
   /* Semantic tokens */
-  --background: #F6F7FB;
-  --foreground: #15113F;
+  --background: #F6F5FB;
+  --foreground: #221158;
   --card: #FFFFFF;
-  --card-foreground: #15113F;
+  --card-foreground: #221158;
   --popover: #FFFFFF;
-  --popover-foreground: #15113F;
-  --primary: #15113F;
+  --popover-foreground: #221158;
+  --primary: #221158;
   --primary-foreground: #FFFFFF;
-  --secondary: #F4F2F9;
-  --secondary-foreground: #15113F;
-  --muted: #F4F2F9;
-  --muted-foreground: #8982BC;
-  --accent: #0ED18A;
+  --secondary: #F3F1FA;
+  --secondary-foreground: #221158;
+  --muted: #F3F1FA;
+  --muted-foreground: #857AC0;
+  --accent: #00AD87;
   --accent-foreground: #FFFFFF;
   --destructive: #E84D4D;
   --destructive-foreground: #FFFFFF;
-  --border: rgba(21,17,63,0.08);
-  --input: rgba(21,17,63,0.08);
-  --ring: #0ED18A;
+  --border: rgba(34,17,88,0.08);
+  --input: rgba(34,17,88,0.08);
+  --ring: #00D3A1;
   --radius: 0.875rem;
 
   /* Chart colors */
-  --chart-1: #0ED18A;
-  --chart-2: #5A52A1;
-  --chart-3: #FF8862;
-  --chart-4: #F5B037;
-  --chart-5: #5EA8FF;
+  --chart-1: #00AD87;
+  --chart-2: #7339FD;
+  --chart-3: #221158;
+  --chart-4: #06FF94;
+  --chart-5: #857AC0;
 
   /* Sidebar */
   --sidebar: #FFFFFF;
-  --sidebar-foreground: #15113F;
-  --sidebar-primary: #15113F;
+  --sidebar-foreground: #221158;
+  --sidebar-primary: #221158;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #F4F2F9;
-  --sidebar-accent-foreground: #15113F;
-  --sidebar-border: rgba(21,17,63,0.08);
-  --sidebar-ring: #0ED18A;
+  --sidebar-accent: #F3F1FA;
+  --sidebar-accent-foreground: #221158;
+  --sidebar-border: rgba(34,17,88,0.08);
+  --sidebar-ring: #00D3A1;
 
-  /* Extra accent colors (dashboard mockup) */
-  --coral: #FF8862;
-  --coral-soft: #FFE3D4;
-  --amber: #F5B037;
-  --amber-soft: #FFF1D6;
-  --sky: #5EA8FF;
-  --sky-soft: #DDEBFF;
-  --violet: #8B7CFF;
-  --violet-soft: #E6E1FF;
+  /* Acentos de estado — familia Blue-Violet (#7339FD) y sus tintes/sombras.
+     --danger se mantiene rojo por semántica funcional de error. */
+  --coral: #4B21B8;
+  --coral-soft: #E3D9F8;
+  --amber: #7339FD;
+  --amber-soft: #EDE5FF;
+  --sky: #5D50A5;
+  --sky-soft: #E7E4F4;
+  --violet: #7339FD;
+  --violet-soft: #EDE5FF;
+  /* Texto violeta sobre fondos suaves — sombra de Blue-Violet en claro,
+     tinte lavanda legible en oscuro */
+  --violet-ink: #4B21B8;
   --danger: #E84D4D;
   --danger-soft: #FCDCDC;
-  --card-muted: #F7F8FB;
-  --border-strong: rgba(21,17,63,0.12);
-  --sh-1: 0 1px 2px rgba(21,17,63,0.04), 0 1px 3px rgba(21,17,63,0.04);
-  --sh-2: 0 4px 18px rgba(21,17,63,0.06), 0 2px 4px rgba(21,17,63,0.04);
-  --sh-3: 0 14px 40px rgba(21,17,63,0.10), 0 4px 10px rgba(21,17,63,0.06);
-  --sh-brand: 0 14px 34px -10px rgba(14,209,138,0.45);
-  --sh-ink: 0 14px 34px -10px rgba(21,17,63,0.5);
+  --card-muted: #F7F6FB;
+  --border-strong: rgba(34,17,88,0.12);
+  --sh-1: 0 1px 2px rgba(34,17,88,0.04), 0 1px 3px rgba(34,17,88,0.04);
+  --sh-2: 0 4px 18px rgba(34,17,88,0.06), 0 2px 4px rgba(34,17,88,0.04);
+  --sh-3: 0 14px 40px rgba(34,17,88,0.10), 0 4px 10px rgba(34,17,88,0.06);
+  --sh-brand: 0 14px 34px -10px rgba(0,211,161,0.45);
+  --sh-ink: 0 14px 34px -10px rgba(34,17,88,0.5);
 
   /* Hero / accent surfaces (themed) */
-  --hero-info: linear-gradient(135deg,#DDEBFF 0%,#F4F7FB 100%);
-  --hero-info-border: #BFDBFF;
-  --hero-info-icon-bg: #1C4C96;
-  --hero-amber: linear-gradient(160deg,#FFF8EE 0%,#FFFAF4 100%);
-  --hero-amber-border: #FFE5B4;
-  --hero-amber-icon-bg: #FFE5B4;
-  --hero-brand-soft: linear-gradient(135deg,#EEFEF6 0%,#F9FAFB 100%);
-  --hero-ink-soft: linear-gradient(140deg,#F4F2F9 0%,#E8E5F1 100%);
-  --hero-coral-soft-bg: linear-gradient(160deg,#FFFAF4 0%,#FFF1E6 100%);
-  --helpbox-bg: #F4F8FF;
-  --helpbox-border: #DDEBFF;
-  --helpbox-accent-bg: #DDEBFF;
-  --helpbox-text: #1C4C96;
+  --hero-info: linear-gradient(135deg,#EDE5FF 0%,#F7F4FF 100%);
+  --hero-info-border: #D9C8FE;
+  --hero-info-icon-bg: #7339FD;
+  --hero-amber: linear-gradient(160deg,#E3FFF2 0%,#F2FFF9 100%);
+  --hero-amber-border: #B4FFDD;
+  --hero-amber-icon-bg: #B4FFDD;
+  --hero-brand-soft: linear-gradient(135deg,#E6FCF6 0%,#F9FAFB 100%);
+  --hero-ink-soft: linear-gradient(140deg,#F3F1FA 0%,#E7E4F4 100%);
+  --hero-coral-soft-bg: linear-gradient(160deg,#F7F4FF 0%,#EDE5FF 100%);
+  --helpbox-bg: #F5F2FF;
+  --helpbox-border: #E4DAFE;
+  --helpbox-accent-bg: #E4DAFE;
+  --helpbox-text: #4B21B8;
 
   /* Sidebar navigation active state */
-  --nav-active-bg: #15113F;
+  --nav-active-bg: #221158;
   --nav-active-fg: #FFFFFF;
-  --nav-active-icon-bg: rgba(14,209,138,0.15);
-  --nav-active-icon-fg: #74EFC0;
+  --nav-active-icon-bg: rgba(6,255,148,0.16);
+  --nav-active-icon-fg: #06FF94;
   --nav-active-hint: rgba(255,255,255,0.65);
 }
 
 .dark {
-  /* Brand stays the same — only neutrals flip */
-  --background: #0F0C30;
-  --foreground: #E8E5F1;
-  --card: #1A1547;
-  --card-foreground: #E8E5F1;
-  --popover: #1A1547;
-  --popover-foreground: #E8E5F1;
+  /* Dark mode — base Russian Violet, acentos Medium Spring Green y Blue-Violet */
+  --background: #120A33;
+  --foreground: #E7E4F4;
+  --card: #1A0F47;
+  --card-foreground: #E7E4F4;
+  --popover: #1A0F47;
+  --popover-foreground: #E7E4F4;
   --primary: #FFFFFF;
-  --primary-foreground: #15113F;
-  --secondary: #221C5C;
-  --secondary-foreground: #E8E5F1;
-  --muted: #221C5C;
-  --muted-foreground: #B3ACD4;
-  --accent: #0ED18A;
-  --accent-foreground: #0F0C30;
+  --primary-foreground: #221158;
+  --secondary: #2A1C64;
+  --secondary-foreground: #E7E4F4;
+  --muted: #2A1C64;
+  --muted-foreground: #AFA7D6;
+  --accent: #00D3A1;
+  --accent-foreground: #120A33;
   --destructive: #E84D4D;
   --destructive-foreground: #FFFFFF;
   --border: rgba(255,255,255,0.08);
   --input: rgba(255,255,255,0.10);
-  --ring: #0ED18A;
+  --ring: #06FF94;
 
   /* Ink scale inverted: small numbers = dark surfaces, big = light text */
-  --ink-50: #221C5C;
-  --ink-100: #2A2466;
-  --ink-200: #3E3783;
-  --ink-300: #5A52A1;
-  --ink-400: #8982BC;
-  --ink-500: #B3ACD4;
-  --ink-600: #D5D0E7;
-  --ink-700: #E8E5F1;
-  --ink-800: #F4F2F9;
+  --ink-50: #2A1C64;
+  --ink-100: #332670;
+  --ink-200: #453889;
+  --ink-300: #5D50A5;
+  --ink-400: #857AC0;
+  --ink-500: #AFA7D6;
+  --ink-600: #D2CDE9;
+  --ink-700: #E7E4F4;
+  --ink-800: #F3F1FA;
   --ink-900: #FFFFFF;
 
-  /* Sidebar */
-  --sidebar: #14103D;
-  --sidebar-foreground: #E8E5F1;
-  --sidebar-primary: #FFFFFF;
-  --sidebar-primary-foreground: #15113F;
-  --sidebar-accent: #221C5C;
-  --sidebar-accent-foreground: #E8E5F1;
-  --sidebar-border: rgba(255,255,255,0.08);
-  --sidebar-ring: #0ED18A;
+  /* Chart colors — versiones luminosas para fondo oscuro */
+  --chart-1: #06FF94;
+  --chart-2: #9D73FE;
+  --chart-3: #00D3A1;
+  --chart-4: #CBB4FF;
+  --chart-5: #00AD87;
 
-  /* Soft accent backgrounds — semi-transparent so they read as tinted on dark */
-  --coral-soft: rgba(255,136,98,0.18);
-  --amber-soft: rgba(245,176,55,0.18);
-  --sky-soft: rgba(94,168,255,0.18);
-  --violet-soft: rgba(139,124,255,0.22);
+  /* Sidebar */
+  --sidebar: #150C3D;
+  --sidebar-foreground: #E7E4F4;
+  --sidebar-primary: #FFFFFF;
+  --sidebar-primary-foreground: #221158;
+  --sidebar-accent: #2A1C64;
+  --sidebar-accent-foreground: #E7E4F4;
+  --sidebar-border: rgba(255,255,255,0.08);
+  --sidebar-ring: #06FF94;
+
+  /* Acentos de estado en oscuro — tintes luminosos de Blue-Violet */
+  --coral: #B492FE;
+  --coral-soft: rgba(75,33,184,0.35);
+  --amber: #9D73FE;
+  --amber-soft: rgba(115,57,253,0.22);
+  --sky: #AFA7D6;
+  --sky-soft: rgba(115,57,253,0.16);
+  --violet: #9D73FE;
+  --violet-soft: rgba(115,57,253,0.25);
+  --violet-ink: #CBB4FF;
   --danger-soft: rgba(232,77,77,0.20);
-  --card-muted: #221C5C;
+  --card-muted: #2A1C64;
   --border-strong: rgba(255,255,255,0.14);
 
   --sh-1: 0 1px 2px rgba(0,0,0,0.40), 0 1px 3px rgba(0,0,0,0.30);
   --sh-2: 0 4px 18px rgba(0,0,0,0.45), 0 2px 4px rgba(0,0,0,0.30);
   --sh-3: 0 14px 40px rgba(0,0,0,0.55), 0 4px 10px rgba(0,0,0,0.40);
-  --sh-brand: 0 14px 34px -10px rgba(14,209,138,0.55);
+  --sh-brand: 0 14px 34px -10px rgba(6,255,148,0.40);
   --sh-ink: 0 14px 34px -10px rgba(0,0,0,0.65);
 
   /* Hero surfaces re-tinted for dark */
-  --hero-info: linear-gradient(135deg,rgba(94,168,255,0.20) 0%,rgba(94,168,255,0.06) 100%);
-  --hero-info-border: rgba(94,168,255,0.28);
-  --hero-info-icon-bg: #5EA8FF;
-  --hero-amber: linear-gradient(160deg,rgba(245,176,55,0.18) 0%,rgba(245,176,55,0.06) 100%);
-  --hero-amber-border: rgba(245,176,55,0.30);
-  --hero-amber-icon-bg: rgba(245,176,55,0.30);
-  --hero-brand-soft: linear-gradient(135deg,rgba(14,209,138,0.18) 0%,rgba(14,209,138,0.05) 100%);
-  --hero-ink-soft: linear-gradient(140deg,#221C5C 0%,#1A1547 100%);
-  --hero-coral-soft-bg: linear-gradient(160deg,rgba(255,136,98,0.18) 0%,rgba(255,136,98,0.06) 100%);
-  --helpbox-bg: rgba(94,168,255,0.10);
-  --helpbox-border: rgba(94,168,255,0.22);
-  --helpbox-accent-bg: rgba(94,168,255,0.22);
-  --helpbox-text: #B6D2FF;
+  --hero-info: linear-gradient(135deg,rgba(115,57,253,0.25) 0%,rgba(115,57,253,0.07) 100%);
+  --hero-info-border: rgba(115,57,253,0.35);
+  --hero-info-icon-bg: #7339FD;
+  --hero-amber: linear-gradient(160deg,rgba(6,255,148,0.14) 0%,rgba(6,255,148,0.04) 100%);
+  --hero-amber-border: rgba(6,255,148,0.25);
+  --hero-amber-icon-bg: rgba(6,255,148,0.25);
+  --hero-brand-soft: linear-gradient(135deg,rgba(0,211,161,0.16) 0%,rgba(0,211,161,0.05) 100%);
+  --hero-ink-soft: linear-gradient(140deg,#2A1C64 0%,#1A0F47 100%);
+  --hero-coral-soft-bg: linear-gradient(160deg,rgba(115,57,253,0.20) 0%,rgba(115,57,253,0.06) 100%);
+  --helpbox-bg: rgba(115,57,253,0.12);
+  --helpbox-border: rgba(115,57,253,0.28);
+  --helpbox-accent-bg: rgba(115,57,253,0.28);
+  --helpbox-text: #CBB4FF;
 
-  /* Nav active in dark — keep dark/inked feel, brand-tinted glow */
-  --nav-active-bg: #2A2466;
+  /* Nav active in dark — Blue-Violet sólido, chispa Spring Green */
+  --nav-active-bg: #7339FD;
   --nav-active-fg: #FFFFFF;
-  --nav-active-icon-bg: rgba(14,209,138,0.22);
-  --nav-active-icon-fg: #74EFC0;
-  --nav-active-hint: rgba(255,255,255,0.70);
+  --nav-active-icon-bg: rgba(255,255,255,0.18);
+  --nav-active-icon-fg: #06FF94;
+  --nav-active-hint: rgba(255,255,255,0.75);
 }
 
 @theme inline {
   /* font-sans maps to the UI/body font (Assistant) */
   --font-sans: var(--font-ui), 'Assistant', system-ui, sans-serif;
-  /* font-serif maps to the display/heading font (Montserrat) */
-  --font-serif: var(--font-display), 'Montserrat', system-ui, sans-serif;
+  /* font-serif maps to the display/heading font (Poppins ≈ Basic Sans del manual) */
+  --font-serif: var(--font-display), 'Poppins', system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);

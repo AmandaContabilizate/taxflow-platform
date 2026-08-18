@@ -285,8 +285,8 @@ export function ManualScreen({ go }: { go: GoFn }) {
           <div
             className="relative w-full max-w-md rounded-3xl p-6 lg:p-8 overflow-hidden animate-in fade-in zoom-in-95 duration-300"
             style={{
-              background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
-              border: '1px solid rgba(16, 185, 129, 0.2)',
+              background: 'linear-gradient(135deg, #221158 0%, #2A1C64 100%)',
+              border: '1px solid rgba(0,173,135, 0.2)',
             }}
           >
             {/* Close button */}
@@ -322,8 +322,8 @@ export function ManualScreen({ go }: { go: GoFn }) {
                 <div
                   className="relative w-20 h-20 rounded-full flex items-center justify-center"
                   style={{
-                    background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                    boxShadow: '0 0 30px rgba(16, 185, 129, 0.4)',
+                    background: 'linear-gradient(135deg, #00AD87 0%, #00AD87 100%)',
+                    boxShadow: '0 0 30px rgba(0,173,135, 0.4)',
                   }}
                 >
                   <AlertCircle size={40} style={{ color: 'white' }} />
@@ -333,14 +333,14 @@ export function ManualScreen({ go }: { go: GoFn }) {
               {/* Title */}
               <div
                 className="text-[12px] font-bold uppercase tracking-widest mb-3"
-                style={{ color: '#10B981' }}
+                style={{ color: '#00AD87' }}
               >
                 Nota importante
               </div>
               <h2 className="text-[22px] lg:text-[24px] font-extrabold mb-3" style={{ color: 'white' }}>
                 Conecta tu RFC ahora
               </h2>
-              <p className="text-[14px] mb-6" style={{ color: '#CBD5E1' }}>
+              <p className="text-[14px] mb-6" style={{ color: '#D2CDE9' }}>
                 Completa tu registro con tu CIEC válida para desbloquear todas las funciones
               </p>
 
@@ -356,15 +356,15 @@ export function ManualScreen({ go }: { go: GoFn }) {
                   <div className="flex items-start gap-3">
                     <div
                       className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-white text-[12px] font-bold"
-                      style={{ background: '#10B981' }}
+                      style={{ background: '#00AD87' }}
                     >
                       ✓
                     </div>
                     <div className="flex-1">
-                      <div className="text-[14px] font-semibold" style={{ color: '#0F172A' }}>
+                      <div className="text-[14px] font-semibold" style={{ color: '#221158' }}>
                         Documentos fiscales
                       </div>
-                      <div className="text-[13px] mt-1" style={{ color: '#475569' }}>
+                      <div className="text-[13px] mt-1" style={{ color: '#453889' }}>
                         Acceder a tu Constancia de Situación Fiscal y Opinión de Cumplimiento
                       </div>
                     </div>
@@ -376,15 +376,15 @@ export function ManualScreen({ go }: { go: GoFn }) {
                   <div className="flex items-start gap-3">
                     <div
                       className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-white text-[12px] font-bold"
-                      style={{ background: '#10B981' }}
+                      style={{ background: '#00AD87' }}
                     >
                       ✓
                     </div>
                     <div className="flex-1">
-                      <div className="text-[14px] font-semibold" style={{ color: '#0F172A' }}>
+                      <div className="text-[14px] font-semibold" style={{ color: '#221158' }}>
                         Validar tu RFC
                       </div>
-                      <div className="text-[13px] mt-1" style={{ color: '#475569' }}>
+                      <div className="text-[13px] mt-1" style={{ color: '#453889' }}>
                         Saber si tu RFC está en listas negras o tiene problemas
                       </div>
                     </div>
@@ -396,15 +396,15 @@ export function ManualScreen({ go }: { go: GoFn }) {
                   <div className="flex items-start gap-3">
                     <div
                       className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-white text-[12px] font-bold"
-                      style={{ background: '#10B981' }}
+                      style={{ background: '#00AD87' }}
                     >
                       ✓
                     </div>
                     <div className="flex-1">
-                      <div className="text-[14px] font-semibold" style={{ color: '#0F172A' }}>
+                      <div className="text-[14px] font-semibold" style={{ color: '#221158' }}>
                         Comprar planes y servicios
                       </div>
-                      <div className="text-[13px] mt-1" style={{ color: '#475569' }}>
+                      <div className="text-[13px] mt-1" style={{ color: '#453889' }}>
                         Acceso inmediato a planes según tu RFC y régimen, más trámites adicionales. No esperes al diagnóstico
                       </div>
                     </div>
@@ -416,15 +416,15 @@ export function ManualScreen({ go }: { go: GoFn }) {
                   <div className="flex items-start gap-3">
                     <div
                       className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-white text-[12px] font-bold"
-                      style={{ background: '#10B981' }}
+                      style={{ background: '#00AD87' }}
                     >
                       ✓
                     </div>
                     <div className="flex-1">
-                      <div className="text-[14px] font-semibold" style={{ color: '#0F172A' }}>
+                      <div className="text-[14px] font-semibold" style={{ color: '#221158' }}>
                         Diagnóstico fiscal personalizado
                       </div>
-                      <div className="text-[13px] mt-1" style={{ color: '#475569' }}>
+                      <div className="text-[13px] mt-1" style={{ color: '#453889' }}>
                         Verás qué declaraciones tienes pendientes, cuáles ya presentaste y tu score. Te enviaremos un correo notificando que ya terminó
                       </div>
                     </div>
@@ -438,7 +438,7 @@ export function ManualScreen({ go }: { go: GoFn }) {
                   onClick={() => go('estatus-sat')}
                   className="flex-1 px-4 py-2.5 rounded-xl font-semibold text-[14px] transition hover:opacity-90"
                   style={{
-                    background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                    background: 'linear-gradient(135deg, #00AD87 0%, #00AD87 100%)',
                     color: 'white',
                   }}
                 >
@@ -454,22 +454,22 @@ export function ManualScreen({ go }: { go: GoFn }) {
       <div
         className="rounded-3xl p-6 lg:p-8 relative overflow-hidden"
         style={{
-          background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
-          border: '2px solid #0F172A',
+          background: 'linear-gradient(135deg, #221158 0%, #2A1C64 100%)',
+          border: '2px solid #221158',
         }}
       >
         <div className="absolute top-0 right-0 w-40 h-40 bg-green-500/10 rounded-full blur-3xl" />
         <div className="relative z-10">
           <div className="flex items-center gap-2 mb-3">
-            <BookOpen size={20} style={{ color: '#10B981' }} />
-            <span className="text-[12px] font-bold uppercase tracking-wider" style={{ color: '#10B981' }}>
+            <BookOpen size={20} style={{ color: '#00AD87' }} />
+            <span className="text-[12px] font-bold uppercase tracking-wider" style={{ color: '#00AD87' }}>
               Manual de usuario
             </span>
           </div>
           <h1 className="text-[24px] lg:text-[28px] font-extrabold mb-2" style={{ ...DISPLAY, color: 'white' }}>
             Aprende a usar Contabilízate
           </h1>
-          <p className="text-[14px] max-w-2xl" style={{ color: '#CBD5E1' }}>
+          <p className="text-[14px] max-w-2xl" style={{ color: '#D2CDE9' }}>
             Guía rápida y completa de todas las funciones. Encuentra respuestas, consejos y mejores prácticas para
             optimizar tu gestión fiscal.
           </p>
@@ -479,7 +479,7 @@ export function ManualScreen({ go }: { go: GoFn }) {
       {/* Search Bar */}
       <div className="relative group">
         <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-          <Search size={18} style={{ color: '#10B981' }} />
+          <Search size={18} style={{ color: '#00AD87' }} />
         </div>
         <input
           type="text"
@@ -488,7 +488,7 @@ export function ManualScreen({ go }: { go: GoFn }) {
           onChange={e => setSearch(e.target.value)}
           className="w-full pl-12 pr-4 py-3 rounded-2xl border outline-none transition focus:ring-2 focus:ring-green-500"
           style={{
-            borderColor: search ? '#10B981' : '#E2E8F0',
+            borderColor: search ? '#00AD87' : '#E7E4F4',
             background: 'var(--card)',
             color: 'var(--ink-900)',
           }}
@@ -497,7 +497,7 @@ export function ManualScreen({ go }: { go: GoFn }) {
           <button
             onClick={() => setSearch('')}
             className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-lg transition hover:bg-opacity-80"
-            style={{ background: '#E0F2FE', color: '#10B981' }}
+            style={{ background: '#EDE5FF', color: '#00AD87' }}
             aria-label="Limpiar búsqueda"
           >
             <X size={16} />
@@ -512,9 +512,9 @@ export function ManualScreen({ go }: { go: GoFn }) {
             onClick={() => setSelectedCategory(null)}
             className={`px-3 py-1.5 rounded-full text-[13px] font-semibold transition-all ${!selectedCategory ? 'ring-2 ring-offset-1' : ''}`}
             style={{
-              background: !selectedCategory ? '#0F172A' : '#F1F5F9',
-              color: !selectedCategory ? 'white' : '#334155',
-              boxShadow: !selectedCategory ? '0 0 0 2px var(--background), 0 0 0 4px #0F172A' : 'none',
+              background: !selectedCategory ? '#221158' : '#F3F1FA',
+              color: !selectedCategory ? 'white' : '#332670',
+              boxShadow: !selectedCategory ? '0 0 0 2px var(--background), 0 0 0 4px #221158' : 'none',
             }}
           >
             Todos
@@ -527,9 +527,9 @@ export function ManualScreen({ go }: { go: GoFn }) {
                 onClick={() => setSelectedCategory(cat)}
                 className={`px-3 py-1.5 rounded-full text-[13px] font-semibold transition-all ${selectedCategory === cat ? 'ring-2 ring-offset-1' : ''}`}
                 style={{
-                  background: selectedCategory === cat ? (isEven ? 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)' : 'linear-gradient(135deg, #10B981 0%, #059669 100%)') : '#F1F5F9',
-                  color: selectedCategory === cat ? 'white' : '#334155',
-                  boxShadow: selectedCategory === cat ? `0 0 0 2px var(--background), 0 0 0 4px ${isEven ? '#0F172A' : '#10B981'}` : 'none',
+                  background: selectedCategory === cat ? (isEven ? 'linear-gradient(135deg, #221158 0%, #2A1C64 100%)' : 'linear-gradient(135deg, #00AD87 0%, #00AD87 100%)') : '#F3F1FA',
+                  color: selectedCategory === cat ? 'white' : '#332670',
+                  boxShadow: selectedCategory === cat ? `0 0 0 2px var(--background), 0 0 0 4px ${isEven ? '#221158' : '#00AD87'}` : 'none',
                 }}
               >
                 {categories[cat as keyof typeof categories].label}
@@ -543,16 +543,16 @@ export function ManualScreen({ go }: { go: GoFn }) {
           onClick={() => setShowImportantNote(true)}
           className="px-4 py-2 rounded-full text-[13px] font-semibold transition-all animate-pulse"
           style={{
-            background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+            background: 'linear-gradient(135deg, #00AD87 0%, #00AD87 100%)',
             color: 'white',
-            boxShadow: '0 0 20px rgba(16, 185, 129, 0.3)',
+            boxShadow: '0 0 20px rgba(0,173,135, 0.3)',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.boxShadow = '0 0 30px rgba(16, 185, 129, 0.5)'
+            e.currentTarget.style.boxShadow = '0 0 30px rgba(0,173,135, 0.5)'
             e.currentTarget.style.transform = 'scale(1.05)'
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.boxShadow = '0 0 20px rgba(16, 185, 129, 0.3)'
+            e.currentTarget.style.boxShadow = '0 0 20px rgba(0,173,135, 0.3)'
             e.currentTarget.style.transform = 'scale(1)'
           }}
         >
@@ -578,7 +578,7 @@ export function ManualScreen({ go }: { go: GoFn }) {
                 <Card
                   className={expandedId === section.id ? 'ring-2' : ''}
                   style={{
-                    borderColor: expandedId === section.id ? '#10B981' : undefined,
+                    borderColor: expandedId === section.id ? '#00AD87' : undefined,
                   }}
                 >
                   <div className="p-4 lg:p-5">
@@ -589,12 +589,12 @@ export function ManualScreen({ go }: { go: GoFn }) {
                         style={{
                           background:
                             section.id === 'inicio' || section.id === 'facturas'
-                              ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
+                              ? 'linear-gradient(135deg, #00AD87 0%, #00AD87 100%)'
                               : section.id === 'diagnostico' || section.id === 'boveda'
-                              ? 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)'
+                              ? 'linear-gradient(135deg, #221158 0%, #2A1C64 100%)'
                               : section.id === 'plan'
-                              ? 'linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%)'
-                              : 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
+                              ? 'linear-gradient(135deg, #7339FD 0%, #4B21B8 100%)'
+                              : 'linear-gradient(135deg, #7339FD 0%, #7339FD 100%)',
                           color: 'white',
                         }}
                       >
@@ -620,7 +620,7 @@ export function ManualScreen({ go }: { go: GoFn }) {
                           <span
                             className="px-2 py-1 rounded-full font-medium text-white"
                             style={{
-                              background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                              background: 'linear-gradient(135deg, #00AD87 0%, #00AD87 100%)',
                             }}
                           >
                             {categories[section.category].label}
@@ -648,8 +648,8 @@ export function ManualScreen({ go }: { go: GoFn }) {
                           <div
                             className="p-3 rounded-xl border-l-3"
                             style={{
-                              background: section.id === 'inicio' || section.id === 'facturas' ? '#F0FDF4' : '#F8FAFC',
-                              borderColor: '#10B981',
+                              background: section.id === 'inicio' || section.id === 'facturas' ? '#E6FCF6' : '#F6F5FB',
+                              borderColor: '#00AD87',
                               borderLeftWidth: '3px',
                             }}
                           >
@@ -657,9 +657,9 @@ export function ManualScreen({ go }: { go: GoFn }) {
                               <Lightbulb
                                 size={16}
                                 className="flex-shrink-0 mt-0.5"
-                                style={{ color: '#10B981' }}
+                                style={{ color: '#00AD87' }}
                               />
-                              <div className="flex-1 text-[12.5px]" style={{ color: '#1E293B' }}>
+                              <div className="flex-1 text-[12.5px]" style={{ color: '#2A1C64' }}>
                                 {section.tips.map((tip, idx) => (
                                   <div key={idx} className="mb-1 last:mb-0">
                                     • {tip}
@@ -695,23 +695,23 @@ export function ManualScreen({ go }: { go: GoFn }) {
       <div
         className="p-5 lg:p-6 rounded-2xl border-l-4"
         style={{
-          background: 'linear-gradient(135deg, #1E293B 0%, #0F172A 100%)',
-          borderColor: '#10B981',
+          background: 'linear-gradient(135deg, #2A1C64 0%, #221158 100%)',
+          borderColor: '#00AD87',
           borderLeftWidth: '4px',
         }}
       >
         <div className="flex gap-3">
           <div
             className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{ background: '#10B981' }}
+            style={{ background: '#00AD87' }}
           >
             <Lightbulb size={20} style={{ color: 'white' }} />
           </div>
           <div>
-            <div className="text-[14px] font-semibold mb-1" style={{ color: '#10B981' }}>
+            <div className="text-[14px] font-semibold mb-1" style={{ color: '#00AD87' }}>
               ¿Necesitas ayuda personalizada?
             </div>
-            <div className="text-[13px]" style={{ color: '#CBD5E1' }}>
+            <div className="text-[13px]" style={{ color: '#D2CDE9' }}>
               Si tienes dudas que no se resuelven aquí, visita la sección "Ayuda" para videos tutoriales o contacta a
               nuestro equipo de soporte.
             </div>

@@ -28,7 +28,7 @@ export function FuturoTab() {
     <>
       <div
         className="rounded-3xl p-6 lg:p-7 text-white"
-        style={{ background: 'linear-gradient(155deg,#10DA92 0%,#00A068 75%)', boxShadow: 'var(--sh-brand)' }}
+        style={{ background: 'linear-gradient(155deg,#00D3A1 0%,#00AD87 75%)', boxShadow: 'var(--sh-brand)' }}
       >
         <div className="text-[12px] font-extrabold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.85)' }}>
           Plan a futuro
