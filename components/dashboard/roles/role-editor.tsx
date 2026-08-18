@@ -86,7 +86,7 @@ const SECTION_HUES = [
  * Se deriva del claim, no hay metadato en el catálogo.
  */
 const ACTION_VERB_RE =
-  /^(Create|Update|Delete|Assign|Reassign|Approve|Manage|Send|Activate|Deactivate|Remove|Edit|Change|Load|Upload|Cancel|Add|Set|Generate|Process|Import|Export|Execute)/i
+  /^(Create|Update|Delete|Assign|Reassign|Approve|Manage|Send|Activate|Deactivate|Remove|Edit|Change|Load|Upload|Cancel|Add|Set|Generate|Process|Import|Export|Execute|Invite|Authorize|Run)/i
 
 function isActionClaim(claimType: string): boolean {
   const action = claimType.split('.').pop() ?? claimType

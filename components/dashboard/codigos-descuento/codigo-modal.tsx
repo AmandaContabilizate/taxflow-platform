@@ -13,6 +13,8 @@ interface Props {
   lookups: DiscountCodeLookups | null
   onClose: () => void
   onSaved: () => void
+  /** Admin.AuthorizeHighDiscount: puede guardar ACTIVOS códigos fuera de tope (>20% / >3 decl.). */
+  canAuthorize?: boolean
 }
 
 type OwnerType = 'user' | 'partner' | 'none'
@@ -23,7 +25,7 @@ const inputStyle = {
   color: 'var(--foreground)',
 } as const
 
-export function CodigoModal({ open, code, lookups, onClose, onSaved }: Props) {
+export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthorize = false }: Props) {
   const [codeText, setCodeText] = useState('')
   const [description, setDescription] = useState('')
   const [ownerType, setOwnerType] = useState<OwnerType>('user')
@@ -77,9 +79,32 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved }: Props) {
     (ownerType === 'none' ||
       (ownerType === 'user' && sellerUserId !== '') ||
       (ownerType === 'partner' && partnershipId !== '')) &&
+    // Topes de negocio para códigos ACTIVOS (el backend los valida de nuevo):
+    // máximo 20% / 3 declaraciones. Fuera de tope se puede guardar INACTIVO
+    // (la solicitud); solo quien autoriza (Admin.AuthorizeHighDiscount) puede
+    // guardarlo activo, hasta 100%.
     (isPercent
-      ? discountPercent !== '' && Number(discountPercent) >= 0 && Number(discountPercent) <= 100
-      : Number(declarationsCount) > 0)
+      ? discountPercent !== '' &&
+        Number.isInteger(Number(discountPercent)) &&
+        Number(discountPercent) >= 0 &&
+        Number(discountPercent) <= (isActive && !canAuthorize ? 20 : 100)
+      : Number(declarationsCount) > 0 && (!isActive || canAuthorize || Number(declarationsCount) <= 3))
+
+  // Por qué no se puede guardar: el botón nunca se apaga en silencio.
+  const faltantes: string[] = []
+  if (codeText.trim().length < 3) faltantes.push('el código (mínimo 3 caracteres)')
+  if (isActive && !(Number(maxUses) > 0)) faltantes.push('los usos máximos (obligatorios si está activo)')
+  if (ownerType === 'user' && sellerUserId === '') faltantes.push('el dueño (selecciona un ejecutivo, o usa "Sin dueño")')
+  if (ownerType === 'partner' && partnershipId === '') faltantes.push('el partner dueño')
+  if (planIds.length === 0) faltantes.push('al menos un plan donde aplica')
+  if (invalidRfcs.length > 0) faltantes.push(`RFCs inválidos: ${invalidRfcs.join(', ')}`)
+  if (isPercent && discountPercent === '') faltantes.push('el % de descuento')
+  if (isPercent && Number(discountPercent) > 100) faltantes.push('el % no puede ser mayor a 100')
+  if (isPercent && discountPercent !== '' && !Number.isInteger(Number(discountPercent)))
+    faltantes.push('el % debe ser entero, sin decimales')
+  if (isPercent && isActive && !canAuthorize && Number(discountPercent) > 20 && Number(discountPercent) <= 100)
+    faltantes.push('más de 20% activo requiere autorización (desmarca "Código activo")')
+  if (!isPercent && !(Number(declarationsCount) > 0)) faltantes.push('las declaraciones de regalo')
 
   const togglePlan = (id: number) => {
     setPlanIds((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]))
@@ -268,29 +293,58 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved }: Props) {
         {isPercent ? (
           <div>
             <label className="block text-[12px] font-bold mb-1.5" style={{ color: 'var(--ink-700)' }}>
-              % de descuento <span className="font-normal" style={{ color: 'var(--ink-400)' }}>(enteros, 0–100)</span>
+              % de descuento{' '}
+              <span className="font-normal" style={{ color: 'var(--ink-400)' }}>
+                (enteros{canAuthorize ? ', hasta 100% con tu autorización' : ', máximo 20%'})
+              </span>
             </label>
             <input
               type="number"
               min={0}
-              max={100}
+              max={canAuthorize ? 100 : 20}
               step={1}
               value={discountPercent}
               onChange={(e) => setDiscountPercent(e.target.value)}
-              placeholder="25"
+              placeholder="15"
               className="w-full px-3 py-2.5 rounded-lg text-[14px] outline-none focus:ring-2"
               style={inputStyle}
               disabled={loading}
             />
+            {isActive && !canAuthorize && Number(discountPercent) > 20 && (
+              <p className="text-[11.5px] mt-1 font-semibold" style={{ color: '#9E3A15' }}>
+                Más de 20% requiere autorización: desmarca "Código activo" para guardarlo como
+                solicitud, y un administrador lo activará.
+              </p>
+            )}
+            {isActive && canAuthorize && Number(discountPercent) > 20 && Number(discountPercent) <= 100 && (
+              <p className="text-[11.5px] mt-1 font-semibold" style={{ color: '#7B5312' }}>
+                Estás autorizando un descuento fuera de tope. Sugerencia: usa RFCs permitidos y
+                pocos usos máximos para acotarlo.
+              </p>
+            )}
+            {discountPercent !== '' && !Number.isInteger(Number(discountPercent)) && (
+              <p className="text-[11.5px] mt-1 font-semibold" style={{ color: '#9E3A15' }}>
+                El porcentaje debe ser un número entero, sin decimales.
+              </p>
+            )}
+            {Number(discountPercent) > 100 && (
+              <p className="text-[11.5px] mt-1 font-semibold" style={{ color: '#9E3A15' }}>
+                El porcentaje no puede ser mayor a 100%.
+              </p>
+            )}
           </div>
         ) : (
           <div>
             <label className="block text-[12px] font-bold mb-1.5" style={{ color: 'var(--ink-700)' }}>
-              Declaraciones de regalo
+              Declaraciones de regalo{' '}
+              <span className="font-normal" style={{ color: 'var(--ink-400)' }}>
+                {canAuthorize ? '(sin tope con tu autorización)' : '(máximo 3)'}
+              </span>
             </label>
             <input
               type="number"
               min={1}
+              max={canAuthorize ? undefined : 3}
               value={declarationsCount}
               onChange={(e) => setDeclarationsCount(e.target.value)}
               placeholder="3"
@@ -298,6 +352,12 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved }: Props) {
               style={inputStyle}
               disabled={loading}
             />
+            {isActive && !canAuthorize && Number(declarationsCount) > 3 && (
+              <p className="text-[11.5px] mt-1 font-semibold" style={{ color: '#9E3A15' }}>
+                Más de 3 declaraciones requiere autorización: desmarca "Código activo" para
+                guardarlo como solicitud, y un administrador lo activará.
+              </p>
+            )}
             <p className="text-[11.5px] mt-1" style={{ color: 'var(--ink-400)' }}>
               Se suman al cupo de regularizaciones del plan comprado. Solo aplica en
               compra de planes, no en regularizaciones sueltas.
@@ -374,6 +434,16 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved }: Props) {
           />
           <span className="text-[13px]" style={{ color: 'var(--ink-700)' }}>Código activo</span>
         </label>
+
+        {/* Nunca apagar el botón en silencio: decir exactamente qué falta. */}
+        {!canSubmit && faltantes.length > 0 && (
+          <div
+            className="px-3.5 py-2.5 rounded-xl text-[12.5px]"
+            style={{ background: 'var(--amber-soft)', color: '#7B5312' }}
+          >
+            <b>Para guardar falta:</b> {faltantes.join(' · ')}
+          </div>
+        )}
 
         <div className="flex gap-3 justify-end pt-1">
           <button

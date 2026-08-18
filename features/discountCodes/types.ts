@@ -29,6 +29,24 @@ export interface DiscountCodeAdmin {
   subscriptionPlanIds: number[];
   isActive: boolean;
   createdAt: string;
+  /** Quién generó el código (nombre; "system" u otro valor crudo si no es usuario). */
+  createdByName: string | null;
+}
+
+/** Fila de la bitácora de autorizaciones de códigos fuera de tope (inmutable). */
+export interface DiscountCodeAuthorization {
+  id: number;
+  code: string;
+  /** activated | deactivated */
+  action: string;
+  discountTypeId: number;
+  discountPercent: number;
+  declarationsCount: number | null;
+  maxUses: number | null;
+  whitelistedRfcsCount: number;
+  authorizedByName: string | null;
+  authorizedByEmail: string | null;
+  authorizedAt: string;
 }
 
 export interface DiscountCodeLookups {

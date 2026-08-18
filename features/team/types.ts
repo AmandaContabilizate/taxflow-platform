@@ -4,7 +4,8 @@ export interface TeamError {
 }
 
 /** 1 = Ejecutivo (empleado), 2 = Finder Fee (vendedor externo). */
-export type MemberType = 1 | 2;
+/** 1 = Ejecutivo, 2 = Finder Fee, 3 = Contador (equipo de operaciones, sin código de vendedor). */
+export type MemberType = 1 | 2 | 3;
 
 /** Ids del catálogo Catalogs.CommercialSegment. */
 export const SEGMENTS = [

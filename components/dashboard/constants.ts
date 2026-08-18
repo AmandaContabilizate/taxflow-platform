@@ -77,6 +77,7 @@ export const TITLES: Record<Screen, [string, string]> = {
   'declaraciones-anuales': ['Declaraciones anuales', 'Declaraciones del ejercicio'],
   catalogos: ['Catálogos', 'Catálogos maestros del sistema'],
   configuracion: ['Configuración', 'Selecciona la sección a la que quieres entrar. El acceso depende de tu rol y permisos.'],
+  'equipo-operaciones': ['Equipo de operaciones', 'Carga operativa y avance por contador. Da de alta nuevos miembros desde aquí.'],
   renovaciones: ['Renovaciones', 'Planes por vencer y quién ya canceló su renovación'],
   asignaciones: ['Asignaciones de venta', 'Gestiona clientes sin vendedor y solicita reasignaciones para aprobación de Administración'],
   equipo: ['Equipo', 'Tu plantilla comercial. Da de alta nuevos miembros desde aquí.'],
@@ -211,6 +212,12 @@ const CONFIGURACION_ITEM: NavDef = {
   label: 'Configuración',
   Icon: Settings,
   hint: 'Preferencias y gobierno',
+}
+const EQUIPO_OPERACIONES_ITEM: NavDef = {
+  id: 'equipo-operaciones',
+  label: 'Equipo de operaciones',
+  Icon: Users,
+  hint: 'Carga y avance por contador',
 }
 const RENOVACIONES_ITEM: NavDef = {
   id: 'renovaciones',
@@ -422,6 +429,7 @@ export const MASTER_NAV_SECTIONS: NavSection[] = [
     section: 'GESTIÓN',
     items: [
       EQUIPO_ITEM,
+      EQUIPO_OPERACIONES_ITEM,
       PARTNERS_ITEM,
       CODIGOS_DESCUENTO_ITEM,
       MARKETING_ITEM,
@@ -487,6 +495,8 @@ export const MODULE_CLAIMS: Record<string, string[]> = {
   roles: ['AssignRole', 'CreateRole', 'EditRole', 'DeleteRole', 'RemoveRole'],
   // Catálogos aún no tiene permisos propios (los de actividades por régimen se
   // movieron a Mis clientes, donde vive la función): oculto hasta que los tenga.
+  // Carga y avance por contador; solo gerencia de contabilidad (y superusuarios).
+  'equipo-operaciones': ['GerenciaContable.ReadEquipoOperaciones'],
   // Hub de configuración: el menú abre con cualquiera; cada card/tab exige el suyo.
   configuracion: [
     'Sistema.ReadConfiguracion',

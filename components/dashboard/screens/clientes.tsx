@@ -15,14 +15,29 @@ import {
   usePagedList,
 } from '../clientes/parts'
 import { ReassignModal } from '../clientes/reassign-modal'
+import { ExpedienteCliente } from '../clientes/expediente-cliente'
 
 const ASSIGN_PERMISSION = 'AssignAccountant'
+const EXPEDIENTE_PERMISSION = 'GerenciaComercial.ReadExpedienteCliente'
 const DEFAULT_MIN_SALES = 2
 
 export function ClientesScreen({ permissions = [] }: { permissions?: string[] }) {
   const list = usePagedList(getClientsWithPaidSales, 50, DEFAULT_MIN_SALES)
   const canAssign = permissions.includes(ASSIGN_PERMISSION)
+  const canExpediente = permissions.includes(EXPEDIENTE_PERMISSION)
   const [target, setTarget] = useState<ClientListItem | null>(null)
+  const [expedienteId, setExpedienteId] = useState<number | null>(null)
+
+  // Clic en el nombre del cliente → expediente (Resumen / Credenciales / Productos)
+  if (expedienteId !== null) {
+    return (
+      <ExpedienteCliente
+        taxpayerId={expedienteId}
+        permissions={permissions}
+        onBack={() => setExpedienteId(null)}
+      />
+    )
+  }
 
   return (
     <div className="flex flex-col gap-5 max-w-full h-[calc(100dvh-8.5rem)]">
@@ -84,12 +99,33 @@ export function ClientesScreen({ permissions = [] }: { permissions?: string[] })
                   {list.items.map((c) => (
                     <tr key={c.taxpayerId} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td className="px-5 py-4">
-                        <div className="font-semibold" style={{ color: 'var(--ink-900)' }}>
-                          {c.legalName}
-                        </div>
-                        <div className="text-xs mt-0.5" style={{ color: 'var(--ink-500)' }}>
-                          {c.email}
-                        </div>
+                        {canExpediente ? (
+                          <button
+                            type="button"
+                            onClick={() => setExpedienteId(c.taxpayerId)}
+                            title="Abrir expediente del cliente"
+                            className="text-left cursor-pointer group"
+                          >
+                            <div
+                              className="font-semibold group-hover:underline underline-offset-2"
+                              style={{ color: 'var(--ink-900)' }}
+                            >
+                              {c.legalName}
+                            </div>
+                            <div className="text-xs mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                              {c.email}
+                            </div>
+                          </button>
+                        ) : (
+                          <>
+                            <div className="font-semibold" style={{ color: 'var(--ink-900)' }}>
+                              {c.legalName}
+                            </div>
+                            <div className="text-xs mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                              {c.email}
+                            </div>
+                          </>
+                        )}
                       </td>
                       <td className="px-5 py-4">
                         <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-700)' }}>{c.rfc}</code>

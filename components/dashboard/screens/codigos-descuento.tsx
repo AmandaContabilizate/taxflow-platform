@@ -1,16 +1,30 @@
 'use client'
 
-import { AlertCircle, AlertTriangle, Loader2, Pencil, Plus, Tag } from 'lucide-react'
+import { AlertCircle, AlertTriangle, History, Loader2, Pencil, Plus, ShieldCheck, Tag } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { getDiscountCodeLookups, getDiscountCodes } from '@/features/discountCodes/actions/getDiscountCodes.action'
-import type { DiscountCodeAdmin, DiscountCodeLookups } from '@/features/discountCodes/types'
+import {
+  getDiscountCodeAuthorizations,
+  getDiscountCodeLookups,
+  getDiscountCodes,
+} from '@/features/discountCodes/actions/getDiscountCodes.action'
+import { saveDiscountCode } from '@/features/discountCodes/actions/saveDiscountCode.action'
+import type {
+  DiscountCodeAdmin,
+  DiscountCodeAuthorization,
+  DiscountCodeLookups,
+} from '@/features/discountCodes/types'
 import { CodigoModal } from '../codigos-descuento/codigo-modal'
 import { MONO } from '../constants'
 import { Badge, Card } from '../ui'
 
 type OwnerFilter = 'all' | 'user' | 'partner' | 'none'
 
-export function CodigosDescuentoScreen() {
+/** Código fuera del tope de negocio (20% / 3 declaraciones). */
+const fueraDeTope = (c: DiscountCodeAdmin) =>
+  c.discountTypeId === 2 ? (c.declarationsCount ?? 0) > 3 : c.discountPercent > 20
+
+export function CodigosDescuentoScreen({ permissions = [] }: { permissions?: string[] }) {
+  const canAuthorize = permissions.includes('Admin.AuthorizeHighDiscount')
   const [codes, setCodes] = useState<DiscountCodeAdmin[]>([])
   const [lookups, setLookups] = useState<DiscountCodeLookups | null>(null)
   const [loading, setLoading] = useState(true)
@@ -19,6 +33,55 @@ export function CodigosDescuentoScreen() {
   const [ownerFilter, setOwnerFilter] = useState<OwnerFilter>('all')
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<DiscountCodeAdmin | null>(null)
+  const [authorizingId, setAuthorizingId] = useState<number | null>(null)
+  const [authError, setAuthError] = useState<string | null>(null)
+  const [showLog, setShowLog] = useState(false)
+  const [log, setLog] = useState<DiscountCodeAuthorization[] | null>(null)
+  const [logLoading, setLogLoading] = useState(false)
+  const [logError, setLogError] = useState<string | null>(null)
+
+  const toggleLog = async () => {
+    const next = !showLog
+    setShowLog(next)
+    if (next && log === null) {
+      setLogLoading(true)
+      setLogError(null)
+      const res = await getDiscountCodeAuthorizations()
+      if (res.success) setLog(res.value)
+      else setLogError(res.error.message)
+      setLogLoading(false)
+    }
+  }
+
+  // Códigos fuera de tope guardados inactivos = solicitudes esperando autorización.
+  const pendientesAutorizar = codes.filter((c) => !c.isActive && fueraDeTope(c))
+
+  /** La activación ES la autorización (queda auditada en UpdatedBy del código). */
+  const autorizar = async (c: DiscountCodeAdmin) => {
+    setAuthorizingId(c.id)
+    setAuthError(null)
+    const res = await saveDiscountCode({
+      id: c.id,
+      code: c.code,
+      description: c.description ?? undefined,
+      sellerUserId: c.ownerType === 'user' ? (c.sellerUserId ?? undefined) : undefined,
+      partnershipId: c.ownerType === 'partner' ? (c.partnershipId ?? undefined) : undefined,
+      discountTypeId: c.discountTypeId,
+      discountPercent: c.discountTypeId === 1 ? c.discountPercent : undefined,
+      declarationsCount: c.discountTypeId === 2 ? (c.declarationsCount ?? undefined) : undefined,
+      maxUses: c.maxUses ?? 0,
+      subscriptionPlanIds: c.subscriptionPlanIds,
+      whitelistedRfcs: c.whitelistedRfcs,
+      isActive: true,
+    })
+    setAuthorizingId(null)
+    if (res.success) {
+      setLog(null) // la bitácora acaba de crecer: se recarga al reabrirla
+      void load()
+    } else {
+      setAuthError(`${c.code}: ${res.error.message}`)
+    }
+  }
 
   const load = async () => {
     setLoading(true)
@@ -82,15 +145,136 @@ export function CodigosDescuentoScreen() {
             <option value="none">Sin dueño</option>
           </select>
         </div>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-[13.5px] transition hover:opacity-95 cursor-pointer"
-          style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}
-        >
-          <Plus size={16} /> Nuevo código
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void toggleLog()}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full font-bold text-[13.5px] transition hover:opacity-90 cursor-pointer"
+            style={{ background: 'var(--ink-50)', color: 'var(--ink-700)', border: '1px solid var(--border)' }}
+          >
+            <History size={15} /> {showLog ? 'Ocultar bitácora' : 'Bitácora'}
+          </button>
+          <button
+            type="button"
+            onClick={openCreate}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-[13.5px] transition hover:opacity-95 cursor-pointer"
+            style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}
+          >
+            <Plus size={16} /> Nuevo código
+          </button>
+        </div>
       </div>
+
+      {/* Bitácora de autorizaciones: auditoría inmutable de códigos fuera de tope */}
+      {showLog && (
+        <Card>
+          <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+            <div className="text-[14.5px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
+              Bitácora de autorizaciones
+            </div>
+            <div className="text-[12px]" style={{ color: 'var(--ink-500)' }}>
+              Quién activó o desactivó códigos fuera de tope (más de 20% o más de 3 declaraciones).
+              Estas filas no se modifican nunca — son el rastro de auditoría.
+            </div>
+          </div>
+          {logLoading ? (
+            <div className="py-8 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
+              <Loader2 size={16} className="animate-spin" /> Cargando bitácora…
+            </div>
+          ) : logError ? (
+            <div className="py-6 px-5 text-[13px]" style={{ color: '#9E3A15' }}>{logError}</div>
+          ) : !log || log.length === 0 ? (
+            <div className="py-8 px-5 text-center text-[13px]" style={{ color: 'var(--ink-500)' }}>
+              Aún no hay autorizaciones registradas — la bitácora empieza a llenarse cuando se
+              active o desactive un código fuera de tope.
+            </div>
+          ) : (
+            <div className="overflow-x-auto px-2 py-2">
+              <table className="w-full text-left" style={{ borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                    {['Fecha', 'Código', 'Acción', 'Descuento', 'Usos máx.', 'RFCs', 'Autorizó'].map((h) => (
+                      <th
+                        key={h}
+                        className="py-2.5 px-3 text-[11px] font-extrabold uppercase tracking-wider"
+                        style={{ color: 'var(--ink-500)' }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {log.map((a) => (
+                    <tr key={a.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td className="py-2.5 px-3 text-[12.5px]" style={{ color: 'var(--ink-700)' }}>
+                        {new Date(a.authorizedAt).toLocaleString('es-MX', {
+                          day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+                        })}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <code style={{ ...MONO, fontSize: '12px', color: 'var(--ink-900)', fontWeight: 700 }}>
+                          {a.code}
+                        </code>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <Badge kind={a.action === 'activated' ? 'brand' : 'default'}>
+                          {a.action === 'activated' ? 'Autorizado (activado)' : 'Desactivado'}
+                        </Badge>
+                      </td>
+                      <td className="py-2.5 px-3 text-[13px]" style={{ color: 'var(--ink-900)' }}>
+                        {a.discountTypeId === 2 ? (
+                          <b>{a.declarationsCount} declaraciones</b>
+                        ) : (
+                          <b>{a.discountPercent}%</b>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-[12.5px]" style={{ ...MONO, color: 'var(--ink-700)' }}>
+                        {a.maxUses ?? '—'}
+                      </td>
+                      <td className="py-2.5 px-3 text-[12.5px]" style={{ color: 'var(--ink-700)' }}>
+                        {a.whitelistedRfcsCount > 0 ? `${a.whitelistedRfcsCount} exclusivos` : 'Abierto'}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="text-[12.5px] font-semibold" style={{ color: 'var(--ink-900)' }}>
+                          {a.authorizedByName ?? '—'}
+                        </div>
+                        {a.authorizedByEmail && (
+                          <div className="text-[11px]" style={{ color: 'var(--ink-500)' }}>
+                            {a.authorizedByEmail}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* Cola de autorización (como Asignaciones): códigos fuera de tope esperando activación */}
+      {!loading && canAuthorize && pendientesAutorizar.length > 0 && (
+        <div
+          className="flex items-center gap-2.5 px-4 py-3 rounded-2xl text-[13px] font-semibold"
+          style={{ background: 'var(--amber-soft)', color: '#7B5312', border: '1px solid var(--border)' }}
+        >
+          <ShieldCheck size={16} className="flex-shrink-0" />
+          {pendientesAutorizar.length === 1
+            ? '1 código fuera de tope espera tu autorización'
+            : `${pendientesAutorizar.length} códigos fuera de tope esperan tu autorización`}{' '}
+          — revísalos y actívalos con "Autorizar".
+        </div>
+      )}
+      {authError && (
+        <div
+          className="flex items-center gap-2 px-4 py-3 rounded-2xl text-[13px] font-semibold"
+          style={{ background: 'var(--coral-soft)', color: '#9E3A15', border: '1px solid var(--border)' }}
+        >
+          <AlertCircle size={15} className="flex-shrink-0" /> No se pudo autorizar — {authError}
+        </div>
+      )}
 
       {loading ? (
         <Card>
@@ -128,7 +312,7 @@ export function CodigosDescuentoScreen() {
             <table className="w-full text-left" style={{ borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                  {['Código', 'Dueño', 'Descuento', 'Planes', 'Usos', 'RFCs', 'Estatus', ''].map((h) => (
+                  {['Código', 'Dueño', 'Descuento', 'Planes', 'Usos', 'RFCs', 'Creado', 'Estatus', ''].map((h) => (
                     <th
                       key={h}
                       className="py-2.5 px-3 text-[11px] font-extrabold uppercase tracking-wider"
@@ -188,19 +372,52 @@ export function CodigosDescuentoScreen() {
                       {c.whitelistedRfcsCount > 0 ? `${c.whitelistedRfcsCount} exclusivos` : 'Abierto'}
                     </td>
                     <td className="py-3 px-3">
-                      <Badge kind={c.isActive ? 'brand' : 'default'}>{c.isActive ? 'Activo' : 'Inactivo'}</Badge>
+                      <div className="text-[12.5px]" style={{ color: 'var(--ink-700)' }}>
+                        {new Date(c.createdAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </div>
+                      {c.createdByName && (
+                        <div className="text-[11.5px] mt-0.5 truncate max-w-[160px]" title={c.createdByName} style={{ color: 'var(--ink-500)' }}>
+                          por {c.createdByName}
+                        </div>
+                      )}
                     </td>
                     <td className="py-3 px-3">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(c)}
-                        title="Editar código"
-                        aria-label={`Editar código ${c.code}`}
-                        className="p-1.5 rounded-lg transition hover:bg-[var(--ink-50)] cursor-pointer"
-                        style={{ border: '1px solid var(--border)' }}
-                      >
-                        <Pencil size={14} style={{ color: 'var(--ink-500)' }} />
-                      </button>
+                      {!c.isActive && fueraDeTope(c) ? (
+                        <Badge kind="amber">Por autorizar</Badge>
+                      ) : (
+                        <Badge kind={c.isActive ? 'brand' : 'default'}>{c.isActive ? 'Activo' : 'Inactivo'}</Badge>
+                      )}
+                    </td>
+                    <td className="py-3 px-3">
+                      <div className="flex items-center gap-1.5">
+                        {canAuthorize && !c.isActive && fueraDeTope(c) && (
+                          <button
+                            type="button"
+                            onClick={() => void autorizar(c)}
+                            disabled={authorizingId === c.id}
+                            title="Autorizar y activar este código fuera de tope"
+                            className="inline-flex items-center gap-1 text-[11.5px] font-bold px-2 py-1.5 rounded-lg transition hover:opacity-90 disabled:opacity-50 cursor-pointer"
+                            style={{ background: 'var(--ink-900)', color: '#fff' }}
+                          >
+                            {authorizingId === c.id ? (
+                              <Loader2 size={12} className="animate-spin" />
+                            ) : (
+                              <ShieldCheck size={12} />
+                            )}
+                            Autorizar
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => openEdit(c)}
+                          title="Editar código"
+                          aria-label={`Editar código ${c.code}`}
+                          className="p-1.5 rounded-lg transition hover:bg-[var(--ink-50)] cursor-pointer"
+                          style={{ border: '1px solid var(--border)' }}
+                        >
+                          <Pencil size={14} style={{ color: 'var(--ink-500)' }} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -214,6 +431,7 @@ export function CodigosDescuentoScreen() {
         open={modalOpen}
         code={editing}
         lookups={lookups}
+        canAuthorize={canAuthorize}
         onClose={() => setModalOpen(false)}
         onSaved={() => void load()}
       />

@@ -320,6 +320,32 @@ export interface GerenciaContableDashboard {
   desglose: ContadorDesglose[];
 }
 
+/** Colaborador del equipo de operaciones (contador) con su carga del periodo. */
+export interface EquipoOperacionesMiembro {
+  userId: string;
+  nombre: string;
+  email: string;
+  cartera: number;
+  porPresentar: number;
+  vencidas: number;
+  presentadas: number;
+  ciecInvalidas: number;
+  avancePorcentaje: number;
+}
+
+/** Respuesta de `/declarations/equipo-operaciones`. */
+export interface EquipoOperaciones {
+  poolContadores: number;
+  contadoresConCartera: number;
+  carteraTotal: number;
+  porPresentarTotal: number;
+  vencidasTotal: number;
+  presentadasTotal: number;
+  ciecInvalidasTotal: number;
+  avanceArea: number;
+  miembros: EquipoOperacionesMiembro[];
+}
+
 export type TipoRenovacion = "subscription" | "one_time";
 
 /**

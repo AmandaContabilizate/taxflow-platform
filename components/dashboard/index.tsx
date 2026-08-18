@@ -28,6 +28,7 @@ import {
   DiagnosticoScreen,
   DocumentosScreen,
   EquipoScreen,
+  EquipoOperacionesScreen,
   EstatusSatScreen,
   FacturasScreen,
   GeorgeScreen,
@@ -61,6 +62,7 @@ const WIDE_SCREENS = new Set<Screen>([
   'tramites-adicionales',
   'tramites',
   'mis-clientes',
+  'equipo-operaciones',
   'clientes',
   'contribuyentes',
   'usuarios',
@@ -364,7 +366,8 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
       return <PartnersScreen />;
     }
     if (screen === 'codigos-descuento') {
-      return <CodigosDescuentoScreen />;
+      // permissions: Admin.AuthorizeHighDiscount habilita autorizar códigos fuera de tope.
+      return <CodigosDescuentoScreen permissions={permissions} />;
     }
     if (screen === 'asignaciones') {
       // Claim-driven: quien tiene Admin.ApproveAssignments revisa/aprueba;
@@ -380,6 +383,10 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
     if (screen === 'configuracion') {
       // Hub de configuración: cada card/tab se pinta según los claims Sistema.*
       return <ConfiguracionScreen permissions={permissions} />;
+    }
+    if (screen === 'equipo-operaciones') {
+      // Carga por contador + invitación de contadores (gerencia de contabilidad).
+      return <EquipoOperacionesScreen permissions={permissions} />;
     }
     if (screen === 'partnership') {
       return <PartnershipScreen />;

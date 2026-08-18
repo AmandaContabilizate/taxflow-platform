@@ -64,6 +64,8 @@ export const API_ROUTES = {
     LOOKUPS: "/lookups",
     CREATE: "",
     UPDATE: (id: number) => `/${id}`,
+    /** Bitácora de autorizaciones de códigos fuera de tope (auditoría). */
+    AUTHORIZATIONS: "/authorizations",
   },
   // Comisiones. apiType "commissions" (Procedures)
   COMMISSIONS: {
@@ -111,6 +113,8 @@ export const API_ROUTES = {
     // Crea (o reutiliza) contribuyente por RFC y persiste su e.Firma. apiType "taxpayers"
     CREATE_BY_EFIRMA: "/create-by-efirma",
     AVAILABLE_RFCS: "/available-rfcs",
+    // Credenciales del contribuyente (tab Credenciales del expediente). apiType "taxpayers"
+    SAT_PASSWORD: (rfc: string) => `/sat-password?rfc=${encodeURIComponent(rfc)}`,
     RFC_STATUS: (rfc: string) => `/rfc-status?rfc=${encodeURIComponent(rfc)}`,
     COMPLIANCE_OPINION: (rfc: string) =>
       `/compliance-opinion?rfc=${encodeURIComponent(rfc)}`,
@@ -156,6 +160,9 @@ export const API_ROUTES = {
     // GET declarations_reports — panel del contador (cartera, periodo y CIEC).
     CONTADOR_DASHBOARD: (year: number, month: number) =>
       `/contador-dashboard?year=${year}&month=${month}`,
+    // GET declarations_reports — equipo de operaciones (pool de contadores + carga del periodo).
+    EQUIPO_OPERACIONES: (year: number, month: number) =>
+      `/equipo-operaciones?year=${year}&month=${month}`,
     // GET declarations_reports — panel de gerencia contable (área + desglose).
     GERENCIA_CONTABLE_DASHBOARD: (year: number, month: number, accountantUserId?: string) =>
       `/gerencia-contable-dashboard?year=${year}&month=${month}${accountantUserId ? `&accountantUserId=${encodeURIComponent(accountantUserId)}` : ""}`,
@@ -219,6 +226,8 @@ export const API_ROUTES = {
     MY_CLIENTS: (skip = 0, take = 100, rfc?: string, accountantUserId?: string, minSales?: number) =>
       `/my-clients?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${accountantUserId ? `&accountantUserId=${encodeURIComponent(accountantUserId)}` : ""
       }${minSales ? `&minSales=${minSales}` : ""}`,
+    // Expediente del cliente (gerencia comercial): resumen + equipo + productos + periodos.
+    EXPEDIENTE: (taxpayerId: number) => `/${taxpayerId}/expediente`,
   },
   // GET users_reports — padrón de cuentas registradas (solo requiere token).
   USERS_OPS: {

@@ -34,6 +34,71 @@ export interface TaxpayerListItem {
  * Item de `/taxpayers/with-paid-sales` y `/taxpayers/my-clients` —
  * contribuyente + datos de compra + contador asignado.
  */
+/** Producto (venta pagada) dentro del expediente del cliente. */
+export interface ExpedienteProducto {
+  plan: string
+  monto: number
+  fecha: string
+  regularizaciones: number
+  futuras: number
+}
+
+/** Periodo (declaración) del expediente con su estatus agrupado. */
+export interface ExpedientePeriodo {
+  fiscalYear: number
+  periodValueId: number
+  estatus: string
+  presentada: boolean
+}
+
+/**
+ * Expediente del cliente (`/taxpayers/{id}/expediente`, gerencia comercial):
+ * resumen + equipo + productos + periodos. Las credenciales van aparte
+ * (endpoints de Identity con sus propios claims).
+ */
+export interface ExpedienteCliente {
+  taxpayerId: number
+  rfc: string
+  legalName: string
+  email: string | null
+  phone: string | null
+  createdAt: string
+  /** 1 = CIEC válida, 2 = inválida, 0 = sin verificar. */
+  passwordState: number
+  regimenes: { id: number; satCode: string | null; name: string }[]
+  contadorUserId: string | null
+  contadorNombre: string | null
+  contadorEmail: string | null
+  vendedorNombre: string | null
+  vendedorEmail: string | null
+  ventasPagadas: number
+  productos: ExpedienteProducto[]
+  periodos: ExpedientePeriodo[]
+  /** Últimas validaciones de la CIEC (estado/fecha/fuente; nunca la contraseña). */
+  ciecHistorial: CiecValidacion[]
+  /** e.firmas registradas con su vigencia de certificado. */
+  efirmas: Efirma[]
+}
+
+export interface CiecValidacion {
+  fecha: string
+  valida: boolean
+  estatus: string
+  fuente: string
+}
+
+export interface Efirma {
+  isActive: boolean
+  notBefore: string
+  noAfter: string
+}
+
+/** Credenciales SAT bajo demanda (Identity `/sat-password`). */
+export interface SatCredentials {
+  satPassword: string
+  tieneEfirma: boolean
+}
+
 export interface ClientListItem extends TaxpayerListItem {
   declaracionesCompradas: number;
   regularizacionesCompradas: number;
