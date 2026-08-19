@@ -38,8 +38,8 @@ function EstatusBadge({ statusSaleId, estatus }: { statusSaleId: number; estatus
     statusSaleId === 2
       ? { background: 'var(--brand-100)', color: 'var(--brand-900)' }
       : statusSaleId === 3
-        ? { background: 'var(--coral-soft)', color: '#9E3A15' }
-        : { background: 'var(--amber-soft)', color: '#7B5312' }
+        ? { background: 'var(--coral-soft)', color: 'var(--violet-ink)' }
+        : { background: 'var(--amber-soft)', color: 'var(--violet-ink)' }
   return (
     <span
       className="inline-flex px-2 py-0.5 rounded-full text-[11.5px] font-bold whitespace-nowrap"

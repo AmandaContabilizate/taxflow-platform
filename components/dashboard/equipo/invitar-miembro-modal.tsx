@@ -190,7 +190,7 @@ export function InvitarMiembroModal({ open, onClose, onInvited }: Props) {
         </p>
 
         {error && (
-          <div className="p-3 rounded-lg text-[13px]" style={{ background: 'var(--hero-coral-soft-bg, #FEE2E2)', color: '#991B1B' }}>
+          <div className="p-3 rounded-lg text-[13px]" style={{ background: 'var(--hero-coral-soft-bg, #FCDCDC)', color: '#991B1B' }}>
             {error}
           </div>
         )}

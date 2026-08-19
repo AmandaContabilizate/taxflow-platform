@@ -37,7 +37,7 @@ export function CsfCard({ state, downloadDate, busy, onConnect, onUpload, onView
                 : 'var(--hero-info-icon-bg)'
       }
       iconColor={
-        available ? 'var(--brand-700)' : notFound ? '#9E3A15' : forbidden ? '#8B1E1E' : errored ? '#7B5312' : '#fff'
+        available ? 'var(--brand-700)' : notFound ? 'var(--violet-ink)' : forbidden ? '#8B1E1E' : errored ? 'var(--violet-ink)' : '#fff'
       }
       eyebrow="Constancia de Situación Fiscal"
       title={

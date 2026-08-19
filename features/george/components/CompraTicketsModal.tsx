@@ -77,7 +77,7 @@ export function CompraTicketsModal({ open, onOpenChange, onSuccess }: CompraTick
         {/* Content */}
         <div className="p-6">
           {error && (
-            <div className="p-4 rounded-lg text-[13px] mb-6" style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
+            <div className="p-4 rounded-lg text-[13px] mb-6" style={{ backgroundColor: '#FCDCDC', color: '#991B1B' }}>
               {error}
             </div>
           )}

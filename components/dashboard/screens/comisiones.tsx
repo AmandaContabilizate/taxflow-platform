@@ -374,7 +374,7 @@ export function ComisionesScreen({ permissions = [] }: { permissions?: string[] 
           {noProfile && team && (
             <div
               className="flex items-center gap-2.5 p-3.5 rounded-xl text-[13px] comm-rise"
-              style={{ background: 'var(--amber-soft)', color: '#7B5312' }}
+              style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
             >
               <AlertCircle size={16} className="flex-shrink-0" />
               No tienes perfil comercial propio configurado, así que no hay comisiones
@@ -398,7 +398,7 @@ export function ComisionesScreen({ permissions = [] }: { permissions?: string[] 
                 </div>
 
                 {team.unassignedOperations > 0 && (
-                  <div className="mx-5 mt-3 p-3 rounded-lg text-[12.5px] flex items-center gap-2" style={{ background: 'var(--amber-soft)', color: '#7B5312' }}>
+                  <div className="mx-5 mt-3 p-3 rounded-lg text-[12.5px] flex items-center gap-2" style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}>
                     <AlertTriangle size={14} className="flex-shrink-0" />
                     <span>
                       Hay <b>{team.unassignedOperations}</b> operación(es) sin vendedor asignado — revísalas en <b>Asignaciones</b>.
@@ -449,7 +449,7 @@ export function ComisionesScreen({ permissions = [] }: { permissions?: string[] 
                                     {m.name}
                                   </div>
                                   {m.isNewHire && (
-                                    <div className="text-[11px] font-semibold" style={{ color: '#7B5312' }}>
+                                    <div className="text-[11px] font-semibold" style={{ color: 'var(--violet-ink)' }}>
                                       15% de ingreso
                                     </div>
                                   )}

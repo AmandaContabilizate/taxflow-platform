@@ -163,18 +163,18 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
           style={{
             width: '32px',
             height: '32px',
-            background: 'rgba(37, 99, 235, 0.1)',
-            color: '#2563EB',
-            border: '1px solid rgba(37, 99, 235, 0.2)',
+            background: 'rgba(115,57,253, 0.1)',
+            color: '#7339FD',
+            border: '1px solid rgba(115,57,253, 0.2)',
             left: sidebarCollapsed ? 'calc(80px - 16px)' : 'calc(260px - 16px)',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(37, 99, 235, 0.15)';
-            e.currentTarget.style.borderColor = 'rgba(37, 99, 235, 0.3)';
+            e.currentTarget.style.background = 'rgba(115,57,253, 0.15)';
+            e.currentTarget.style.borderColor = 'rgba(115,57,253, 0.3)';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(37, 99, 235, 0.1)';
-            e.currentTarget.style.borderColor = 'rgba(37, 99, 235, 0.2)';
+            e.currentTarget.style.background = 'rgba(115,57,253, 0.1)';
+            e.currentTarget.style.borderColor = 'rgba(115,57,253, 0.2)';
           }}>
           {sidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
         </button>

@@ -277,9 +277,9 @@ export function PlanPickerModal({
               <div
                 className="px-4 py-2 rounded-lg text-[13px] font-bold flex items-center gap-2 flex-shrink-0"
                 style={{
-                  background: 'linear-gradient(135deg, #0066FF 0%, #0052CC 100%)',
+                  background: 'linear-gradient(135deg, #7339FD 0%, #4B21B8 100%)',
                   color: 'white',
-                  boxShadow: '0 4px 15px rgba(0, 102, 255, 0.3)',
+                  boxShadow: '0 4px 15px rgba(115,57,253, 0.3)',
                 }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -301,7 +301,7 @@ export function PlanPickerModal({
         {discountNotice && (
           <div
             className="flex-shrink-0 text-[12.5px] font-semibold px-3 py-2 rounded-xl"
-            style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}
+            style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}
           >
             {discountNotice}
           </div>
@@ -531,7 +531,7 @@ export function PlanPickerModal({
               {error && (
                 <div
                   className="text-[12.5px] font-semibold px-3 py-2 rounded-xl"
-                  style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}
+                  style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}
                 >
                   {error}
                 </div>
@@ -540,7 +540,7 @@ export function PlanPickerModal({
               {codeError && (
                 <div
                   className="text-[12.5px] font-semibold px-3 py-2 rounded-xl"
-                  style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}
+                  style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}
                 >
                   {codeError}
                 </div>
@@ -548,7 +548,7 @@ export function PlanPickerModal({
               {appliedDiscount && !discountApplies && (
                 <div
                   className="text-[12.5px] font-semibold px-3 py-2 rounded-xl"
-                  style={{ background: 'var(--amber-soft)', color: '#7B5312' }}
+                  style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
                 >
                   {isGiftCode
                     ? `El código ${appliedDiscount.code} regala declaraciones al comprar un plan; elige el plan participante para usarlo.`

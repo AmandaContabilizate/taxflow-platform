@@ -167,14 +167,14 @@ function DateRow({ day, mo, title, sub, urgent, muted }: DateRowProps) {
           className="text-[24px] font-extrabold leading-none"
           style={{
             ...DISPLAY,
-            color: urgent ? '#9E3A15' : muted ? 'var(--ink-400)' : 'var(--ink-900)',
+            color: urgent ? 'var(--violet-ink)' : muted ? 'var(--ink-400)' : 'var(--ink-900)',
           }}
         >
           {day}
         </div>
         <div
           className="text-[10px] tracking-widest uppercase font-extrabold mt-1"
-          style={{ color: urgent ? '#9E3A15' : 'var(--ink-400)' }}
+          style={{ color: urgent ? 'var(--violet-ink)' : 'var(--ink-400)' }}
         >
           {mo}
         </div>

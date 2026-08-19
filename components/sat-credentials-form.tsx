@@ -148,7 +148,7 @@ export default function SatCredentialsForm({ existingRfc, onComplete }: Props) {
                   background: active ? 'var(--ink-900)' : 'var(--muted)',
                   border: active ? '2px solid var(--ink-700)' : '2px solid transparent',
                   color: active ? '#fff' : 'var(--foreground)',
-                  boxShadow: active ? '0 4px 20px rgba(21,17,63,0.20)' : 'none',
+                  boxShadow: active ? '0 4px 20px rgba(34,17,88,0.20)' : 'none',
                 }}
               >
                 <span style={{ color: active ? 'var(--brand-400)' : 'var(--muted-foreground)' }}>

@@ -317,7 +317,7 @@ function NotificacionesTab() {
               </span>
             )}
             {saveError && (
-              <span className="inline-flex items-center gap-1 text-[12px] font-bold" style={{ color: '#9E3A15' }}>
+              <span className="inline-flex items-center gap-1 text-[12px] font-bold" style={{ color: 'var(--violet-ink)' }}>
                 <AlertCircle size={13} /> {saveError}
               </span>
             )}

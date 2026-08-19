@@ -259,7 +259,7 @@ export function CalculosTab({ declarationId, readOnly }: { declarationId: number
         <div className="px-5 py-6">
           <div
             className="text-[13px] font-semibold px-4 py-2.5 rounded-xl"
-            style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}
+            style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}
           >
             {error}
           </div>
@@ -275,7 +275,7 @@ export function CalculosTab({ declarationId, readOnly }: { declarationId: number
       {sinDatos && (
         <div
           className="rounded-2xl px-4 py-3 text-[13px]"
-          style={{ background: 'var(--amber-soft)', color: '#7B5312', border: '1px solid var(--border)' }}
+          style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)', border: '1px solid var(--border)' }}
         >
           Esta declaración todavía no tiene cálculos guardados. Las cifras aparecerán en cuanto el motor de
           cálculo los persista.

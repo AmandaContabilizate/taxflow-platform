@@ -107,7 +107,7 @@ export function ActividadesModal({ open, onOpenChange, client }: ActividadesModa
 
         <div
           className="flex items-start gap-2 p-3 rounded-xl text-[12.5px]"
-          style={{ background: 'var(--amber-soft)', color: '#7B5312' }}
+          style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
         >
           <AlertCircle size={15} className="flex-shrink-0 mt-0.5" />
           <span>
@@ -122,7 +122,7 @@ export function ActividadesModal({ open, onOpenChange, client }: ActividadesModa
           </div>
         ) : error ? (
           <div className="py-8 text-center flex flex-col items-center gap-2">
-            <AlertCircle size={18} style={{ color: '#9E3A15' }} />
+            <AlertCircle size={18} style={{ color: 'var(--violet-ink)' }} />
             <div className="text-[13px]" style={{ color: 'var(--ink-700)' }}>{error}</div>
           </div>
         ) : regimenes.length === 0 ? (
@@ -185,7 +185,7 @@ export function ActividadesModal({ open, onOpenChange, client }: ActividadesModa
         )}
 
         {saveError && (
-          <div className="flex items-center gap-2 text-[12.5px] font-semibold" style={{ color: '#9E3A15' }}>
+          <div className="flex items-center gap-2 text-[12.5px] font-semibold" style={{ color: 'var(--violet-ink)' }}>
             <AlertCircle size={14} /> {saveError}
           </div>
         )}

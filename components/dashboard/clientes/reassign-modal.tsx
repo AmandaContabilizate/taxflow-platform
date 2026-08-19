@@ -116,7 +116,7 @@ export function ReassignModal({ open, onOpenChange, client, onReassigned }: Reas
               className="flex flex-col items-center gap-2 text-center px-4 py-8 rounded-xl"
               style={{ background: 'var(--coral-soft)', border: '1px solid var(--border)' }}
             >
-              <AlertCircle size={22} style={{ color: '#9E3A15' }} />
+              <AlertCircle size={22} style={{ color: 'var(--violet-ink)' }} />
               <div className="text-[13px] font-semibold" style={{ color: 'var(--ink-900)' }}>
                 No se pudo cargar la asignación
               </div>
@@ -155,7 +155,7 @@ export function ReassignModal({ open, onOpenChange, client, onReassigned }: Reas
                 ) : (
                   <div
                     className="px-3.5 py-2.5 rounded-xl text-[13px] font-semibold"
-                    style={{ background: 'var(--amber-soft)', color: '#7B5312' }}
+                    style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
                   >
                     Sin contador asignado
                   </div>
@@ -237,7 +237,7 @@ export function ReassignModal({ open, onOpenChange, client, onReassigned }: Reas
           className="px-6 py-4 border-t flex items-center justify-between gap-3 flex-wrap"
           style={{ borderColor: 'var(--border)' }}
         >
-          <div className="min-w-0 flex items-center gap-2 text-[12.5px] font-semibold" style={{ color: '#9E3A15' }}>
+          <div className="min-w-0 flex items-center gap-2 text-[12.5px] font-semibold" style={{ color: 'var(--violet-ink)' }}>
             {saveError && (
               <>
                 <AlertCircle size={15} className="flex-shrink-0" />

@@ -226,7 +226,7 @@ export function EquipoOperacionesScreen({ permissions = [] }: { permissions?: st
                             <BarraProgreso
                               porcentaje={m.cartera === 0 ? 0 : carga}
                               color="var(--ink-900)"
-                              etiquetaColor={carga > 80 ? '#B97A12' : 'var(--ink-700)'}
+                              etiquetaColor={carga > 80 ? 'var(--violet-ink)' : 'var(--ink-700)'}
                             />
                           </td>
                         </tr>
@@ -264,14 +264,14 @@ function Kpi({
           <span className="text-[10.5px] font-extrabold uppercase tracking-[0.08em]" style={{ color: 'var(--ink-500)' }}>
             {label}
           </span>
-          <span style={{ color: tone === 'ok' ? 'var(--brand-700)' : tone === 'warn' ? '#B97A12' : 'var(--ink-400)' }}>
+          <span style={{ color: tone === 'ok' ? 'var(--brand-700)' : tone === 'warn' ? 'var(--violet-ink)' : 'var(--ink-400)' }}>
             {icon}
           </span>
         </div>
         <div className="text-[26px] font-extrabold tracking-tight mt-1" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
           {value}
         </div>
-        <div className="text-[11.5px] font-semibold" style={{ color: tone === 'warn' ? '#B97A12' : 'var(--ink-500)' }}>
+        <div className="text-[11.5px] font-semibold" style={{ color: tone === 'warn' ? 'var(--violet-ink)' : 'var(--ink-500)' }}>
           {hint}
         </div>
       </div>
@@ -391,7 +391,7 @@ function InvitarContadorModal({
         </p>
 
         {(error || roleError) && (
-          <div className="p-3 rounded-lg text-[13px] flex items-center gap-2" style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}>
+          <div className="p-3 rounded-lg text-[13px] flex items-center gap-2" style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}>
             <AlertCircle size={15} className="flex-shrink-0" /> {error ?? roleError}
           </div>
         )}

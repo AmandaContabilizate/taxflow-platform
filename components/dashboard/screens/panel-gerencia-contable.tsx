@@ -51,7 +51,7 @@ function Kpi({
               className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
               style={{
                 background: highlight ? 'var(--brand-100)' : alert ? 'var(--coral-soft)' : 'var(--ink-50)',
-                color: highlight ? 'var(--brand-700)' : alert ? '#9E3A15' : 'var(--ink-500)',
+                color: highlight ? 'var(--brand-700)' : alert ? 'var(--violet-ink)' : 'var(--ink-500)',
               }}
             >
               <Icon size={15} />
@@ -59,7 +59,7 @@ function Kpi({
           </div>
           <div
             className="text-[28px] font-bold mt-2 leading-none"
-            style={{ ...MONO, color: alert ? '#9E3A15' : 'var(--ink-900)' }}
+            style={{ ...MONO, color: alert ? 'var(--violet-ink)' : 'var(--ink-900)' }}
           >
             {value}
           </div>
@@ -300,13 +300,13 @@ export function PanelGerenciaContableScreen() {
                           <td className="px-5 py-3.5 text-right text-[13.5px] font-semibold" style={{ ...MONO, color: 'var(--ink-900)' }}>
                             {c.cartera}
                           </td>
-                          <td className="px-5 py-3.5 text-right text-[13.5px]" style={{ ...MONO, color: c.porPresentar > 0 ? '#7B5312' : 'var(--ink-700)' }}>
+                          <td className="px-5 py-3.5 text-right text-[13.5px]" style={{ ...MONO, color: c.porPresentar > 0 ? 'var(--violet-ink)' : 'var(--ink-700)' }}>
                             {c.porPresentar}
                           </td>
                           <td className="px-5 py-3.5 text-right text-[13.5px]" style={{ ...MONO, color: 'var(--ink-700)' }}>
                             {c.presentadas}
                           </td>
-                          <td className="px-5 py-3.5 text-right text-[13.5px]" style={{ ...MONO, color: c.ciecBloqueadas > 0 ? '#9E3A15' : 'var(--ink-700)' }}>
+                          <td className="px-5 py-3.5 text-right text-[13.5px]" style={{ ...MONO, color: c.ciecBloqueadas > 0 ? 'var(--violet-ink)' : 'var(--ink-700)' }}>
                             {c.ciecBloqueadas}
                           </td>
                           <td className="px-5 py-3.5">

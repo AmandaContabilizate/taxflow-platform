@@ -361,7 +361,7 @@ export function PanelComercialScreen({
                       style={
                         c.conPlanPagado
                           ? { background: 'var(--brand-100)', color: 'var(--brand-900)' }
-                          : { background: 'var(--amber-soft)', color: '#7B5312' }
+                          : { background: 'var(--amber-soft)', color: 'var(--violet-ink)' }
                       }
                     >
                       {c.conPlanPagado ? 'Con plan' : 'Sin compra'}

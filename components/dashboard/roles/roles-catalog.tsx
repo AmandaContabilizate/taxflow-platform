@@ -123,7 +123,7 @@ export function RolesCatalog() {
         </div>
 
         {actionError && (
-          <div className="px-5 py-3 flex items-center gap-2 text-[13px]" style={{ color: '#9E3A15' }}>
+          <div className="px-5 py-3 flex items-center gap-2 text-[13px]" style={{ color: 'var(--violet-ink)' }}>
             <AlertCircle size={15} /> {actionError}
           </div>
         )}
@@ -195,7 +195,7 @@ export function RolesCatalog() {
                           disabled={r.isSystem || deletingId === r.id}
                           title={r.isSystem ? 'Los roles del sistema no se eliminan' : 'Eliminar'}
                           className="w-8 h-8 rounded-lg flex items-center justify-center transition hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-                          style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}
+                          style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}
                         >
                           {deletingId === r.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                         </button>

@@ -77,7 +77,7 @@ const GROUPS: GroupDef[] = [
     hint: 'Perfil y datos personales',
     icon: FileText,
     accent: 'var(--amber-soft)',
-    accentFg: '#7B5312',
+    accentFg: 'var(--violet-ink)',
   },
 ]
 
@@ -165,13 +165,13 @@ export function PermisosScreen({ initialPermissions, role }: PermisosScreenProps
       <div
         className="rounded-3xl p-6 lg:p-7 text-white relative overflow-hidden"
         style={{
-          background: 'linear-gradient(155deg,#1E1952 0%,#15113F 100%)',
+          background: 'linear-gradient(155deg,#2A1C64 0%,#221158 100%)',
           boxShadow: 'var(--sh-ink)',
         }}
       >
         <div
           className="absolute -top-16 -right-16 w-64 h-64 rounded-full opacity-25 pointer-events-none"
-          style={{ background: 'radial-gradient(circle,#10DA92 0%, transparent 70%)' }}
+          style={{ background: 'radial-gradient(circle,#00D3A1 0%, transparent 70%)' }}
         />
         <div className="relative flex flex-wrap items-center justify-between gap-5">
           <div className="flex items-center gap-4">
@@ -201,7 +201,7 @@ export function PermisosScreen({ initialPermissions, role }: PermisosScreenProps
             <div className="w-[160px] h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.18)' }}>
               <div
                 className="h-full rounded-full transition-all"
-                style={{ width: `${pct}%`, background: 'linear-gradient(90deg,#10DA92,#74EFC0)' }}
+                style={{ width: `${pct}%`, background: 'linear-gradient(90deg,#00D3A1,#06FF94)' }}
               />
             </div>
             <div className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.6)' }}>

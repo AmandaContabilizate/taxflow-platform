@@ -6,7 +6,7 @@ interface TabsProps {
 
 export function Tabs({ items, active, onChange }: TabsProps) {
   return (
-    <div className="inline-flex gap-1.5 p-1.5 rounded-full" style={{ background: 'rgba(21,17,63,0.05)' }}>
+    <div className="inline-flex gap-1.5 p-1.5 rounded-full" style={{ background: 'rgba(34,17,88,0.05)' }}>
       {items.map((t, i) => (
         <button
           key={t}

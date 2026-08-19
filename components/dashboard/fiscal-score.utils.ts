@@ -9,7 +9,7 @@ export function scoreLabel(score: number): string {
 
 /** Color del arco según el score. */
 export function scoreColor(score: number): string {
-  if (score >= 75) return '#0ED18A' // brand-500
-  if (score >= 50) return '#F5B037' // amber
-  return '#FF8862' // coral
+  if (score >= 75) return '#00AD87' // brand-500
+  if (score >= 50) return '#7339FD' // amber
+  return 'var(--violet-ink)' // coral
 }

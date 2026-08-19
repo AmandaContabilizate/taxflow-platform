@@ -87,7 +87,7 @@ export function CorsTab() {
       </div>
 
       {actionError && (
-        <div className="px-5 py-3 flex items-center gap-2 text-[13px]" style={{ color: '#9E3A15' }}>
+        <div className="px-5 py-3 flex items-center gap-2 text-[13px]" style={{ color: 'var(--violet-ink)' }}>
           <AlertCircle size={15} /> {actionError}
         </div>
       )}
@@ -126,7 +126,7 @@ export function CorsTab() {
                         disabled={deletingId === item.providerCorsId}
                         title="Eliminar"
                         className="w-8 h-8 rounded-lg flex items-center justify-center transition hover:opacity-80 disabled:opacity-40"
-                        style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}
+                        style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}
                       >
                         {deletingId === item.providerCorsId ? (
                           <Loader2 size={14} className="animate-spin" />

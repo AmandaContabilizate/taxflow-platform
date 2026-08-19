@@ -174,7 +174,7 @@ export function SubirTicketModal({ open, onOpenChange, onSuccess }: SubirTicketM
         {/* Content */}
         <div className="p-6">
           {error && (
-            <div className="p-3 rounded-lg text-[13px] mb-4" style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
+            <div className="p-3 rounded-lg text-[13px] mb-4" style={{ backgroundColor: '#FCDCDC', color: '#991B1B' }}>
               {error}
             </div>
           )}

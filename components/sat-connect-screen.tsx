@@ -32,7 +32,7 @@ function Btn({ children, kind = 'primary', size = 'md', onClick, block, type, di
   const padding = size === 'lg' ? 'px-7 py-4 text-[16px] min-h-[56px]' : 'px-5 py-3.5 text-[15px] min-h-[48px]'
   const stylesByKind: Record<string, React.CSSProperties> = {
     primary: { background: 'var(--primary)', color: 'var(--primary-foreground)', boxShadow: 'var(--sh-ink)' },
-    brand: { background: 'linear-gradient(135deg,#10DA92 0%,#00B073 100%)', color: '#fff', boxShadow: 'var(--sh-brand)' },
+    brand: { background: 'linear-gradient(135deg,#00D3A1 0%,#00AD87 100%)', color: '#fff', boxShadow: 'var(--sh-brand)' },
     ghost: { background: 'var(--card)', color: 'var(--foreground)', border: '1px solid var(--border-strong)' },
   }
   return (
@@ -62,7 +62,7 @@ function HelpBox({ children }: { children: ReactNode }) {
 function VideoSlot({ title, duration }: { title: string; duration: string }) {
   return (
     <button className="rounded-2xl p-4 flex items-center gap-3 w-full text-left transition hover:translate-y-[-1px]" style={{ background: 'var(--card)', border: '1px solid var(--border)', boxShadow: 'var(--sh-1)' }}>
-      <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}>
+      <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}>
         <PlayCircle size={24} />
       </div>
       <div className="flex-1 min-w-0">

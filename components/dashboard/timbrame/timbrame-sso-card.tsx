@@ -20,7 +20,7 @@ interface Props {
   go: GoFn
 }
 
-const TIMBRAME_BLUE = '#2541E8'
+const TIMBRAME_BLUE = '#7339FD'
 
 export function TimbrameSSOCard({ go }: Props) {
   const [loading, setLoading] = useState(true)

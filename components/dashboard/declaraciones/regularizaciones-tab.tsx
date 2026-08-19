@@ -32,9 +32,9 @@ export function RegularizacionesTab() {
       <div
         className="rounded-3xl p-6 lg:p-7"
         style={{
-          background: 'linear-gradient(155deg, #FFE6B8 0%, #F5B037 95%)',
+          background: 'linear-gradient(155deg, #D9C8FE 0%, #7339FD 95%)',
           boxShadow: 'var(--sh-1)',
-          color: '#4A2E00',
+          color: '#332670',
         }}
       >
         <div className="flex items-start justify-between flex-wrap gap-4">
@@ -42,30 +42,30 @@ export function RegularizacionesTab() {
             <div className="flex items-center gap-2">
               <div
                 className="w-10 h-10 rounded-2xl flex items-center justify-center"
-                style={{ background: 'rgba(255,255,255,0.55)', color: '#7B5312' }}
+                style={{ background: 'rgba(255,255,255,0.55)', color: 'var(--violet-ink)' }}
               >
                 <RotateCcw size={20} />
               </div>
-              <div className="text-[12px] font-extrabold uppercase tracking-wider" style={{ color: '#7B5312' }}>
+              <div className="text-[12px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--violet-ink)' }}>
                 Regularizar el pasado
               </div>
             </div>
             <div className="text-[28px] lg:text-[32px] font-extrabold tracking-tight mt-3" style={DISPLAY}>
               {totalMonths} {totalMonths === 1 ? 'mes por resolver' : 'meses por resolver'}
             </div>
-            <div className="text-[14px] mt-2 max-w-[460px]" style={{ color: '#5a3a08' }}>
+            <div className="text-[14px] mt-2 max-w-[460px]" style={{ color: 'var(--violet-ink)' }}>
               {contractedCount} contratadas en proceso. {toContractCount} sin presentar por regularizar.
             </div>
           </div>
           <div className="flex flex-col gap-2 items-end">
-            <div className="text-[11px] font-extrabold uppercase tracking-wider" style={{ color: '#7B5312' }}>
+            <div className="text-[11px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--violet-ink)' }}>
               Avance
             </div>
             <div className="text-[36px] font-extrabold tracking-tight" style={DISPLAY}>
               {percent}%
             </div>
             <div className="w-[140px] h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.55)' }}>
-              <div className="h-full rounded-full" style={{ width: `${percent}%`, background: '#7B5312' }} />
+              <div className="h-full rounded-full" style={{ width: `${percent}%`, background: 'var(--violet)' }} />
             </div>
           </div>
         </div>
@@ -97,7 +97,7 @@ export function RegularizacionesTab() {
                     className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
                     style={{
                       background: toContract ? 'var(--coral-soft)' : 'var(--amber-soft)',
-                      color: toContract ? '#9E3A15' : '#7B5312',
+                      color: toContract ? 'var(--violet-ink)' : 'var(--violet-ink)',
                     }}
                   >
                     {toContract ? <ShoppingCart size={18} /> : <FileText size={18} />}

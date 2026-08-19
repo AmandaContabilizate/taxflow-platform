@@ -120,7 +120,7 @@ export function GeorgeScreen({ go }: GeorgeScreenProps) {
     <div className="space-y-6">
       {/* Error Banner */}
       {error && (
-        <div className="p-4 rounded-xl text-[13px]" style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
+        <div className="p-4 rounded-xl text-[13px]" style={{ backgroundColor: '#FCDCDC', color: '#991B1B' }}>
           {error}
         </div>
       )}
@@ -186,7 +186,7 @@ export function GeorgeScreen({ go }: GeorgeScreenProps) {
                   Tickets Pagos
                 </div>
                 <div className="mt-2">
-                  <div className="text-[28px] font-bold" style={{ color: '#10B981' }}>
+                  <div className="text-[28px] font-bold" style={{ color: '#00AD87' }}>
                     {quota.paidTicketsBalance}
                   </div>
                   <div className="text-[12px] mt-1" style={{ color: 'var(--ink-500)' }}>
