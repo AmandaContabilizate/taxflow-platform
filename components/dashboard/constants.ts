@@ -85,7 +85,7 @@ export const TITLES: Record<Screen, [string, string]> = {
   partners: ['Partners', 'Alta de partners y alianzas B2B2C, con sus códigos automáticos'],
   'codigos-descuento': ['Códigos de descuento', 'Códigos por dueño: ejecutivos, finder fees y partners'],
   'reportes-ejecutivos': ['Reportes ejecutivos', 'KPIs y resultados del área'],
-  operaciones: ['Centro de Operaciones', 'Gestión y supervisión de declaraciones fiscales'],
+  operaciones: ['Declaraciones futuras', 'Gestión y supervisión de declaraciones fiscales'],
   'tramites-adicionales': ['Trámites adicionales', 'Seguimiento de trámites vendidos a tus clientes'],
   ventas: ['Ventas', 'Resumen de ventas registradas por cuenta'],
   roles: ['Roles y permisos', 'Administra roles, sus permisos y los roles de cada usuario'],
@@ -253,7 +253,7 @@ const REPORTES_ITEM: NavDef = {
 }
 const OPERACIONES_ITEM: NavDef = {
   id: 'operaciones',
-  label: 'Centro de Operaciones',
+  label: 'Declaraciones futuras',
   Icon: Briefcase,
   hint: 'Gestión de declaraciones',
 }

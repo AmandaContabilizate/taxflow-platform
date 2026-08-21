@@ -327,9 +327,31 @@ export function CodigosDescuentoScreen({ permissions = [] }: { permissions?: str
                 {filtered.map((c) => (
                   <tr key={c.id} style={{ borderBottom: '1px solid var(--border)' }}>
                     <td className="py-3 px-3">
-                      <code style={{ ...MONO, fontSize: '12.5px', color: 'var(--ink-900)', fontWeight: 700 }}>
-                        {c.code}
-                      </code>
+                      <span className="inline-flex items-center gap-1.5">
+                        <code style={{ ...MONO, fontSize: '12.5px', color: 'var(--ink-900)', fontWeight: 700 }}>
+                          {c.code}
+                        </code>
+                        {/* Espejo en Stripe: solo aplica a códigos de porcentaje. "none" son
+                            los previos a la funcionalidad — se sincronizan al volver a guardar. */}
+                        {c.discountTypeId === 1 && c.stripeStatus === 'synced' && (
+                          <span
+                            title="Sincronizado con Stripe: este código también existe en el dashboard de Stripe"
+                            className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full"
+                            style={{ background: 'var(--brand-100)', color: 'var(--brand-900)' }}
+                          >
+                            Stripe ✓
+                          </span>
+                        )}
+                        {c.discountTypeId === 1 && c.stripeStatus === 'error' && (
+                          <span
+                            title={`No se pudo sincronizar con Stripe: ${c.stripeSyncError ?? 'error desconocido'}. El código funciona igual; vuelve a guardarlo para reintentar.`}
+                            className="inline-flex items-center gap-0.5 text-[10px] font-extrabold px-1.5 py-0.5 rounded-full cursor-help"
+                            style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
+                          >
+                            <AlertTriangle size={10} /> Stripe pendiente
+                          </span>
+                        )}
+                      </span>
                       {c.description && (
                         <div className="text-[11.5px]" style={{ color: 'var(--ink-500)' }}>{c.description}</div>
                       )}
