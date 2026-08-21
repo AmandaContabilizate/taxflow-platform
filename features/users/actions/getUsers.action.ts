@@ -24,8 +24,12 @@ export async function getUsers(params: {
   emailConfirmed?: boolean;
   /** Avance del alta: legacy | creado | correo-enviado | correo-verificado | completo | rfc. */
   estatus?: string;
+  /** true = el rol debe ser el ÚNICO de la cuenta (clientes puros). */
+  roleExclusive?: boolean;
+  /** IDs de Catalogs.SystemsOrigin (ej. [0, 4] = app móvil + Taxflow). Ausente = todos. */
+  origins?: number[];
 }): Promise<Result<UsuariosPage, UsersError>> {
-  const { skip = 0, take = 100, search, role, emailConfirmed, estatus } = params;
+  const { skip = 0, take = 100, search, role, emailConfirmed, estatus, roleExclusive, origins } = params;
   try {
     const data = await fetchGet<UsuariosPage>(
       API_ROUTES.USERS_OPS.LIST(
@@ -35,6 +39,8 @@ export async function getUsers(params: {
         role?.trim() || undefined,
         emailConfirmed,
         estatus?.trim() || undefined,
+        roleExclusive,
+        origins?.length ? origins.join(",") : undefined,
       ),
       "users_reports",
     );

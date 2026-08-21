@@ -73,9 +73,7 @@ export function EstatusSatScreen({ go }: Props) {
     { id: 'opinion', label: 'Opinión de cumplimiento', status: 'positive', description: 'Vigente hasta 22-may-2026' },
     { id: 'efos', label: 'Art. 69-B - EFOS', status: 'positive', description: 'Operaciones simuladas' },
     { id: 'bis', label: 'Art. 69-B Bis', status: 'positive', description: 'Transmisión indebida de pérdidas' },
-    { id: 'no-localizados', label: 'No localizados', status: 'neutral', description: 'Sin domicilio fiscal' },
-    { id: 'creditos-firmes', label: 'Créditos fiscales firmes', status: 'warning', description: 'Adeudos cancelados >12 meses' },
-    { id: 'rfc-cancelado', label: 'RFC cancelado', status: 'positive', description: 'Estatus del registro' },
+    { id: 'rfc', label: 'RFC', status: 'positive', description: 'Estatus del registro' },
   ]
 
   const getStatusColor = (status: StatusItem['status']) => {
@@ -154,32 +152,6 @@ export function EstatusSatScreen({ go }: Props) {
           </div>
         </div>
 
-        {/* Proveedores escaneados */}
-        <div>
-          <div className="text-[13px] font-extrabold uppercase tracking-widest mb-3" style={{ color: 'var(--ink-400)' }}>
-            Proveedores escaneados
-          </div>
-          <Card>
-            <div className="px-4 py-3 flex items-center gap-2 flex-wrap">
-              {['CFE', 'Telmex', 'Office Depot', 'Gasolinera Express', 'Farmacia del Ahorro', '+19 más'].map(
-                (provider) => (
-                  <div key={provider} className="flex items-center gap-1.5">
-                    <CheckCircle2 size={14} style={{ color: '#00AD87' }} />
-                    <span className="text-[12px] font-semibold" style={{ color: 'var(--ink-700)' }}>
-                      {provider}
-                    </span>
-                  </div>
-                )
-              )}
-            </div>
-            <div
-              className="px-4 py-2 text-[11px] text-right"
-              style={{ borderTop: '1px solid var(--border)', color: 'var(--ink-500)' }}
-            >
-              24 OK · 0 alerta
-            </div>
-          </Card>
-        </div>
       </div>
 
       {/* COLUMNA DERECHA */}
@@ -187,7 +159,7 @@ export function EstatusSatScreen({ go }: Props) {
         {/* Listas oficiales */}
         <div>
           <div className="text-[13px] font-extrabold uppercase tracking-widest mb-3" style={{ color: 'var(--ink-400)' }}>
-            Revisamos 6 listas oficiales
+            Revisamos {statusItems.length} listas oficiales
           </div>
           <Card>
             <div>

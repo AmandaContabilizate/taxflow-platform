@@ -3,9 +3,12 @@ export interface TeamError {
   message: string;
 }
 
-/** 1 = Ejecutivo (empleado), 2 = Finder Fee (vendedor externo). */
-/** 1 = Ejecutivo, 2 = Finder Fee, 3 = Contador (equipo de operaciones, sin código de vendedor). */
-export type MemberType = 1 | 2 | 3;
+/**
+ * 1 = Ejecutivo (empleado), 2 = Finder Fee (vendedor externo),
+ * 3 = Contador (equipo de operaciones, sin código de vendedor),
+ * 4 = Gerente comercial (encabeza un segmento; solo lo da de alta un administrador).
+ */
+export type MemberType = 1 | 2 | 3 | 4;
 
 /** Ids del catálogo Catalogs.CommercialSegment. */
 export const SEGMENTS = [
@@ -52,4 +55,6 @@ export interface TeamMember {
   hireDate: string | null;
   eligibleFromPeriod: string | null;
   isActive: boolean;
+  /** Encabeza su segmento: ve a todo su equipo, no cuelga de otro gerente. */
+  isManager: boolean;
 }

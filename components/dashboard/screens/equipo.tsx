@@ -9,8 +9,15 @@ import { EditarPerfilModal } from '../equipo/editar-perfil-modal'
 import { InvitarMiembroModal } from '../equipo/invitar-miembro-modal'
 import { Badge, Card } from '../ui'
 
-export function EquipoScreen() {
+interface EquipoScreenProps {
+  /** Claim Admin.ManageCommercialManagers: habilita dar de alta y nombrar gerentes. */
+  canManageManagers?: boolean
+}
+
+export function EquipoScreen({ canManageManagers = false }: EquipoScreenProps) {
   const [members, setMembers] = useState<TeamMember[]>([])
+  // Segmento que encabeza quien está viendo la pantalla; null si es admin.
+  const [managerSegmentId, setManagerSegmentId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [inviteOpen, setInviteOpen] = useState(false)
@@ -21,7 +28,8 @@ export function EquipoScreen() {
     setError(null)
     const res = await getTeamMembers()
     if (res.success) {
-      setMembers(res.value)
+      setMembers(res.value.members)
+      setManagerSegmentId(res.value.managerSegmentId)
     } else {
       setError(res.error.message)
     }
@@ -124,11 +132,14 @@ export function EquipoScreen() {
         open={inviteOpen}
         onClose={() => setInviteOpen(false)}
         onInvited={() => void load()}
+        canManageManagers={canManageManagers}
+        lockedSegmentId={managerSegmentId}
       />
       <EditarPerfilModal
         member={editing}
         onClose={() => setEditing(null)}
         onSaved={() => void load()}
+        canManageManagers={canManageManagers}
       />
     </div>
   )
@@ -156,7 +167,13 @@ function MemberRow({ member, onEdit }: { member: TeamMember; onEdit: () => void 
         <div className="text-[12px]" style={{ color: 'var(--ink-500)' }}>{member.email}</div>
       </td>
       <td className="py-3 px-3">
-        <Badge kind={isFinderFee ? 'amber' : 'brand'}>{member.profileTypeName}</Badge>
+        {/* Gerente pesa más que el tipo de perfil: en el catálogo sigue siendo
+            Ejecutivo, pero lo que importa a simple vista es que encabeza el segmento. */}
+        {member.isManager ? (
+          <Badge kind="sky">Gerente</Badge>
+        ) : (
+          <Badge kind={isFinderFee ? 'amber' : 'brand'}>{member.profileTypeName}</Badge>
+        )}
       </td>
       <td className="py-3 px-3 text-[13px]" style={{ color: 'var(--ink-700)' }}>
         {member.segmentName ?? '—'}

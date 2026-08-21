@@ -31,7 +31,6 @@ import {
   EquipoOperacionesScreen,
   EstatusSatScreen,
   FacturasScreen,
-  GeorgeScreen,
   HomeScreen,
   ManualScreen,
   MarketingScreen,
@@ -43,6 +42,7 @@ import {
   PermisosScreen,
   PlaceholderScreen,
   PlanScreen,
+  ProximamenteScreen,
   RegularizacionesScreen,
   RenovacionesScreen,
   RolesScreen,
@@ -360,7 +360,7 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
       return <VentasScreen />;
     }
     if (screen === 'equipo') {
-      return <EquipoScreen />;
+      return <EquipoScreen canManageManagers={permissions.includes('Admin.ManageCommercialManagers')} />;
     }
     if (screen === 'partners') {
       return <PartnersScreen />;
@@ -422,7 +422,9 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
     case 'facturas':
       return <FacturasScreen go={go} />;
     case 'george':
-      return <GeorgeScreen go={go} />;
+      // Funcionalidad sin terminar: se anuncia "Próximamente". La pantalla real
+      // (GeorgeScreen) queda construida y reservada — restaurarla aquí al liberar.
+      return <ProximamenteScreen />;
     case 'documentos':
       return <DocumentosScreen go={go} />;
     case 'diagnostico':

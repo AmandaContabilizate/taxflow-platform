@@ -350,6 +350,8 @@ export function Pagination({
   itemCount,
   onPrev,
   onNext,
+  pageSizeOptions,
+  onPageSizeChange,
 }: {
   page: number
   totalPages: number
@@ -359,35 +361,65 @@ export function Pagination({
   itemCount: number
   onPrev: () => void
   onNext: () => void
+  /** Si viene, muestra el selector "por página" junto al rango. */
+  pageSizeOptions?: number[]
+  onPageSizeChange?: (size: number) => void
 }) {
   const from = total === 0 ? 0 : skip + 1
   const to = skip + itemCount
+  // Botones de paginación: feedback inmediato (ease-out fuerte + scale al presionar),
+  // sin animar el cambio de contenido — es una acción frecuente.
+  const navBtn =
+    'inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ' +
+    'transition-[background-color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] ' +
+    'hover:bg-[var(--ink-100)] active:scale-[0.97] ' +
+    'disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[var(--ink-50)] disabled:active:scale-100'
   return (
     <div
       className="px-5 py-3.5 flex items-center justify-between flex-wrap gap-3 border-t"
       style={{ borderColor: 'var(--border)' }}
     >
-      <div className="text-[12.5px]" style={{ color: 'var(--ink-500)' }}>
-        {from}–{to} de {total}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="text-[12.5px] tabular-nums" style={{ color: 'var(--ink-500)' }}>
+          {from}–{to} de {total}
+        </div>
+        {pageSizeOptions && onPageSizeChange && (
+          <label className="inline-flex items-center gap-1.5 text-[12px]" style={{ color: 'var(--ink-500)' }}>
+            <select
+              value={take}
+              onChange={(e) => onPageSizeChange(Number(e.target.value))}
+              aria-label="Resultados por página"
+              className="px-2 py-1 rounded-md text-[12px] font-semibold cursor-pointer transition-colors duration-150"
+              style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--ink-700)' }}
+            >
+              {pageSizeOptions.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+            por página
+          </label>
+        )}
       </div>
       <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={onPrev}
           disabled={page <= 1}
-          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+          className={navBtn}
           style={{ background: 'var(--ink-50)', color: 'var(--ink-700)', border: '1px solid var(--border)' }}
         >
           <ChevronLeft size={14} /> Anterior
         </button>
-        <span className="text-[12.5px] font-semibold" style={{ color: 'var(--ink-700)' }}>
+        <span className="text-[12.5px] font-semibold tabular-nums" style={{ color: 'var(--ink-700)' }}>
           {page} / {totalPages}
         </span>
         <button
           type="button"
           onClick={onNext}
           disabled={page >= totalPages}
-          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+          className={navBtn}
           style={{ background: 'var(--ink-50)', color: 'var(--ink-700)', border: '1px solid var(--border)' }}
         >
           Siguiente <ChevronRight size={14} />

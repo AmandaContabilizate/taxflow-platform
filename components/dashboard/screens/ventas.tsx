@@ -27,25 +27,36 @@ const ESTATUS_OPTIONS = [
   { value: 0, label: 'Todos los estatus' },
   { value: 1, label: 'En proceso' },
   { value: 2, label: 'Pagado' },
-  { value: 3, label: 'Cancelado' },
+  { value: 3, label: 'No concluido' },
 ] as const
 
 const PAGE_SIZES = [5, 10, 25, 50, 100] as const
 
-/** Pill de estatus: verde pagado, ámbar en proceso, coral cancelado. */
+/**
+ * Etiqueta de negocio por estatus (solo esta pantalla): el id 3 se muestra como
+ * "No concluido" — cubre carrito reemplazado y suscripción cancelada sin cobro;
+ * nunca representa dinero cobrado, por eso no merece el rojo de "Cancelado".
+ */
+const ESTATUS_LABEL: Record<number, string> = {
+  1: 'En proceso',
+  2: 'Pagado',
+  3: 'No concluido',
+}
+
+/** Pill de estatus: verde pagado, ámbar en proceso, gris no concluido. */
 function EstatusBadge({ statusSaleId, estatus }: { statusSaleId: number; estatus: string | null }) {
   const palette =
     statusSaleId === 2
       ? { background: 'var(--brand-100)', color: 'var(--brand-900)' }
       : statusSaleId === 3
-        ? { background: 'var(--coral-soft)', color: 'var(--violet-ink)' }
+        ? { background: 'var(--ink-100)', color: 'var(--ink-700)' }
         : { background: 'var(--amber-soft)', color: 'var(--violet-ink)' }
   return (
     <span
       className="inline-flex px-2 py-0.5 rounded-full text-[11.5px] font-bold whitespace-nowrap"
       style={palette}
     >
-      {estatus ?? '—'}
+      {ESTATUS_LABEL[statusSaleId] ?? estatus ?? '—'}
     </span>
   )
 }
