@@ -176,6 +176,7 @@ export function Sidebar({
                           label={n.label}
                           Icon={n.Icon}
                           hint={n.hint}
+                          badge={n.badge}
                           active={screen === n.id}
                           onClick={() => go(n.id)}
                           collapsed={false}
@@ -193,6 +194,7 @@ export function Sidebar({
                   label={n.label}
                   Icon={n.Icon}
                   hint={n.hint}
+                  badge={n.badge}
                   active={screen === n.id}
                   onClick={() => go(n.id)}
                   collapsed={collapsed}
@@ -439,10 +441,11 @@ interface NavItemProps {
   active: boolean
   onClick: () => void
   hint: string
+  badge?: string
   collapsed?: boolean
 }
 
-function NavItem({ label, Icon, active, onClick, hint, collapsed = false }: NavItemProps) {
+function NavItem({ label, Icon, active, onClick, hint, badge, collapsed = false }: NavItemProps) {
   if (collapsed) {
     return (
       <button
@@ -497,7 +500,17 @@ function NavItem({ label, Icon, active, onClick, hint, collapsed = false }: NavI
         <Icon size={16} />
       </span>
       <span className="flex-1 min-w-0">
-        <span className="block text-[13.5px] font-bold leading-tight truncate">{label}</span>
+        <span className="flex items-center gap-1.5 min-w-0">
+          <span className="text-[13.5px] font-bold leading-tight truncate">{label}</span>
+          {badge && (
+            <span
+              className="flex-shrink-0 px-1.5 py-px rounded-full text-[9.5px] font-extrabold uppercase tracking-wide"
+              style={{ background: '#F97316', color: '#FFFFFF' }}
+            >
+              {badge}
+            </span>
+          )}
+        </span>
         <span
           className="block text-[11px] font-semibold mt-0.5 truncate"
           style={{ color: active ? 'var(--nav-active-hint)' : 'var(--ink-400)' }}

@@ -8,7 +8,11 @@ import { Btn, Card, Divider, HelpBox, VideoSlot } from '../ui'
 const RemotionPlayer = lazy(() => import('@/components/video/player').then(mod => ({ default: mod.RemotionPlayer })))
 
 export function AyudaScreen() {
-  const [showVideo, setShowVideo] = useState(false)
+  const [showVideo, setShowVideo] = useState<null | 'bienvenida' | 'tour'>(null)
+  const videoMeta = {
+    bienvenida: { titulo: 'Bienvenida: ¿qué hacemos por ti?', sub: 'Conoce las principales funciones de Contabilízate' },
+    tour: { titulo: 'Tour rápido por tu panel', sub: 'Recorre cada sección de tu panel en un minuto' },
+  } as const
   const faqs = [
     { q: '¿Qué es el SAT?', a: 'Es la oficina del gobierno que se encarga de los impuestos en México. Todo el que trabaja debe declarar ahí.' },
     { q: '¿Qué es una declaración mensual?', a: 'Es el reporte que entregas cada mes al SAT con lo que ganaste y lo que pagas de impuestos.' },
@@ -23,14 +27,14 @@ export function AyudaScreen() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-[20px] font-bold" style={{ color: 'var(--ink-900)' }}>
-              Bienvenida: ¿qué hacemos por ti?
+              {videoMeta[showVideo].titulo}
             </h2>
             <p className="text-[13px] mt-1" style={{ color: 'var(--ink-500)' }}>
-              Conoce las principales funciones de Contabilízate
+              {videoMeta[showVideo].sub}
             </p>
           </div>
           <button
-            onClick={() => setShowVideo(false)}
+            onClick={() => setShowVideo(null)}
             className="p-2 rounded-lg transition hover:bg-gray-100"
           >
             <X size={20} style={{ color: 'var(--ink-500)' }} />
@@ -48,7 +52,7 @@ export function AyudaScreen() {
               </div>
             }
           >
-            <RemotionPlayer />
+            <RemotionPlayer video={showVideo} />
           </Suspense>
         </div>
       </div>
@@ -71,7 +75,7 @@ export function AyudaScreen() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <button
-            onClick={() => setShowVideo(true)}
+            onClick={() => setShowVideo('bienvenida')}
             className="rounded-2xl p-4 flex items-center gap-3 w-full text-left transition hover:translate-y-[-1px]"
             style={{ background: 'var(--card)', border: '1px solid var(--border)', boxShadow: 'var(--sh-1)' }}
           >
@@ -89,7 +93,25 @@ export function AyudaScreen() {
             </div>
             <span style={{ color: 'var(--ink-300)' }}>›</span>
           </button>
-          <VideoSlot title="Tour rápido por tu panel" duration="3 min" />
+          <button
+            onClick={() => setShowVideo('tour')}
+            className="rounded-2xl p-4 flex items-center gap-3 w-full text-left transition hover:translate-y-[-1px]"
+            style={{ background: 'var(--card)', border: '1px solid var(--border)', boxShadow: 'var(--sh-1)' }}
+          >
+            <div
+              className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{ background: 'var(--brand-100)', color: 'var(--brand-700)' }}
+            >
+              <span style={{ fontSize: '24px' }}>▶</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-bold text-[14px] leading-tight">Tour rápido por tu panel</div>
+              <div className="text-[12px] mt-0.5" style={{ color: 'var(--ink-400)' }}>
+                Video · 1 min
+              </div>
+            </div>
+            <span style={{ color: 'var(--ink-300)' }}>›</span>
+          </button>
           <VideoSlot title="Cómo conectarte al SAT" duration="2 min" />
           <VideoSlot title="Cómo emitir tu primera factura" duration="4 min" />
         </div>

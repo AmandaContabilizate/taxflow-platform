@@ -39,7 +39,7 @@ export function SolicitarAsignacionModal({ operation, onClose, onSent }: Props) 
       if (res.success) {
         // Solo ejecutivos activos de la plantilla (el backend valida de nuevo).
         setExecutives(
-          res.value
+          res.value.members
             .filter((m) => m.isActive && m.profileTypeId === 1)
             .map((m) => ({ userId: m.userId, name: m.fullName })),
         )

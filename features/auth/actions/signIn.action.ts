@@ -58,6 +58,13 @@ export async function signIn(
     );
   } catch (e) {
     if (e instanceof ApiError && e.status === 401) {
+      // Cuenta dada de baja (AspNetUsers.IsActive = 0): mensaje distinto a credenciales malas.
+      if (e.errorCode === "USER_INACTIVE") {
+        return err({
+          statusCode: 401,
+          fieldErrors: { email: ["Tu cuenta está desactivada. Contacta a soporte para reactivarla."] },
+        });
+      }
       return err({
         statusCode: 401,
         fieldErrors: { email: ["Credenciales inválidas"] },

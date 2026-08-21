@@ -238,9 +238,11 @@ export const API_ROUTES = {
       role?: string,
       emailConfirmed?: boolean,
       estatus?: string,
+      roleExclusive?: boolean,
+      origins?: string,
     ) =>
       `?skip=${skip}&take=${take}${search ? `&search=${encodeURIComponent(search)}` : ""}${role ? `&role=${encodeURIComponent(role)}` : ""
-      }${emailConfirmed === undefined ? "" : `&emailConfirmed=${emailConfirmed}`}${estatus ? `&estatus=${encodeURIComponent(estatus)}` : ""}`,
+      }${emailConfirmed === undefined ? "" : `&emailConfirmed=${emailConfirmed}`}${estatus ? `&estatus=${encodeURIComponent(estatus)}` : ""}${roleExclusive ? "&roleExclusive=true" : ""}${origins ? `&origins=${encodeURIComponent(origins)}` : ""}`,
     // GET users_reports — panel comercial: embudo, altas recientes y clientes con RFC.
     SELLER_DASHBOARD: "/seller-dashboard",
   },
