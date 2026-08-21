@@ -52,6 +52,7 @@ export const TITLES: Record<Screen, [string, string]> = {
   diagnostico: ['Diagnóstico fiscal', 'Cómo estás y qué puedes mejorar'],
   estatussat: ['Estatus ante SAT', 'Monitoreo continuo de listas y cumplimiento'],
   'estatus-sat': ['Conecta tu SAT', 'Vincula tu RFC para activar tu información fiscal'],
+  'centro-notificaciones': ['Centro de Notificaciones', 'Tus avisos fiscales, pre-reportes contables y alertas del sistema'],
   aprende: ['Aprende', 'Lecciones cortas para entender tus impuestos'],
   'tip-detail': ['Lección', 'Aprende algo útil en pocos minutos'],
   tramites: ['Trámites adicionales', 'Servicios extra que puedes contratar cuando los necesites'],
@@ -126,6 +127,7 @@ export const GUEST_NAV_GROUPED: NavSection[] = [
   {
     section: 'CUENTA',
     items: [
+      { id: 'centro-notificaciones', label: 'Notificaciones', Icon: Bell, hint: 'Tus avisos y notificaciones' },
       { id: 'tramites', label: 'Trámites', Icon: FilePlus2, hint: 'Servicios extra' },
       { id: 'plan', label: 'Mi plan', Icon: Gem, hint: 'Tu suscripción' },
     ]

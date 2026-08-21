@@ -6,6 +6,7 @@ import { signOut } from '@/features/auth/actions'
 import { RfcProvider, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import SatConnectScreen from '@/components/sat-connect-screen'
 import { DashboardHeader } from './header'
+import NotificationCenterPage from '@/app/dashboard/notificaciones/page'
 import { PushNotificationPrompt } from './PushNotificationPrompt'
 import { DISPLAY, TITLES, normalizeRole } from './constants'
 import { Sidebar } from './sidebar'
@@ -80,6 +81,7 @@ const WIDE_SCREENS = new Set<Screen>([
   'manual',
   'ayuda',
   'partnership',
+  'centro-notificaciones',
 ]);
 
 const isScreen = (v: string | null): v is Screen =>
@@ -443,6 +445,8 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
           onAutoOpenHandled={onPlanPickerHandled}
         />
       );
+    case 'centro-notificaciones':
+      return <NotificationCenterPage />;
     case 'ayuda':
       return <AyudaScreen />;
     case 'manual':
