@@ -264,6 +264,10 @@
   body {
     @apply bg-background text-foreground;
   }
+  select option {
+    background-color: var(--card);
+    color: var(--card-foreground);
+  }
 }
 
 @keyframes slide-in-left {

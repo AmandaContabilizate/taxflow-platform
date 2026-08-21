@@ -1,7 +1,7 @@
 'use client'
 
 import type { ComponentType } from 'react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ChevronDown, LogOut, Moon, Plus, Sun, PanelLeftClose, PanelLeftOpen, UserPlus, PlusCircle, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
@@ -38,8 +38,13 @@ export function Sidebar({
   collapsed = false,
   onToggleCollapse,
 }: SidebarProps) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   const { resolvedTheme, setTheme } = useTheme()
-  const isDark = resolvedTheme === 'dark'
+  const isDark = mounted && resolvedTheme === 'dark'
   const toggleTheme = () => setTheme(isDark ? 'light' : 'dark')
 
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
