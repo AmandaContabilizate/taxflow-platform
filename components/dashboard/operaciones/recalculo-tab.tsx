@@ -24,8 +24,8 @@ interface Props {
   taxRegimeId: number | null
   periodo: string
   recalc: Recalculation
-  /** El contribuyente ve el resultado pero no reclasifica ni dispara el cálculo. */
-  readOnly: boolean
+  /** Solo lectura: se ve el resultado pero no se reclasifica ni se dispara el cálculo. */
+  readOnly?: boolean
 }
 
 type Deducible = '' | 'true' | 'false'
@@ -138,11 +138,19 @@ export function RecalculoTab({
           i.receiver?.rfc,
           i.receiver?.name,
           i.classification,
+          i.period,
           ...i.productServiceKeys,
         ].some((f) => f?.toLowerCase().includes(q))
       })
       .sort((a, b) => b.invoiceDate.localeCompare(a.invoiceDate))
   }, [invoices, query, soloProblemas])
+
+  // Suma de los comprobantes que quedaron visibles con el filtro puesto; el
+  // universo completo del periodo es `invoices`, no esto.
+  const totalVisible = useMemo(
+    () => rows.reduce((acc, i) => acc + (Number.isFinite(i.total) ? i.total : 0), 0),
+    [rows],
+  )
 
   const sinClasificar = useMemo(
     () => invoices.filter((i) => i.isDeductible == null).length,
@@ -336,6 +344,30 @@ export function RecalculoTab({
                 : 'Ningún comprobante coincide con el filtro.'}
             </div>
           ) : (
+            <>
+            <div
+              className="rounded-2xl px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-2"
+              style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}
+            >
+              <span
+                className="text-[11.5px] font-bold uppercase tracking-wider"
+                style={{ color: 'var(--ink-500)' }}
+              >
+                {rows.length} comprobantes en pantalla
+              </span>
+              <span className="flex items-baseline gap-1.5">
+                <span className="text-[12px] font-semibold" style={{ color: 'var(--ink-500)' }}>
+                  Total
+                </span>
+                <span
+                  className="text-[15px] font-extrabold"
+                  style={{ ...MONO, color: 'var(--ink-900)' }}
+                >
+                  {amount(totalVisible)}
+                </span>
+              </span>
+            </div>
+
             <div className="overflow-x-auto -mx-1">
               <table className="w-full text-[12.5px]">
                 <thead>
@@ -390,6 +422,15 @@ export function RecalculoTab({
                           <div className="text-[11px] mt-1" style={{ color: 'var(--ink-500)' }}>
                             {inv.typeId}
                           </div>
+                          {/* Factura global (Público en General): el periodo que
+                              declara puede no ser el de la declaración. */}
+                          {inv.period && (
+                            <div className="mt-1">
+                              <Chip bg="var(--violet-soft)" fg="var(--violet-ink)">
+                                Global · {inv.period}
+                              </Chip>
+                            </div>
+                          )}
                         </td>
                         <td className="px-3 py-3 align-top min-w-[160px]">
                           <div style={{ color: 'var(--ink-900)' }}>{contraparte?.name ?? '—'}</div>
@@ -534,6 +575,7 @@ export function RecalculoTab({
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
       </Card>

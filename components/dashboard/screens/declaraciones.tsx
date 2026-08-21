@@ -2,12 +2,12 @@
 
 import { useState } from 'react'
 import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
-import type { DeclarationSubject } from '@/features/operations/types'
+import type { ClientDeclarationSubject } from '@/features/declarations/types'
 import { AnualesTab } from '../declaraciones/anuales-tab'
+import { ClientDeclarationDetail } from '../declaraciones/client-declaration-detail'
 import { FuturoTab } from '../declaraciones/futuro-tab'
 import { RegularizacionesTab } from '../declaraciones/regularizaciones-tab'
 import { TodasTab } from '../declaraciones/todas-tab'
-import { DeclarationDetail } from '../operaciones/declaration-detail'
 import type { GoFn } from '../types'
 import { HelpBox, Tabs, VideoSlot } from '../ui'
 import { NeedsSatConnect } from './needs-sat-connect'
@@ -55,7 +55,7 @@ export function DeclaracionesScreen({ go, currentUser }: Props) {
   const { hasRfc, loading } = useHasRfc()
   const { selectedRfcInfo } = useRfcStore()
   const [tab, setTab] = useState<TabKey>('regularizaciones')
-  const [detail, setDetail] = useState<DeclarationSubject | null>(null)
+  const [detail, setDetail] = useState<ClientDeclarationSubject | null>(null)
 
   if (loading) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tus declaraciones" />
@@ -63,10 +63,9 @@ export function DeclaracionesScreen({ go, currentUser }: Props) {
 
   if (detail) {
     return (
-      <DeclarationDetail
+      <ClientDeclarationDetail
         declaration={detail}
         onBack={() => setDetail(null)}
-        viewerRole="contribuyente"
         currentUser={currentUser}
       />
     )

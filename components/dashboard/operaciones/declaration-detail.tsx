@@ -59,13 +59,15 @@ interface CurrentUser {
 interface Props {
   declaration: DeclarationSubject
   onBack: () => void
-  /** 'contribuyente' = solo lectura (dueño de la declaración), sin acciones de contador. */
-  viewerRole: 'contador' | 'contribuyente'
   currentUser: CurrentUser
 }
 
-export function DeclarationDetail({ declaration: d, onBack, viewerRole, currentUser }: Props) {
-  const readOnly = viewerRole === 'contribuyente'
+/**
+ * Detalle de la declaración para el contador. El contribuyente tiene su propia
+ * pantalla (`ClientDeclarationDetail`): aquí viven el recálculo y la
+ * clasificación, que el cliente no debe ver.
+ */
+export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props) {
   const [tab, setTab] = useState(0)
   const [general, setGeneral] = useState<DeclarationGeneral | null>(null)
   const [generalError, setGeneralError] = useState<string | null>(null)
@@ -185,41 +187,26 @@ export function DeclarationDetail({ declaration: d, onBack, viewerRole, currentU
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {readOnly ? (
-            <HeaderBtn
-              icon={<MessageSquarePlus size={15} />}
-              label="Dejar comentario"
-              kind="brand"
-              onClick={() => setTab(COMMENTS_TAB_INDEX)}
-            />
-          ) : (
-            <>
-              <HeaderBtn
-                icon={
-                  recalc.running ? (
-                    <Loader2 size={15} className="animate-spin" />
-                  ) : (
-                    <RotateCcw size={15} />
-                  )
-                }
-                label={recalc.running ? `Calculando… ${recalc.seconds}s` : 'Recalcular'}
-                kind="ghost"
-                disabled={recalc.running || !recalc.ready}
-                title={
-                  recalc.ready
-                    ? 'Vuelve a calcular ISR/IVA con los comprobantes del período'
-                    : 'La declaración no tiene período o régimen asignado'
-                }
-                onClick={() => {
-                  setTab(RECALCULO_TAB_INDEX)
-                  void recalc.run()
-                }}
-              />
-              <HeaderBtn icon={<Download size={15} />} label="Exportar PDF" kind="ghost" />
-              <HeaderBtn icon={<Send size={15} />} label="Enviar Predeclaración" kind="info" />
-              <HeaderBtn icon={<Send size={15} />} label="Presentar Declaración" kind="brand" />
-            </>
-          )}
+          <HeaderBtn
+            icon={
+              recalc.running ? <Loader2 size={15} className="animate-spin" /> : <RotateCcw size={15} />
+            }
+            label={recalc.running ? `Calculando… ${recalc.seconds}s` : 'Recalcular'}
+            kind="ghost"
+            disabled={recalc.running || !recalc.ready}
+            title={
+              recalc.ready
+                ? 'Vuelve a calcular ISR/IVA con los comprobantes del período'
+                : 'La declaración no tiene período o régimen asignado'
+            }
+            onClick={() => {
+              setTab(RECALCULO_TAB_INDEX)
+              void recalc.run()
+            }}
+          />
+          <HeaderBtn icon={<Download size={15} />} label="Exportar PDF" kind="ghost" />
+          <HeaderBtn icon={<Send size={15} />} label="Enviar Predeclaración" kind="info" />
+          <HeaderBtn icon={<Send size={15} />} label="Presentar Declaración" kind="brand" />
         </div>
       </div>
 
@@ -254,7 +241,7 @@ export function DeclarationDetail({ declaration: d, onBack, viewerRole, currentU
 
       {/* Tab content */}
       {tab === 0 && <ComprobantesTab declarationId={d.declarationId} periodo={`${periodo} ${ejercicio}`} />}
-      {tab === 1 && <CalculosTab declarationId={d.declarationId} readOnly={readOnly} />}
+      {tab === 1 && <CalculosTab declarationId={d.declarationId} />}
       {tab === RECALCULO_TAB_INDEX && (
         <RecalculoTab
           rfc={rfc}
@@ -263,7 +250,6 @@ export function DeclarationDetail({ declaration: d, onBack, viewerRole, currentU
           taxRegimeId={general?.taxRegimeId ?? null}
           periodo={`${periodo} ${ejercicio}`}
           recalc={recalc}
-          readOnly={readOnly}
         />
       )}
       {tab === 3 && (
