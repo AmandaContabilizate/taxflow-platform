@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import {
   Check,
   ChevronDown,
+  Clock,
   FileCheck2,
   Info,
   MessageSquare,
@@ -23,6 +24,7 @@ import {
   toNumber,
 } from '@/features/declaration-report/lib/reportDetail'
 import {
+  CLIENT_REVIEW_BUSINESS_DAYS,
   DECLARATION_STATUS,
   REPORT_COMMENT_MAX_LENGTH,
   type DeclarationReport,
@@ -262,6 +264,8 @@ export function ReportView({
             </div>
           )}
 
+          {view === 'main' && <DeadlineNote />}
+
           {error && <ErrorNote className="mx-6 mt-4">{error}</ErrorNote>}
 
           <div className="grid gap-2.5 px-6 pb-2 pt-5 sm:grid-cols-[1.35fr_1fr]">
@@ -331,6 +335,12 @@ export function ReportView({
           </h2>
           <p className="mx-auto max-w-[34em] text-sm leading-[21px]" style={{ color: 'var(--ink-500)' }}>
             Tu contador la revisa y te responde. No presentaremos nada hasta resolverla contigo.
+          </p>
+
+          <p className="mx-auto mt-2 max-w-[34em] text-[13px] leading-[19px]" style={{ color: 'var(--ink-500)' }}>
+            Tienes {CLIENT_REVIEW_BUSINESS_DAYS} días hábiles desde que te avisamos para
+            enviarla. Si el plazo se cumple sin respuesta tuya, la declaración queda lista para
+            presentar.
           </p>
 
           <form onSubmit={handleComment}>
@@ -426,6 +436,29 @@ function PrintLink() {
         Descárgalo en PDF
       </button>
     </p>
+  )
+}
+
+/**
+ * Plazo del worker `UpdateExpiredClientReviewDeclarationsCommand`: si el cliente no
+ * autoriza ni comenta en el plazo, la declaración pasa sola a PorPresentar (11).
+ */
+function DeadlineNote() {
+  return (
+    <div
+      className="mx-6 mt-3 flex items-start gap-3 rounded-2xl px-4 py-3.5"
+      style={{ background: 'var(--amber-soft)', border: '1px solid var(--amber-soft)' }}
+    >
+      <Clock size={18} className="mt-px shrink-0" style={{ color: 'var(--amber)' }} />
+      <p className="text-[13px] leading-[19px]" style={{ color: 'var(--ink-900)' }}>
+        <strong>
+          Tienes {CLIENT_REVIEW_BUSINESS_DAYS} días hábiles para autorizarla o mandarnos tu duda
+          con un comentario.
+        </strong>{' '}
+        Si no haces nada en ese plazo, la dejamos lista para presentar ante el SAT
+        automáticamente.
+      </p>
+    </div>
   )
 }
 

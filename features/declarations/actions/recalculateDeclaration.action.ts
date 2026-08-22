@@ -9,17 +9,6 @@ import {
 } from '../schemas/recalculate.schema'
 import type { DeclarationsError, RecalculationResult } from '../types'
 
-/**
- * Recalcula la declaración de un contribuyente (botón "Recalcular" del contador).
- *
- * Sin `adjustments` reclasifica desde cero; con ellos aplica primero las
- * correcciones manuales del contador y vuelve a calcular sin pasar por la IA. La
- * respuesta ya trae los totales y la clasificación nuevos, así que la pantalla se
- * repinta sin un segundo round-trip.
- *
- * El cálculo baja y parsea los XML del blob: puede tardar minutos (timeout del
- * clasificador, 180s por default).
- */
 export async function recalculateDeclaration(
   input: RecalculateDeclarationInput,
 ): Promise<Result<RecalculationResult, DeclarationsError>> {
@@ -31,8 +20,6 @@ export async function recalculateDeclaration(
     })
   }
 
-  // Los campos opcionales de cada ajuste ya vienen omitidos por Zod (no como
-  // null), que es justo lo que espera el `exclude_unset` del clasificador.
   try {
     const data = await fetchPost<RecalculationResult>(
       API_ROUTES.DECLARATION.RECALCULATE,
