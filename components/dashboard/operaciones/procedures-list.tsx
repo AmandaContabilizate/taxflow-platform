@@ -17,13 +17,13 @@ function fmtDate(value: string | null): string {
 function statusStyle(status: string): { bg: string; color: string } {
   switch (status) {
     case 'Pendiente':
-      return { bg: 'var(--amber-soft)', color: '#7B5312' }
+      return { bg: 'var(--amber-soft)', color: 'var(--violet-ink)' }
     case 'En proceso':
     case 'EnProceso':
-      return { bg: 'var(--amber-soft)', color: '#7B5312' }
+      return { bg: 'var(--amber-soft)', color: 'var(--violet-ink)' }
     case 'Completado':
     case 'Completada':
-      return { bg: 'var(--brand-100)', color: '#00A068' }
+      return { bg: 'var(--brand-100)', color: '#00AD87' }
     default:
       return { bg: 'var(--ink-50)', color: 'var(--ink-700)' }
   }

@@ -12,11 +12,11 @@ interface SummaryStatProps {
 export function SummaryStat({ label, value, hint, tone }: SummaryStatProps) {
   const bg = tone === 'ok' ? 'var(--brand-50)' : tone === 'warn' ? 'var(--amber-soft)' : 'var(--card)'
   const border =
-    tone === 'ok' ? 'var(--brand-200)' : tone === 'warn' ? 'rgba(245,176,55,0.35)' : 'var(--border)'
+    tone === 'ok' ? 'var(--brand-200)' : tone === 'warn' ? 'rgba(115,57,253,0.35)' : 'var(--border)'
   const labelColor =
-    tone === 'ok' ? 'var(--brand-700)' : tone === 'warn' ? '#7B5312' : 'var(--ink-500)'
+    tone === 'ok' ? 'var(--brand-700)' : tone === 'warn' ? 'var(--violet-ink)' : 'var(--ink-500)'
   const valueColor =
-    tone === 'ok' ? 'var(--brand-700)' : tone === 'warn' ? '#7B5312' : 'var(--ink-900)'
+    tone === 'ok' ? 'var(--brand-700)' : tone === 'warn' ? 'var(--violet-ink)' : 'var(--ink-900)'
 
   return (
     <div className="rounded-3xl p-5" style={{ background: bg, border: `1px solid ${border}` }}>

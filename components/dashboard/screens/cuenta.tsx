@@ -122,7 +122,7 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
             <div className='flex items-center gap-4'>
               <div
                 className='w-[60px] h-[60px] rounded-full flex items-center justify-center text-white text-[24px] font-extrabold flex-shrink-0'
-                style={{ ...DISPLAY, background: 'linear-gradient(135deg,#10DA92,#00B073)' }}>
+                style={{ ...DISPLAY, background: 'linear-gradient(135deg,#00D3A1,#00AD87)' }}>
                 {initials}
               </div>
               <div className='min-w-0'>
@@ -218,7 +218,7 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
                 className='w-12 h-12 rounded-full flex items-center justify-center text-[20px]'
                 style={{
                   background: ciecState === 1 ? 'var(--brand-50)' : ciecState === 2 ? 'var(--coral-soft)' : 'var(--amber-soft)',
-                  color: ciecState === 1 ? 'var(--brand-700)' : ciecState === 2 ? '#9E3A15' : '#7B5312',
+                  color: ciecState === 1 ? 'var(--brand-700)' : ciecState === 2 ? 'var(--violet-ink)' : 'var(--violet-ink)',
                 }}>
                 {ciecState === 1 ? '✓' : ciecState === 2 ? '✕' : '!'}
               </div>
@@ -248,7 +248,7 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
             <AccountRow
               Icon={FilePlus2}
               iconBg='var(--coral-soft)'
-              iconColor='#9E3A15'
+              iconColor='var(--violet-ink)'
               title='Trámites adicionales'
               subtitle='Trámites con el SAT y declaraciones extra'
               onClick={() => {
@@ -260,7 +260,7 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
             <AccountRow
               Icon={IdCard}
               iconBg='var(--sky-soft)'
-              iconColor='#1C4C96'
+              iconColor='var(--violet-ink)'
               title='Datos fiscales'
               subtitle={activeRfc ? `RFC ${activeRfc}` : 'RFC · régimen · domicilio'}
               onClick={() => setShowFiscalModal(true)}
@@ -279,7 +279,7 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
             <AccountRow
               Icon={UserRound}
               iconBg='var(--violet-soft)'
-              iconColor='#5A4DCC'
+              iconColor='#7339FD'
               title='Tu contador asignado'
               subtitle={accountantLabel}
             />
@@ -287,7 +287,7 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
             <AccountRow
               Icon={Receipt}
               iconBg='var(--amber-soft)'
-              iconColor='#7B5312'
+              iconColor='var(--violet-ink)'
               title='Mis pagos a Contabilízate'
               subtitle={paymentsLabel}
               onClick={() => toggle('pagos')}

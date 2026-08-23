@@ -139,8 +139,8 @@ export default function PricingPlans({ detectedRegimeName, regimes, onSelectPlan
                   ? '2px solid var(--brand-400)'
                   : '1.5px solid rgba(255,255,255,0.08)',
                 boxShadow: plan.highlighted
-                  ? '0 20px 60px rgba(14,209,138,0.18), 0 4px 12px rgba(0,0,0,0.06)'
-                  : '0 4px 18px rgba(21,17,63,0.18)',
+                  ? '0 20px 60px rgba(0,211,161,0.18), 0 4px 12px rgba(0,0,0,0.06)'
+                  : '0 4px 18px rgba(34,17,88,0.18)',
                 transform: plan.highlighted ? 'scale(1.03)' : 'scale(1)',
               }}
             >
@@ -308,7 +308,7 @@ export default function PricingPlans({ detectedRegimeName, regimes, onSelectPlan
                       ? {
                           background: 'var(--brand-500)',
                           color: '#fff',
-                          boxShadow: '0 14px 34px -10px rgba(14,209,138,0.45)',
+                          boxShadow: '0 14px 34px -10px rgba(0,211,161,0.45)',
                         }
                       : plan.enterprise
                       ? {

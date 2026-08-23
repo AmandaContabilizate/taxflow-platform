@@ -49,10 +49,10 @@ export function CredibilityHeader({ csfMissing, csfErrored, csfForbidden, rfcNot
       )}
       {csfErrored && (
         <StatusPill
-          dot="#B8862C"
+          dot="var(--violet-ink)"
           bg="var(--hero-amber)"
           border="var(--hero-amber-border)"
-          color="#7B5312"
+          color="var(--violet-ink)"
           label="Servicio en pruebas"
         />
       )}
@@ -67,10 +67,10 @@ export function CredibilityHeader({ csfMissing, csfErrored, csfForbidden, rfcNot
       )}
       {rfcNotFound && !csfMissing && !csfErrored && !csfForbidden && (
         <StatusPill
-          dot="#9E3A15"
+          dot="var(--violet-ink)"
           bg="var(--coral-soft)"
-          border="rgba(158,58,21,0.18)"
-          color="#9E3A15"
+          border="rgba(75,33,184,0.18)"
+          color="var(--violet-ink)"
           label="RFC no encontrado"
         />
       )}

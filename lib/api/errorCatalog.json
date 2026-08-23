@@ -151,6 +151,10 @@
     "es": "Credenciales inválidas.",
     "en": "Invalid credentials."
   },
+  "USER_INACTIVE": {
+    "es": "Tu cuenta está desactivada. Contacta a soporte para reactivarla.",
+    "en": "Your account is deactivated. Contact support to reactivate it."
+  },
   "TAXPAYER_NOT_FOUND": {
     "es": "No se encontro al contribuyente.",
     "en": "Taxpayer not found."

@@ -22,7 +22,7 @@ const SIZE_CLASSES: Record<BtnSize, string> = {
 
 const KIND_STYLES: Record<BtnKind, CSSProperties> = {
   primary: { background: 'var(--primary)', color: 'var(--primary-foreground)', boxShadow: 'var(--sh-ink)' },
-  brand: { background: 'linear-gradient(135deg,#10DA92 0%,#00B073 100%)', color: '#fff', boxShadow: 'var(--sh-brand)' },
+  brand: { background: 'linear-gradient(135deg,#00D3A1 0%,#00AD87 100%)', color: '#fff', boxShadow: 'var(--sh-brand)' },
   ghost: { background: 'var(--card)', color: 'var(--foreground)', border: '1px solid var(--border-strong)' },
 }
 

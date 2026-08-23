@@ -465,7 +465,7 @@ function DeclarationsTable({
                           style={
                             d.submittedAt
                               ? { background: 'var(--brand-50)', color: 'var(--brand-700)' }
-                              : { background: 'var(--amber-soft)', color: '#7B5312' }
+                              : { background: 'var(--amber-soft)', color: 'var(--violet-ink)' }
                           }
                         >
                           {humanizeStatus(d.statusCode)}
@@ -604,7 +604,6 @@ export function DeclarationsByTaxpayer({ currentUser }: { currentUser: CurrentUs
       <DeclarationDetail
         declaration={current}
         onBack={() => setParams({ decl: null })}
-        viewerRole="contador"
         currentUser={currentUser}
       />
     )

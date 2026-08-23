@@ -106,10 +106,10 @@ export function AprendeScreen({ go }: Props) {
 function iconBg(kind: AprendeKind): CSSProperties {
   const map: Record<AprendeKind, CSSProperties> = {
     brand: { background: 'var(--brand-50)', color: 'var(--brand-700)' },
-    sky: { background: 'var(--sky-soft)', color: '#1C4C96' },
-    amber: { background: 'var(--amber-soft)', color: '#7B5312' },
-    violet: { background: 'var(--violet-soft)', color: '#403A8D' },
-    coral: { background: 'var(--coral-soft)', color: '#9E3A15' },
+    sky: { background: 'var(--sky-soft)', color: 'var(--violet-ink)' },
+    amber: { background: 'var(--amber-soft)', color: 'var(--violet-ink)' },
+    violet: { background: 'var(--violet-soft)', color: '#453889' },
+    coral: { background: 'var(--coral-soft)', color: 'var(--violet-ink)' },
   }
   return map[kind]
 }

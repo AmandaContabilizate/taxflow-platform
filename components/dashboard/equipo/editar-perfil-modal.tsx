@@ -10,6 +10,8 @@ interface Props {
   member: TeamMember | null
   onClose: () => void
   onSaved: () => void
+  /** Claim Admin.ManageCommercialManagers: habilita nombrar o retirar gerentes. */
+  canManageManagers?: boolean
 }
 
 const inputStyle = {
@@ -18,11 +20,12 @@ const inputStyle = {
   color: 'var(--foreground)',
 } as const
 
-export function EditarPerfilModal({ member, onClose, onSaved }: Props) {
+export function EditarPerfilModal({ member, onClose, onSaved, canManageManagers = false }: Props) {
   const [segmentId, setSegmentId] = useState<number | ''>('')
   const [b2cChannelId, setB2cChannelId] = useState<number | ''>('')
   const [team, setTeam] = useState('')
   const [isActive, setIsActive] = useState(true)
+  const [isManager, setIsManager] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -32,6 +35,7 @@ export function EditarPerfilModal({ member, onClose, onSaved }: Props) {
     setB2cChannelId(member.b2CChannelId ?? '')
     setTeam(member.team ?? '')
     setIsActive(member.isActive)
+    setIsManager(member.isManager)
     setError(null)
   }, [member])
 
@@ -39,7 +43,9 @@ export function EditarPerfilModal({ member, onClose, onSaved }: Props) {
 
   const isFinderFee = member.profileTypeId === 2
   const isB2C = segmentId === 1 || segmentId === 2
-  const canSubmit = isFinderFee || (segmentId !== '' && (!isB2C || b2cChannelId !== ''))
+  // El gerente no lleva canal: ese campo decide tabulador y meta del ejecutivo.
+  const needsChannel = isB2C && !isManager
+  const canSubmit = isFinderFee || (segmentId !== '' && (!needsChannel || b2cChannelId !== ''))
 
   const submit = async () => {
     if (!canSubmit || loading) return
@@ -48,14 +54,23 @@ export function EditarPerfilModal({ member, onClose, onSaved }: Props) {
     const res = await updateExecutiveProfile({
       memberUserId: member.userId,
       segmentId: !isFinderFee && segmentId !== '' ? segmentId : undefined,
-      b2cChannelId: !isFinderFee && isB2C && b2cChannelId !== '' ? b2cChannelId : undefined,
+      b2cChannelId: !isFinderFee && needsChannel && b2cChannelId !== '' ? b2cChannelId : undefined,
       team,
       isActive,
+      // Solo se manda cuando cambió: si no, un editor sin el claim recibiría 403
+      // al guardar cualquier otro campo.
+      isManager: canManageManagers && isManager !== member.isManager ? isManager : undefined,
     })
     setLoading(false)
     if (!res.success) {
       setError(res.error.message)
       return
+    }
+    if (res.value.requiresRelogin) {
+      // Los claims viajan en el token: hasta que no vuelva a entrar, sigue con los viejos.
+      window.alert(
+        `Listo. Pídele a ${member.fullName} que cierre sesión y vuelva a entrar para que se apliquen sus nuevos permisos.`,
+      )
     }
     onSaved()
     onClose()
@@ -65,7 +80,7 @@ export function EditarPerfilModal({ member, onClose, onSaved }: Props) {
     <Modal isOpen onClose={onClose} title={`Editar perfil — ${member.fullName}`}>
       <div className="flex flex-col gap-4">
         {error && (
-          <div className="p-3 rounded-lg text-[13px]" style={{ background: 'var(--hero-coral-soft-bg, #FEE2E2)', color: '#991B1B' }}>
+          <div className="p-3 rounded-lg text-[13px]" style={{ background: 'var(--hero-coral-soft-bg, #FCDCDC)', color: '#991B1B' }}>
             {error}
           </div>
         )}
@@ -104,7 +119,35 @@ export function EditarPerfilModal({ member, onClose, onSaved }: Props) {
               </select>
             </div>
 
-            {isB2C && (
+            {canManageManagers && (
+              <label
+                className="flex items-start gap-2.5 p-3 rounded-xl cursor-pointer select-none transition-colors"
+                style={{
+                  border: `2px solid ${isManager ? 'var(--brand-500)' : 'var(--border)'}`,
+                  background: isManager ? 'var(--hero-brand-soft)' : 'var(--card)',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={isManager}
+                  onChange={(e) => setIsManager(e.target.checked)}
+                  disabled={loading || segmentId === ''}
+                  className="mt-0.5 cursor-pointer"
+                />
+                <span>
+                  <span className="block text-[13px] font-bold" style={{ color: 'var(--ink-900)' }}>
+                    Es gerente de este segmento
+                  </span>
+                  <span className="block text-[11.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                    {segmentId === ''
+                      ? 'Primero elige un segmento.'
+                      : 'Verá a todo el equipo del segmento y recibirá el rol de Gerencia comercial.'}
+                  </span>
+                </span>
+              </label>
+            )}
+
+            {needsChannel && (
               <div>
                 <label className="block text-[12px] font-bold mb-1.5" style={{ color: 'var(--ink-700)' }}>
                   Canal B2C

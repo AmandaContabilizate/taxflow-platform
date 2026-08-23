@@ -161,7 +161,7 @@ export function DeclarationComments({ declarationId, currentUser }: Props) {
             onClick={() => void handleSend()}
             disabled={!draft.trim() || sending}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[12.5px] font-bold transition disabled:opacity-50"
-            style={{ background: 'linear-gradient(135deg,#10DA92 0%,#00B073 100%)', color: '#fff' }}
+            style={{ background: 'linear-gradient(135deg,#00D3A1 0%,#00AD87 100%)', color: '#fff' }}
           >
             {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
             Comentar

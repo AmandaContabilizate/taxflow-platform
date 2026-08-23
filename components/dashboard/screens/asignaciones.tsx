@@ -118,9 +118,9 @@ export function AsignacionesScreen({ isAdmin = false }: AsignacionesScreenProps)
 
   const summaryCards = [
     { label: 'Sin asignar', value: stats.unassigned, hint: 'Clientes activos sin código', Icon: AlertCircle, color: 'var(--ink-700)' },
-    { label: 'Pendientes', value: stats.pending, hint: 'Esperando Administración', Icon: Clock, color: '#7B5312' },
+    { label: 'Pendientes', value: stats.pending, hint: 'Esperando Administración', Icon: Clock, color: 'var(--violet-ink)' },
     { label: 'Aprobadas (mes)', value: stats.approved, hint: 'Aplicadas al propietario', Icon: CheckCircle2, color: 'var(--brand-700)' },
-    { label: 'Rechazadas (mes)', value: stats.rejected, hint: 'Con nota de revisión', Icon: XCircle, color: '#9E3A15' },
+    { label: 'Rechazadas (mes)', value: stats.rejected, hint: 'Con nota de revisión', Icon: XCircle, color: 'var(--violet-ink)' },
   ]
 
   return (
@@ -160,7 +160,7 @@ export function AsignacionesScreen({ isAdmin = false }: AsignacionesScreenProps)
       ) : error ? (
         <Card>
           <div className="py-10 text-center flex flex-col items-center gap-3">
-            <AlertCircle size={22} style={{ color: '#9E3A15' }} />
+            <AlertCircle size={22} style={{ color: 'var(--violet-ink)' }} />
             <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>{error}</div>
             <button
               type="button"
@@ -247,7 +247,7 @@ export function AsignacionesScreen({ isAdmin = false }: AsignacionesScreenProps)
       ) : (
         <Card>
           {cancelError && (
-            <div className="m-3 p-3 rounded-lg text-[12.5px]" style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}>
+            <div className="m-3 p-3 rounded-lg text-[12.5px]" style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}>
               {cancelError}
             </div>
           )}
@@ -282,7 +282,7 @@ export function AsignacionesScreen({ isAdmin = false }: AsignacionesScreenProps)
                       <td className="py-3 px-3 text-[12.5px] max-w-[260px]" style={{ color: 'var(--ink-600)' }}>
                         {r.reason}
                         {r.statusId === REQUEST_STATUS.Rejected && r.reviewNotes && (
-                          <div className="mt-1 text-[12px]" style={{ color: '#9E3A15' }}>
+                          <div className="mt-1 text-[12px]" style={{ color: 'var(--violet-ink)' }}>
                             Administración: {r.reviewNotes}
                           </div>
                         )}
@@ -323,7 +323,7 @@ export function AsignacionesScreen({ isAdmin = false }: AsignacionesScreenProps)
                                 onClick={() => openReview(r, false)}
                                 aria-label={`Rechazar solicitud de ${r.clientName ?? r.rfc}`}
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-bold transition-colors hover:bg-[var(--ink-50)] cursor-pointer"
-                                style={{ border: '1px solid var(--border)', color: '#9E3A15' }}
+                                style={{ border: '1px solid var(--border)', color: 'var(--violet-ink)' }}
                               >
                                 <X size={12} /> Rechazar
                               </button>
@@ -371,7 +371,7 @@ export function AsignacionesScreen({ isAdmin = false }: AsignacionesScreenProps)
         >
           <div className="flex flex-col gap-4">
             {reviewError && (
-              <div className="p-3 rounded-lg text-[13px]" style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}>
+              <div className="p-3 rounded-lg text-[13px]" style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}>
                 {reviewError}
               </div>
             )}

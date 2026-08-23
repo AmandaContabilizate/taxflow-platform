@@ -4,11 +4,18 @@ import { CheckCircle2, Download, FileText, MessageSquare } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { getAllDeclarations } from '@/features/declarations/actions/getAllDeclarations.action'
 import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
-import type { DeclarationSubject } from '@/features/operations/types'
+import type { ClientDeclarationSubject } from '@/features/declarations/types'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { Badge, type BadgeKind, Card, Divider } from '../ui'
+import { Badge, Card, Divider } from '../ui'
 import { DeclarationComments } from './declaration-comments'
-import { TabEmpty, TabError, TabLoading, monthYear, useRfcResource } from './parts'
+import {
+  TabEmpty,
+  TabError,
+  TabLoading,
+  declarationStatusBadge,
+  monthYear,
+  useRfcResource,
+} from './parts'
 
 interface CurrentUser {
   userId: string
@@ -17,27 +24,11 @@ interface CurrentUser {
 
 const PRESENTED_CODES = new Set(['Presentada', 'PresentadaManual', 'PresentadaPrevio', 'PresentadaExterno'])
 
-const STATUS_BADGE: Record<string, { kind: BadgeKind; label: string }> = {
-  PendientePago: { kind: 'coral', label: 'Pendiente de pago' },
-  PendienteConciliacion: { kind: 'amber', label: 'En conciliación' },
-  Presentada: { kind: 'brand', label: 'Presentada' },
-  IntervencionManual: { kind: 'amber', label: 'En revisión' },
-  PresentadaManual: { kind: 'brand', label: 'Presentada (manual)' },
-  Enviando: { kind: 'amber', label: 'Enviando' },
-  PresentadaPrevio: { kind: 'brand', label: 'Presentada previamente' },
-  PresentadaExterno: { kind: 'brand', label: 'Presentada (SAT)' },
-  EnRevisionCliente: { kind: 'amber', label: 'En tu revisión' },
-  RebotadaCliente: { kind: 'coral', label: 'Rechazada' },
-  PorPresentar: { kind: 'coral', label: 'Por presentar' },
-  PorRevisar: { kind: 'default', label: 'Por revisar' },
-  NoPresentada: { kind: 'coral', label: 'No presentada' },
-}
-
 const ALL_YEARS = 'todos'
 const ALL_REGIMES = 'todos'
 
 interface Props {
-  onViewDetail: (subject: DeclarationSubject) => void
+  onViewDetail: (subject: ClientDeclarationSubject) => void
   currentUser: CurrentUser
 }
 
@@ -141,7 +132,7 @@ export function TodasTab({ onViewDetail, currentUser }: Props) {
         ) : (
           <div>
             {filtered.map((d, i) => {
-              const status = STATUS_BADGE[d.statusCode] ?? { kind: 'default' as BadgeKind, label: d.statusLabel }
+              const status = declarationStatusBadge(d.statusCode, d.statusLabel)
               const presented = PRESENTED_CODES.has(d.statusCode)
               const isFuturePlan = d.declarationKind === 2
               const title =
@@ -201,11 +192,16 @@ export function TodasTab({ onViewDetail, currentUser }: Props) {
                             legalName: selectedRfcInfo?.legalName ?? '',
                             periodo: title,
                             fiscalYear: d.fiscalYear,
-                            accountantName: null,
+                            statusCode: d.statusCode,
+                            statusLabel: d.statusLabel,
+                            regimeName: d.regimeName,
+                            periodicity: d.periodicity,
+                            acknowledgmentPdfUrl: d.acknowledgmentPdfUrl,
+                            submittedAt: d.submittedAt,
                           })
                         }
                         className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-bold transition hover:opacity-90"
-                        style={{ background: 'linear-gradient(135deg,#10DA92 0%,#00B073 100%)', color: '#fff' }}
+                        style={{ background: 'linear-gradient(135deg,#00D3A1 0%,#00AD87 100%)', color: '#fff' }}
                       >
                         Ver detalle
                       </button>

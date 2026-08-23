@@ -20,7 +20,7 @@ export function NoAccessState() {
     <div className="px-6 py-12 text-center flex flex-col items-center gap-3">
       <div
         className="w-12 h-12 rounded-2xl flex items-center justify-center"
-        style={{ background: 'var(--amber-soft)', color: '#7B5312' }}
+        style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
       >
         <ShieldOff size={22} />
       </div>
@@ -40,7 +40,7 @@ export function ErrorState({ message }: { message: string }) {
   if (isForbiddenError(message)) return <NoAccessState />
   return (
     <div className="px-5 py-8 text-center flex flex-col items-center gap-2">
-      <AlertCircle size={20} style={{ color: '#9E3A15' }} />
+      <AlertCircle size={20} style={{ color: 'var(--violet-ink)' }} />
       <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>{message}</div>
     </div>
   )

@@ -226,7 +226,7 @@ function EquipoChip({ nombre, rol }: { nombre: string | null; rol: string }) {
       className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold px-2 py-1 rounded-full"
       style={{
         background: nombre ? 'var(--ink-50)' : 'var(--amber-soft)',
-        color: nombre ? 'var(--ink-700)' : '#7B5312',
+        color: nombre ? 'var(--ink-700)' : 'var(--violet-ink)',
         border: '1px solid var(--border)',
       }}
     >
@@ -266,7 +266,7 @@ function TabResumen({ data, ciecOk }: { data: ExpedienteCliente; ciecOk: boolean
         </div>
         <div className="p-3">
           <IndicadorRow
-            icon={ciecOk ? <ShieldCheck size={15} style={{ color: 'var(--brand-700)' }} /> : <ShieldAlert size={15} style={{ color: '#9E3A15' }} />}
+            icon={ciecOk ? <ShieldCheck size={15} style={{ color: 'var(--brand-700)' }} /> : <ShieldAlert size={15} style={{ color: 'var(--violet-ink)' }} />}
             label="Credenciales SAT"
             value={ciecOk ? 'Activas' : 'Revisar'}
             tone={ciecOk ? 'ok' : 'warn'}
@@ -307,7 +307,7 @@ function IndicadorRow({
       <span className="flex-1 text-[13px] font-semibold" style={{ color: 'var(--ink-700)' }}>{label}</span>
       <span
         className="text-[12.5px] font-extrabold"
-        style={{ color: tone === 'ok' ? 'var(--brand-700)' : tone === 'warn' ? '#9E3A15' : 'var(--ink-900)' }}
+        style={{ color: tone === 'ok' ? 'var(--brand-700)' : tone === 'warn' ? 'var(--violet-ink)' : 'var(--ink-900)' }}
       >
         {value}
       </span>
@@ -464,7 +464,7 @@ function CredencialCiec({ ciecOk, historial }: { ciecOk: boolean; historial: Exp
           className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
           style={{
             background: ciecOk ? 'var(--brand-100)' : 'var(--amber-soft)',
-            color: ciecOk ? 'var(--brand-700)' : '#7B5312',
+            color: ciecOk ? 'var(--brand-700)' : 'var(--violet-ink)',
           }}
         >
           <KeyRound size={16} />
@@ -618,7 +618,7 @@ function DocumentoRow({
         </button>
       </div>
       {error && (
-        <div className="mt-2 text-[12px] px-3 py-2 rounded-lg" style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}>
+        <div className="mt-2 text-[12px] px-3 py-2 rounded-lg" style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}>
           {error} — si el documento tiene más de 30 días, la redescarga requiere la sesión del
           cliente (usa su CIEC).
         </div>
@@ -656,7 +656,7 @@ function CredencialEfirmas({ efirmas }: { efirmas: ExpedienteCliente['efirmas'] 
               className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
               style={{
                 background: kind === 'brand' ? 'var(--brand-100)' : 'var(--amber-soft)',
-                color: kind === 'brand' ? 'var(--brand-700)' : '#7B5312',
+                color: kind === 'brand' ? 'var(--brand-700)' : 'var(--violet-ink)',
               }}
             >
               <KeyRound size={16} />
@@ -745,7 +745,7 @@ function TabProductos({ data }: { data: ExpedienteCliente }) {
                 </div>
                 <div
                   className="text-[10.5px] font-extrabold uppercase tracking-wide mt-0.5"
-                  style={{ color: p.presentada ? 'var(--brand-900)' : '#7B5312' }}
+                  style={{ color: p.presentada ? 'var(--brand-900)' : 'var(--violet-ink)' }}
                   title={p.estatus}
                 >
                   {p.presentada ? 'Presentada' : 'Por presentar'}

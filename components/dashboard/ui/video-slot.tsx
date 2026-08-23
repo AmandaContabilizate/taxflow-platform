@@ -13,7 +13,7 @@ export function VideoSlot({ title, duration }: VideoSlotProps) {
     >
       <div
         className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
-        style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}
+        style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}
       >
         <PlayCircle size={24} />
       </div>

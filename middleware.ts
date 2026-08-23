@@ -35,6 +35,13 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Modo mantenimiento: gana sobre toda la logica de auth/rutas. Se activa
+  // con la Application Setting MAINTENANCE_MODE en Azure + reinicio del App
+  // Service, sin rebuild.
+  if (process.env.MAINTENANCE_MODE === "true" && !pathname.startsWith("/api/webhooks")) {
+    return NextResponse.rewrite(new URL("/mantenimiento", request.url));
+  }
+
   const isAuthenticated = Boolean(request.cookies.get("auth_token"));
 
   if (isAuthenticated && shouldRedirectIfAuthenticated(pathname)) {

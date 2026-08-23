@@ -73,19 +73,17 @@ export function EstatusSatScreen({ go }: Props) {
     { id: 'opinion', label: 'Opinión de cumplimiento', status: 'positive', description: 'Vigente hasta 22-may-2026' },
     { id: 'efos', label: 'Art. 69-B - EFOS', status: 'positive', description: 'Operaciones simuladas' },
     { id: 'bis', label: 'Art. 69-B Bis', status: 'positive', description: 'Transmisión indebida de pérdidas' },
-    { id: 'no-localizados', label: 'No localizados', status: 'neutral', description: 'Sin domicilio fiscal' },
-    { id: 'creditos-firmes', label: 'Créditos fiscales firmes', status: 'warning', description: 'Adeudos cancelados >12 meses' },
-    { id: 'rfc-cancelado', label: 'RFC cancelado', status: 'positive', description: 'Estatus del registro' },
+    { id: 'rfc', label: 'RFC', status: 'positive', description: 'Estatus del registro' },
   ]
 
   const getStatusColor = (status: StatusItem['status']) => {
     switch (status) {
       case 'positive':
-        return { bg: 'var(--brand-50)', fg: '#00A068', icon: CheckCircle2 }
+        return { bg: 'var(--brand-50)', fg: '#00AD87', icon: CheckCircle2 }
       case 'warning':
-        return { bg: 'var(--amber-soft)', fg: '#7B5312', icon: AlertCircle }
+        return { bg: 'var(--amber-soft)', fg: 'var(--violet-ink)', icon: AlertCircle }
       case 'alert':
-        return { bg: 'var(--coral-soft)', fg: '#9E3A15', icon: AlertCircle }
+        return { bg: 'var(--coral-soft)', fg: 'var(--violet-ink)', icon: AlertCircle }
       default:
         return { bg: 'var(--ink-50)', fg: 'var(--ink-500)', icon: Shield }
     }
@@ -101,7 +99,7 @@ export function EstatusSatScreen({ go }: Props) {
           onMouseMove={handleMouseMove}
           className="rounded-3xl p-7 lg:p-8 relative overflow-hidden"
           style={{
-            background: 'linear-gradient(135deg, #1E1952 0%, #15113F 100%)',
+            background: 'linear-gradient(135deg, #2A1C64 0%, #221158 100%)',
             boxShadow: 'var(--sh-ink)',
           }}
         >
@@ -109,7 +107,7 @@ export function EstatusSatScreen({ go }: Props) {
           <div
             className="absolute inset-0 pointer-events-none rounded-3xl"
             style={{
-              background: `radial-gradient(circle 400px at ${mousePos.x}px ${mousePos.y}px, rgba(14, 209, 138, 0.15), transparent 80%)`,
+              background: `radial-gradient(circle 400px at ${mousePos.x}px ${mousePos.y}px, rgba(0,211,161, 0.15), transparent 80%)`,
             }}
           />
           {/* Contenido */}
@@ -117,7 +115,7 @@ export function EstatusSatScreen({ go }: Props) {
           <div className="flex items-start gap-4">
             <div
               className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
-              style={{ background: 'rgba(16, 218, 146, 0.2)', color: '#10DA92' }}
+              style={{ background: 'rgba(0,211,161, 0.2)', color: '#00D3A1' }}
             >
               <CheckCircle2 size={28} />
             </div>
@@ -154,32 +152,6 @@ export function EstatusSatScreen({ go }: Props) {
           </div>
         </div>
 
-        {/* Proveedores escaneados */}
-        <div>
-          <div className="text-[13px] font-extrabold uppercase tracking-widest mb-3" style={{ color: 'var(--ink-400)' }}>
-            Proveedores escaneados
-          </div>
-          <Card>
-            <div className="px-4 py-3 flex items-center gap-2 flex-wrap">
-              {['CFE', 'Telmex', 'Office Depot', 'Gasolinera Express', 'Farmacia del Ahorro', '+19 más'].map(
-                (provider) => (
-                  <div key={provider} className="flex items-center gap-1.5">
-                    <CheckCircle2 size={14} style={{ color: '#00A068' }} />
-                    <span className="text-[12px] font-semibold" style={{ color: 'var(--ink-700)' }}>
-                      {provider}
-                    </span>
-                  </div>
-                )
-              )}
-            </div>
-            <div
-              className="px-4 py-2 text-[11px] text-right"
-              style={{ borderTop: '1px solid var(--border)', color: 'var(--ink-500)' }}
-            >
-              24 OK · 0 alerta
-            </div>
-          </Card>
-        </div>
       </div>
 
       {/* COLUMNA DERECHA */}
@@ -187,7 +159,7 @@ export function EstatusSatScreen({ go }: Props) {
         {/* Listas oficiales */}
         <div>
           <div className="text-[13px] font-extrabold uppercase tracking-widest mb-3" style={{ color: 'var(--ink-400)' }}>
-            Revisamos 6 listas oficiales
+            Revisamos {statusItems.length} listas oficiales
           </div>
           <Card>
             <div>

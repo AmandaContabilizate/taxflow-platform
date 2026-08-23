@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import {
   Check,
   ChevronDown,
+  Clock,
   FileCheck2,
   Info,
   MessageSquare,
@@ -23,6 +24,7 @@ import {
   toNumber,
 } from '@/features/declaration-report/lib/reportDetail'
 import {
+  CLIENT_REVIEW_BUSINESS_DAYS,
   DECLARATION_STATUS,
   REPORT_COMMENT_MAX_LENGTH,
   type DeclarationReport,
@@ -149,7 +151,7 @@ export function ReportView({
         <section>
           <div
             className="px-6 pb-5 pt-6"
-            style={{ background: 'linear-gradient(160deg,#1E1952 0%,#15113F 55%,#100D33 100%)' }}
+            style={{ background: 'linear-gradient(160deg,#2A1C64 0%,#221158 55%,#120A33 100%)' }}
           >
             <p
               className="mb-1.5 text-[11.5px] font-bold uppercase tracking-[0.08em]"
@@ -176,11 +178,11 @@ export function ReportView({
               <div
                 className="mt-4 flex items-start gap-3 rounded-2xl px-3.5 py-3"
                 style={{
-                  background: 'rgba(58,227,164,0.12)',
-                  border: '1px solid rgba(58,227,164,0.34)',
+                  background: 'rgba(0,211,161,0.12)',
+                  border: '1px solid rgba(0,211,161,0.34)',
                 }}
               >
-                <Check size={17} className="mt-0.5 shrink-0" style={{ color: '#3AE3A4' }} />
+                <Check size={17} className="mt-0.5 shrink-0" style={{ color: '#06FF94' }} />
                 <p className="text-[13px] leading-[19px]" style={{ color: 'rgba(255,255,255,0.86)' }}>
                   <strong style={{ color: '#FFFFFF' }}>
                     Tienes {formatMoney(report.ivaFavor)} de IVA a favor.
@@ -262,6 +264,8 @@ export function ReportView({
             </div>
           )}
 
+          {view === 'main' && <DeadlineNote />}
+
           {error && <ErrorNote className="mx-6 mt-4">{error}</ErrorNote>}
 
           <div className="grid gap-2.5 px-6 pb-2 pt-5 sm:grid-cols-[1.35fr_1fr]">
@@ -331,6 +335,12 @@ export function ReportView({
           </h2>
           <p className="mx-auto max-w-[34em] text-sm leading-[21px]" style={{ color: 'var(--ink-500)' }}>
             Tu contador la revisa y te responde. No presentaremos nada hasta resolverla contigo.
+          </p>
+
+          <p className="mx-auto mt-2 max-w-[34em] text-[13px] leading-[19px]" style={{ color: 'var(--ink-500)' }}>
+            Tienes {CLIENT_REVIEW_BUSINESS_DAYS} días hábiles desde que te avisamos para
+            enviarla. Si el plazo se cumple sin respuesta tuya, la declaración queda lista para
+            presentar.
           </p>
 
           <form onSubmit={handleComment}>
@@ -426,6 +436,29 @@ function PrintLink() {
         Descárgalo en PDF
       </button>
     </p>
+  )
+}
+
+/**
+ * Plazo del worker `UpdateExpiredClientReviewDeclarationsCommand`: si el cliente no
+ * autoriza ni comenta en el plazo, la declaración pasa sola a PorPresentar (11).
+ */
+function DeadlineNote() {
+  return (
+    <div
+      className="mx-6 mt-3 flex items-start gap-3 rounded-2xl px-4 py-3.5"
+      style={{ background: 'var(--amber-soft)', border: '1px solid var(--amber-soft)' }}
+    >
+      <Clock size={18} className="mt-px shrink-0" style={{ color: 'var(--amber)' }} />
+      <p className="text-[13px] leading-[19px]" style={{ color: 'var(--ink-900)' }}>
+        <strong>
+          Tienes {CLIENT_REVIEW_BUSINESS_DAYS} días hábiles para autorizarla o mandarnos tu duda
+          con un comentario.
+        </strong>{' '}
+        Si no haces nada en ese plazo, la dejamos lista para presentar ante el SAT
+        automáticamente.
+      </p>
+    </div>
   )
 }
 

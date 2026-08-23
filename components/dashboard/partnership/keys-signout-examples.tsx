@@ -153,7 +153,7 @@ else
   return (
     <Card className="mt-2">
       <div className="p-4 border-b" style={{ borderColor: 'var(--border)' }}>
-        <div className="text-[11px] font-extrabold uppercase tracking-wide" style={{ color: '#9E3A15' }}>
+        <div className="text-[11px] font-extrabold uppercase tracking-wide" style={{ color: 'var(--violet-ink)' }}>
           2. Sign-out · cerrar sesión
         </div>
         <div className="text-[15px] font-extrabold mt-1" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>

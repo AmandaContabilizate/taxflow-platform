@@ -42,7 +42,7 @@ export function PaymentsPanel({ loading, error, items, total }: Props) {
         </div>
       ) : error ? (
         <div className="py-6 text-center flex flex-col items-center gap-2">
-          <AlertCircle size={20} style={{ color: '#9E3A15' }} />
+          <AlertCircle size={20} style={{ color: 'var(--violet-ink)' }} />
           <div className="text-[13px]" style={{ color: 'var(--ink-700)' }}>
             {error}
           </div>

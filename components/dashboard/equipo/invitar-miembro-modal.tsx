@@ -13,15 +13,28 @@ interface Props {
   open: boolean
   onClose: () => void
   onInvited: () => void
+  /** Claim Admin.ManageCommercialManagers: habilita el tipo de miembro Gerente. */
+  canManageManagers?: boolean
+  /**
+   * Segmento del gerente que invita: queda fijo y no se puede cambiar, porque solo da
+   * de alta gente en su propio equipo. null = admin, elige libremente.
+   */
+  lockedSegmentId?: number | null
 }
 
 // Roles que la gerencia comercial puede invitar (el backend valida de nuevo).
-const ALLOWED_ROLE_NAMES = new Set(['seller', 'ventas', 'finder fee', 'finderfee'])
+const MANAGER_ROLE_NAMES = new Set(['commercialmanager', 'commercial manager', 'gerencia comercial'])
+const ALLOWED_ROLE_NAMES = new Set([
+  'seller', 'ventas', 'finder fee', 'finderfee', ...MANAGER_ROLE_NAMES,
+])
 
-// El tipo de miembro determina el rol: Ejecutivo de ventas → Vendedor (Seller),
-// Finder Fee → FinderFee. El campo queda bloqueado cuando el rol se resolvió.
+// El tipo de miembro determina el rol: Ejecutivo → Vendedor (Seller), Finder Fee →
+// FinderFee, Gerente → Gerencia comercial. El campo queda bloqueado cuando se resolvió.
 function defaultRoleFor(type: MemberType, list: RoleOverviewDto[]): string {
-  const wanted = type === 2 ? new Set(['finder fee', 'finderfee']) : new Set(['seller', 'ventas'])
+  const wanted =
+    type === 2 ? new Set(['finder fee', 'finderfee'])
+    : type === 4 ? MANAGER_ROLE_NAMES
+    : new Set(['seller', 'ventas'])
   return list.find((r) => wanted.has(normalizeName(r.name)))?.id ?? ''
 }
 
@@ -40,7 +53,13 @@ const inputStyle = {
   color: 'var(--foreground)',
 } as const
 
-export function InvitarMiembroModal({ open, onClose, onInvited }: Props) {
+export function InvitarMiembroModal({
+  open,
+  onClose,
+  onInvited,
+  canManageManagers = false,
+  lockedSegmentId = null,
+}: Props) {
   const [roles, setRoles] = useState<RoleOverviewDto[]>([])
   const [memberType, setMemberType] = useState<MemberType>(1)
   const [fullName, setFullName] = useState('')
@@ -75,19 +94,31 @@ export function InvitarMiembroModal({ open, onClose, onInvited }: Props) {
     setRoleId(defaultRoleFor(memberType, roles))
   }, [memberType, roles])
 
+  // Un gerente solo da de alta en su propio segmento: se fija al abrir y no se toca.
+  useEffect(() => {
+    if (!open || lockedSegmentId == null) return
+    setSegmentId(lockedSegmentId)
+  }, [open, lockedSegmentId])
+
+  const isGerente = memberType === 4
+  // Al gerente se le fija su segmento; al admin no (elige, y un gerente nuevo
+  // encabezará otro segmento, así que tampoco tendría sentido atarlo).
+  const segmentoFijo = lockedSegmentId != null && !isGerente
   const isB2C = segmentId === 1 || segmentId === 2
+  // El canal decide tabulador y meta del ejecutivo; el gerente no lo lleva.
+  const needsChannel = isB2C && !isGerente
   const canSubmit =
     fullName.trim().length > 2 &&
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) &&
     roleId !== '' &&
-    (memberType === 2 || (segmentId !== '' && (!isB2C || b2cChannelId !== '')))
+    (memberType === 2 || (segmentId !== '' && (!needsChannel || b2cChannelId !== '')))
 
   const reset = () => {
     setMemberType(1)
     setFullName('')
     setEmail('')
     setRoleId('')
-    setSegmentId('')
+    setSegmentId(lockedSegmentId ?? '')
     setB2cChannelId('')
     setTeam('')
     setError(null)
@@ -108,8 +139,8 @@ export function InvitarMiembroModal({ open, onClose, onInvited }: Props) {
       email: email.trim(),
       roleId,
       memberType,
-      segmentId: memberType === 1 && segmentId !== '' ? segmentId : undefined,
-      b2cChannelId: memberType === 1 && isB2C && b2cChannelId !== '' ? b2cChannelId : undefined,
+      segmentId: memberType !== 2 && segmentId !== '' ? segmentId : undefined,
+      b2cChannelId: memberType === 1 && needsChannel && b2cChannelId !== '' ? b2cChannelId : undefined,
       team: memberType === 1 ? team : undefined,
     })
     setLoading(false)
@@ -190,7 +221,7 @@ export function InvitarMiembroModal({ open, onClose, onInvited }: Props) {
         </p>
 
         {error && (
-          <div className="p-3 rounded-lg text-[13px]" style={{ background: 'var(--hero-coral-soft-bg, #FEE2E2)', color: '#991B1B' }}>
+          <div className="p-3 rounded-lg text-[13px]" style={{ background: 'var(--hero-coral-soft-bg, #FCDCDC)', color: '#991B1B' }}>
             {error}
           </div>
         )}
@@ -200,10 +231,14 @@ export function InvitarMiembroModal({ open, onClose, onInvited }: Props) {
           <label className="block text-[12px] font-bold mb-1.5" style={{ color: 'var(--ink-700)' }}>
             Tipo de miembro
           </label>
-          <div className="grid grid-cols-2 gap-2">
+          <div className={`grid gap-2 ${canManageManagers ? 'grid-cols-3' : 'grid-cols-2'}`}>
             {([
               { value: 1 as MemberType, label: 'Ejecutivo de ventas', hint: 'Empleado de Contabilízate' },
               { value: 2 as MemberType, label: 'Finder Fee', hint: 'Vendedor externo · 15% plano' },
+              // Gerente solo aparece con el claim: da de alta a quien encabeza un segmento.
+              ...(canManageManagers
+                ? [{ value: 4 as MemberType, label: 'Gerente comercial', hint: 'Encabeza un segmento' }]
+                : []),
             ]).map((opt) => (
               <button
                 key={opt.value}
@@ -277,7 +312,8 @@ export function InvitarMiembroModal({ open, onClose, onInvited }: Props) {
           </p>
         </div>
 
-        {memberType === 1 && (
+        {/* Ejecutivo y Gerente llevan segmento; el Finder Fee no tiene. */}
+        {memberType !== 2 && (
           <>
             {/* Segmento */}
             <div>
@@ -291,19 +327,24 @@ export function InvitarMiembroModal({ open, onClose, onInvited }: Props) {
                   setSegmentId(v as number | '')
                   if (v !== 1 && v !== 2) setB2cChannelId('')
                 }}
-                className="w-full px-3 py-2.5 rounded-lg text-[14px] outline-none cursor-pointer"
-                style={inputStyle}
-                disabled={loading}
+                className="w-full px-3 py-2.5 rounded-lg text-[14px] outline-none cursor-pointer disabled:cursor-not-allowed"
+                style={{ ...inputStyle, opacity: segmentoFijo ? 0.75 : 1 }}
+                disabled={loading || segmentoFijo}
               >
                 <option value="">Selecciona segmento…</option>
                 {SEGMENTS.map((s) => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
+              {segmentoFijo && (
+                <p className="text-[11.5px] mt-1" style={{ color: 'var(--ink-400)' }}>
+                  Es tu segmento: das de alta solo dentro de tu equipo.
+                </p>
+              )}
             </div>
 
             {/* Canal B2C */}
-            {isB2C && (
+            {needsChannel && (
               <div>
                 <label className="block text-[12px] font-bold mb-1.5" style={{ color: 'var(--ink-700)' }}>
                   Canal B2C
@@ -326,8 +367,18 @@ export function InvitarMiembroModal({ open, onClose, onInvited }: Props) {
               </div>
             )}
 
+            {isGerente && (
+              <div
+                className="p-3 rounded-xl text-[12.5px]"
+                style={{ background: 'var(--sky-soft)', color: 'var(--violet-ink)' }}
+              >
+                Encabezará el segmento que elijas: verá a todo su equipo y las altas que
+                haga quedarán en ese segmento. Solo puede haber un gerente por segmento.
+              </div>
+            )}
+
             {/* Equipo */}
-            <div>
+            <div className={memberType === 1 ? '' : 'hidden'}>
               <label className="block text-[12px] font-bold mb-1.5" style={{ color: 'var(--ink-700)' }}>
                 Equipo / Sub-equipo <span className="font-normal" style={{ color: 'var(--ink-400)' }}>(opcional)</span>
               </label>

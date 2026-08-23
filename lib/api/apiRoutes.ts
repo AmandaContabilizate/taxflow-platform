@@ -238,9 +238,11 @@ export const API_ROUTES = {
       role?: string,
       emailConfirmed?: boolean,
       estatus?: string,
+      roleExclusive?: boolean,
+      origins?: string,
     ) =>
       `?skip=${skip}&take=${take}${search ? `&search=${encodeURIComponent(search)}` : ""}${role ? `&role=${encodeURIComponent(role)}` : ""
-      }${emailConfirmed === undefined ? "" : `&emailConfirmed=${emailConfirmed}`}${estatus ? `&estatus=${encodeURIComponent(estatus)}` : ""}`,
+      }${emailConfirmed === undefined ? "" : `&emailConfirmed=${emailConfirmed}`}${estatus ? `&estatus=${encodeURIComponent(estatus)}` : ""}${roleExclusive ? "&roleExclusive=true" : ""}${origins ? `&origins=${encodeURIComponent(origins)}` : ""}`,
     // GET users_reports — panel comercial: embudo, altas recientes y clientes con RFC.
     SELLER_DASHBOARD: "/seller-dashboard",
   },
@@ -276,6 +278,11 @@ export const API_ROUTES = {
       `/issued-invoices-declaration${periodInvoicesQuery(p)}`,
     RECEIVED_INVOICES_DECLARATION: (p: DeclarationPeriodInvoicesParams) =>
       `/received-invoices-declaration${periodInvoicesQuery(p)}`,
+    // apiType "declaration" · GET. Vista del cliente: los CFDI ligados a la
+    // declaracion sin nada de clasificacion, solo el detalle y si es deducible.
+    // Responde el array pelon (sin envelope ResultHandler).
+    CLIENT_INVOICES: (declarationId: number) =>
+      `/client-invoices?declarationId=${declarationId}`,
   },
   // apiType "declaration_report". Flujo público: el cliente abre /reporte?t={token}
   // desde el correo. El token AES (Base64 url-safe) es la única credencial, los

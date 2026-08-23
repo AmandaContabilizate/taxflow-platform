@@ -75,7 +75,7 @@ export function SecurityForm() {
           style={
             result.ok
               ? { background: 'var(--brand-50)', color: 'var(--brand-700)' }
-              : { background: 'var(--coral-soft)', color: '#9E3A15' }
+              : { background: 'var(--coral-soft)', color: 'var(--violet-ink)' }
           }
         >
           {result.ok && <CheckCircle2 size={15} />}
@@ -109,7 +109,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function Hint({ text }: { text: string }) {
   return (
-    <div className="text-[12px] -mt-2" style={{ color: '#9E3A15' }}>
+    <div className="text-[12px] -mt-2" style={{ color: 'var(--violet-ink)' }}>
       {text}
     </div>
   )

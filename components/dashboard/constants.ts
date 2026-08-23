@@ -24,6 +24,7 @@ import {
   Receipt,
   RefreshCw,
   RotateCcw,
+  ScanLine,
   Settings,
   ShieldCheck,
   ShoppingCart,
@@ -48,7 +49,7 @@ export const TITLES: Record<Screen, [string, string]> = {
   declaraciones: ['Mis declaraciones', 'Tus impuestos mes con mes, sin complicarte'],
   'vista-fiscal': ['Tu vida fiscal', 'Todas tus herramientas en un solo lugar'],
   facturas: ['Mis facturas', 'Las facturas que emites a tus clientes'],
-  george: ['Recibos → Facturas', 'Convierte tus recibos digitales en facturas CFDI'],
+  george: ['Foto → Facturas', 'Convierte la foto de tus recibos en facturas CFDI'],
   documentos: ['Mi bóveda', 'Tus documentos y facturas del SAT, en un solo lugar'],
   diagnostico: ['Diagnóstico fiscal', 'Cómo estás y qué puedes mejorar'],
   estatussat: ['Estatus ante SAT', 'Monitoreo continuo de listas y cumplimiento'],
@@ -86,7 +87,7 @@ export const TITLES: Record<Screen, [string, string]> = {
   partners: ['Partners', 'Alta de partners y alianzas B2B2C, con sus códigos automáticos'],
   'codigos-descuento': ['Códigos de descuento', 'Códigos por dueño: ejecutivos, finder fees y partners'],
   'reportes-ejecutivos': ['Reportes ejecutivos', 'KPIs y resultados del área'],
-  operaciones: ['Centro de Operaciones', 'Gestión y supervisión de declaraciones fiscales'],
+  operaciones: ['Declaraciones futuras', 'Gestión y supervisión de declaraciones fiscales'],
   'tramites-adicionales': ['Trámites adicionales', 'Seguimiento de trámites vendidos a tus clientes'],
   ventas: ['Ventas', 'Resumen de ventas registradas por cuenta'],
   roles: ['Roles y permisos', 'Administra roles, sus permisos y los roles de cada usuario'],
@@ -123,7 +124,7 @@ export const GUEST_NAV_GROUPED: NavSection[] = [
       { id: 'estatussat', label: 'Estatus SAT', Icon: Activity, hint: 'Monitoreo SAT' },
       { id: 'declaraciones', label: 'Declaraciones', Icon: FileText, hint: 'Tus impuestos del mes' },
       { id: 'facturas', label: 'Facturación', Icon: FilePlus, hint: 'Emite y revisa facturas' },
-      { id: 'george', label: 'Recibos → Facturas', Icon: Receipt, hint: 'Convierte recibos en facturas' },
+      { id: 'george', label: 'Foto → Facturas', Icon: ScanLine, hint: 'Convierte fotos de recibos en facturas', badge: 'Nuevo' },
       { id: 'documentos', label: 'Bóveda', Icon: FolderLock, hint: 'Tu bóveda digital de CFDI y constancias' },
     ]
   },
@@ -257,7 +258,7 @@ const REPORTES_ITEM: NavDef = {
 }
 const OPERACIONES_ITEM: NavDef = {
   id: 'operaciones',
-  label: 'Centro de Operaciones',
+  label: 'Declaraciones futuras',
   Icon: Briefcase,
   hint: 'Gestión de declaraciones',
 }

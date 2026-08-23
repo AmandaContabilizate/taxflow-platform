@@ -182,7 +182,7 @@ export function CodigosDescuentoScreen({ permissions = [] }: { permissions?: str
               <Loader2 size={16} className="animate-spin" /> Cargando bitácora…
             </div>
           ) : logError ? (
-            <div className="py-6 px-5 text-[13px]" style={{ color: '#9E3A15' }}>{logError}</div>
+            <div className="py-6 px-5 text-[13px]" style={{ color: 'var(--violet-ink)' }}>{logError}</div>
           ) : !log || log.length === 0 ? (
             <div className="py-8 px-5 text-center text-[13px]" style={{ color: 'var(--ink-500)' }}>
               Aún no hay autorizaciones registradas — la bitácora empieza a llenarse cuando se
@@ -258,7 +258,7 @@ export function CodigosDescuentoScreen({ permissions = [] }: { permissions?: str
       {!loading && canAuthorize && pendientesAutorizar.length > 0 && (
         <div
           className="flex items-center gap-2.5 px-4 py-3 rounded-2xl text-[13px] font-semibold"
-          style={{ background: 'var(--amber-soft)', color: '#7B5312', border: '1px solid var(--border)' }}
+          style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)', border: '1px solid var(--border)' }}
         >
           <ShieldCheck size={16} className="flex-shrink-0" />
           {pendientesAutorizar.length === 1
@@ -270,7 +270,7 @@ export function CodigosDescuentoScreen({ permissions = [] }: { permissions?: str
       {authError && (
         <div
           className="flex items-center gap-2 px-4 py-3 rounded-2xl text-[13px] font-semibold"
-          style={{ background: 'var(--coral-soft)', color: '#9E3A15', border: '1px solid var(--border)' }}
+          style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)', border: '1px solid var(--border)' }}
         >
           <AlertCircle size={15} className="flex-shrink-0" /> No se pudo autorizar — {authError}
         </div>
@@ -285,7 +285,7 @@ export function CodigosDescuentoScreen({ permissions = [] }: { permissions?: str
       ) : error ? (
         <Card>
           <div className="py-10 text-center flex flex-col items-center gap-3">
-            <AlertCircle size={22} style={{ color: '#9E3A15' }} />
+            <AlertCircle size={22} style={{ color: 'var(--violet-ink)' }} />
             <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>{error}</div>
             <button
               type="button"
@@ -327,9 +327,31 @@ export function CodigosDescuentoScreen({ permissions = [] }: { permissions?: str
                 {filtered.map((c) => (
                   <tr key={c.id} style={{ borderBottom: '1px solid var(--border)' }}>
                     <td className="py-3 px-3">
-                      <code style={{ ...MONO, fontSize: '12.5px', color: 'var(--ink-900)', fontWeight: 700 }}>
-                        {c.code}
-                      </code>
+                      <span className="inline-flex items-center gap-1.5">
+                        <code style={{ ...MONO, fontSize: '12.5px', color: 'var(--ink-900)', fontWeight: 700 }}>
+                          {c.code}
+                        </code>
+                        {/* Espejo en Stripe: solo aplica a códigos de porcentaje. "none" son
+                            los previos a la funcionalidad — se sincronizan al volver a guardar. */}
+                        {c.discountTypeId === 1 && c.stripeStatus === 'synced' && (
+                          <span
+                            title="Sincronizado con Stripe: este código también existe en el dashboard de Stripe"
+                            className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full"
+                            style={{ background: 'var(--brand-100)', color: 'var(--brand-900)' }}
+                          >
+                            Stripe ✓
+                          </span>
+                        )}
+                        {c.discountTypeId === 1 && c.stripeStatus === 'error' && (
+                          <span
+                            title={`No se pudo sincronizar con Stripe: ${c.stripeSyncError ?? 'error desconocido'}. El código funciona igual; vuelve a guardarlo para reintentar.`}
+                            className="inline-flex items-center gap-0.5 text-[10px] font-extrabold px-1.5 py-0.5 rounded-full cursor-help"
+                            style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
+                          >
+                            <AlertTriangle size={10} /> Stripe pendiente
+                          </span>
+                        )}
+                      </span>
                       {c.description && (
                         <div className="text-[11.5px]" style={{ color: 'var(--ink-500)' }}>{c.description}</div>
                       )}
@@ -358,7 +380,7 @@ export function CodigosDescuentoScreen({ permissions = [] }: { permissions?: str
                     </td>
                     <td className="py-3 px-3 text-[13px]" style={{ color: 'var(--ink-700)' }}>
                       {c.subscriptionPlanIds.length === 0 ? (
-                        <span className="inline-flex items-center gap-1" style={{ color: '#9E3A15' }}>
+                        <span className="inline-flex items-center gap-1" style={{ color: 'var(--violet-ink)' }}>
                           <AlertTriangle size={12} /> sin planes
                         </span>
                       ) : (

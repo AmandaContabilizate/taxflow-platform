@@ -157,7 +157,7 @@ export function RenovacionesScreen() {
           {!loading && noRenovaran > 0 && (
             <span
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-bold"
-              style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}
+              style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}
             >
               <PhoneCall size={13} /> {noRenovaran} sin renovación automática en esta página
             </span>
@@ -166,7 +166,7 @@ export function RenovacionesScreen() {
 
         {error ? (
           <div className="flex-1 px-5 py-8 text-center flex flex-col items-center justify-center gap-2">
-            <AlertCircle size={20} style={{ color: '#9E3A15' }} />
+            <AlertCircle size={20} style={{ color: 'var(--violet-ink)' }} />
             <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>
               {error}
             </div>
@@ -282,9 +282,9 @@ function VenceCell({ venta }: { venta: VentaPorVencer }) {
   const urgente = diasParaVencer >= 0 && diasParaVencer <= 7
 
   const chip = vencida
-    ? { background: 'var(--coral-soft)', color: '#9E3A15' }
+    ? { background: 'var(--coral-soft)', color: 'var(--violet-ink)' }
     : urgente
-      ? { background: 'var(--amber-soft)', color: '#7B5312' }
+      ? { background: 'var(--amber-soft)', color: 'var(--violet-ink)' }
       : { background: 'var(--ink-50)', color: 'var(--ink-700)' }
 
   return (
@@ -341,7 +341,7 @@ function RenovacionCell({ venta }: { venta: VentaPorVencer }) {
       {venta.renovaraAutomaticamente === false ? (
         <span
           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold"
-          style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}
+          style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}
         >
           <PhoneCall size={12} /> No renovará
         </span>
@@ -356,7 +356,7 @@ function RenovacionCell({ venta }: { venta: VentaPorVencer }) {
         <span
           className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold"
           title="Sin datos de Stripe para esta suscripción"
-          style={{ background: 'var(--amber-soft)', color: '#7B5312' }}
+          style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
         >
           Sin datos de Stripe
         </span>

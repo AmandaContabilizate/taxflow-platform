@@ -39,7 +39,7 @@ export function SolicitarAsignacionModal({ operation, onClose, onSent }: Props) 
       if (res.success) {
         // Solo ejecutivos activos de la plantilla (el backend valida de nuevo).
         setExecutives(
-          res.value
+          res.value.members
             .filter((m) => m.isActive && m.profileTypeId === 1)
             .map((m) => ({ userId: m.userId, name: m.fullName })),
         )
@@ -78,7 +78,7 @@ export function SolicitarAsignacionModal({ operation, onClose, onSent }: Props) 
         </p>
 
         {error && (
-          <div className="p-3 rounded-lg text-[13px]" style={{ background: 'var(--hero-coral-soft-bg, #FEE2E2)', color: '#991B1B' }}>
+          <div className="p-3 rounded-lg text-[13px]" style={{ background: 'var(--hero-coral-soft-bg, #FCDCDC)', color: '#991B1B' }}>
             {error}
           </div>
         )}
@@ -108,14 +108,14 @@ export function SolicitarAsignacionModal({ operation, onClose, onSent }: Props) 
             </label>
             <div
               className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-[13.5px]"
-              style={{ border: '1px solid var(--border)', color: '#9E3A15' }}
+              style={{ border: '1px solid var(--border)', color: 'var(--violet-ink)' }}
             >
               <AlertCircle size={15} /> Sin asignar
             </div>
           </div>
           <div>
             <label className="block text-[12px] font-bold mb-1.5" style={{ color: 'var(--ink-700)' }}>
-              Reasignar a <span style={{ color: '#9E3A15' }}>*</span>
+              Reasignar a <span style={{ color: 'var(--violet-ink)' }}>*</span>
             </label>
             <select
               value={executiveUserId}
@@ -138,7 +138,7 @@ export function SolicitarAsignacionModal({ operation, onClose, onSent }: Props) 
         {/* Motivo */}
         <div>
           <label className="block text-[12px] font-bold mb-1.5" style={{ color: 'var(--ink-700)' }}>
-            Motivo / justificación <span style={{ color: '#9E3A15' }}>*</span>
+            Motivo / justificación <span style={{ color: 'var(--violet-ink)' }}>*</span>
           </label>
           <textarea
             value={reason}

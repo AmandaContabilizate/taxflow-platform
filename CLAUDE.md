@@ -104,6 +104,22 @@ El proyecto soporta modo claro y oscuro. Todo componente nuevo debe responder
 automáticamente al tema. La fuente única de verdad son los tokens CSS definidos
 en `app/globals.css` (bloques `:root` y `.dark`).
 
+### Paleta oficial (manual de identidad Contabilízate 2023)
+
+Solo estos cinco colores y sus tintes/sombras (más blanco/negro y el rojo
+funcional de error `--danger`):
+
+- Medium Spring Green `#06FF94` — chispa/acento sobre fondos oscuros
+- Caribbean Green `#00D3A1` — brand principal (`--brand-500`, `--ring`)
+- Persian Green `#00AD87` — brand para texto/botones sobre claro (`--brand-600`, `--accent`)
+- Blue-Violet `#7339FD` — acento secundario (info, pendientes, `--violet`)
+- Russian Violet `#221158` — ink/texto/fondos oscuros (`--ink-900`, `--primary`)
+
+Para texto violeta sobre fondos suaves usa `var(--violet-ink)` (se aclara en
+dark). No introduzcas ámbar, coral, azul cielo ni grises slate: los tokens
+`--amber`/`--coral`/`--sky` existen por compatibilidad pero hoy apuntan a la
+familia Blue-Violet.
+
 ### Qué usar
 
 - **Fondos neutros, texto, bordes** → siempre vía `var(--token)` o la clase
@@ -134,7 +150,7 @@ en `app/globals.css` (bloques `:root` y `.dark`).
 ### Qué NO hacer
 
 ```tsx
-style={{ background: '#FFF', color: '#15113F' }}
+style={{ background: '#FFF', color: '#221158' }}
 style={{ background: 'linear-gradient(160deg,#FFF,#F9FAFB)' }}
 className="bg-white text-gray-900"
 
@@ -152,7 +168,7 @@ style={{ background: 'var(--nav-active-bg)', color: 'var(--nav-active-fg)' }}
 ### Excepción: fondos de color fijo
 
 Si por diseño el fondo es un color de marca constante (gradiente verde, banner
-púrpura `#1E1952`, etc.), entonces el texto encima sí va literal (`#fff`,
+púrpura `#221158`, etc.), entonces el texto encima sí va literal (`#fff`,
 `rgba(255,255,255,0.85)`). Regla: **fondo neutro → token. Fondo de color
 constante → texto literal está OK.**
 

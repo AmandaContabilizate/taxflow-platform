@@ -1,6 +1,6 @@
 'use client'
 
-import { Database, Globe, Loader2, Lock, MailCheck, MailWarning, Smartphone, Users } from 'lucide-react'
+import { Database, Globe, Lock, MailCheck, MailWarning, Smartphone, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { getUsers } from '@/features/users/actions/getUsers.action'
 import type { EstatusConteo, UserListItem, UserTaxpayer } from '@/features/users/types'
@@ -8,7 +8,16 @@ import { MONO } from '../constants'
 import { Card, ErrorState, HelpBox } from '../ui'
 import { Pagination, SearchBar } from '../clientes/parts'
 
-const TAKE = 50
+const PAGE_SIZES = [25, 50, 100, 200]
+
+/** La pantalla muestra solo clientes (rol Guest); el filtro de roles se quitó a propósito. */
+const ROLE_CLIENTE = 'Guest'
+
+/**
+ * Orígenes visibles (Catalogs.SystemsOrigin): 0 = app móvil, 1 = Contabox (sistema
+ * antiguo), 4 = Taxflow (nuevo sistema). Fuera: altas por empleado (2) y legacy MySQL (3).
+ */
+const ORIGENES_VISIBLES = [0, 1, 4]
 
 type ConfirmedFilter = '' | 'true' | 'false'
 
@@ -20,26 +29,6 @@ function formatDate(iso: string | null): string {
 }
 
 /**
- * Catálogo de roles para el filtro. No hay endpoint de catálogo, así que se
- * acumula con los roles que van apareciendo: al filtrar por uno, la opción
- * activa no desaparece de la lista.
- */
-function useRoleOptions(items: UserListItem[]) {
-  const [seen, setSeen] = useState<string[]>([])
-
-  useEffect(() => {
-    setSeen((prev) => {
-      const next = new Set(prev)
-      const before = next.size
-      for (const u of items) for (const r of u.roles ?? []) next.add(r)
-      return next.size === before ? prev : [...next].sort((a, b) => a.localeCompare(b))
-    })
-  }, [items])
-
-  return seen
-}
-
-/**
  * @param scopedToSeller true cuando el rol activo solo tiene Comercial.ReadOwnUsers:
  * el backend acota la lista a su propio embudo (código de referido y/o de descuento).
  */
@@ -47,14 +36,13 @@ export function UsuariosScreen({ scopedToSeller = false }: { scopedToSeller?: bo
   const [items, setItems] = useState<UserListItem[]>([])
   const [total, setTotal] = useState(0)
   const [skip, setSkip] = useState(0)
+  const [take, setTakeState] = useState(50)
   const [search, setSearchState] = useState('')
-  const [role, setRoleState] = useState('')
   const [confirmed, setConfirmedState] = useState<ConfirmedFilter>('')
   const [estatus, setEstatusState] = useState('')
   const [estatusCounts, setEstatusCounts] = useState<EstatusConteo[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const roleOptions = useRoleOptions(items)
 
   useEffect(() => {
     let cancelled = false
@@ -64,9 +52,11 @@ export function UsuariosScreen({ scopedToSeller = false }: { scopedToSeller?: bo
     const handle = setTimeout(async () => {
       const res = await getUsers({
         skip,
-        take: TAKE,
+        take,
         search: search.trim() || undefined,
-        role: role || undefined,
+        role: ROLE_CLIENTE,
+        roleExclusive: true, // clientes puros: quien además tiene otro rol no aparece
+        origins: ORIGENES_VISIBLES,
         emailConfirmed: confirmed === '' ? undefined : confirmed === 'true',
         estatus: estatus || undefined,
       })
@@ -87,15 +77,15 @@ export function UsuariosScreen({ scopedToSeller = false }: { scopedToSeller?: bo
       cancelled = true
       clearTimeout(handle)
     }
-  }, [skip, search, role, confirmed, estatus])
+  }, [skip, take, search, confirmed, estatus])
 
   const setSearch = (v: string) => {
     setSkip(0)
     setSearchState(v)
   }
-  const setRole = (v: string) => {
+  const setTake = (n: number) => {
     setSkip(0)
-    setRoleState(v)
+    setTakeState(n)
   }
   const setConfirmed = (v: ConfirmedFilter) => {
     setSkip(0)
@@ -114,7 +104,7 @@ export function UsuariosScreen({ scopedToSeller = false }: { scopedToSeller?: bo
   }
 
   return (
-    <div className="flex flex-col gap-5 max-w-full h-[calc(100dvh-8.5rem)]">
+    <div className="flex flex-col gap-4 max-w-full h-[calc(100dvh-8.5rem)] min-h-[600px]">
       <HelpBox>
         {scopedToSeller ? (
           <>
@@ -139,39 +129,25 @@ export function UsuariosScreen({ scopedToSeller = false }: { scopedToSeller?: bo
             />
           </div>
           <select
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            className="px-3 py-2.5 rounded-lg text-[13px] font-semibold sm:w-[210px]"
-            style={selectStyle}
-          >
-            <option value="">Todos los roles</option>
-            {roleOptions.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </select>
-          <select
             value={confirmed}
             onChange={(e) => setConfirmed(e.target.value as ConfirmedFilter)}
-            className="px-3 py-2.5 rounded-lg text-[13px] font-semibold sm:w-[200px]"
+            className="px-3 py-2.5 rounded-lg text-[13px] font-semibold sm:w-[200px] cursor-pointer transition-colors duration-150 hover:border-[var(--border-strong)]"
             style={selectStyle}
           >
             <option value="">Correo: todos</option>
             <option value="true">Solo confirmados</option>
             <option value="false">Solo pendientes</option>
           </select>
-          {(search || role || confirmed || estatus) && (
+          {(search || confirmed || estatus) && (
             <button
               type="button"
               onClick={() => {
                 setSearch('')
-                setRole('')
                 setConfirmed('')
                 setEstatusState('')
                 setSkip(0)
               }}
-              className="px-3.5 py-2.5 rounded-lg text-[12.5px] font-bold whitespace-nowrap"
+              className="px-3.5 py-2.5 rounded-lg text-[12.5px] font-bold whitespace-nowrap cursor-pointer transition-[background-color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-[var(--ink-50)] active:scale-[0.97]"
               style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--ink-700)' }}
             >
               Limpiar
@@ -187,7 +163,9 @@ export function UsuariosScreen({ scopedToSeller = false }: { scopedToSeller?: bo
             role="group"
             aria-label="Filtrar por avance del alta"
           >
-            {estatusCounts.map((c) => {
+            {/* El bucket "legacy" (cuentas migradas del sistema anterior) no se ofrece
+                como filtro; esas cuentas siguen apareciendo en la lista general. */}
+            {estatusCounts.filter((c) => c.key !== 'legacy').map((c) => {
               const active = estatus === c.key
               return (
                 <button
@@ -220,13 +198,15 @@ export function UsuariosScreen({ scopedToSeller = false }: { scopedToSeller?: bo
         )}
       </Card>
 
-      <Card className="flex-1 min-h-0 flex flex-col">
+      {/* min-h garantiza área útil de filas aunque el viewport sea corto: antes la tabla
+          quedaba aplastada a ~2 filas; con esto la página scrollea en vez de encogerla. */}
+      <Card className="flex-1 min-h-[480px] flex flex-col">
         <div
           className="px-5 py-4 flex items-center justify-between flex-wrap gap-2 border-b shrink-0"
           style={{ borderColor: 'var(--border)' }}
         >
           <div className="text-[15px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
-            {loading ? 'Cargando…' : `${total} usuarios registrados`}
+            {loading ? 'Cargando…' : `${total} clientes registrados`}
           </div>
         </div>
 
@@ -235,16 +215,14 @@ export function UsuariosScreen({ scopedToSeller = false }: { scopedToSeller?: bo
             <ErrorState message={error} />
           </div>
         ) : loading ? (
-          <div className="flex-1 px-5 py-10 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
-            <Loader2 size={18} className="animate-spin" /> Cargando usuarios…
-          </div>
+          <SkeletonTable />
         ) : (
           <>
-            <div className="flex-1 min-h-0 overflow-auto">
+            <div className="flex-1 min-h-0 overflow-auto animate-in fade-in duration-200">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Usuario', 'Teléfono', 'Roles', 'Contribuyentes', 'Estatus', 'Origen', 'Código de vendedor', 'Código de descuento', 'Vendedor', 'Estado', 'Registro'].map((h) => (
+                    {['Usuario', 'Teléfono', 'Contribuyentes', 'Estatus', 'Origen', 'Código de vendedor', 'Código de descuento', 'Vendedor', 'Estado', 'Registro'].map((h) => (
                       <th
                         key={h}
                         className="px-5 py-3 text-left font-extrabold"
@@ -257,8 +235,12 @@ export function UsuariosScreen({ scopedToSeller = false }: { scopedToSeller?: bo
                 </thead>
                 <tbody>
                   {items.map((u) => (
-                    <tr key={u.userId} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td className="px-5 py-4">
+                    <tr
+                      key={u.userId}
+                      className="transition-colors duration-150 hover:bg-[var(--ink-50)]"
+                      style={{ borderBottom: '1px solid var(--border)' }}
+                    >
+                      <td className="px-5 py-3">
                         <div className="font-semibold" style={{ color: 'var(--ink-900)' }}>
                           {u.fullName || 'Sin nombre'}
                         </div>
@@ -266,7 +248,7 @@ export function UsuariosScreen({ scopedToSeller = false }: { scopedToSeller?: bo
                           {u.email}
                         </div>
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="px-5 py-3">
                         {u.phoneNumber ? (
                           <div className="flex items-center gap-1.5">
                             <code style={{ ...MONO, fontSize: '11.5px', color: 'var(--ink-700)' }}>
@@ -282,31 +264,28 @@ export function UsuariosScreen({ scopedToSeller = false }: { scopedToSeller?: bo
                           <span className="text-xs" style={{ color: 'var(--ink-500)' }}>—</span>
                         )}
                       </td>
-                      <td className="px-5 py-4">
-                        <RolesCell roles={u.roles} />
-                      </td>
-                      <td className="px-5 py-4">
+                      <td className="px-5 py-3">
                         <TaxpayersCell total={u.contribuyentes} taxpayers={u.taxpayers} />
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="px-5 py-3">
                         <EstatusCell user={u} />
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="px-5 py-3">
                         <OrigenCell user={u} />
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="px-5 py-3">
                         <CodigoCell user={u} />
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="px-5 py-3">
                         <DescuentoCell user={u} />
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="px-5 py-3">
                         <VendedorCell user={u} />
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="px-5 py-3">
                         <EstadoCell user={u} />
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="px-5 py-3">
                         <span className="text-xs" style={{ color: 'var(--ink-700)' }}>
                           {formatDate(u.createdAt)}
                         </span>
@@ -323,14 +302,16 @@ export function UsuariosScreen({ scopedToSeller = false }: { scopedToSeller?: bo
               </div>
             ) : (
               <Pagination
-                page={Math.floor(skip / TAKE) + 1}
-                totalPages={Math.max(1, Math.ceil(total / TAKE))}
+                page={Math.floor(skip / take) + 1}
+                totalPages={Math.max(1, Math.ceil(total / take))}
                 total={total}
                 skip={skip}
-                take={TAKE}
+                take={take}
                 itemCount={items.length}
-                onPrev={() => setSkip((s) => Math.max(0, s - TAKE))}
-                onNext={() => setSkip((s) => (s + TAKE < total ? s + TAKE : s))}
+                onPrev={() => setSkip((s) => Math.max(0, s - take))}
+                onNext={() => setSkip((s) => (s + take < total ? s + take : s))}
+                pageSizeOptions={PAGE_SIZES}
+                onPageSizeChange={setTake}
               />
             )}
           </>
@@ -340,20 +321,39 @@ export function UsuariosScreen({ scopedToSeller = false }: { scopedToSeller?: bo
   )
 }
 
-function RolesCell({ roles }: { roles: string[] }) {
-  if (!roles || roles.length === 0) {
-    return <span className="text-xs" style={{ color: 'var(--ink-500)' }}>Sin rol</span>
-  }
+/**
+ * Skeleton de carga: mantiene la estructura de la tabla para que el contenido no
+ * "salte" al llegar (evita layout shift) y hace que la carga se perciba más rápida
+ * que un spinner centrado. Anchos variados para que se lea como datos, no como barras.
+ */
+function SkeletonTable() {
+  const widths = ['70%', '45%', '55%', '60%', '50%', '40%', '45%', '55%', '50%', '35%']
   return (
-    <div className="flex flex-wrap gap-1">
-      {roles.map((r) => (
-        <span
-          key={r}
-          className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold"
-          style={{ background: 'var(--ink-50)', color: 'var(--ink-700)' }}
+    <div className="flex-1 min-h-0 overflow-hidden px-5 py-2" aria-hidden>
+      {Array.from({ length: 9 }).map((_, row) => (
+        <div
+          key={row}
+          className="flex items-center gap-6 py-4 animate-pulse"
+          style={{
+            borderBottom: '1px solid var(--border)',
+            animationDelay: `${row * 70}ms`,
+          }}
         >
-          {r}
-        </span>
+          {widths.map((w, col) => (
+            <div key={col} className="flex-1 min-w-0">
+              <div
+                className="h-3 rounded-full"
+                style={{ width: w, background: 'var(--ink-100)' }}
+              />
+              {col === 0 && (
+                <div
+                  className="h-2.5 rounded-full mt-1.5"
+                  style={{ width: '50%', background: 'var(--ink-50)' }}
+                />
+              )}
+            </div>
+          ))}
+        </div>
       ))}
     </div>
   )
@@ -403,7 +403,7 @@ function EstadoCell({ user }: { user: UserListItem }) {
       ) : (
         <span
           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold"
-          style={{ background: 'var(--amber-soft)', color: '#7B5312' }}
+          style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
         >
           <MailWarning size={12} /> Sin confirmar
         </span>
@@ -411,7 +411,7 @@ function EstadoCell({ user }: { user: UserListItem }) {
       {user.bloqueado && (
         <span
           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold"
-          style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}
+          style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}
         >
           <Lock size={12} /> Bloqueado
         </span>
@@ -451,6 +451,9 @@ function OrigenCell({ user }: { user: UserListItem }) {
   if (!name) {
     return <span className="text-xs" style={{ color: 'var(--ink-500)' }}>—</span>
   }
+  // La etiqueta viene del catálogo (Catalogs.SystemsOrigin.DisplayName):
+  // "App móvil" · "Registro web (Sistema antiguo)" · "Registro web (Nuevo sistema)".
+  // Aquí solo se decide el icono: web = globo, móvil = teléfono.
   const lower = name.toLowerCase()
   const Icon = lower.includes('móvil') || lower.includes('movil') || lower.includes('app')
     ? Smartphone
@@ -499,7 +502,7 @@ function DescuentoCell({ user }: { user: UserListItem }) {
         <code
           key={c}
           className="inline-block px-2 py-0.5 rounded-md"
-          style={{ ...MONO, fontSize: '11px', background: 'var(--amber-soft)', color: '#7B5312' }}
+          style={{ ...MONO, fontSize: '11px', background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
         >
           {c}
         </code>

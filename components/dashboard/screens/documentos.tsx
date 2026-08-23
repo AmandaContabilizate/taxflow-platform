@@ -304,7 +304,7 @@ export function DocumentosScreen({ go }: Props) {
         {error && (
           <div
             className="rounded-2xl px-4 py-3 mb-4 text-[13.5px] font-semibold"
-            style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}
+            style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}
           >
             {error}
           </div>
@@ -362,7 +362,7 @@ export function DocumentosScreen({ go }: Props) {
               onClick={handleSearch}
               disabled={searchPending}
               className="px-5 py-3 rounded-xl font-semibold text-[13px] text-white flex items-center gap-2 transition hover:opacity-90 disabled:opacity-50"
-              style={{ background: '#15113F' }}
+              style={{ background: '#221158' }}
             >
               <Search size={16} /> {searchPending ? 'Buscando…' : 'BUSCAR'}
             </button>
@@ -501,7 +501,7 @@ export function DocumentosScreen({ go }: Props) {
         {downloadError && (
           <div
             className="rounded-2xl px-4 py-3 mb-3 text-[13.5px] font-semibold"
-            style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}
+            style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}
           >
             {downloadError}
           </div>
@@ -525,7 +525,7 @@ export function DocumentosScreen({ go }: Props) {
                       className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
                       style={
                         f.revisar
-                          ? { background: 'var(--amber-soft)', color: '#7B5312' }
+                          ? { background: 'var(--amber-soft)', color: 'var(--violet-ink)' }
                           : { background: 'var(--brand-50)', color: 'var(--brand-700)' }
                       }
                     >

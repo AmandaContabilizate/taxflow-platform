@@ -25,10 +25,10 @@ interface FiscalStatus {
 }
 
 function fiscalStatus(score: number): FiscalStatus {
-  if (score >= 75) return { word: 'excelente', accent: '#00A068', pill: 'brand', pillText: 'Todo en orden', positive: true }
-  if (score >= 50) return { word: 'buena', accent: '#00A068', pill: 'brand', pillText: 'Vas bien', positive: true }
-  if (score >= 25) return { word: 'regular', accent: '#7B5312', pill: 'amber', pillText: 'Requiere atención', positive: false }
-  return { word: 'crítica', accent: '#9E3A15', pill: 'coral', pillText: 'Requiere atención', positive: false }
+  if (score >= 75) return { word: 'excelente', accent: '#00AD87', pill: 'brand', pillText: 'Todo en orden', positive: true }
+  if (score >= 50) return { word: 'buena', accent: '#00AD87', pill: 'brand', pillText: 'Vas bien', positive: true }
+  if (score >= 25) return { word: 'regular', accent: 'var(--violet-ink)', pill: 'amber', pillText: 'Requiere atención', positive: false }
+  return { word: 'crítica', accent: 'var(--violet-ink)', pill: 'coral', pillText: 'Requiere atención', positive: false }
 }
 
 interface Props {
@@ -112,7 +112,7 @@ export function DiagnosticoScreen({ go }: Props) {
         ) : step === 'connecting' ? (
           <>
             <Pill kind="amber">
-              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#F5B037' }} /> Conectando
+              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#7339FD' }} /> Conectando
               con el SAT
             </Pill>
             <div
@@ -207,7 +207,7 @@ export function DiagnosticoScreen({ go }: Props) {
                   <div className="flex items-center gap-3 px-4 py-3.5">
                     <div
                       className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
-                      style={{ background: 'var(--amber-soft)', color: '#7B5312' }}
+                      style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
                     >
                       <Calendar size={20} />
                     </div>

@@ -18,11 +18,11 @@ export function AnualesTab() {
     <>
       <div
         className="rounded-3xl p-6 lg:p-7 text-white relative overflow-hidden"
-        style={{ background: 'linear-gradient(155deg,#5B4FE8 0%,#2A1F8F 80%)', boxShadow: 'var(--sh-1)' }}
+        style={{ background: 'linear-gradient(155deg,#7339FD 0%,#332670 80%)', boxShadow: 'var(--sh-1)' }}
       >
         <div
           className="absolute -top-6 -right-6 w-40 h-40 rounded-full opacity-30"
-          style={{ background: 'radial-gradient(circle,#FFD66B 0%, transparent 70%)' }}
+          style={{ background: 'radial-gradient(circle,#D9C8FE 0%, transparent 70%)' }}
         />
         <div className="relative">
           <div className="flex items-center gap-2">

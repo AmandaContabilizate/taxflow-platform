@@ -158,8 +158,8 @@ function readStatus(general: DeclarationGeneral | null): StatusInfo | null {
 
 const TONE_CHIP: Record<Tone, { bg: string; fg: string }> = {
   brand: { bg: 'var(--brand-100)', fg: 'var(--brand-700)' },
-  amber: { bg: 'var(--amber-soft)', fg: '#7B5312' },
-  coral: { bg: 'var(--coral-soft)', fg: '#9E3A15' },
+  amber: { bg: 'var(--amber-soft)', fg: 'var(--violet-ink)' },
+  coral: { bg: 'var(--coral-soft)', fg: 'var(--violet-ink)' },
 }
 
 /* -------------------------------------------------------------------------- */
@@ -377,7 +377,7 @@ export function ResumenDeclaracion({ declarationId, general, periodo, fiscalYear
         {error && (
           <div
             className="text-[13px] font-semibold px-4 py-2.5 rounded-xl"
-            style={{ background: 'var(--coral-soft)', color: '#9E3A15' }}
+            style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}
           >
             {error}
           </div>

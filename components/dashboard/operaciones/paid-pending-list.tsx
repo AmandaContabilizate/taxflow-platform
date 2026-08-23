@@ -19,21 +19,21 @@ function fmtDate(value: string | null): string {
 function statusStyle(code: string): { label: string; bg: string; color: string } {
   switch (code) {
     case 'PendientePago':
-      return { label: 'Pendiente de pago', bg: 'var(--coral-soft)', color: '#9E3A15' }
+      return { label: 'Pendiente de pago', bg: 'var(--coral-soft)', color: 'var(--violet-ink)' }
     case 'Pendiente':
-      return { label: 'Por presentar', bg: 'var(--coral-soft)', color: '#9E3A15' }
+      return { label: 'Por presentar', bg: 'var(--coral-soft)', color: 'var(--violet-ink)' }
     case 'EnProceso':
-      return { label: 'En proceso', bg: 'var(--amber-soft)', color: '#7B5312' }
+      return { label: 'En proceso', bg: 'var(--amber-soft)', color: 'var(--violet-ink)' }
     case 'Presentada':
-      return { label: 'Presentada', bg: 'var(--brand-100)', color: '#00A068' }
+      return { label: 'Presentada', bg: 'var(--brand-100)', color: '#00AD87' }
     case 'PresentadaManual':
-      return { label: 'Presentada (manual)', bg: 'var(--brand-100)', color: '#00A068' }
+      return { label: 'Presentada (manual)', bg: 'var(--brand-100)', color: '#00AD87' }
     case 'PresentadaPrevio':
-      return { label: 'Presentada previamente', bg: 'var(--brand-100)', color: '#00A068' }
+      return { label: 'Presentada previamente', bg: 'var(--brand-100)', color: '#00AD87' }
     case 'PresentadaExterno':
-      return { label: 'Presentada (SAT)', bg: 'var(--brand-100)', color: '#00A068' }
+      return { label: 'Presentada (SAT)', bg: 'var(--brand-100)', color: '#00AD87' }
     case 'Completada':
-      return { label: 'Completada', bg: 'var(--brand-100)', color: '#00A068' }
+      return { label: 'Completada', bg: 'var(--brand-100)', color: '#00AD87' }
     default:
       return { label: code || '—', bg: 'var(--ink-50)', color: 'var(--ink-700)' }
   }
@@ -94,7 +94,6 @@ export function PaidPendingList({ kind, help, searchPlaceholder, emptyText, curr
       <DeclarationDetail
         declaration={selected}
         onBack={() => setSelected(null)}
-        viewerRole="contador"
         currentUser={currentUser}
       />
     )

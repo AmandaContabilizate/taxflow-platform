@@ -8,16 +8,26 @@ import type { TeamError, TeamMember } from "../types";
 interface GetTeamMembersResponse {
   success: boolean;
   members: TeamMember[];
+  managerSegmentId: number | null;
+}
+
+export interface TeamMembersResult {
+  members: TeamMember[];
+  /** Segmento que encabeza quien consulta; null si es admin (elige libremente). */
+  managerSegmentId: number | null;
 }
 
 /** Plantilla del gerente autenticado (GET /team/members, Identity). */
-export async function getTeamMembers(): Promise<Result<TeamMember[], TeamError>> {
+export async function getTeamMembers(): Promise<Result<TeamMembersResult, TeamError>> {
   try {
     const data = await fetchGet<GetTeamMembersResponse>(
       API_ROUTES.TEAM.MEMBERS,
       "team",
     );
-    return ok(data?.members ?? []);
+    return ok({
+      members: data?.members ?? [],
+      managerSegmentId: data?.managerSegmentId ?? null,
+    });
   } catch (e) {
     if (e instanceof ApiError) {
       return err({ statusCode: e.status, message: e.message });

@@ -71,6 +71,8 @@ export interface NavDef {
   label: string
   Icon: ComponentType<{ size?: number }>
   hint: string
+  /** Pill destacado junto al label (ej. "Nuevo" para features recién lanzadas). */
+  badge?: string
 }
 
 export interface NavSection {

@@ -82,7 +82,7 @@ export function StripeDetailModal({ saleId, onClose }: Props) {
           </div>
         ) : state.error ? (
           <div className="py-8 text-center flex flex-col items-center gap-2">
-            <AlertCircle size={20} style={{ color: '#9E3A15' }} />
+            <AlertCircle size={20} style={{ color: 'var(--violet-ink)' }} />
             <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>
               {state.error}
             </div>
@@ -119,7 +119,7 @@ export function StripeDetailModal({ saleId, onClose }: Props) {
             {!d.stripeCustomerId && (
               <div
                 className="rounded-xl px-4 py-3 text-[12.5px]"
-                style={{ background: 'var(--amber-soft)', color: '#7B5312' }}
+                style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
               >
                 No pudimos obtener el <b>Customer</b> de Stripe. Puede que la llave de API no esté
                 configurada en este ambiente o que el correo no exista en Stripe.

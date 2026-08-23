@@ -59,6 +59,11 @@ const money = (v: string | number | null) => {
   return n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2 })
 }
 
+const toNumber = (v: string | number | null | undefined) => {
+  const n = typeof v === 'string' ? Number(v) : v
+  return n != null && Number.isFinite(n) ? n : 0
+}
+
 const fmtDate = (iso: string | null) => {
   if (!iso) return '—'
   const d = new Date(iso)
@@ -170,7 +175,7 @@ function ClasificacionCell({ inv }: { inv: DeclarationInvoice }) {
           <Chip bg="var(--brand-50)" fg="var(--brand-700)">Deducible</Chip>
         )}
         {inv.isDeducible === false && (
-          <Chip bg="var(--coral-soft)" fg="#9E3A15" title={inv.motivo ?? undefined}>
+          <Chip bg="var(--coral-soft)" fg="var(--violet-ink)" title={inv.motivo ?? undefined}>
             No deducible
           </Chip>
         )}
@@ -199,7 +204,7 @@ function ClasificacionCell({ inv }: { inv: DeclarationInvoice }) {
       {inv.motivo && (
         <span
           className="text-[11.5px] leading-snug"
-          style={{ color: inv.isDeducible === false ? '#9E3A15' : 'var(--ink-500)' }}
+          style={{ color: inv.isDeducible === false ? 'var(--violet-ink)' : 'var(--ink-500)' }}
         >
           {inv.motivo}
         </span>
@@ -320,6 +325,21 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
   const retenciones = useMemo(() => rows.filter((i) => i.esRetencion), [rows])
   const visibles = subTab === 1 ? retenciones : normales
 
+  // Suma de lo que se está viendo: cambia con los filtros, la búsqueda y la
+  // página, así que el encabezado dice explícitamente sobre qué se sumó.
+  const totales = useMemo(
+    () =>
+      visibles.reduce(
+        (acc, i) => ({
+          subTotal: acc.subTotal + toNumber(i.subTotal),
+          total: acc.total + toNumber(i.total),
+          retenido: acc.retenido + toNumber(i.totalRetenido),
+        }),
+        { subTotal: 0, total: 0, retenido: 0 },
+      ),
+    [visibles],
+  )
+
   const totalPages = Math.max(1, Math.ceil(page.total / TAKE))
   const currentPage = Math.floor(skip / TAKE) + 1
 
@@ -419,7 +439,7 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
 
         {error ? (
           <div className="py-8 text-center flex flex-col items-center gap-2">
-            <AlertCircle size={20} style={{ color: '#9E3A15' }} />
+            <AlertCircle size={20} style={{ color: 'var(--violet-ink)' }} />
             <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>{error}</div>
           </div>
         ) : loading ? (
@@ -449,6 +469,11 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
           </div>
         ) : subTab === 1 ? (
           <>
+            <TotalesResumen
+              caption={`${visibles.length} CFDI de retenciones en pantalla`}
+              entries={[['Total retenido', money(totales.retenido)]]}
+            />
+
             <div className="overflow-x-auto -mx-1">
               <table className="w-full text-[12.5px]">
                 <thead>
@@ -528,6 +553,14 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
           </>
         ) : (
           <>
+            <TotalesResumen
+              caption={`${visibles.length} comprobantes en pantalla`}
+              entries={[
+                ['Subtotal', money(totales.subTotal)],
+                ['Total', money(totales.total)],
+              ]}
+            />
+
             <div className="overflow-x-auto -mx-1">
               <table className="w-full text-[12.5px]">
                 <thead>
@@ -577,7 +610,7 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
                             {inv.isValid === false && (
                               <Chip
                                 bg="var(--coral-soft)"
-                                fg="#9E3A15"
+                                fg="var(--violet-ink)"
                                 title="La factura entró a esta declaración marcada como no válida"
                               >
                                 No válida
@@ -634,5 +667,42 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
         )}
       </div>
     </Card>
+  )
+}
+
+/**
+ * Suma de los comprobantes visibles. Es sobre la página cargada y con los filtros
+ * puestos, no sobre el universo del periodo: el `caption` lo dice para que el
+ * contador no lea el número como el total de la declaración.
+ */
+function TotalesResumen({
+  caption,
+  entries,
+}: {
+  caption: string
+  entries: [string, string][]
+}) {
+  return (
+    <div
+      className="rounded-2xl px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-2"
+      style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}
+    >
+      <span
+        className="text-[11.5px] font-bold uppercase tracking-wider"
+        style={{ color: 'var(--ink-500)' }}
+      >
+        {caption}
+      </span>
+      {entries.map(([label, value]) => (
+        <span key={label} className="flex items-baseline gap-1.5">
+          <span className="text-[12px] font-semibold" style={{ color: 'var(--ink-500)' }}>
+            {label}
+          </span>
+          <span className="text-[15px] font-extrabold" style={{ ...MONO, color: 'var(--ink-900)' }}>
+            {value}
+          </span>
+        </span>
+      ))}
+    </div>
   )
 }

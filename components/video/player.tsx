@@ -3,8 +3,18 @@
 import { Player, type PlayerRef } from '@remotion/player'
 import { useRef, useState } from 'react'
 import { WelcomeVideo } from './welcome-remotion'
+import { TOUR_DURATION_FRAMES, TourPanelVideo } from './tour-panel'
 
-export function RemotionPlayer() {
+export type VideoId = 'bienvenida' | 'tour'
+
+/** Catálogo de composiciones internas (Remotion). */
+const VIDEOS = {
+  bienvenida: { component: WelcomeVideo, durationInFrames: 1200, width: 390, height: 770 },
+  tour: { component: TourPanelVideo, durationInFrames: TOUR_DURATION_FRAMES, width: 1080, height: 1920 },
+} as const
+
+export function RemotionPlayer({ video = 'bienvenida' }: { video?: VideoId }) {
+  const def = VIDEOS[video]
   const playerRef = useRef<PlayerRef>(null)
   const [isPlaying, setIsPlaying] = useState(false)
 
@@ -26,10 +36,10 @@ export function RemotionPlayer() {
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <Player
         ref={playerRef}
-        component={WelcomeVideo}
-        durationInFrames={1200}
-        compositionWidth={390}
-        compositionHeight={770}
+        component={def.component}
+        durationInFrames={def.durationInFrames}
+        compositionWidth={def.width}
+        compositionHeight={def.height}
         fps={30}
         style={{ width: '100%', height: '100%' }}
         controls
@@ -58,7 +68,7 @@ export function RemotionPlayer() {
             style={{
               width: '80px',
               height: '80px',
-              background: 'rgba(16, 185, 129, 0.9)',
+              background: 'rgba(0,173,135, 0.9)',
               borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',

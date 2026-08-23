@@ -96,7 +96,7 @@ export function RegistroEmpresaModal({ open, onOpenChange, onSuccess }: Registro
         {/* Content */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="p-3 rounded-lg text-[13px]" style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
+            <div className="p-3 rounded-lg text-[13px]" style={{ backgroundColor: '#FCDCDC', color: '#991B1B' }}>
               {error}
             </div>
           )}

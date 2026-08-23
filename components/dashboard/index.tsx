@@ -33,7 +33,6 @@ import {
   EquipoOperacionesScreen,
   EstatusSatScreen,
   FacturasScreen,
-  GeorgeScreen,
   HomeScreen,
   ManualScreen,
   MarketingScreen,
@@ -45,6 +44,7 @@ import {
   PermisosScreen,
   PlaceholderScreen,
   PlanScreen,
+  ProximamenteScreen,
   RegularizacionesScreen,
   RenovacionesScreen,
   RolesScreen,
@@ -166,18 +166,18 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
           style={{
             width: '32px',
             height: '32px',
-            background: 'rgba(37, 99, 235, 0.1)',
-            color: '#2563EB',
-            border: '1px solid rgba(37, 99, 235, 0.2)',
+            background: 'rgba(115,57,253, 0.1)',
+            color: '#7339FD',
+            border: '1px solid rgba(115,57,253, 0.2)',
             left: sidebarCollapsed ? 'calc(80px - 16px)' : 'calc(260px - 16px)',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(37, 99, 235, 0.15)';
-            e.currentTarget.style.borderColor = 'rgba(37, 99, 235, 0.3)';
+            e.currentTarget.style.background = 'rgba(115,57,253, 0.15)';
+            e.currentTarget.style.borderColor = 'rgba(115,57,253, 0.3)';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(37, 99, 235, 0.1)';
-            e.currentTarget.style.borderColor = 'rgba(37, 99, 235, 0.2)';
+            e.currentTarget.style.background = 'rgba(115,57,253, 0.1)';
+            e.currentTarget.style.borderColor = 'rgba(115,57,253, 0.2)';
           }}>
           {sidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
         </button>
@@ -365,7 +365,7 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
       return <VentasScreen />;
     }
     if (screen === 'equipo') {
-      return <EquipoScreen />;
+      return <EquipoScreen canManageManagers={permissions.includes('Admin.ManageCommercialManagers')} />;
     }
     if (screen === 'partners') {
       return <PartnersScreen />;
@@ -430,7 +430,9 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
     case 'facturas':
       return <FacturasScreen go={go} />;
     case 'george':
-      return <GeorgeScreen go={go} />;
+      // Funcionalidad sin terminar: se anuncia "Próximamente". La pantalla real
+      // (GeorgeScreen) queda construida y reservada — restaurarla aquí al liberar.
+      return <ProximamenteScreen />;
     case 'documentos':
       return <DocumentosScreen go={go} />;
     case 'diagnostico':

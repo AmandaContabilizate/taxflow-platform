@@ -95,8 +95,8 @@ export function FinancialSummary() {
             <Sparkline
               data={INGRESOS_SPARK}
               stroke="var(--brand-500)"
-              fillFrom="rgba(14,209,138,0.20)"
-              fillTo="rgba(14,209,138,0.00)"
+              fillFrom="rgba(0,211,161,0.20)"
+              fillTo="rgba(0,211,161,0.00)"
             />
           }
         />
@@ -104,15 +104,15 @@ export function FinancialSummary() {
           eyebrow="Gastos del mes"
           icon={<TrendingDown size={20} />}
           iconBg="var(--coral-soft)"
-          iconColor="#9E3A15"
+          iconColor="var(--violet-ink)"
           state={bills}
           format={formatMoney}
           sparkline={
             <Sparkline
               data={GASTOS_SPARK}
-              stroke="#FF8862"
-              fillFrom="rgba(255,136,98,0.20)"
-              fillTo="rgba(255,136,98,0.00)"
+              stroke="var(--violet-ink)"
+              fillFrom="rgba(115,57,253,0.20)"
+              fillTo="rgba(115,57,253,0.00)"
             />
           }
         />
@@ -120,16 +120,16 @@ export function FinancialSummary() {
           eyebrow="Facturas emitidas"
           icon={<FileText size={20} />}
           iconBg="var(--sky-soft)"
-          iconColor="#1C4C96"
+          iconColor="var(--violet-ink)"
           state={invoices}
           format={formatNumber}
           valueSuffix=" facturas"
           sparkline={
             <Sparkline
               data={FACTURAS_SPARK}
-              stroke="#5EA8FF"
-              fillFrom="rgba(94,168,255,0.20)"
-              fillTo="rgba(94,168,255,0.00)"
+              stroke="#7339FD"
+              fillFrom="rgba(115,57,253,0.20)"
+              fillTo="rgba(115,57,253,0.00)"
             />
           }
         />
@@ -137,16 +137,16 @@ export function FinancialSummary() {
           eyebrow="Clientes facturados"
           icon={<Users size={20} />}
           iconBg="var(--violet-soft)"
-          iconColor="#5A4DCC"
+          iconColor="#7339FD"
           state={clients}
           format={formatNumber}
           valueSuffix=" clientes"
           sparkline={
             <Sparkline
               data={CLIENTES_SPARK}
-              stroke="#8B7CFF"
-              fillFrom="rgba(139,124,255,0.22)"
-              fillTo="rgba(139,124,255,0.00)"
+              stroke="#7339FD"
+              fillFrom="rgba(115,57,253,0.22)"
+              fillTo="rgba(115,57,253,0.00)"
             />
           }
         />

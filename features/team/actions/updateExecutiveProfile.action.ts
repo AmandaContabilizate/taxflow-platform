@@ -11,28 +11,36 @@ export interface UpdateExecutiveProfileInput {
   b2cChannelId?: number;
   team?: string | null;
   isActive?: boolean;
+  /** Nombra o retira al miembro como gerente de su segmento. Solo lo acepta un administrador. */
+  isManager?: boolean;
+}
+
+/** `requiresRelogin`: cambió el rol, y los claims viajan en el token. */
+export interface UpdateExecutiveProfileResponse {
+  requiresRelogin: boolean;
 }
 
 /**
- * Edita el perfil comercial de un miembro de la plantilla
- * (PUT /team/members/{userId}/profile, Identity). El backend valida que el
- * miembro pertenezca a la plantilla del gerente.
+ * Edita el perfil comercial de un miembro (PUT /team/members/{userId}/profile,
+ * Identity). El backend valida el alcance: el gerente solo toca su plantilla o su
+ * segmento, y nombrar gerentes queda reservado a un administrador.
  */
 export async function updateExecutiveProfile(
   input: UpdateExecutiveProfileInput,
-): Promise<Result<true, TeamError>> {
+): Promise<Result<UpdateExecutiveProfileResponse, TeamError>> {
   try {
-    await fetchPut(
+    const res = await fetchPut<{ requiresRelogin?: boolean }>(
       API_ROUTES.TEAM.MEMBER_PROFILE(input.memberUserId),
       {
         segmentId: input.segmentId ?? null,
         b2cChannelId: input.b2cChannelId ?? null,
         team: input.team === undefined ? null : input.team,
         isActive: input.isActive ?? null,
+        isManager: input.isManager ?? null,
       },
       "team",
     );
-    return ok(true);
+    return ok({ requiresRelogin: res?.requiresRelogin === true });
   } catch (e) {
     if (e instanceof ApiError) {
       const detail =

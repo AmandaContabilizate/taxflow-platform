@@ -72,7 +72,7 @@ function Kpi({
               className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
               style={{
                 background: highlight ? 'rgba(255,255,255,0.16)' : alert ? 'var(--coral-soft)' : 'var(--ink-50)',
-                color: highlight ? 'var(--nav-active-fg)' : alert ? '#9E3A15' : 'var(--ink-500)',
+                color: highlight ? 'var(--nav-active-fg)' : alert ? 'var(--violet-ink)' : 'var(--ink-500)',
               }}
             >
               <Icon size={15} />
@@ -80,7 +80,7 @@ function Kpi({
           </div>
           <div
             className="text-[28px] font-bold mt-2 leading-none"
-            style={{ ...MONO, color: highlight ? 'var(--nav-active-fg)' : alert ? '#9E3A15' : 'var(--ink-900)' }}
+            style={{ ...MONO, color: highlight ? 'var(--nav-active-fg)' : alert ? 'var(--violet-ink)' : 'var(--ink-900)' }}
           >
             {value}
           </div>
