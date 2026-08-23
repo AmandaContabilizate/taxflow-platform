@@ -87,6 +87,26 @@
     "es": "El código de confirmación es inválido.",
     "en": "The confirmation code is invalid."
   },
+  "INVALID_PASSWORD": {
+    "es": "La contraseña es incorrecta.",
+    "en": "The password is incorrect."
+  },
+  "EMAIL_PASSWORD_REQUIRED": {
+    "es": "Se requieren correo y contraseña.",
+    "en": "Email and password are required."
+  },
+  "DEACTIVATION_ERROR": {
+    "es": "No pudimos desactivar tu cuenta. Intenta de nuevo.",
+    "en": "We couldn't deactivate your account. Please try again."
+  },
+  "DELETE_ACCOUNT_FAILED": {
+    "es": "No pudimos eliminar tu cuenta. Intenta de nuevo.",
+    "en": "We couldn't delete your account. Please try again."
+  },
+  "UNAUTHORIZED": {
+    "es": "Tu sesión expiró. Inicia sesión de nuevo.",
+    "en": "Your session expired. Please sign in again."
+  },
   "USER_NOT_FOUND": {
     "es": "Usuario no encontrado.",
     "en": "User not found."

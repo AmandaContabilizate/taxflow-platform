@@ -44,6 +44,8 @@ export const API_ROUTES = {
     REMOVE_ROLE: "/remove-role",
     ROLES: (userId: string) => `/${encodeURIComponent(userId)}/roles`,
     SWITCH_ROLE: "/switch-role",
+    /** POST users (Identity). Desactiva la cuenta del usuario autenticado (isActive = 0). */
+    DELETE_ACCOUNT: "/delete-account",
   },
   // Equipo comercial — módulo de comisiones. apiType "team" (Identity)
   TEAM: {
