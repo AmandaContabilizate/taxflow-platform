@@ -12,3 +12,4 @@ export { resetPassword } from "./resetPassword.action";
 export { completeUserProfile } from "./completeProfile.action";
 export { checkEmailExists } from "./checkEmailExists.action";
 export { deleteAccount } from "./deleteAccount.action";
+export { deleteAccountPublic } from "./deleteAccountPublic.action";

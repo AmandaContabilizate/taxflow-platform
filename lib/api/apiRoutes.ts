@@ -24,6 +24,8 @@ export const API_ROUTES = {
     LOGIN: "/login",
     SIGN_OUT: "/signout",
     VALIDATE: "/validate",
+    /** POST auth (Identity), anonimo. Desactiva la cuenta (isActive = 0) validando email + password. */
+    DELETE_ACCOUNT: "/delete-account",
   },
   USERS: {
     ROOT: "",
