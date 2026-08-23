@@ -367,4 +367,12 @@ export const API_ROUTES = {
     TICKETS: "/george/tickets",
     PURCHASE_TICKETS: "/george/purchase-tickets",
   },
+  USER_NOTIFICATIONS: {
+    ROOT: "",
+    UNREAD_COUNT: "/unread-count",
+    READ: (id: string) => `/${id}/read`,
+    MARK_ALL_READ: "/mark-all-read",
+    DELETE: (id: string) => `/${id}`,
+    SEED_TEST: "/seed-test",
+  },
 } as const;

@@ -16,38 +16,40 @@ interface NotificationItemProps {
 
 export function NotificationItem({ notification, onMarkAsRead, onDelete, onSelectDetail }: NotificationItemProps) {
   const getCategoryConfig = (category: string, code: string) => {
-    switch (category.toLowerCase()) {
+    const catLower = (category || '').toLowerCase();
+    switch (catLower) {
       case 'pre-reportes':
+      case 'contable':
         return {
           icon: FileText,
-          bgColor: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
-          badgeText: 'Pre-Reporte',
+          bgColor: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+          badgeText: category || 'Contable',
         };
       case 'sat':
-        if (code.includes('CIEC') || code.includes('ALERT')) {
-          return {
-            icon: AlertTriangle,
-            bgColor: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
-            badgeText: 'SAT Alerta',
-          };
-        }
         return {
           icon: Building2,
-          bgColor: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
-          badgeText: 'Declaración SAT',
+          bgColor: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
+          badgeText: 'SAT',
         };
       case 'renovacion':
+      case 'renovación':
         return {
           icon: CreditCard,
           bgColor: 'bg-purple-500/10 text-purple-500 border-purple-500/20',
-          badgeText: 'Suscripción',
+          badgeText: 'Renovación',
+        };
+      case 'alertas':
+        return {
+          icon: AlertTriangle,
+          bgColor: 'bg-rose-500/10 text-rose-500 border-rose-500/20',
+          badgeText: 'Alertas',
         };
       case 'sistema':
       default:
         return {
           icon: ShieldCheck,
           bgColor: 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20',
-          badgeText: 'Sistema',
+          badgeText: category || 'Sistema',
         };
     }
   };
@@ -115,14 +117,21 @@ export function NotificationItem({ notification, onMarkAsRead, onDelete, onSelec
         {notification.detailUrl && (
           <Link
             href={
-              notification.detailUrl.startsWith('/dashboard/') && !notification.detailUrl.includes('?s=')
+              notification.detailUrl.trim() === '/dashboard' || notification.detailUrl.trim() === '/dashboard/'
+                ? '/dashboard?s=home'
+                : notification.detailUrl.startsWith('/dashboard/') && !notification.detailUrl.includes('?s=')
                 ? `/dashboard?s=${notification.detailUrl.split('/')[2] || 'home'}`
                 : notification.detailUrl
             }
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!notification.isRead) {
+                onMarkAsRead(notification.id, true);
+              }
+            }}
             className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
           >
-            <span>Ver detalle completo</span>
+            <span>Ir a Detalle</span>
             <ExternalLink className="h-3 w-3" />
           </Link>
         )}

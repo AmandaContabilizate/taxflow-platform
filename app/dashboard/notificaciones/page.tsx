@@ -5,21 +5,21 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useNotifications } from '@/hooks/useNotifications';
 import { NotificationCategory, UserNotification } from '@/types/notification';
 import { NotificationItem } from '@/components/notifications/NotificationItem';
-import { Bell, Search, CheckCheck, RefreshCw, PlusCircle, Inbox, Filter, Shield, FileText, Building2, CreditCard } from 'lucide-react';
+import { Bell, Search, CheckCheck, RefreshCw, PlusCircle, Inbox, Filter, Shield, FileText, Building2, CreditCard, AlertTriangle } from 'lucide-react';
 
 const CATEGORIES: { id: NotificationCategory; label: string; icon: React.ElementType }[] = [
   { id: 'Todas', label: 'Todas', icon: Bell },
-  { id: 'Pre-Reportes', label: 'Pre-Reportes', icon: FileText },
-  { id: 'SAT', label: 'SAT & Declaraciones', icon: Building2 },
-  { id: 'Sistema', label: 'Sistema & Diagnósticos', icon: Shield },
-  { id: 'Renovacion', label: 'Suscripción', icon: CreditCard },
+  { id: 'Contable', label: 'Contable', icon: FileText },
+  { id: 'SAT', label: 'SAT', icon: Building2 },
+  { id: 'Sistema', label: 'Sistema', icon: Shield },
+  { id: 'Renovacion', label: 'Renovación', icon: CreditCard },
+  { id: 'Alertas', label: 'Alertas', icon: AlertTriangle },
 ];
 
 export default function NotificationCenterPage() {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Si se entra por URL directa a /dashboard/notificaciones, redirigir a /dashboard?s=centro-notificaciones para cargar el Sidebar
   useEffect(() => {
     if (pathname === '/dashboard/notificaciones') {
       router.replace('/dashboard?s=centro-notificaciones');
@@ -41,11 +41,36 @@ export default function NotificationCenterPage() {
     markAsRead,
     markAllAsRead,
     deleteNotification,
-    seedTestNotification,
     refresh,
   } = useNotifications();
 
   const [selectedDetail, setSelectedDetail] = useState<UserNotification | null>(null);
+
+  const categoryUnreadCounts = React.useMemo(() => {
+    const counts: Record<string, number> = {
+      Todas: 0,
+      Contable: 0,
+      SAT: 0,
+      Sistema: 0,
+      Renovacion: 0,
+      Alertas: 0,
+    };
+
+    notifications.forEach(n => {
+      if (!n.isRead) {
+        counts.Todas += 1;
+        const catKey = (n.category || 'Sistema').trim();
+        const matchKey = Object.keys(counts).find(k => k.toLowerCase() === catKey.toLowerCase());
+        if (matchKey && matchKey !== 'Todas') {
+          counts[matchKey] = (counts[matchKey] || 0) + 1;
+        } else {
+          counts.Sistema = (counts.Sistema || 0) + 1;
+        }
+      }
+    });
+
+    return counts;
+  }, [notifications]);
 
   return (
     <div className="flex flex-col h-[calc(100vh-140px)] max-w-5xl mx-auto px-4 py-2 space-y-4 overflow-hidden">
@@ -76,17 +101,6 @@ export default function NotificationCenterPage() {
             </button>
           )}
 
-          {/* Botón de Pruebas: Simular Notificación */}
-          <button
-            onClick={seedTestNotification}
-            disabled={isLoading}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 transition-colors shadow-sm"
-            title="Genera una notificación simulada en tiempo real para probar el refresco"
-          >
-            <PlusCircle className="h-3.5 w-3.5" />
-            <span>Simular Notificación</span>
-          </button>
-
           <button
             onClick={refresh}
             className="p-1.5 rounded-xl border bg-card hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
@@ -104,6 +118,7 @@ export default function NotificationCenterPage() {
           {CATEGORIES.map((cat) => {
             const Icon = cat.icon;
             const isActive = activeCategory === cat.id;
+            const count = categoryUnreadCounts[cat.id] || 0;
             return (
               <button
                 key={cat.id}
@@ -116,6 +131,11 @@ export default function NotificationCenterPage() {
               >
                 <Icon className="h-3.5 w-3.5" />
                 <span>{cat.label}</span>
+                {count > 0 && (
+                  <span className="px-1.5 py-0.2 text-[10px] font-bold rounded-full bg-rose-500 text-white shadow-sm ml-0.5">
+                    {count}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -171,16 +191,9 @@ export default function NotificationCenterPage() {
           <div className="py-16 text-center bg-card/30 rounded-2xl border border-dashed p-8">
             <Inbox className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
             <h3 className="text-sm font-semibold text-foreground mb-1">No se encontraron notificaciones</h3>
-            <p className="text-xs text-muted-foreground max-w-sm mx-auto mb-4">
+            <p className="text-xs text-muted-foreground max-w-sm mx-auto">
               No tienes notificaciones en esta categoría o que coincidan con tu búsqueda.
             </p>
-            <button
-              onClick={seedTestNotification}
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-primary text-primary-foreground shadow-md hover:bg-primary/90 transition-colors"
-            >
-              <PlusCircle className="h-4 w-4" />
-              <span>Generar Notificación de Prueba</span>
-            </button>
           </div>
         ) : (
           notifications.map((notification) => (

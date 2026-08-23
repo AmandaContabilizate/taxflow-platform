@@ -22,21 +22,20 @@ async function getAuthHeader(request: NextRequest): Promise<Record<string, strin
   return {};
 }
 
-export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => ({}));
-  const targetUrl = `${BACKEND_URL}/api/v1/user-notifications/seed-test`;
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const targetUrl = `${BACKEND_URL}/api/v1/user-notifications/${id}`;
 
   try {
     const authHeaders = await getAuthHeader(request);
 
     const res = await fetch(targetUrl, {
-      method: 'POST',
+      method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
         ...authHeaders,
       },
       signal: AbortSignal.timeout(5000),
-      body: JSON.stringify(body),
     });
 
     if (res.ok) {
@@ -47,6 +46,6 @@ export async function POST(request: NextRequest) {
     const errText = await res.text();
     return NextResponse.json({ message: errText }, { status: res.status });
   } catch (err) {
-    return NextResponse.json({ message: 'Error en seed-test backend', error: String(err) }, { status: 502 });
+    return NextResponse.json({ message: 'Error al eliminar notificación', error: String(err) }, { status: 502 });
   }
 }

@@ -21,9 +21,9 @@ export function useNotifications(initialCategory: NotificationCategory = 'Todas'
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterUnreadOnly, setFilterUnreadOnly] = useState<boolean>(false);
 
-  const loadNotifications = useCallback(async () => {
+  const loadNotifications = useCallback(async (isSilent = false) => {
     try {
-      setIsLoading(true);
+      if (!isSilent) setIsLoading(true);
       setError(null);
       const data = await fetchNotifications(1, 50, filterUnreadOnly ? false : undefined, activeCategory);
       setNotifications(data.items);
@@ -33,13 +33,30 @@ export function useNotifications(initialCategory: NotificationCategory = 'Todas'
       console.error('Error al cargar notificaciones:', err);
       setError(err.message || 'Error al conectar con el centro de notificaciones');
     } finally {
-      setIsLoading(false);
+      if (!isSilent) setIsLoading(false);
     }
   }, [activeCategory, filterUnreadOnly]);
 
   useEffect(() => {
-    loadNotifications();
+    loadNotifications(false);
+    const interval = setInterval(() => {
+      loadNotifications(true);
+    }, 30000);
+
+    const handleSync = () => loadNotifications(true);
+    window.addEventListener('notifications-updated', handleSync);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('notifications-updated', handleSync);
+    };
   }, [loadNotifications]);
+
+  const notifySync = () => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('notifications-updated'));
+    }
+  };
 
   const handleMarkAsRead = async (id: string, isRead: boolean) => {
     // Optimistic UI Update
@@ -51,6 +68,7 @@ export function useNotifications(initialCategory: NotificationCategory = 'Todas'
     try {
       const res = await markNotificationAsRead(id, isRead);
       setUnreadCount(res.unreadCount);
+      notifySync();
     } catch (err) {
       console.error('Error al actualizar estado de lectura:', err);
       // Revert in case of error
@@ -66,6 +84,7 @@ export function useNotifications(initialCategory: NotificationCategory = 'Todas'
     try {
       const res = await markAllNotificationsAsRead();
       setUnreadCount(res.unreadCount);
+      notifySync();
     } catch (err) {
       console.error('Error al marcar todas como leídas:', err);
       setNotifications(previous);
@@ -82,6 +101,7 @@ export function useNotifications(initialCategory: NotificationCategory = 'Todas'
     try {
       const res = await deleteNotification(id);
       setUnreadCount(res.unreadCount);
+      notifySync();
     } catch (err) {
       console.error('Error al eliminar notificación:', err);
       loadNotifications();
@@ -93,6 +113,7 @@ export function useNotifications(initialCategory: NotificationCategory = 'Todas'
       setIsLoading(true);
       await seedTestNotification();
       await loadNotifications();
+      notifySync();
     } catch (err) {
       console.error('Error al generar notificación simulada:', err);
     } finally {
@@ -128,6 +149,6 @@ export function useNotifications(initialCategory: NotificationCategory = 'Todas'
     markAllAsRead: handleMarkAllAsRead,
     deleteNotification: handleDelete,
     seedTestNotification: handleSeedTestNotification,
-    refresh: loadNotifications,
+    refresh: () => loadNotifications(false),
   };
 }

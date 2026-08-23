@@ -22,21 +22,20 @@ async function getAuthHeader(request: NextRequest): Promise<Record<string, strin
   return {};
 }
 
-export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => ({}));
-  const targetUrl = `${BACKEND_URL}/api/v1/user-notifications/seed-test`;
+export async function GET(request: NextRequest) {
+  const targetUrl = `${BACKEND_URL}/api/v1/user-notifications/unread-count`;
 
   try {
     const authHeaders = await getAuthHeader(request);
 
     const res = await fetch(targetUrl, {
-      method: 'POST',
+      method: 'GET',
       headers: {
         'Content-Type': 'application/json',
         ...authHeaders,
       },
       signal: AbortSignal.timeout(5000),
-      body: JSON.stringify(body),
+      cache: 'no-store',
     });
 
     if (res.ok) {
@@ -45,8 +44,8 @@ export async function POST(request: NextRequest) {
     }
 
     const errText = await res.text();
-    return NextResponse.json({ message: errText }, { status: res.status });
+    return NextResponse.json({ message: errText || `Backend HTTP ${res.status}` }, { status: res.status });
   } catch (err) {
-    return NextResponse.json({ message: 'Error en seed-test backend', error: String(err) }, { status: 502 });
+    return NextResponse.json({ message: 'Error al consultar conteo no leído', error: String(err) }, { status: 502 });
   }
 }
