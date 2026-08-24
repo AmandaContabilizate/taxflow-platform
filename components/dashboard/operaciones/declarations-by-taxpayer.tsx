@@ -604,7 +604,6 @@ export function DeclarationsByTaxpayer({ currentUser }: { currentUser: CurrentUs
       <DeclarationDetail
         declaration={current}
         onBack={() => setParams({ decl: null })}
-        viewerRole="contador"
         currentUser={currentUser}
       />
     )

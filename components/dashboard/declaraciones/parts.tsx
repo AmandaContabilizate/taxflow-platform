@@ -5,7 +5,31 @@ import { useEffect, useState } from 'react'
 import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import type { Result } from '@/lib/common'
 import { DISPLAY } from '../constants'
-import { Card, ErrorState } from '../ui'
+import { type BadgeKind, Card, ErrorState } from '../ui'
+
+/** Etiqueta y tono de `Declarations.StatusDeclaration` para el contribuyente. */
+const STATUS_BADGE: Record<string, { kind: BadgeKind; label: string }> = {
+  PendientePago: { kind: 'coral', label: 'Pendiente de pago' },
+  PendienteConciliacion: { kind: 'amber', label: 'En conciliación' },
+  Presentada: { kind: 'brand', label: 'Presentada' },
+  IntervencionManual: { kind: 'amber', label: 'En revisión' },
+  PresentadaManual: { kind: 'brand', label: 'Presentada (manual)' },
+  Enviando: { kind: 'amber', label: 'Enviando' },
+  PresentadaPrevio: { kind: 'brand', label: 'Presentada previamente' },
+  PresentadaExterno: { kind: 'brand', label: 'Presentada (SAT)' },
+  EnRevisionCliente: { kind: 'amber', label: 'En tu revisión' },
+  RebotadaCliente: { kind: 'coral', label: 'Rechazada' },
+  PorPresentar: { kind: 'coral', label: 'Por presentar' },
+  PorRevisar: { kind: 'default', label: 'Por revisar' },
+  NoPresentada: { kind: 'coral', label: 'No presentada' },
+}
+
+export function declarationStatusBadge(
+  statusCode: string,
+  statusLabel: string,
+): { kind: BadgeKind; label: string } {
+  return STATUS_BADGE[statusCode] ?? { kind: 'default', label: statusLabel }
+}
 
 const MONTHS = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',

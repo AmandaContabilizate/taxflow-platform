@@ -24,6 +24,8 @@ export const API_ROUTES = {
     LOGIN: "/login",
     SIGN_OUT: "/signout",
     VALIDATE: "/validate",
+    /** POST auth (Identity), anonimo. Desactiva la cuenta (isActive = 0) validando email + password. */
+    DELETE_ACCOUNT: "/delete-account",
   },
   USERS: {
     ROOT: "",
@@ -44,6 +46,8 @@ export const API_ROUTES = {
     REMOVE_ROLE: "/remove-role",
     ROLES: (userId: string) => `/${encodeURIComponent(userId)}/roles`,
     SWITCH_ROLE: "/switch-role",
+    /** POST users (Identity). Desactiva la cuenta del usuario autenticado (isActive = 0). */
+    DELETE_ACCOUNT: "/delete-account",
   },
   // Equipo comercial — módulo de comisiones. apiType "team" (Identity)
   TEAM: {
@@ -278,6 +282,11 @@ export const API_ROUTES = {
       `/issued-invoices-declaration${periodInvoicesQuery(p)}`,
     RECEIVED_INVOICES_DECLARATION: (p: DeclarationPeriodInvoicesParams) =>
       `/received-invoices-declaration${periodInvoicesQuery(p)}`,
+    // apiType "declaration" · GET. Vista del cliente: los CFDI ligados a la
+    // declaracion sin nada de clasificacion, solo el detalle y si es deducible.
+    // Responde el array pelon (sin envelope ResultHandler).
+    CLIENT_INVOICES: (declarationId: number) =>
+      `/client-invoices?declarationId=${declarationId}`,
   },
   // apiType "declaration_report". Flujo público: el cliente abre /reporte?t={token}
   // desde el correo. El token AES (Base64 url-safe) es la única credencial, los

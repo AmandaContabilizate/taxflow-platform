@@ -237,6 +237,61 @@ export interface DeclarationPeriodInvoice {
   /** Suma de Invoices.Withholds; null si el CFDI no trae retenciones. */
   withheldAmount: number | null
   withheldTaxableAmount: number | null
+  /**
+   * Periodo que declara la factura global (Publico en General): "Febrero 2025" o
+   * "Enero-Febrero 2025". null cuando el CFDI no es global.
+   */
+  period: string | null
+}
+
+/**
+ * Lo minimo que necesita la pantalla de detalle del contribuyente. Se arma desde
+ * `AllDeclarationItem` mas el RFC/razon social del RFC activo: el cliente no puede
+ * pegarle al EP `/general` (es de contadores).
+ */
+export interface ClientDeclarationSubject {
+  declarationId: number
+  rfc: string
+  legalName: string
+  /** Etiqueta ya resuelta del periodo ("Mayo 2025" o "Ejercicio 2025"). */
+  periodo: string
+  fiscalYear: number
+  statusCode: string
+  statusLabel: string
+  regimeName: string | null
+  periodicity: string | null
+  acknowledgmentPdfUrl: string | null
+  submittedAt: string | null
+}
+
+/**
+ * CFDI de una declaracion visto por el cliente (`ClientDeclarationInvoiceDto`).
+ * A proposito no trae clasificacion: solo el detalle del comprobante y si quedo
+ * deducible (sale de `DeclarationInvoice.IsValid`).
+ */
+export interface ClientDeclarationInvoice {
+  id: number
+  uuid: string
+  folio: string | null
+  issuer: { rfc: string; name: string } | null
+  receiver: { rfc: string; name: string } | null
+  /** Fecha de expedicion del CFDI. */
+  invoiceDate: string
+  /** Fecha de timbrado. */
+  stampDate: string
+  total: number
+  uso: string | null
+  /** Descripcion del tipo de CFDI ("Ingreso", "Egreso", ...). */
+  typeId: string
+  /** Enum TipoComprobante: 0 desconocido, 1 I, 2 E, 3 T, 4 N, 5 P. */
+  tipoComprobante: number
+  /** Enum StatusComprobante: 0 desconocido, 1 vigente, 2 cancelado. */
+  statusComprobante: number
+  status: string
+  /** true = el contribuyente es el emisor. */
+  isIssued: boolean
+  /** null = el clasificador todavia no la evaluo. */
+  isDeductible: boolean | null
 }
 
 // --- Comentarios ---

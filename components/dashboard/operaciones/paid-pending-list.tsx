@@ -94,7 +94,6 @@ export function PaidPendingList({ kind, help, searchPlaceholder, emptyText, curr
       <DeclarationDetail
         declaration={selected}
         onBack={() => setSelected(null)}
-        viewerRole="contador"
         currentUser={currentUser}
       />
     )

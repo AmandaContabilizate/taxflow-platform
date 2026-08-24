@@ -13,6 +13,13 @@ export type Money = number | string | null
 /** Tope de `DeclarationReportCommentRequestDto.Comment` en el backend. */
 export const REPORT_COMMENT_MAX_LENGTH = 500
 
+/**
+ * Días hábiles que el cliente tiene para autorizar o rebotar antes de que el worker
+ * `UpdateExpiredClientReviewDeclarationsCommand` la pase sola a PorPresentar (11).
+ * Espejo de `DeclarationClientReview:DaysToWaitForAction` del backend.
+ */
+export const CLIENT_REVIEW_BUSINESS_DAYS = 2
+
 /** Estatus de `Declarations.StatusDeclaration` relevantes para este flujo. */
 export const DECLARATION_STATUS = {
   CLIENT_REVIEW: 9,
