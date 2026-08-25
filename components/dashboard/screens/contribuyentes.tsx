@@ -1,6 +1,6 @@
 'use client'
 
-import { Loader2 } from 'lucide-react'
+import { Info, Loader2 } from 'lucide-react'
 import { getTaxpayers } from '@/features/taxpayers/actions/getTaxpayers.action'
 import { MONO } from '../constants'
 import { Card, ErrorState, HelpBox } from '../ui'
@@ -34,7 +34,7 @@ export function ContribuyentesScreen() {
             regimeId={list.regimeId}
             onRegimeChange={list.setRegimeId}
             regimenes={regimenOptions}
-            placeholder="Buscar por RFC…"
+            placeholder="Buscar por RFC, correo, nombre o teléfono…"
             minSales={list.minSales}
             onMinSalesChange={list.setMinSales}
             minSalesAllLabel="Todos (con o sin venta)"
@@ -66,13 +66,27 @@ export function ContribuyentesScreen() {
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Contribuyente', 'RFC', 'Correo', 'Regímenes', 'Ventas pagadas'].map((h) => (
+                    {['Contribuyente', 'RFC', 'Correo', 'Regímenes', 'Venta de Planes'].map((h) => (
                       <th
                         key={h}
                         className="px-5 py-3 text-left font-extrabold"
                         style={{ color: 'var(--ink-700)', background: 'var(--card)' }}
                       >
-                        {h}
+                        <div className="flex items-center gap-1.5">
+                          <span>{h}</span>
+                          {h === 'Venta de Planes' && (
+                            <div className="relative group/tooltip inline-flex items-center">
+                              <span className="cursor-help inline-flex items-center text-amber-500 hover:text-amber-600 dark:text-amber-400 transition-colors">
+                                <Info size={14} />
+                              </span>
+                              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover/tooltip:flex flex-col w-max px-3 py-2 bg-zinc-900/95 dark:bg-zinc-800/95 text-white text-[11.5px] font-medium leading-relaxed rounded-xl shadow-2xl backdrop-blur-md border border-zinc-700/50 pointer-events-none z-50 text-center animate-in fade-in zoom-in-95 duration-150">
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 -mb-1 border-4 border-transparent border-b-zinc-900/95 dark:border-b-zinc-800/95" />
+                                <span className="whitespace-nowrap">No se consideran las ventas de regularizaciones, trámites,</span>
+                                <span className="whitespace-nowrap">declaraciones anuales ni complementarias.</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </th>
                     ))}
                   </tr>
