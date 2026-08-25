@@ -297,6 +297,8 @@ export interface ContadorDashboard {
   carteraAsignada: number;
   porPresentar: number;
   vencenEstaSemana: number;
+  /** Compradas aún sin trabajar (estatus 15 EnProceso). */
+  enProceso: number;
   presentadas: number;
   ciecInvalidas: number;
   declaracionesPorPresentar: DeclaracionPendiente[];
