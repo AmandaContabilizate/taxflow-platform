@@ -22,6 +22,11 @@ import { Badge, Card, Tabs } from '../ui'
 
 const money = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
 
+const MONTHS = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+]
+
 function timeAgo(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return '—'
@@ -44,6 +49,11 @@ export function AsignacionesScreen({ isAdmin = false }: AsignacionesScreenProps)
   const [requesting, setRequesting] = useState<UnassignedOperation | null>(null)
   const [cancelling, setCancelling] = useState<number | null>(null)
   const [cancelError, setCancelError] = useState<string | null>(null)
+  // Filtro de periodo de la cola "Sin asignar" (sobre la fecha de ingreso).
+  // Default: mes y año actuales; mes 0 = todos los meses del año elegido.
+  const today = new Date()
+  const [filterYear, setFilterYear] = useState(today.getFullYear())
+  const [filterMonth, setFilterMonth] = useState(today.getMonth() + 1)
   // Revisión de Administración: solicitud en revisión + modo (aprobar/rechazar).
   const [reviewing, setReviewing] = useState<{ request: AssignmentRequest; approve: boolean } | null>(null)
   const [reviewNotes, setReviewNotes] = useState('')
@@ -104,6 +114,28 @@ export function AsignacionesScreen({ isAdmin = false }: AsignacionesScreenProps)
   useEffect(() => {
     void load()
   }, [])
+
+  // Años disponibles: los que aparecen en la cola + el actual (para que el default exista).
+  const availableYears = useMemo(() => {
+    const years = new Set<number>([today.getFullYear()])
+    for (const op of unassigned) {
+      const y = new Date(op.saleDate).getFullYear()
+      if (!Number.isNaN(y)) years.add(y)
+    }
+    return [...years].sort((a, b) => b - a)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unassigned])
+
+  const filteredUnassigned = useMemo(
+    () =>
+      unassigned.filter((op) => {
+        const d = new Date(op.saleDate)
+        if (Number.isNaN(d.getTime())) return false
+        if (d.getFullYear() !== filterYear) return false
+        return filterMonth === 0 || d.getMonth() + 1 === filterMonth
+      }),
+    [unassigned, filterYear, filterMonth],
+  )
 
   const stats = useMemo(() => {
     const currentMonth = new Date().toISOString().slice(0, 7)
@@ -174,19 +206,52 @@ export function AsignacionesScreen({ isAdmin = false }: AsignacionesScreenProps)
         </Card>
       ) : tab === 0 ? (
         <Card>
-          <div className="px-5 pt-5 pb-3">
-            <div className="text-[15px] font-bold" style={{ color: 'var(--ink-900)' }}>
-              Clientes sin vendedor asignado
+          <div className="px-5 pt-5 pb-3 flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <div className="text-[15px] font-bold" style={{ color: 'var(--ink-900)' }}>
+                Clientes sin vendedor asignado
+              </div>
+              <p className="text-[12.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                Estos clientes entraron al sistema sin código de vendedor. Solicita a Administración
+                asignar la venta al ejecutivo que la generó.
+                {filteredUnassigned.length !== unassigned.length && (
+                  <> Mostrando {filteredUnassigned.length} de {unassigned.length} según el periodo.</>
+                )}
+              </p>
             </div>
-            <p className="text-[12.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
-              Estos clientes entraron al sistema sin código de vendedor. Solicita a Administración
-              asignar la venta al ejecutivo que la generó.
-            </p>
+            {/* Filtro por periodo de ingreso (default: mes y año actuales) */}
+            <div className="flex items-center gap-2">
+              <select
+                value={filterMonth}
+                onChange={(e) => setFilterMonth(Number(e.target.value))}
+                aria-label="Filtrar por mes de ingreso"
+                className="px-3 py-2 rounded-lg border text-[12.5px] cursor-pointer"
+                style={{ borderColor: 'var(--border)', background: 'var(--input)', color: 'var(--foreground)' }}
+              >
+                <option value={0}>Todos los meses</option>
+                {MONTHS.map((m, i) => (
+                  <option key={m} value={i + 1}>{m}</option>
+                ))}
+              </select>
+              <select
+                value={filterYear}
+                onChange={(e) => setFilterYear(Number(e.target.value))}
+                aria-label="Filtrar por año de ingreso"
+                className="px-3 py-2 rounded-lg border text-[12.5px] cursor-pointer"
+                style={{ borderColor: 'var(--border)', background: 'var(--input)', color: 'var(--foreground)' }}
+              >
+                {availableYears.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
           </div>
-          {unassigned.length === 0 ? (
+          {filteredUnassigned.length === 0 ? (
             <div className="py-10 text-center flex flex-col items-center gap-2 text-[13.5px]" style={{ color: 'var(--ink-500)' }}>
               <CheckCircle2 size={22} style={{ color: 'var(--brand-700)' }} />
-              No hay operaciones sin asignar
+              {unassigned.length === 0
+                ? 'No hay operaciones sin asignar'
+                : `Sin operaciones en ${filterMonth === 0 ? filterYear : `${MONTHS[filterMonth - 1]} ${filterYear}`} — ajusta el periodo para ver las ${unassigned.length} pendientes`}
             </div>
           ) : (
             <div className="overflow-x-auto px-2 py-2">
@@ -201,7 +266,7 @@ export function AsignacionesScreen({ isAdmin = false }: AsignacionesScreenProps)
                   </tr>
                 </thead>
                 <tbody>
-                  {unassigned.map((op) => (
+                  {filteredUnassigned.map((op) => (
                     <tr key={op.operationId} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td className="py-3 px-3">
                         <div className="text-[13.5px] font-semibold" style={{ color: 'var(--ink-900)' }}>

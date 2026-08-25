@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   FileText,
   Filter,
+  Hourglass,
   ShieldAlert,
   Users,
 } from 'lucide-react'
@@ -206,8 +207,8 @@ export function PanelGerenciaContableScreen() {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[0, 1, 2, 3].map((i) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          {[0, 1, 2, 3, 4].map((i) => (
             <Card key={i}>
               <div className="p-5 animate-pulse">
                 <div className="h-3 w-24 rounded" style={{ background: 'var(--ink-100)' }} />
@@ -223,7 +224,7 @@ export function PanelGerenciaContableScreen() {
         </Card>
       ) : data ? (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <Kpi
               label="Cartera asignada"
               value={String(data.carteraTotal)}
@@ -234,9 +235,16 @@ export function PanelGerenciaContableScreen() {
             <Kpi
               label="Por presentar"
               value={String(data.porPresentar)}
-              hint="Pendientes en el periodo"
+              hint="Validadas, listas para enviar al SAT"
               Icon={FileText}
               delay={40}
+            />
+            <Kpi
+              label="En proceso"
+              value={String(data.enProceso)}
+              hint="Compradas, aún sin trabajar"
+              Icon={Hourglass}
+              delay={80}
             />
             <Kpi
               label="Presentadas"
@@ -244,7 +252,7 @@ export function PanelGerenciaContableScreen() {
               hint="Ya enviadas al SAT en el periodo"
               Icon={CheckCircle2}
               highlight
-              delay={80}
+              delay={120}
             />
             <Kpi
               label="CIEC inválidas"
@@ -252,7 +260,7 @@ export function PanelGerenciaContableScreen() {
               hint="Clientes con credencial bloqueada"
               Icon={ShieldAlert}
               alert={data.ciecInvalidas > 0}
-              delay={120}
+              delay={160}
             />
           </div>
 
