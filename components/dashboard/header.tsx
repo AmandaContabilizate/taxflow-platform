@@ -2,6 +2,7 @@
 
 import { UserPlus, Loader2, Check, TrendingUp } from 'lucide-react'
 import { RFCSelector } from './rfc-selector'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { useFiscalScore } from '@/features/declarations/hooks/useFiscalScore'
 import type { GoFn } from './types'
 
@@ -40,22 +41,26 @@ export function DashboardHeader({ go }: DashboardHeaderProps) {
         <RFCSelector />
       </div>
 
-      {/* Botón agregar RFC */}
-      <button
-        onClick={() => go?.('estatus-sat')}
-        className="rounded-full flex items-center justify-center transition-all duration-200 hover:shadow-lg"
-        style={{
-          width: '44px',
-          height: '44px',
-          background: 'rgba(255, 255, 255, 0.9)',
-          border: '1px solid rgba(231,228,244, 0.8)',
-          color: '#00AD87',
-          backdropFilter: 'blur(10px)',
-        }}
-        title="Agregar RFC"
-      >
-        <UserPlus size={22} />
-      </button>
+      {/* Acciones del Header: Notificaciones y Agregar RFC */}
+      <div className="flex items-center gap-2">
+        <NotificationBell />
+
+        <button
+          onClick={() => go?.('estatus-sat')}
+          className="rounded-full flex items-center justify-center transition-all duration-200 hover:shadow-lg"
+          style={{
+            width: '44px',
+            height: '44px',
+            background: 'rgba(255, 255, 255, 0.9)',
+            border: '1px solid rgba(231,228,244, 0.8)',
+            color: '#00AD87',
+            backdropFilter: 'blur(10px)',
+          }}
+          title="Agregar RFC"
+        >
+          <UserPlus size={22} />
+        </button>
+      </div>
     </div>
   )
 }

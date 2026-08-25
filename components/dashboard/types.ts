@@ -30,6 +30,7 @@ export type Screen =
   | 'mis-tareas'
   | 'bandeja'
   | 'notificaciones'
+  | 'centro-notificaciones'
   | 'upsell'
   | 'clientes-asignados'
   | 'pipelines-por-etapa'

@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { ChevronDown, LogOut, Moon, Plus, Sun, PanelLeftClose, PanelLeftOpen, UserPlus, PlusCircle, X } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
+import { useNotifications } from '@/hooks/useNotifications'
 import { DISPLAY, MONO, ROLE_NAV, roleNavSections, normalizeRole } from './constants'
 import type { GoFn, NavDef, Screen } from './types'
 import { RFCSelector } from './rfc-selector'
@@ -178,6 +179,7 @@ export function Sidebar({
                       {section.items.map(n => (
                         <NavItem
                           key={n.id}
+                          id={n.id}
                           label={n.label}
                           Icon={n.Icon}
                           hint={n.hint}
@@ -196,6 +198,7 @@ export function Sidebar({
             navItems.map((n, idx) => (
               <div key={n.id} style={{ marginTop: idx === 0 ? '8px' : undefined }}>
                 <NavItem
+                  id={n.id}
                   label={n.label}
                   Icon={n.Icon}
                   hint={n.hint}
@@ -441,6 +444,7 @@ export function Sidebar({
 }
 
 interface NavItemProps {
+  id?: Screen
   label: string
   Icon: ComponentType<{ size?: number }>
   active: boolean
@@ -450,7 +454,10 @@ interface NavItemProps {
   collapsed?: boolean
 }
 
-function NavItem({ label, Icon, active, onClick, hint, badge, collapsed = false }: NavItemProps) {
+function NavItem({ id, label, Icon, active, onClick, hint, badge, collapsed = false }: NavItemProps) {
+  const isNotifications = id === 'centro-notificaciones';
+  const { unreadCount } = useNotifications();
+  const showBadge = isNotifications && unreadCount > 0;
   if (collapsed) {
     return (
       <button
@@ -481,6 +488,11 @@ function NavItem({ label, Icon, active, onClick, hint, badge, collapsed = false 
         }}
       >
         <Icon size={18} />
+        {showBadge && (
+          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white shadow-sm animate-pulse">
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </span>
+        )}
       </button>
     )
   }
@@ -488,7 +500,7 @@ function NavItem({ label, Icon, active, onClick, hint, badge, collapsed = false 
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left transition w-full"
+      className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left transition w-full relative group"
       style={
         active
           ? { background: 'var(--nav-active-bg)', color: 'var(--nav-active-fg)', boxShadow: 'var(--sh-ink)' }
@@ -523,6 +535,11 @@ function NavItem({ label, Icon, active, onClick, hint, badge, collapsed = false 
           {hint}
         </span>
       </span>
+      {showBadge && (
+        <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-red-500 text-white shadow-sm animate-pulse flex-shrink-0 ml-1">
+          {unreadCount > 99 ? '99+' : unreadCount}
+        </span>
+      )}
     </button>
   )
 }
