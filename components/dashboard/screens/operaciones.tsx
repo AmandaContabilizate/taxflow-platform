@@ -8,5 +8,5 @@ interface CurrentUser {
 }
 
 export function OperacionesScreen({ currentUser }: { currentUser: CurrentUser }) {
-  return <PurchasedDeclarations mode="future" currentUser={currentUser} />
+  return <PurchasedDeclarations mode="all" currentUser={currentUser} />
 }

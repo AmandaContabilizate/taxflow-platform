@@ -176,6 +176,9 @@ export const API_ROUTES = {
     // dentro del IQueryable, así que `total` ya viene filtrado.
     // invoiceTypeId: 1 Ingreso, 2 Egreso, 3 Traslado, 4 Pago, 5 Nómina
     // (fuera de 1-5 el backend responde INVALID_REQUEST).
+    // `sortBy`/`sortDir`: lista blanca del backend (invoiceDate|total, asc|desc);
+    // default invoiceDate/asc reproduce el orden anterior. `includeConcepts=true`
+    // llena `conceptos` (detalle completo); sin el flag viaja `null`.
     INVOICES: (params: {
       declarationId: number
       isIssued?: boolean
@@ -183,6 +186,9 @@ export const API_ROUTES = {
       clasificada?: boolean
       skip?: number
       take?: number
+      sortBy?: "invoiceDate" | "total"
+      sortDir?: "asc" | "desc"
+      includeConcepts?: boolean
     }) => {
       const qs = new URLSearchParams()
       if (params.isIssued != null) qs.set("isIssued", String(params.isIssued))
@@ -190,6 +196,9 @@ export const API_ROUTES = {
       if (params.clasificada != null) qs.set("clasificada", String(params.clasificada))
       qs.set("skip", String(params.skip ?? 0))
       qs.set("take", String(params.take ?? 100))
+      if (params.sortBy) qs.set("sortBy", params.sortBy)
+      if (params.sortDir) qs.set("sortDir", params.sortDir)
+      if (params.includeConcepts) qs.set("includeConcepts", "true")
       return `/${params.declarationId}/invoices?${qs.toString()}`
     },
     GENERAL: (declarationId: number) => `/${declarationId}/general`,
@@ -287,16 +296,18 @@ export const API_ROUTES = {
     // apiType "declaration" · GET. Vista del contador, nivel 1: contribuyentes con
     // declaraciones compradas ("En proceso") del tipo pedido, paginado por
     // contribuyente. `search` filtra por RFC o razón social.
-    DECLARATION_TAXPAYERS: (search?: string, skip = 0, take = 50, futureOnly = false) =>
-      `/declaration-taxpayers?skip=${skip}&take=${take}${search ? `&search=${encodeURIComponent(search)}` : ""}${futureOnly ? "&futureOnly=true" : ""}`,
-    REGULARIZATION_TAXPAYERS: (search?: string, skip = 0, take = 50) =>
-      `/regularization-taxpayers?skip=${skip}&take=${take}${search ? `&search=${encodeURIComponent(search)}` : ""}`,
+    // `kind`: 1 solo regularizaciones, 2 solo a futuro, ausente = ambas (desde E5.1).
+    DECLARATION_TAXPAYERS: (search?: string, skip = 0, take = 50, kind?: 1 | 2) =>
+      `/declaration-taxpayers?skip=${skip}&take=${take}${search ? `&search=${encodeURIComponent(search)}` : ""}${kind ? `&kind=${kind}` : ""}`,
+    REGULARIZATION_TAXPAYERS: (search?: string, skip = 0, take = 50, kind?: 1 | 2) =>
+      `/regularization-taxpayers?skip=${skip}&take=${take}${search ? `&search=${encodeURIComponent(search)}` : ""}${kind ? `&kind=${kind}` : ""}`,
     // apiType "declaration" · GET. Nivel 2: planes a futuro (kind 2) / regularizaciones
     // (kind 1) compradas y en proceso. Sin `rfc` trae las de todos los contribuyentes.
-    DECLARATIONS_BY_TAXPAYER: (rfc?: string, skip = 0, take = 50, futureOnly = false) =>
-      `/declarations-by-taxpayer?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${futureOnly ? "&futureOnly=true" : ""}`,
-    REGULARIZATIONS_BY_TAXPAYER: (rfc?: string, skip = 0, take = 50) =>
-      `/regularizations-by-taxpayer?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}`,
+    // `kind`: 1 solo regularizaciones, 2 solo a futuro, ausente = ambas (desde E5.1).
+    DECLARATIONS_BY_TAXPAYER: (rfc?: string, skip = 0, take = 50, kind?: 1 | 2) =>
+      `/declarations-by-taxpayer?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${kind ? `&kind=${kind}` : ""}`,
+    REGULARIZATIONS_BY_TAXPAYER: (rfc?: string, skip = 0, take = 50, kind?: 1 | 2) =>
+      `/regularizations-by-taxpayer?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${kind ? `&kind=${kind}` : ""}`,
   },
   // apiType "declaration_report". Flujo público: el cliente abre /reporte?t={token}
   // desde el correo. El token AES (Base64 url-safe) es la única credencial, los

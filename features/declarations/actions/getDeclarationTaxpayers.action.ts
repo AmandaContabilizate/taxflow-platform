@@ -19,11 +19,11 @@ export async function getDeclarationTaxpayers(
     })
   }
 
-  const { search, skip, take, futureOnly } = parsed.data
+  const { search, skip, take, kind } = parsed.data
 
   try {
     const data = await fetchGet<PagedDeclarations<TaxpayerGroup>>(
-      API_ROUTES.DECLARATION.DECLARATION_TAXPAYERS(search, skip, take, futureOnly),
+      API_ROUTES.DECLARATION.DECLARATION_TAXPAYERS(search, skip, take, kind),
       'declaration',
     )
     return ok({ items: data?.items ?? [], total: data?.total ?? 0, skip, take })

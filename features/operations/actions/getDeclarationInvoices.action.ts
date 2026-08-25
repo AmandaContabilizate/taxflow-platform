@@ -3,7 +3,8 @@
 import { ApiError, fetchGet } from "@/lib/api";
 import { API_ROUTES } from "@/lib/api/apiRoutes";
 import { type Result, err, ok } from "@/lib/common";
-import type { DeclarationInvoice, Paged } from "../types";
+import { invoiceSortSchema } from "../schemas/declarationInvoices.schema";
+import type { DeclarationInvoice, InvoiceSortBy, InvoiceSortDir, Paged } from "../types";
 
 interface OpsError {
   statusCode: number;
@@ -49,13 +50,32 @@ export async function getDeclarationInvoices(params: {
   clasificada?: boolean;
   skip?: number;
   take?: number;
+  /** Lista blanca server-side (E2); default invoiceDate/asc reproduce el orden anterior. */
+  sortBy?: InvoiceSortBy;
+  sortDir?: InvoiceSortDir;
+  /** true = trae el detalle completo de conceptos por factura. */
+  includeConcepts?: boolean;
 }): Promise<Result<Paged<DeclarationInvoice>, OpsError>> {
-  const { declarationId, isIssued, invoiceTypeId, clasificada, skip = 0, take = 100 } = params;
+  const {
+    declarationId,
+    isIssued,
+    invoiceTypeId,
+    clasificada,
+    skip = 0,
+    take = 100,
+    sortBy,
+    sortDir,
+    includeConcepts,
+  } = params;
   if (!declarationId || declarationId <= 0) {
     return err({ statusCode: 400, message: "Declaración inválida." });
   }
   if (invoiceTypeId != null && (invoiceTypeId < 1 || invoiceTypeId > 5)) {
     return err({ statusCode: 400, message: "Tipo de comprobante inválido." });
+  }
+  const sortParsed = invoiceSortSchema.safeParse({ sortBy, sortDir });
+  if (!sortParsed.success) {
+    return err({ statusCode: 400, message: "Orden inválido." });
   }
 
   try {
@@ -67,6 +87,9 @@ export async function getDeclarationInvoices(params: {
         clasificada,
         skip,
         take,
+        sortBy,
+        sortDir,
+        includeConcepts,
       }),
       "declarations_reports",
     );

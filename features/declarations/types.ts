@@ -326,8 +326,9 @@ export interface TaxpayerGroup {
 }
 
 /**
- * Nivel 2. Las regularizaciones traen el mismo shape sin `declarationKind`
- * (todas son kind 1), por eso es opcional.
+ * Nivel 2. Desde E5.1 tanto `declarations-by-taxpayer` como
+ * `regularizations-by-taxpayer` exponen `declarationKind` (1 regularización,
+ * 2 a futuro); se deja opcional por si algún origen viejo no lo trae.
  */
 export interface TaxpayerDeclarationItem {
   declarationId: number
@@ -341,7 +342,7 @@ export interface TaxpayerDeclarationItem {
   taxRegimeName: string | null
   statusId: number
   statusLabel: string | null
-  /** 2 = plan a futuro. Ausente en el endpoint de regularizaciones. */
+  /** 1 = regularización, 2 = plan a futuro. */
   declarationKind?: number
   assignedToUser: string | null
 }

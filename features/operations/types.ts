@@ -91,6 +91,22 @@ export interface DeclarationInvoice {
   cfdiUsageId: number | null;
   wayOfPaymentId: number | null;
   paymentMethodId: number | null;
+  /** `Catalogs.PaymentMethod.Code` (PUE/PPD). */
+  paymentMethodCode: string | null;
+  /** ej. "Pago en una sola exhibición". */
+  paymentMethodName: string | null;
+  /** código SAT c_FormaPago (01, 03, 04, 28, 99…). */
+  wayOfPaymentCode: string | null;
+  /** ej. "Tarjeta de crédito". Pintar esto, no el id crudo. */
+  wayOfPaymentName: string | null;
+  /** IVA trasladado. `0` = sin IVA. `null` solo si no se pudo determinar. */
+  ivaAmount: Money;
+  /** Descripción del primer concepto + " (+N)" si hay más de uno. `null` sin conceptos. */
+  conceptosResumen: string | null;
+  /** Siempre viaja. */
+  conceptosCount: number;
+  /** Solo viene poblado si se pidió `includeConcepts=true`. */
+  conceptos: DeclarationInvoiceConcepto[] | null;
   /**
    * `DeclarationInvoice.IsValid`: la validez con la que la factura entró a esta
    * declaración. Es la que usó el cálculo.
@@ -118,6 +134,20 @@ export interface DeclarationInvoice {
   /** Vacío si no es retención (1-N: un CFDI puede traer varios bloques). */
   retenciones?: Retencion[];
 }
+
+/** Renglón de `Invoices.Concepts` de una factura (`ConceptoFacturaDto`). */
+export interface DeclarationInvoiceConcepto {
+  productCode: string | null;
+  description: string | null;
+  quantity: Money;
+  unitPrice: Money;
+  subtotal: Money;
+  discount: Money;
+}
+
+/** Lista blanca de `sortBy` server-side de `GET .../invoices` (E2). */
+export type InvoiceSortBy = "invoiceDate" | "total";
+export type InvoiceSortDir = "asc" | "desc";
 
 /**
  * Mínimo que necesita `DeclarationDetail` para pintarse. `PaidPendingDeclaration`
