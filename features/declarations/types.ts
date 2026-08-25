@@ -304,3 +304,44 @@ export interface DeclarationComment {
   body: string
   createdAt: string
 }
+
+// --- Vista del contador: compras agrupadas por contribuyente ---
+
+/** Envelope paginado de los endpoints `*-by-taxpayer` / `*-taxpayers`. */
+export interface PagedDeclarations<T> {
+  items: T[]
+  total: number
+  skip: number
+  take: number
+}
+
+/** Nivel 1: contribuyente con declaraciones compradas y en proceso. */
+export interface TaxpayerGroup {
+  taxpayerId: number
+  rfc: string
+  legalName: string | null
+  email: string | null
+  declarationCount: number
+  lastFiscalYear: number | null
+}
+
+/**
+ * Nivel 2. Las regularizaciones traen el mismo shape sin `declarationKind`
+ * (todas son kind 1), por eso es opcional.
+ */
+export interface TaxpayerDeclarationItem {
+  declarationId: number
+  rfc: string
+  taxpayerId: number
+  fiscalYear: number
+  periodValueId: number | null
+  month: number | null
+  periodLabel: string | null
+  taxRegimeId: number
+  taxRegimeName: string | null
+  statusId: number
+  statusLabel: string | null
+  /** 2 = plan a futuro. Ausente en el endpoint de regularizaciones. */
+  declarationKind?: number
+  assignedToUser: string | null
+}

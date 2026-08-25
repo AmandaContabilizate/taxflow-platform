@@ -21,10 +21,18 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })
 }
 
+/**
+ * El dashboard de Stripe necesita la cuenta y el modo en la ruta para caer en el
+ * registro correcto: /{acct}/{test/}payments/{pi}. En producción el modo va vacío.
+ */
+const STRIPE_ACCOUNT = process.env.NEXT_PUBLIC_STRIPE_DASHBOARD_ACCOUNT ?? 'acct_1RHsksPqHi2v2kSh'
+const STRIPE_MODE = process.env.NEXT_PUBLIC_STRIPE_DASHBOARD_MODE === 'test' ? 'test/' : ''
+const STRIPE_BASE = `https://dashboard.stripe.com/${STRIPE_ACCOUNT ? `${STRIPE_ACCOUNT}/` : ''}${STRIPE_MODE}`
+
 const DASHBOARD_URL: Record<string, (id: string) => string> = {
-  paymentIntentId: (id) => `https://dashboard.stripe.com/payments/${id}`,
-  stripeCustomerId: (id) => `https://dashboard.stripe.com/customers/${id}`,
-  stripeSubscriptionId: (id) => `https://dashboard.stripe.com/subscriptions/${id}`,
+  paymentIntentId: (id) => `${STRIPE_BASE}payments/${id}`,
+  stripeCustomerId: (id) => `${STRIPE_BASE}customers/${id}`,
+  stripeSubscriptionId: (id) => `${STRIPE_BASE}subscriptions/${id}`,
 }
 
 interface Props {

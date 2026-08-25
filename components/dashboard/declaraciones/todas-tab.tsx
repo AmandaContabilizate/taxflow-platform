@@ -24,6 +24,28 @@ interface CurrentUser {
 
 const PRESENTED_CODES = new Set(['Presentada', 'PresentadaManual', 'PresentadaPrevio', 'PresentadaExterno'])
 
+/** 1 = Regularizacion, 2 = Plan a futuro (Sales.SaleDeclaration.DeclarationKind). */
+const KIND_REGULARIZATION = 1
+const KIND_FUTURE_PLAN = 2
+
+/**
+ * Una regularizacion esta comprada cuando tiene venta activa (kind 1) y ya se
+ * activo ("En proceso"). Sin venta el back manda `declarationKind: null` y el
+ * SAT la reporta como no presentada: esa es la que todavia se puede comprar.
+ */
+function regularizationBadge(
+  kind: number | null,
+  statusCode: string,
+): { kind: 'brand' | 'coral'; label: string } | null {
+  if (kind === KIND_REGULARIZATION && statusCode === 'EnProceso') {
+    return { kind: 'brand', label: 'Comprada' }
+  }
+  if (kind == null && statusCode === 'NoPresentada') {
+    return { kind: 'coral', label: 'Por comprar' }
+  }
+  return null
+}
+
 const ALL_YEARS = 'todos'
 const ALL_REGIMES = 'todos'
 
@@ -134,7 +156,8 @@ export function TodasTab({ onViewDetail, currentUser }: Props) {
             {filtered.map((d, i) => {
               const status = declarationStatusBadge(d.statusCode, d.statusLabel)
               const presented = PRESENTED_CODES.has(d.statusCode)
-              const isFuturePlan = d.declarationKind === 2
+              const isFuturePlan = d.declarationKind === KIND_FUTURE_PLAN
+              const regularization = regularizationBadge(d.declarationKind, d.statusCode)
               const title =
                 d.periodicity === 'Anual' || !d.month
                   ? `Ejercicio ${d.fiscalYear}`
@@ -159,6 +182,9 @@ export function TodasTab({ onViewDetail, currentUser }: Props) {
                         </div>
                         <Badge kind={status.kind}>{status.label}</Badge>
                         {isFuturePlan && <Badge kind="sky">Plan a futuro</Badge>}
+                        {regularization && (
+                          <Badge kind={regularization.kind}>{regularization.label}</Badge>
+                        )}
                       </div>
                       <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
                         {[d.regimeName, d.statusLabel].filter(Boolean).join(' · ')}

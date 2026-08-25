@@ -1,6 +1,6 @@
 'use client'
 
-import { DeclarationsByTaxpayer } from '../operaciones/declarations-by-taxpayer'
+import { PurchasedDeclarations } from '../operaciones/purchased-declarations'
 
 interface CurrentUser {
   userId: string
@@ -8,5 +8,5 @@ interface CurrentUser {
 }
 
 export function OperacionesScreen({ currentUser }: { currentUser: CurrentUser }) {
-  return <DeclarationsByTaxpayer currentUser={currentUser} />
+  return <PurchasedDeclarations mode="future" currentUser={currentUser} />
 }

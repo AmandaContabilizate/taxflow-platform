@@ -1,7 +1,6 @@
 'use client'
 
-import { DECLARATION_KIND } from '@/features/operations/types'
-import { PaidPendingList } from '../operaciones/paid-pending-list'
+import { PurchasedDeclarations } from '../operaciones/purchased-declarations'
 
 interface CurrentUser {
   userId: string
@@ -9,12 +8,5 @@ interface CurrentUser {
 }
 
 export function RegularizacionesScreen({ currentUser }: { currentUser: CurrentUser }) {
-  return (
-    <PaidPendingList
-      kind={DECLARATION_KIND.REGULARIZATION}
-      help="Declaraciones de regularización ya pagadas y pendientes de presentar. Búscalas por cliente, RFC o periodo y dales seguimiento."
-      emptyText="No hay regularizaciones pendientes"
-      currentUser={currentUser}
-    />
-  )
+  return <PurchasedDeclarations mode="regularization" currentUser={currentUser} />
 }

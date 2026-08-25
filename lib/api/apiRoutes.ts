@@ -170,9 +170,6 @@ export const API_ROUTES = {
     // GET declarations_reports — panel de gerencia contable (área + desglose).
     GERENCIA_CONTABLE_DASHBOARD: (year: number, month: number, accountantUserId?: string) =>
       `/gerencia-contable-dashboard?year=${year}&month=${month}${accountantUserId ? `&accountantUserId=${encodeURIComponent(accountantUserId)}` : ""}`,
-    PAID_PENDING: (kind: number, skip = 0, take = 500, accountantUserId?: string) =>
-      `/paid-pending?kind=${kind}&skip=${skip}&take=${take}${accountantUserId ? `&accountantUserId=${encodeURIComponent(accountantUserId)}` : ""
-      }`,
     CALCULATIONS: (declarationId: number) => `/${declarationId}/calculations`,
     // Facturas del periodo + su clasificación. Devuelve PagedResult.
     // Filtros opcionales y combinables; omitirlos = "todos". El backend filtra
@@ -287,6 +284,19 @@ export const API_ROUTES = {
     // Responde el array pelon (sin envelope ResultHandler).
     CLIENT_INVOICES: (declarationId: number) =>
       `/client-invoices?declarationId=${declarationId}`,
+    // apiType "declaration" · GET. Vista del contador, nivel 1: contribuyentes con
+    // declaraciones compradas ("En proceso") del tipo pedido, paginado por
+    // contribuyente. `search` filtra por RFC o razón social.
+    DECLARATION_TAXPAYERS: (search?: string, skip = 0, take = 50) =>
+      `/declaration-taxpayers?skip=${skip}&take=${take}${search ? `&search=${encodeURIComponent(search)}` : ""}`,
+    REGULARIZATION_TAXPAYERS: (search?: string, skip = 0, take = 50) =>
+      `/regularization-taxpayers?skip=${skip}&take=${take}${search ? `&search=${encodeURIComponent(search)}` : ""}`,
+    // apiType "declaration" · GET. Nivel 2: planes a futuro (kind 2) / regularizaciones
+    // (kind 1) compradas y en proceso. Sin `rfc` trae las de todos los contribuyentes.
+    DECLARATIONS_BY_TAXPAYER: (rfc?: string, skip = 0, take = 50) =>
+      `/declarations-by-taxpayer?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}`,
+    REGULARIZATIONS_BY_TAXPAYER: (rfc?: string, skip = 0, take = 50) =>
+      `/regularizations-by-taxpayer?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}`,
   },
   // apiType "declaration_report". Flujo público: el cliente abre /reporte?t={token}
   // desde el correo. El token AES (Base64 url-safe) es la única credencial, los
