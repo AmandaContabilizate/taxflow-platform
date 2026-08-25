@@ -287,14 +287,14 @@ export const API_ROUTES = {
     // apiType "declaration" · GET. Vista del contador, nivel 1: contribuyentes con
     // declaraciones compradas ("En proceso") del tipo pedido, paginado por
     // contribuyente. `search` filtra por RFC o razón social.
-    DECLARATION_TAXPAYERS: (search?: string, skip = 0, take = 50) =>
-      `/declaration-taxpayers?skip=${skip}&take=${take}${search ? `&search=${encodeURIComponent(search)}` : ""}`,
+    DECLARATION_TAXPAYERS: (search?: string, skip = 0, take = 50, futureOnly = false) =>
+      `/declaration-taxpayers?skip=${skip}&take=${take}${search ? `&search=${encodeURIComponent(search)}` : ""}${futureOnly ? "&futureOnly=true" : ""}`,
     REGULARIZATION_TAXPAYERS: (search?: string, skip = 0, take = 50) =>
       `/regularization-taxpayers?skip=${skip}&take=${take}${search ? `&search=${encodeURIComponent(search)}` : ""}`,
     // apiType "declaration" · GET. Nivel 2: planes a futuro (kind 2) / regularizaciones
     // (kind 1) compradas y en proceso. Sin `rfc` trae las de todos los contribuyentes.
-    DECLARATIONS_BY_TAXPAYER: (rfc?: string, skip = 0, take = 50) =>
-      `/declarations-by-taxpayer?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}`,
+    DECLARATIONS_BY_TAXPAYER: (rfc?: string, skip = 0, take = 50, futureOnly = false) =>
+      `/declarations-by-taxpayer?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${futureOnly ? "&futureOnly=true" : ""}`,
     REGULARIZATIONS_BY_TAXPAYER: (rfc?: string, skip = 0, take = 50) =>
       `/regularizations-by-taxpayer?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}`,
   },

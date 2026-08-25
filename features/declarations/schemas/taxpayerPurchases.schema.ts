@@ -9,12 +9,16 @@ const paging = {
 /** Nivel 1: contribuyentes con compras. `search` filtra por RFC o razón social. */
 export const taxpayerGroupsSchema = z.object({
   search: z.string().trim().min(1).optional(),
+  /** Solo declaraciones de periodos futuros (posteriores al mes actual). */
+  futureOnly: z.boolean().optional(),
   ...paging,
 })
 
 /** Nivel 2: declaraciones compradas de un contribuyente. */
 export const taxpayerPurchasesSchema = z.object({
   rfc: z.string().trim().toUpperCase().min(12).max(13).optional(),
+  /** Solo declaraciones de periodos futuros (posteriores al mes actual). */
+  futureOnly: z.boolean().optional(),
   ...paging,
 })
 

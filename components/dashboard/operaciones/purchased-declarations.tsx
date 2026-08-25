@@ -47,7 +47,9 @@ const TAKE = 50
 
 type Mode = 'future' | 'regularization'
 
-const COPY: Record<Mode, { help: string; noun: string; nounPlural: string; emptyGroups: string; emptyRows: string }> = {
+type Copy = { help: string; noun: string; nounPlural: string; emptyGroups: string; emptyRows: string }
+
+const COPY: Record<Mode, Copy> = {
   future: {
     help: 'Contribuyentes con planes a futuro ya comprados y en proceso. Elige uno para ver sus declaraciones.',
     noun: 'declaración en proceso',
@@ -64,6 +66,18 @@ const COPY: Record<Mode, { help: string; noun: string; nounPlural: string; empty
   },
 }
 
+/** Variante del modo future acotada a periodos posteriores al mes actual. */
+const FUTURE_ONLY_COPY: Copy = {
+  help: 'Contribuyentes con declaraciones compradas de periodos futuros (posteriores al mes actual). Elige uno para ver sus declaraciones.',
+  noun: 'declaración a futuro',
+  nounPlural: 'declaraciones a futuro',
+  emptyGroups: 'No hay contribuyentes con declaraciones de periodos futuros.',
+  emptyRows: 'Este contribuyente no tiene declaraciones de periodos futuros con los filtros aplicados.',
+}
+
+const copyFor = (mode: Mode, futureOnly?: boolean): Copy =>
+  mode === 'future' && futureOnly ? FUTURE_ONLY_COPY : COPY[mode]
+
 const ACTIONS = {
   future: { groups: getDeclarationTaxpayers, rows: getDeclarationsByTaxpayer },
   regularization: { groups: getRegularizationTaxpayers, rows: getRegularizationsByTaxpayer },
@@ -75,8 +89,16 @@ const emptyPage = <T,>(take: number): PagedDeclarations<T> => ({ items: [], tota
 /*  Nivel 1 — contribuyentes con compras                                       */
 /* -------------------------------------------------------------------------- */
 
-function TaxpayerGroups({ mode, onOpen }: { mode: Mode; onOpen: (g: TaxpayerGroup) => void }) {
-  const copy = COPY[mode]
+function TaxpayerGroups({
+  mode,
+  futureOnly,
+  onOpen,
+}: {
+  mode: Mode
+  futureOnly?: boolean
+  onOpen: (g: TaxpayerGroup) => void
+}) {
+  const copy = copyFor(mode, futureOnly)
   const [page, setPage] = useState<PagedDeclarations<TaxpayerGroup>>(emptyPage(TAKE))
   const [skip, setSkip] = useState(0)
   const [search, setSearch] = useState('')
@@ -98,7 +120,7 @@ function TaxpayerGroups({ mode, onOpen }: { mode: Mode; onOpen: (g: TaxpayerGrou
     setLoading(true)
     setError(null)
     void (async () => {
-      const res = await ACTIONS[mode].groups({ search: query || undefined, skip, take: TAKE })
+      const res = await ACTIONS[mode].groups({ search: query || undefined, skip, take: TAKE, futureOnly })
       if (cancelled) return
       if (res.success) setPage(res.value)
       else {
@@ -110,7 +132,7 @@ function TaxpayerGroups({ mode, onOpen }: { mode: Mode; onOpen: (g: TaxpayerGrou
     return () => {
       cancelled = true
     }
-  }, [mode, query, skip])
+  }, [mode, futureOnly, query, skip])
 
   const totalPages = Math.max(1, Math.ceil(page.total / TAKE))
 
@@ -242,18 +264,20 @@ function TaxpayerGroups({ mode, onOpen }: { mode: Mode; onOpen: (g: TaxpayerGrou
 
 function PurchasedTable({
   mode,
+  futureOnly,
   rfc,
   legalName,
   onBack,
   onOpen,
 }: {
   mode: Mode
+  futureOnly?: boolean
   rfc: string
   legalName: string
   onBack: () => void
   onOpen: (d: TaxpayerDeclarationItem) => void
 }) {
-  const copy = COPY[mode]
+  const copy = copyFor(mode, futureOnly)
   const { params, setParams } = useUrlState()
 
   const [page, setPage] = useState<PagedDeclarations<TaxpayerDeclarationItem>>(emptyPage(TAKE))
@@ -270,14 +294,14 @@ function PurchasedTable({
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
-    const res = await ACTIONS[mode].rows({ rfc, skip, take: TAKE })
+    const res = await ACTIONS[mode].rows({ rfc, skip, take: TAKE, futureOnly })
     if (res.success) setPage(res.value)
     else {
       setError(res.error.message)
       setPage(emptyPage(TAKE))
     }
     setLoading(false)
-  }, [mode, rfc, skip])
+  }, [mode, futureOnly, rfc, skip])
 
   useEffect(() => {
     void load()
@@ -494,7 +518,16 @@ const stubSubject = (declarationId: number, rfc: string | null): DeclarationSubj
   accountantName: null,
 })
 
-export function PurchasedDeclarations({ mode, currentUser }: { mode: Mode; currentUser: CurrentUser }) {
+export function PurchasedDeclarations({
+  mode,
+  currentUser,
+  futureOnly,
+}: {
+  mode: Mode
+  currentUser: CurrentUser
+  /** Solo declaraciones de periodos futuros (posteriores al mes actual). */
+  futureOnly?: boolean
+}) {
   const { params, setParams } = useUrlState()
   const rfcParam = params.get('rfc')
   const declarationId = numParam(params, 'decl')
@@ -537,6 +570,7 @@ export function PurchasedDeclarations({ mode, currentUser }: { mode: Mode; curre
     return (
       <PurchasedTable
         mode={mode}
+        futureOnly={futureOnly}
         rfc={rfcParam}
         legalName={legalName}
         onBack={backToGroups}
@@ -545,5 +579,5 @@ export function PurchasedDeclarations({ mode, currentUser }: { mode: Mode; curre
     )
   }
 
-  return <TaxpayerGroups mode={mode} onOpen={openGroup} />
+  return <TaxpayerGroups mode={mode} futureOnly={futureOnly} onOpen={openGroup} />
 }
