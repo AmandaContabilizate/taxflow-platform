@@ -38,5 +38,6 @@ export interface UserInfo {
 
 export type SignInError = {
   statusCode: number;
+  errorCode?: string;
   fieldErrors: Record<string, string[]>;
 };
