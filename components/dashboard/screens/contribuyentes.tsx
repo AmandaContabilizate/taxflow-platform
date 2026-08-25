@@ -103,9 +103,14 @@ export function ContribuyentesScreen() {
                         <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-700)' }}>{t.rfc}</code>
                       </td>
                       <td className="px-5 py-4">
-                        <span className="text-sm" style={{ color: 'var(--ink-700)' }}>
+                        <div className="text-sm" style={{ color: 'var(--ink-700)' }}>
                           {t.email}
-                        </span>
+                        </div>
+                        {t.phone && (
+                          <div className="text-[11.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                            📞 {t.phone}
+                          </div>
+                        )}
                       </td>
                       <td className="px-5 py-4">
                         <RegimenesCell regimenes={t.regimenes} />

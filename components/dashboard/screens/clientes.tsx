@@ -129,6 +129,11 @@ export function ClientesScreen({ permissions = [] }: { permissions?: string[] })
                             <div className="text-xs mt-0.5" style={{ color: 'var(--ink-500)' }}>
                               {c.email}
                             </div>
+                            {c.phone && (
+                              <div className="text-[11.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                                📞 {c.phone}
+                              </div>
+                            )}
                           </button>
                         ) : (
                           <>
@@ -138,6 +143,11 @@ export function ClientesScreen({ permissions = [] }: { permissions?: string[] })
                             <div className="text-xs mt-0.5" style={{ color: 'var(--ink-500)' }}>
                               {c.email}
                             </div>
+                            {c.phone && (
+                              <div className="text-[11.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                                📞 {c.phone}
+                              </div>
+                            )}
                           </>
                         )}
                       </td>

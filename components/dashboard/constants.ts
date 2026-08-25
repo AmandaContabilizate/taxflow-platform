@@ -71,7 +71,7 @@ export const TITLES: Record<Screen, [string, string]> = {
   comisiones: ['Comisiones', 'Tus comisiones y liquidaciones'],
   'mis-tareas': ['Mis tareas', 'Pendientes asignados a ti'],
   bandeja: ['Bandeja', 'Solicitudes y mensajes entrantes'],
-  notificaciones: ['Difusión de Avisos', 'Envía avisos push a los usuarios de la app'],
+  notificaciones: ['Envío de Avisos', 'Envía avisos push a los usuarios de la app'],
   upsell: ['Upsell', 'Oportunidades para ampliar servicios'],
   'clientes-asignados': ['Clientes asignados', 'Tu cartera de atención'],
   'pipelines-por-etapa': ['Pipelines por etapa', 'Estado de tus oportunidades'],
@@ -165,7 +165,7 @@ const MIS_TAREAS_ITEM: NavDef = { id: 'mis-tareas', label: 'Mis tareas', Icon: C
 const BANDEJA_ITEM: NavDef = { id: 'bandeja', label: 'Bandeja', Icon: Inbox, hint: 'Mensajes entrantes' }
 const NOTIFICACIONES_ITEM: NavDef = {
   id: 'notificaciones',
-  label: 'Difusión de Avisos',
+  label: 'Envío de Avisos',
   Icon: Send,
   hint: 'Envía avisos push a los usuarios',
 }

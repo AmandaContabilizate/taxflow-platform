@@ -186,6 +186,11 @@ export function MisClientesScreen({ permissions = [], userId }: MisClientesProps
                         <div className="text-xs mt-0.5" style={{ color: 'var(--ink-500)' }}>
                           {c.email}
                         </div>
+                        {c.phone && (
+                          <div className="text-[11.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                            📞 {c.phone}
+                          </div>
+                        )}
                       </td>
                       <td className="px-5 py-4">
                         <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-700)' }}>{c.rfc}</code>
