@@ -175,6 +175,10 @@
     "es": "Tu cuenta está desactivada. Contacta a soporte para reactivarla.",
     "en": "Your account is deactivated. Contact support to reactivate it."
   },
+  "PASSWORD_RESET_REQUIRED": {
+    "es": "Tu contraseña ya no es segura. Debes recuperarla para poder ingresar.",
+    "en": "Your password is no longer secure. You must recover it to sign in."
+  },
   "TAXPAYER_NOT_FOUND": {
     "es": "No se encontro al contribuyente.",
     "en": "Taxpayer not found."

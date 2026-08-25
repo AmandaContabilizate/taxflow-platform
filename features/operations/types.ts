@@ -267,6 +267,10 @@ export interface VentaResumen {
   statusSaleId: number;
   /** Nombre del estatus tal como está en el catálogo de la BD. */
   estatus: string | null;
+  /** Código de promoción/descuento aplicado en la compra (null si no usó). */
+  discountCode: string | null;
+  /** % del código tipo Porcentaje (null en códigos tipo Declaraciones). */
+  discountPercent: number | null;
 }
 
 /** Declaración pendiente de la cartera (panel del contador). */
@@ -317,6 +321,8 @@ export interface GerenciaContableDashboard {
   porPresentar: number;
   presentadas: number;
   ciecInvalidas: number;
+  /** Compradas aún sin trabajar (estatus 15 EnProceso); subconjunto de porPresentar. */
+  enProceso: number;
   desglose: ContadorDesglose[];
 }
 
