@@ -4,11 +4,18 @@ import { CheckCircle2, Download, FileText, MessageSquare } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { getAllDeclarations } from '@/features/declarations/actions/getAllDeclarations.action'
 import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
-import type { DeclarationSubject } from '@/features/operations/types'
+import type { ClientDeclarationSubject } from '@/features/declarations/types'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { Badge, type BadgeKind, Card, Divider } from '../ui'
+import { Badge, Card, Divider } from '../ui'
 import { DeclarationComments } from './declaration-comments'
-import { TabEmpty, TabError, TabLoading, monthYear, useRfcResource } from './parts'
+import {
+  TabEmpty,
+  TabError,
+  TabLoading,
+  declarationStatusBadge,
+  monthYear,
+  useRfcResource,
+} from './parts'
 
 interface CurrentUser {
   userId: string
@@ -17,27 +24,33 @@ interface CurrentUser {
 
 const PRESENTED_CODES = new Set(['Presentada', 'PresentadaManual', 'PresentadaPrevio', 'PresentadaExterno'])
 
-const STATUS_BADGE: Record<string, { kind: BadgeKind; label: string }> = {
-  PendientePago: { kind: 'coral', label: 'Pendiente de pago' },
-  PendienteConciliacion: { kind: 'amber', label: 'En conciliación' },
-  Presentada: { kind: 'brand', label: 'Presentada' },
-  IntervencionManual: { kind: 'amber', label: 'En revisión' },
-  PresentadaManual: { kind: 'brand', label: 'Presentada (manual)' },
-  Enviando: { kind: 'amber', label: 'Enviando' },
-  PresentadaPrevio: { kind: 'brand', label: 'Presentada previamente' },
-  PresentadaExterno: { kind: 'brand', label: 'Presentada (SAT)' },
-  EnRevisionCliente: { kind: 'amber', label: 'En tu revisión' },
-  RebotadaCliente: { kind: 'coral', label: 'Rechazada' },
-  PorPresentar: { kind: 'coral', label: 'Por presentar' },
-  PorRevisar: { kind: 'default', label: 'Por revisar' },
-  NoPresentada: { kind: 'coral', label: 'No presentada' },
+/** 1 = Regularizacion, 2 = Plan a futuro (Sales.SaleDeclaration.DeclarationKind). */
+const KIND_REGULARIZATION = 1
+const KIND_FUTURE_PLAN = 2
+
+/**
+ * Una regularizacion esta comprada cuando tiene venta activa (kind 1) y ya se
+ * activo ("En proceso"). Sin venta el back manda `declarationKind: null` y el
+ * SAT la reporta como no presentada: esa es la que todavia se puede comprar.
+ */
+function regularizationBadge(
+  kind: number | null,
+  statusCode: string,
+): { kind: 'brand' | 'coral'; label: string } | null {
+  if (kind === KIND_REGULARIZATION && statusCode === 'EnProceso') {
+    return { kind: 'brand', label: 'Comprada' }
+  }
+  if (kind == null && statusCode === 'NoPresentada') {
+    return { kind: 'coral', label: 'Por comprar' }
+  }
+  return null
 }
 
 const ALL_YEARS = 'todos'
 const ALL_REGIMES = 'todos'
 
 interface Props {
-  onViewDetail: (subject: DeclarationSubject) => void
+  onViewDetail: (subject: ClientDeclarationSubject) => void
   currentUser: CurrentUser
 }
 
@@ -141,9 +154,10 @@ export function TodasTab({ onViewDetail, currentUser }: Props) {
         ) : (
           <div>
             {filtered.map((d, i) => {
-              const status = STATUS_BADGE[d.statusCode] ?? { kind: 'default' as BadgeKind, label: d.statusLabel }
+              const status = declarationStatusBadge(d.statusCode, d.statusLabel)
               const presented = PRESENTED_CODES.has(d.statusCode)
-              const isFuturePlan = d.declarationKind === 2
+              const isFuturePlan = d.declarationKind === KIND_FUTURE_PLAN
+              const regularization = regularizationBadge(d.declarationKind, d.statusCode)
               const title =
                 d.periodicity === 'Anual' || !d.month
                   ? `Ejercicio ${d.fiscalYear}`
@@ -168,6 +182,9 @@ export function TodasTab({ onViewDetail, currentUser }: Props) {
                         </div>
                         <Badge kind={status.kind}>{status.label}</Badge>
                         {isFuturePlan && <Badge kind="sky">Plan a futuro</Badge>}
+                        {regularization && (
+                          <Badge kind={regularization.kind}>{regularization.label}</Badge>
+                        )}
                       </div>
                       <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
                         {[d.regimeName, d.statusLabel].filter(Boolean).join(' · ')}
@@ -201,7 +218,12 @@ export function TodasTab({ onViewDetail, currentUser }: Props) {
                             legalName: selectedRfcInfo?.legalName ?? '',
                             periodo: title,
                             fiscalYear: d.fiscalYear,
-                            accountantName: null,
+                            statusCode: d.statusCode,
+                            statusLabel: d.statusLabel,
+                            regimeName: d.regimeName,
+                            periodicity: d.periodicity,
+                            acknowledgmentPdfUrl: d.acknowledgmentPdfUrl,
+                            submittedAt: d.submittedAt,
                           })
                         }
                         className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-bold transition hover:opacity-90"

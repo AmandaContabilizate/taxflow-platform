@@ -85,7 +85,8 @@ export const TITLES: Record<Screen, [string, string]> = {
   partners: ['Partners', 'Alta de partners y alianzas B2B2C, con sus códigos automáticos'],
   'codigos-descuento': ['Códigos de descuento', 'Códigos por dueño: ejecutivos, finder fees y partners'],
   'reportes-ejecutivos': ['Reportes ejecutivos', 'KPIs y resultados del área'],
-  operaciones: ['Centro de Operaciones', 'Gestión y supervisión de declaraciones fiscales'],
+  operaciones: ['Centro de operaciones', 'Gestión y supervisión de declaraciones fiscales'],
+  'declaraciones-futuras': ['Declaraciones futuras', 'Declaraciones compradas de periodos posteriores al mes actual'],
   'tramites-adicionales': ['Trámites adicionales', 'Seguimiento de trámites vendidos a tus clientes'],
   ventas: ['Ventas', 'Resumen de ventas registradas por cuenta'],
   roles: ['Roles y permisos', 'Administra roles, sus permisos y los roles de cada usuario'],
@@ -253,9 +254,15 @@ const REPORTES_ITEM: NavDef = {
 }
 const OPERACIONES_ITEM: NavDef = {
   id: 'operaciones',
-  label: 'Centro de Operaciones',
+  label: 'Centro de operaciones',
   Icon: Briefcase,
   hint: 'Gestión de declaraciones',
+}
+const DECLARACIONES_FUTURAS_ITEM: NavDef = {
+  id: 'declaraciones-futuras',
+  label: 'Declaraciones futuras',
+  Icon: Calendar,
+  hint: 'Periodos posteriores al mes actual',
 }
 const VENTAS_ITEM: NavDef = {
   id: 'ventas',
@@ -420,6 +427,7 @@ export const MASTER_NAV_SECTIONS: NavSection[] = [
     section: 'OPERACIÓN',
     items: [
       OPERACIONES_ITEM,
+      DECLARACIONES_FUTURAS_ITEM,
       MIS_CLIENTES_ITEM,
       REGULARIZACIONES_ITEM,
       TRAMITES_ADICIONALES_ITEM,
@@ -481,6 +489,7 @@ export const MODULE_CLAIMS: Record<string, string[]> = {
   ],
   renovaciones: ['Comercial.ReadRenovaciones'],
   operaciones: ['Contador.ReadDeclaraciones'],
+  'declaraciones-futuras': ['Contador.ReadDeclaracionesFuturas'],
   // Cartera propia (contador) o todas las carteras (gerencia con AssignAccountant)
   'mis-clientes': ['Contador.ReadMisClientes', 'AssignAccountant'],
   regularizaciones: ['Contador.ReadDeclaraciones'],

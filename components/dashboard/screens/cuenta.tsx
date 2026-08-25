@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell, ChevronDown, ChevronRight, FilePlus2, Gem, HelpCircle, IdCard, LogOut, Receipt, ShieldCheck, UserRound } from 'lucide-react';
+import { Bell, ChevronDown, ChevronRight, FilePlus2, Gem, HelpCircle, IdCard, LogOut, Receipt, ShieldCheck, Trash2, UserRound } from 'lucide-react';
 import { useEffect, useState, type ComponentType } from 'react';
 import { useTheme } from 'next-themes';
 import { getActivePlan } from '@/features/account/actions/getActivePlan.action';
@@ -12,6 +12,7 @@ import SatConnectScreen from '@/components/sat-connect-screen';
 import { Modal } from '../modal';
 import { PaymentsPanel } from '../cuenta/payments-panel';
 import { SecurityForm } from '../cuenta/security-form';
+import { DeleteAccountForm } from '../cuenta/delete-account-form';
 import { DISPLAY, MONO } from '../constants';
 import type { GoFn } from '../types';
 import { Btn, Card, Divider } from '../ui';
@@ -53,6 +54,7 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
   const [active, setActive] = useState<ActionKey | null>(null);
   const [showFiscalModal, setShowFiscalModal] = useState(false);
   const [showSecurityModal, setShowSecurityModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const activeRfc = selectedRfc ?? rfc;
   const [pushPermission, setPushPermission] = useState<string>('default');
@@ -375,6 +377,19 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
           <LogOut size={16} /> {signingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
         </Btn>
 
+        <Section title='Zona de riesgo'>
+          <Card>
+            <AccountRow
+              Icon={Trash2}
+              iconBg='var(--danger-soft)'
+              iconColor='var(--danger)'
+              title='Eliminar mi cuenta'
+              subtitle='Desactiva tu cuenta y cierra tu acceso'
+              onClick={() => setShowDeleteModal(true)}
+            />
+          </Card>
+        </Section>
+
         <div
           className='text-center text-[11px] font-semibold'
           style={{ color: 'var(--ink-400)' }}>
@@ -405,6 +420,14 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
         onClose={() => setShowSecurityModal(false)}
         title='Seguridad'>
         <SecurityForm />
+      </Modal>
+
+      {/* Modal de Eliminar cuenta */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title='Eliminar cuenta'>
+        <DeleteAccountForm />
       </Modal>
     </div>
   );

@@ -237,6 +237,61 @@ export interface DeclarationPeriodInvoice {
   /** Suma de Invoices.Withholds; null si el CFDI no trae retenciones. */
   withheldAmount: number | null
   withheldTaxableAmount: number | null
+  /**
+   * Periodo que declara la factura global (Publico en General): "Febrero 2025" o
+   * "Enero-Febrero 2025". null cuando el CFDI no es global.
+   */
+  period: string | null
+}
+
+/**
+ * Lo minimo que necesita la pantalla de detalle del contribuyente. Se arma desde
+ * `AllDeclarationItem` mas el RFC/razon social del RFC activo: el cliente no puede
+ * pegarle al EP `/general` (es de contadores).
+ */
+export interface ClientDeclarationSubject {
+  declarationId: number
+  rfc: string
+  legalName: string
+  /** Etiqueta ya resuelta del periodo ("Mayo 2025" o "Ejercicio 2025"). */
+  periodo: string
+  fiscalYear: number
+  statusCode: string
+  statusLabel: string
+  regimeName: string | null
+  periodicity: string | null
+  acknowledgmentPdfUrl: string | null
+  submittedAt: string | null
+}
+
+/**
+ * CFDI de una declaracion visto por el cliente (`ClientDeclarationInvoiceDto`).
+ * A proposito no trae clasificacion: solo el detalle del comprobante y si quedo
+ * deducible (sale de `DeclarationInvoice.IsValid`).
+ */
+export interface ClientDeclarationInvoice {
+  id: number
+  uuid: string
+  folio: string | null
+  issuer: { rfc: string; name: string } | null
+  receiver: { rfc: string; name: string } | null
+  /** Fecha de expedicion del CFDI. */
+  invoiceDate: string
+  /** Fecha de timbrado. */
+  stampDate: string
+  total: number
+  uso: string | null
+  /** Descripcion del tipo de CFDI ("Ingreso", "Egreso", ...). */
+  typeId: string
+  /** Enum TipoComprobante: 0 desconocido, 1 I, 2 E, 3 T, 4 N, 5 P. */
+  tipoComprobante: number
+  /** Enum StatusComprobante: 0 desconocido, 1 vigente, 2 cancelado. */
+  statusComprobante: number
+  status: string
+  /** true = el contribuyente es el emisor. */
+  isIssued: boolean
+  /** null = el clasificador todavia no la evaluo. */
+  isDeductible: boolean | null
 }
 
 // --- Comentarios ---
@@ -248,4 +303,45 @@ export interface DeclarationComment {
   authorRole: string | null
   body: string
   createdAt: string
+}
+
+// --- Vista del contador: compras agrupadas por contribuyente ---
+
+/** Envelope paginado de los endpoints `*-by-taxpayer` / `*-taxpayers`. */
+export interface PagedDeclarations<T> {
+  items: T[]
+  total: number
+  skip: number
+  take: number
+}
+
+/** Nivel 1: contribuyente con declaraciones compradas y en proceso. */
+export interface TaxpayerGroup {
+  taxpayerId: number
+  rfc: string
+  legalName: string | null
+  email: string | null
+  declarationCount: number
+  lastFiscalYear: number | null
+}
+
+/**
+ * Nivel 2. Las regularizaciones traen el mismo shape sin `declarationKind`
+ * (todas son kind 1), por eso es opcional.
+ */
+export interface TaxpayerDeclarationItem {
+  declarationId: number
+  rfc: string
+  taxpayerId: number
+  fiscalYear: number
+  periodValueId: number | null
+  month: number | null
+  periodLabel: string | null
+  taxRegimeId: number
+  taxRegimeName: string | null
+  statusId: number
+  statusLabel: string | null
+  /** 2 = plan a futuro. Ausente en el endpoint de regularizaciones. */
+  declarationKind?: number
+  assignedToUser: string | null
 }

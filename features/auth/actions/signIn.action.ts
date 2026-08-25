@@ -62,7 +62,17 @@ export async function signIn(
       if (e.errorCode === "USER_INACTIVE") {
         return err({
           statusCode: 401,
+          errorCode: e.errorCode,
           fieldErrors: { email: ["Tu cuenta está desactivada. Contacta a soporte para reactivarla."] },
+        });
+      }
+      // Password migrada insegura/blacklisteada (UserMigrator.RequiresPasswordReset):
+      // el login ya disparó el correo de forgot-password, aquí solo se avisa al usuario.
+      if (e.errorCode === "PASSWORD_RESET_REQUIRED") {
+        return err({
+          statusCode: 401,
+          errorCode: e.errorCode,
+          fieldErrors: { email: ["Tu contraseña ya no es segura. Debes recuperarla para poder ingresar."] },
         });
       }
       return err({

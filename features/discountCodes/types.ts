@@ -31,6 +31,14 @@ export interface DiscountCodeAdmin {
   createdAt: string;
   /** Quién generó el código (nombre; "system" u otro valor crudo si no es usuario). */
   createdByName: string | null;
+  /**
+   * Espejo en Stripe: "synced" ya sincronizó, "error" el último intento falló
+   * (volver a guardar reintenta), "none" nunca se ha intentado (códigos previos
+   * a la funcionalidad). Los tipo Declaraciones no se espejan.
+   */
+  stripeStatus: "synced" | "error" | "none";
+  /** Motivo del último fallo de sincronización con Stripe. */
+  stripeSyncError: string | null;
 }
 
 /** Fila de la bitácora de autorizaciones de códigos fuera de tope (inmutable). */

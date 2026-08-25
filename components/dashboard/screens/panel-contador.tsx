@@ -6,6 +6,7 @@ import {
   CalendarDays,
   CheckCircle2,
   FileText,
+  Hourglass,
   KeyRound,
   ShieldAlert,
   Users,
@@ -149,7 +150,7 @@ export function PanelContadorScreen({ go }: { go: GoFn }) {
       {data && (
         <p className="pcont-rise text-[13.5px]" style={{ color: 'var(--ink-500)' }}>
           Datos de <b>{MESES[month - 1]} {year}</b>: <b>{data.porPresentar}</b> por presentar,{' '}
-          <b>{data.presentadas}</b> ya presentadas al SAT.
+          <b>{data.enProceso}</b> en proceso, <b>{data.presentadas}</b> ya presentadas al SAT.
         </p>
       )}
 
@@ -185,8 +186,8 @@ export function PanelContadorScreen({ go }: { go: GoFn }) {
       </Card>
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[0, 1, 2, 3].map((i) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          {[0, 1, 2, 3, 4].map((i) => (
             <Card key={i}>
               <div className="p-5 animate-pulse">
                 <div className="h-3 w-24 rounded" style={{ background: 'var(--ink-100)' }} />
@@ -202,7 +203,7 @@ export function PanelContadorScreen({ go }: { go: GoFn }) {
         </Card>
       ) : data ? (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <Kpi
               label="Cartera asignada"
               value={String(data.carteraAsignada)}
@@ -218,12 +219,19 @@ export function PanelContadorScreen({ go }: { go: GoFn }) {
               delay={40}
             />
             <Kpi
+              label="En proceso"
+              value={String(data.enProceso)}
+              hint="Compradas, aún sin trabajar"
+              Icon={Hourglass}
+              delay={80}
+            />
+            <Kpi
               label="Presentadas"
               value={String(data.presentadas)}
               hint={`Declaraciones presentadas en ${MESES[month - 1]} ${year}`}
               Icon={CheckCircle2}
               highlight
-              delay={80}
+              delay={120}
             />
             <Kpi
               label="CIEC inválidas"
@@ -231,7 +239,7 @@ export function PanelContadorScreen({ go }: { go: GoFn }) {
               hint="Bloquean la presentación"
               Icon={ShieldAlert}
               alert={data.ciecInvalidas > 0}
-              delay={120}
+              delay={160}
             />
           </div>
 

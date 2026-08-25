@@ -54,7 +54,7 @@ export function useRecalculation(target: Target) {
         regimeCode: target.regimeSatCode!,
         adjustments,
       })
-
+      console.log(res);
       if (res.success) {
         setResult(res.value)
         setVersion((v) => v + 1)
