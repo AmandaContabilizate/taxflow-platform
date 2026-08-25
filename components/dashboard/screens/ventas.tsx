@@ -188,7 +188,7 @@ export function VentasScreen() {
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Venta', 'Cuenta', 'RFC', 'Productos', 'Monto', 'Estatus', 'Stripe'].map((h) => (
+                    {['Venta', 'Cuenta', 'RFC', 'Productos', 'Monto', 'Código', 'Estatus', 'Stripe'].map((h) => (
                       <th
                         key={h}
                         className={`px-5 py-3 font-extrabold ${h === 'Monto' ? 'text-right' : h === 'Stripe' ? 'text-center' : 'text-left'}`}
@@ -228,6 +228,22 @@ export function VentasScreen() {
                         <span className="font-bold" style={{ ...MONO, color: 'var(--ink-900)' }}>
                           {money.format(v.amount)}
                         </span>
+                      </td>
+                      <td className="px-5 py-4 align-top">
+                        {v.discountCode ? (
+                          <div
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold"
+                            style={{ background: 'var(--violet-soft)', color: 'var(--violet-ink)' }}
+                            title="Código de promoción aplicado en la compra"
+                          >
+                            <span style={MONO}>{v.discountCode}</span>
+                            {v.discountPercent != null && v.discountPercent > 0 && (
+                              <span>· {v.discountPercent}%</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-[12px]" style={{ color: 'var(--ink-400)' }}>—</span>
+                        )}
                       </td>
                       <td className="px-5 py-4 align-top">
                         <EstatusBadge statusSaleId={v.statusSaleId} estatus={v.estatus} />

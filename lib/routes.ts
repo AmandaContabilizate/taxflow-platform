@@ -20,6 +20,8 @@ export const PUBLIC_ROUTES = {
   COMPLETE_PROFILE: "/auth/complete-profile",
   /** Reporte de la declaración: /reporte?t={token cifrado del correo}. */
   DECLARATION_REPORT: "/reporte",
+  /** Baja de cuenta sin sesión: valida correo + contraseña contra Identity. */
+  DELETE_ACCOUNT: "/eliminar-cuenta",
 } as const;
 
 export const PROTECTED_ROUTES = {
@@ -43,6 +45,7 @@ export const PUBLIC_NONAUTH_ROUTES: string[] = [
   PUBLIC_ROUTES.FORGOT_PASSWORD,
   PUBLIC_ROUTES.RESET_PASSWORD,
   PUBLIC_ROUTES.DECLARATION_REPORT,
+  PUBLIC_ROUTES.DELETE_ACCOUNT,
 ];
 
 export const PUBLIC_NO_AUTH_PATTERNS: RegExp[] = [

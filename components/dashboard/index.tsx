@@ -36,6 +36,7 @@ import {
   HomeScreen,
   ManualScreen,
   MarketingScreen,
+  DeclaracionesFuturasScreen,
   MisClientesScreen,
   NotificacionesScreen,
   OperacionesScreen,
@@ -60,6 +61,7 @@ import {
 // El resto se mantiene en max-w-[1280px] para lectura cómoda.
 const WIDE_SCREENS = new Set<Screen>([
   'operaciones',
+  'declaraciones-futuras',
   'regularizaciones',
   'tramites-adicionales',
   'tramites',
@@ -330,6 +332,9 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
     }
     if (screen === 'operaciones') {
       return <OperacionesScreen currentUser={{ userId: userId ?? '', fullName }} />
+    }
+    if (screen === 'declaraciones-futuras') {
+      return <DeclaracionesFuturasScreen currentUser={{ userId: userId ?? '', fullName }} />
     }
     if (screen === 'regularizaciones') {
       return <RegularizacionesScreen currentUser={{ userId: userId ?? '', fullName }} />

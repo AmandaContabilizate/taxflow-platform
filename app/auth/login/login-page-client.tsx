@@ -92,11 +92,13 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   function switchMode(next: Mode) {
     setMode(next);
     setError(null);
+    setErrorCode(null);
     setRegisterStep("form");
     setCode("");
   }
@@ -105,6 +107,7 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setErrorCode(null);
 
     const redirectTo = params.get("from") || "/dashboard";
     const res = await signIn({ email, password, rememberMe }, redirectTo);
@@ -112,6 +115,7 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
     if (!res.success) {
       const flat = Object.values(res.error.fieldErrors).flat();
       setError(flat[0] ?? "Error al iniciar sesión");
+      setErrorCode(res.error.errorCode ?? null);
       setLoading(false);
       return;
     }
@@ -423,8 +427,10 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
 
                 <Link
                   href={PUBLIC_ROUTES.FORGOT_PASSWORD}
-                  className="block text-right text-xs font-semibold hover:underline"
-                  style={{ color: "#857AC0" }}
+                  className={`block text-right text-xs font-semibold hover:underline${
+                    errorCode === "PASSWORD_RESET_REQUIRED" ? " animate-pulse" : ""
+                  }`}
+                  style={{ color: errorCode === "PASSWORD_RESET_REQUIRED" ? "#E84D4D" : "#857AC0" }}
                 >
                   ¿Olvidaste tu contraseña?
                 </Link>
