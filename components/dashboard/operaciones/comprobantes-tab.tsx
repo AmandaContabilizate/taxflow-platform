@@ -1,12 +1,39 @@
 'use client'
 
-import { AlertCircle, Check, Copy, Loader2, Search } from 'lucide-react'
+import {
+  AlertCircle,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Check,
+  Columns3,
+  Copy,
+  Loader2,
+  Search,
+} from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { getDeclarationInvoices } from '@/features/operations/actions/getDeclarationInvoices.action'
-import type { DeclarationInvoice, Paged, Retencion } from '@/features/operations/types'
+import type {
+  DeclarationInvoice,
+  DeclarationInvoiceConcepto,
+  InvoiceSortBy,
+  InvoiceSortDir,
+  Paged,
+  Retencion,
+} from '@/features/operations/types'
 import { Pagination } from '../clientes/parts'
 import { MONO } from '../constants'
 import { Card } from '../ui'
+import { useUrlState } from '../url-state'
 
 const TAKE = 100
 
@@ -19,6 +46,46 @@ const INVOICE_TYPES: [InvoiceTypeId, string][] = [
   [3, 'Traslado'],
   [4, 'Pago'],
   [5, 'Nómina'],
+]
+
+/** Columnas seleccionables (Fecha y Folio/UUID son fijas, no van aquí). */
+type ColumnKey =
+  | 'tipo'
+  | 'comprobante'
+  | 'emisor'
+  | 'receptor'
+  | 'subtotal'
+  | 'iva'
+  | 'total'
+  | 'metodoPago'
+  | 'formaPago'
+  | 'conceptos'
+  | 'clasificacion'
+
+const COLUMN_DEFS: { key: ColumnKey; label: string }[] = [
+  { key: 'tipo', label: 'Tipo' },
+  { key: 'comprobante', label: 'Comprobante' },
+  { key: 'emisor', label: 'Emisor' },
+  { key: 'receptor', label: 'Receptor' },
+  { key: 'subtotal', label: 'Subtotal' },
+  { key: 'iva', label: 'IVA' },
+  { key: 'total', label: 'Total' },
+  { key: 'metodoPago', label: 'Método de pago' },
+  { key: 'formaPago', label: 'Forma de pago' },
+  { key: 'conceptos', label: 'Conceptos' },
+  { key: 'clasificacion', label: 'Clasificación' },
+]
+
+/** Columnas que la tabla ya mostraba, más IVA (nueva). */
+const DEFAULT_COLUMNS: ColumnKey[] = [
+  'tipo',
+  'comprobante',
+  'emisor',
+  'receptor',
+  'subtotal',
+  'iva',
+  'total',
+  'clasificacion',
 ]
 
 function FilterSelect<T extends string>({
@@ -213,6 +280,154 @@ function ClasificacionCell({ inv }: { inv: DeclarationInvoice }) {
   )
 }
 
+/** Nombre resuelto por el backend; el id crudo solo se ve si el catálogo no vino. */
+function CatalogCell({ name, id }: { name: string | null; id: number | string | null }) {
+  if (name) return <span style={{ color: 'var(--ink-700)' }}>{name}</span>
+  if (id != null) {
+    return (
+      <span style={{ color: 'var(--ink-500)' }} title="Catálogo no resuelto por el backend">
+        #{id}
+      </span>
+    )
+  }
+  return <span style={{ color: 'var(--ink-500)' }}>—</span>
+}
+
+/** Conceptos: resumen siempre visible; con más de uno, popover con el detalle completo. */
+function ConceptosCell({
+  inv,
+  concepts,
+  loading,
+  error,
+  onOpen,
+}: {
+  inv: DeclarationInvoice
+  concepts: DeclarationInvoiceConcepto[] | undefined
+  loading: boolean
+  error: string | null
+  onOpen: () => void
+}) {
+  if (!inv.conceptosResumen && inv.conceptosCount === 0) {
+    return <span style={{ color: 'var(--ink-500)' }}>—</span>
+  }
+  if (inv.conceptosCount <= 1) {
+    return <span style={{ color: 'var(--ink-700)' }}>{inv.conceptosResumen ?? '—'}</span>
+  }
+
+  return (
+    <Popover onOpenChange={(open) => open && onOpen()}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="text-left underline decoration-dotted underline-offset-2"
+          style={{ color: 'var(--brand-700)' }}
+        >
+          {inv.conceptosResumen}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 max-h-72 overflow-y-auto">
+        <div className="text-[12px] font-bold mb-2" style={{ color: 'var(--foreground)' }}>
+          {inv.conceptosCount} conceptos
+        </div>
+        {loading ? (
+          <div className="flex items-center gap-2 text-[12px]" style={{ color: 'var(--ink-500)' }}>
+            <Loader2 size={14} className="animate-spin" /> Cargando…
+          </div>
+        ) : error && !concepts ? (
+          <div className="text-[12px]" style={{ color: 'var(--violet-ink)' }}>{error}</div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {(concepts ?? []).map((c, i) => (
+              <div
+                key={i}
+                className="text-[12px] pb-2"
+                style={i < (concepts?.length ?? 0) - 1 ? { borderBottom: '1px solid var(--border)' } : undefined}
+              >
+                <div className="font-semibold" style={{ color: 'var(--foreground)' }}>
+                  {c.description ?? 'Sin descripción'}
+                </div>
+                <div style={{ color: 'var(--ink-500)' }}>
+                  {c.productCode ?? '—'} · {c.quantity ?? '—'} × {money(c.unitPrice)} = {money(c.subtotal)}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+/** Modal selector de columnas: Fecha y Folio/UUID son fijas y no aparecen aquí. */
+function ColumnsModal({
+  open,
+  onOpenChange,
+  selected,
+  onChange,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  selected: ColumnKey[]
+  onChange: (next: ColumnKey[]) => void
+}) {
+  const toggle = (key: ColumnKey) => {
+    onChange(selected.includes(key) ? selected.filter((k) => k !== key) : [...selected, key])
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-[420px]">
+        <DialogHeader>
+          <DialogTitle>Columnas de la tabla</DialogTitle>
+          <DialogDescription>Fecha y Folio / UUID siempre se muestran.</DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-1 max-h-[55vh] overflow-y-auto -mx-1 px-1">
+          {COLUMN_DEFS.map(({ key, label }) => (
+            <label
+              key={key}
+              className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer hover:bg-muted"
+            >
+              <Checkbox checked={selected.includes(key)} onCheckedChange={() => toggle(key)} />
+              <span className="text-[13px]" style={{ color: 'var(--foreground)' }}>
+                {label}
+              </span>
+            </label>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function SortIcon({ active, dir }: { active: boolean; dir: InvoiceSortDir }) {
+  if (!active) return <ArrowUpDown size={12} style={{ opacity: 0.45 }} />
+  return dir === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />
+}
+
+function SortableHeader({
+  label,
+  active,
+  dir,
+  onClick,
+}: {
+  label: string
+  active: boolean
+  dir: InvoiceSortDir
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-1 font-extrabold whitespace-nowrap"
+      style={{ color: active ? 'var(--brand-700)' : 'var(--ink-700)' }}
+    >
+      {label}
+      <SortIcon active={active} dir={dir} />
+    </button>
+  )
+}
+
 const MESES = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 
 /** Periodo que declara el propio CFDI de retención; puede no ser el de la declaración. */
@@ -264,6 +479,8 @@ function RetencionBlock({ r }: { r: Retencion }) {
 }
 
 export function ComprobantesTab({ declarationId, periodo }: { declarationId: number; periodo: string }) {
+  const { params, setParams } = useUrlState()
+
   const [page, setPage] = useState<Paged<DeclarationInvoice>>({ items: [], total: 0, skip: 0, take: TAKE })
   const [skip, setSkip] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -274,6 +491,75 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
   const [origen, setOrigen] = useState<'' | 'true' | 'false'>('')
   const [tipo, setTipo] = useState('')
   const [clasificada, setClasificada] = useState<'' | 'true' | 'false'>('')
+  const [columnsModalOpen, setColumnsModalOpen] = useState(false)
+
+  // Orden server-side (E2): persistido en la URL, no se ordena en cliente.
+  const sortBy: InvoiceSortBy = params.get('sortBy') === 'total' ? 'total' : 'invoiceDate'
+  const sortDir: InvoiceSortDir = params.get('sortDir') === 'desc' ? 'desc' : 'asc'
+
+  const setSort = (col: InvoiceSortBy) => {
+    setParams(
+      { sortBy: col, sortDir: sortBy === col && sortDir === 'asc' ? 'desc' : 'asc' },
+      { replace: true },
+    )
+    setSkip(0)
+  }
+
+  // Selección de columnas persistida en la URL. `cols=none` distingue "el
+  // usuario las quitó todas" de "no hay parámetro todavía" (default).
+  const rawCols = params.get('cols')
+  const selectedCols = useMemo<ColumnKey[]>(() => {
+    if (rawCols == null) return DEFAULT_COLUMNS
+    if (rawCols === 'none') return []
+    const set = new Set(rawCols.split(','))
+    return COLUMN_DEFS.map((d) => d.key).filter((k) => set.has(k))
+  }, [rawCols])
+
+  const setSelectedCols = (next: ColumnKey[]) => {
+    setParams({ cols: next.length === 0 ? 'none' : next.join(',') }, { replace: true })
+  }
+
+  // En egresos el IVA es justo el dato que el contador vino a buscar: se
+  // activa aunque el usuario lo haya desmarcado (D4).
+  const effectiveColSet = useMemo(() => {
+    const set = new Set(selectedCols)
+    if (tipo === '2') set.add('iva')
+    return set
+  }, [selectedCols, tipo])
+  const visibleColumns = COLUMN_DEFS.filter((d) => effectiveColSet.has(d.key))
+
+  // Conceptos completos: solo se piden bajo demanda (`includeConcepts=true`),
+  // cacheados por invoiceId para no repetir la llamada al reabrir el popover.
+  const [conceptsCache, setConceptsCache] = useState<Record<number, DeclarationInvoiceConcepto[]>>({})
+  const [conceptsLoadingId, setConceptsLoadingId] = useState<number | null>(null)
+  const [conceptsError, setConceptsError] = useState<string | null>(null)
+
+  const loadConcepts = async (invoiceId: number) => {
+    if (conceptsCache[invoiceId]) return
+    setConceptsLoadingId(invoiceId)
+    setConceptsError(null)
+    const res = await getDeclarationInvoices({
+      declarationId,
+      isIssued: origen === '' ? undefined : origen === 'true',
+      invoiceTypeId: tipo === '' ? undefined : Number(tipo),
+      clasificada: clasificada === '' ? undefined : clasificada === 'true',
+      skip,
+      take: TAKE,
+      sortBy,
+      sortDir,
+      includeConcepts: true,
+    })
+    if (res.success) {
+      setConceptsCache((prev) => {
+        const next = { ...prev }
+        for (const it of res.value.items) if (it.conceptos) next[it.invoiceId] = it.conceptos
+        return next
+      })
+    } else {
+      setConceptsError(res.error.message)
+    }
+    setConceptsLoadingId(null)
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -287,6 +573,8 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
         clasificada: clasificada === '' ? undefined : clasificada === 'true',
         skip,
         take: TAKE,
+        sortBy,
+        sortDir,
       })
       if (cancelled) return
       if (res.success) setPage(res.value)
@@ -299,7 +587,7 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
     return () => {
       cancelled = true
     }
-  }, [declarationId, skip, origen, tipo, clasificada])
+  }, [declarationId, skip, origen, tipo, clasificada, sortBy, sortDir])
 
   // Cambiar un filtro reinicia la paginación: el `total` del backend cambia.
   const onFilter = <T,>(setter: (v: T) => void) => (v: T) => {
@@ -307,38 +595,35 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
     setter(v)
   }
 
-  // El backend no filtra por texto: se busca sobre la página cargada.
+  // El backend no filtra por texto: se busca sobre la página cargada. El
+  // orden ya viene resuelto por el backend (E2) — no se reordena en cliente.
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
-    const filtered = !q
-      ? page.items
-      : page.items.filter((i) =>
-          [i.folio, i.serie, i.uuid, i.emitterRfc, i.emitterName, i.receivedRfc, i.receiverName, i.clasificacion]
-            .some((f) => f?.toLowerCase().includes(q)),
-        )
-    return [...filtered].sort((a, b) => periodDate(b).localeCompare(periodDate(a)))
+    if (!q) return page.items
+    return page.items.filter((i) =>
+      [i.folio, i.serie, i.uuid, i.emitterRfc, i.emitterName, i.receivedRfc, i.receiverName, i.clasificacion]
+        .some((f) => f?.toLowerCase().includes(q)),
+    )
   }, [page.items, query])
 
   // Los CFDI de retenciones no tienen TipoDeComprobante: el backend los marca con
-  // `esRetencion` y viven en su propia sub-pestaña.
+  // `esRetencion` y viven en su propia sub-pestaña. Selector y orden no les aplican.
   const normales = useMemo(() => rows.filter((i) => !i.esRetencion), [rows])
   const retenciones = useMemo(() => rows.filter((i) => i.esRetencion), [rows])
   const visibles = subTab === 1 ? retenciones : normales
 
   // Suma de lo que se está viendo: cambia con los filtros, la búsqueda y la
   // página, así que el encabezado dice explícitamente sobre qué se sumó.
-  const totales = useMemo(
-    () =>
-      visibles.reduce(
-        (acc, i) => ({
-          subTotal: acc.subTotal + toNumber(i.subTotal),
-          total: acc.total + toNumber(i.total),
-          retenido: acc.retenido + toNumber(i.totalRetenido),
-        }),
-        { subTotal: 0, total: 0, retenido: 0 },
-      ),
-    [visibles],
-  )
+  const totales = useMemo(() => {
+    const ivaResueltos = visibles.filter((i) => i.ivaAmount != null)
+    return {
+      subTotal: visibles.reduce((acc, i) => acc + toNumber(i.subTotal), 0),
+      total: visibles.reduce((acc, i) => acc + toNumber(i.total), 0),
+      retenido: visibles.reduce((acc, i) => acc + toNumber(i.totalRetenido), 0),
+      iva: ivaResueltos.reduce((acc, i) => acc + toNumber(i.ivaAmount), 0),
+      ivaResuelto: ivaResueltos.length > 0,
+    }
+  }, [visibles])
 
   const totalPages = Math.max(1, Math.ceil(page.total / TAKE))
   const currentPage = Math.floor(skip / TAKE) + 1
@@ -355,6 +640,16 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
               {loading ? 'Cargando comprobantes…' : `${page.total} comprobantes del período ${periodo}`}
             </p>
           </div>
+          {subTab === 0 && (
+            <button
+              type="button"
+              onClick={() => setColumnsModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12.5px] font-bold transition hover:opacity-90"
+              style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+            >
+              <Columns3 size={14} /> Columnas
+            </button>
+          )}
         </div>
 
         <div className="relative">
@@ -558,6 +853,9 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
               entries={[
                 ['Subtotal', money(totales.subTotal)],
                 ['Total', money(totales.total)],
+                ...(effectiveColSet.has('iva')
+                  ? ([['IVA (en esta página)', totales.ivaResuelto ? money(totales.iva) : '—']] as [string, string][])
+                  : []),
               ]}
             />
 
@@ -565,13 +863,33 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
               <table className="w-full text-[12.5px]">
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Fecha', 'Folio / UUID', 'Tipo', 'Comprobante', 'Emisor', 'Receptor', 'Subtotal', 'Total', 'Clasificación'].map((h) => (
+                    <th className="px-3 py-2.5 text-left whitespace-nowrap" style={{ color: 'var(--ink-700)' }}>
+                      <SortableHeader
+                        label="Fecha"
+                        active={sortBy === 'invoiceDate'}
+                        dir={sortDir}
+                        onClick={() => setSort('invoiceDate')}
+                      />
+                    </th>
+                    <th className="px-3 py-2.5 text-left font-extrabold whitespace-nowrap" style={{ color: 'var(--ink-700)' }}>
+                      Folio / UUID
+                    </th>
+                    {visibleColumns.map((col) => (
                       <th
-                        key={h}
+                        key={col.key}
                         className="px-3 py-2.5 text-left font-extrabold whitespace-nowrap"
                         style={{ color: 'var(--ink-700)' }}
                       >
-                        {h}
+                        {col.key === 'total' ? (
+                          <SortableHeader
+                            label="Total"
+                            active={sortBy === 'total'}
+                            dir={sortDir}
+                            onClick={() => setSort('total')}
+                          />
+                        ) : (
+                          col.label
+                        )}
                       </th>
                     ))}
                   </tr>
@@ -592,58 +910,87 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
                         <td className="px-3 py-3 align-top">
                           <FolioCell inv={inv} />
                         </td>
-                        <td className="px-3 py-3 align-top">
-                          <Chip
-                            bg={inv.isIssued ? 'var(--sky-soft)' : 'var(--ink-50)'}
-                            fg={inv.isIssued ? 'var(--sky)' : 'var(--ink-700)'}
-                          >
-                            {inv.isIssued ? 'Emitida' : 'Recibida'}
-                          </Chip>
-                        </td>
-                        <td className="px-3 py-3 align-top">
-                          <div className="flex flex-col gap-1 items-start">
-                            <span style={{ color: 'var(--ink-700)' }}>{inv.tipoComprobante}</span>
-                            {inv.esNomina && (
-                              <Chip bg="var(--violet-soft)" fg="var(--violet)">Nómina</Chip>
-                            )}
-                            {/* Validez con la que entró al cálculo de esta declaración. */}
-                            {inv.isValid === false && (
+                        {visibleColumns.map((col) => (
+                          <td key={col.key} className="px-3 py-3 align-top">
+                            {col.key === 'tipo' && (
                               <Chip
-                                bg="var(--coral-soft)"
-                                fg="var(--violet-ink)"
-                                title="La factura entró a esta declaración marcada como no válida"
+                                bg={inv.isIssued ? 'var(--sky-soft)' : 'var(--ink-50)'}
+                                fg={inv.isIssued ? 'var(--sky)' : 'var(--ink-700)'}
                               >
-                                No válida
+                                {inv.isIssued ? 'Emitida' : 'Recibida'}
                               </Chip>
                             )}
-                            {inv.isValid === true && (
-                              <Chip
-                                bg="var(--muted)"
-                                fg="var(--ink-500)"
-                                title="Válida en el cálculo de esta declaración"
-                              >
-                                Válida
-                              </Chip>
+                            {col.key === 'comprobante' && (
+                              <div className="flex flex-col gap-1 items-start">
+                                <span style={{ color: 'var(--ink-700)' }}>{inv.tipoComprobante}</span>
+                                {inv.esNomina && (
+                                  <Chip bg="var(--violet-soft)" fg="var(--violet)">Nómina</Chip>
+                                )}
+                                {inv.isValid === false && (
+                                  <Chip
+                                    bg="var(--coral-soft)"
+                                    fg="var(--violet-ink)"
+                                    title="La factura entró a esta declaración marcada como no válida"
+                                  >
+                                    No válida
+                                  </Chip>
+                                )}
+                                {inv.isValid === true && (
+                                  <Chip
+                                    bg="var(--muted)"
+                                    fg="var(--ink-500)"
+                                    title="Válida en el cálculo de esta declaración"
+                                  >
+                                    Válida
+                                  </Chip>
+                                )}
+                              </div>
                             )}
-                          </div>
-                        </td>
-                        <td className="px-3 py-3 align-top">
-                          <div style={{ color: 'var(--ink-900)' }}>{inv.emitterName}</div>
-                          <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-500)' }}>{inv.emitterRfc}</code>
-                        </td>
-                        <td className="px-3 py-3 align-top">
-                          <div style={{ color: 'var(--ink-900)' }}>{inv.receiverName}</div>
-                          <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-500)' }}>{inv.receivedRfc}</code>
-                        </td>
-                        <td className="px-3 py-3 whitespace-nowrap align-top" style={{ ...MONO, color: 'var(--ink-900)' }}>
-                          {money(inv.subTotal)}
-                        </td>
-                        <td className="px-3 py-3 whitespace-nowrap align-top font-semibold" style={{ ...MONO, color: 'var(--ink-900)' }}>
-                          {money(inv.total)}
-                        </td>
-                        <td className="px-3 py-3 align-top">
-                          <ClasificacionCell inv={inv} />
-                        </td>
+                            {col.key === 'emisor' && (
+                              <>
+                                <div style={{ color: 'var(--ink-900)' }}>{inv.emitterName}</div>
+                                <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-500)' }}>{inv.emitterRfc}</code>
+                              </>
+                            )}
+                            {col.key === 'receptor' && (
+                              <>
+                                <div style={{ color: 'var(--ink-900)' }}>{inv.receiverName}</div>
+                                <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-500)' }}>{inv.receivedRfc}</code>
+                              </>
+                            )}
+                            {col.key === 'subtotal' && (
+                              <span className="whitespace-nowrap" style={{ ...MONO, color: 'var(--ink-900)' }}>
+                                {money(inv.subTotal)}
+                              </span>
+                            )}
+                            {col.key === 'iva' && (
+                              <span className="whitespace-nowrap font-semibold" style={{ ...MONO, color: 'var(--ink-900)' }}>
+                                {money(inv.ivaAmount)}
+                              </span>
+                            )}
+                            {col.key === 'total' && (
+                              <span className="whitespace-nowrap font-semibold" style={{ ...MONO, color: 'var(--ink-900)' }}>
+                                {money(inv.total)}
+                              </span>
+                            )}
+                            {col.key === 'metodoPago' && (
+                              <CatalogCell name={inv.paymentMethodName} id={inv.paymentMethodId} />
+                            )}
+                            {col.key === 'formaPago' && (
+                              <CatalogCell name={inv.wayOfPaymentName} id={inv.wayOfPaymentId} />
+                            )}
+                            {col.key === 'conceptos' && (
+                              <ConceptosCell
+                                inv={inv}
+                                concepts={conceptsCache[inv.invoiceId]}
+                                loading={conceptsLoadingId === inv.invoiceId}
+                                error={conceptsError}
+                                onOpen={() => void loadConcepts(inv.invoiceId)}
+                              />
+                            )}
+                            {col.key === 'clasificacion' && <ClasificacionCell inv={inv} />}
+                          </td>
+                        ))}
                       </tr>
                     )
                   })}
@@ -666,6 +1013,13 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
           </>
         )}
       </div>
+
+      <ColumnsModal
+        open={columnsModalOpen}
+        onOpenChange={setColumnsModalOpen}
+        selected={selectedCols}
+        onChange={setSelectedCols}
+      />
     </Card>
   )
 }

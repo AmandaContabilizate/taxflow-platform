@@ -36,6 +36,8 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthoriz
   const [declarationsCount, setDeclarationsCount] = useState('')
   const [maxUses, setMaxUses] = useState('')
   const [planIds, setPlanIds] = useState<number[]>([])
+  // Tab visible del selector de planes; las selecciones se conservan entre tabs.
+  const [planTab, setPlanTab] = useState<'sub' | 'once'>('sub')
   const [rfcsText, setRfcsText] = useState('')
   const [isActive, setIsActive] = useState(true)
   const [loading, setLoading] = useState(false)
@@ -68,14 +70,20 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthoriz
   const validRfcs = rfcTokens.filter((r) => r.length === 12 || r.length === 13)
   const invalidRfcs = rfcTokens.filter((r) => r.length !== 12 && r.length !== 13)
 
+  // Planes DESACTIVADOS que siguen palomeados (ligas viejas del código): se
+  // muestran para poder desmarcarlos, pero bloquean el guardado.
+  const planesInactivosSeleccionados = (lookups?.plans ?? []).filter(
+    (p) => !p.isActive && planIds.includes(p.id),
+  )
+
   const isPercent = discountTypeId === 1
   const canSubmit =
+    planesInactivosSeleccionados.length === 0 &&
     codeText.trim().length >= 3 &&
     // MaxUses solo es obligatorio para códigos ACTIVOS (el checkout rechaza códigos
     // sin límite); un código inactivo puede guardarse sin tope (legacy).
     (!isActive || Number(maxUses) > 0) &&
     invalidRfcs.length === 0 &&
-    planIds.length > 0 &&
     (ownerType === 'none' ||
       (ownerType === 'user' && sellerUserId !== '') ||
       (ownerType === 'partner' && partnershipId !== '')) &&
@@ -96,8 +104,11 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthoriz
   if (isActive && !(Number(maxUses) > 0)) faltantes.push('los usos máximos (obligatorios si está activo)')
   if (ownerType === 'user' && sellerUserId === '') faltantes.push('el dueño (selecciona un ejecutivo, o usa "Sin dueño")')
   if (ownerType === 'partner' && partnershipId === '') faltantes.push('el partner dueño')
-  if (planIds.length === 0) faltantes.push('al menos un plan donde aplica')
   if (invalidRfcs.length > 0) faltantes.push(`RFCs inválidos: ${invalidRfcs.join(', ')}`)
+  if (planesInactivosSeleccionados.length > 0)
+    faltantes.push(
+      `desmarcar los planes desactivados: ${planesInactivosSeleccionados.map((p) => p.name).join(', ')}`,
+    )
   if (isPercent && discountPercent === '') faltantes.push('el % de descuento')
   if (isPercent && Number(discountPercent) > 100) faltantes.push('el % no puede ser mayor a 100')
   if (isPercent && discountPercent !== '' && !Number.isInteger(Number(discountPercent)))
@@ -368,28 +379,76 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthoriz
         {/* Planes aplicables */}
         <div>
           <label className="block text-[12px] font-bold mb-1.5" style={{ color: 'var(--ink-700)' }}>
-            Planes donde aplica
+            Planes donde aplica{' '}
+            <span className="font-normal" style={{ color: 'var(--ink-400)' }}>
+              (opcional — sin planes seleccionados, el código aplica a todos)
+            </span>
           </label>
+          {/* Tabs: los planes de suscripción cobran recurrente (el cupón en Stripe
+              descuenta solo el primer cobro); los de pago único son one-shot.
+              Cambiar de tab NO borra lo seleccionado en el otro. */}
+          <div className="flex gap-1 mb-1.5">
+            {([
+              { key: 'sub', label: 'Suscripciones' },
+              { key: 'once', label: 'Pago único' },
+            ] as const).map((t) => {
+              const seleccionados = (lookups?.plans ?? []).filter(
+                (p) => (t.key === 'sub' ? p.isSubscription : !p.isSubscription) && planIds.includes(p.id),
+              ).length
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setPlanTab(t.key)}
+                  disabled={loading}
+                  className="px-3 py-1.5 rounded-lg text-[12.5px] font-semibold cursor-pointer"
+                  style={
+                    planTab === t.key
+                      ? { background: 'var(--accent-100, #ecfdf5)', border: '1.5px solid var(--accent-500, #10b981)', color: 'var(--ink-900)' }
+                      : { background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--ink-500)' }
+                  }
+                >
+                  {t.label}
+                  {seleccionados > 0 && <span className="ml-1.5 font-normal">({seleccionados})</span>}
+                </button>
+              )
+            })}
+          </div>
           <div
             className="flex flex-col gap-1.5 max-h-[160px] overflow-y-auto rounded-lg p-3"
             style={{ border: '1px solid var(--border)', background: 'var(--input)' }}
           >
-            {(lookups?.plans ?? []).map((p) => (
-              <label key={p.id} className="flex items-center gap-2.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={planIds.includes(p.id)}
-                  onChange={() => togglePlan(p.id)}
-                  disabled={loading}
-                  className="w-4 h-4 cursor-pointer"
-                />
-                <span className="text-[13px]" style={{ color: 'var(--ink-700)' }}>{p.name}</span>
-              </label>
-            ))}
-            {(lookups?.plans ?? []).length === 0 && (
-              <span className="text-[12.5px]" style={{ color: 'var(--ink-400)' }}>Sin planes activos</span>
+            {/* Activos siempre; desactivados solo si el código los trae palomeados
+                (ligas viejas): visibles para desmarcarlos, pero bloquean el guardado. */}
+            {(lookups?.plans ?? [])
+              .filter((p) => (planTab === 'sub' ? p.isSubscription : !p.isSubscription))
+              .filter((p) => p.isActive || planIds.includes(p.id))
+              .map((p) => (
+                <label key={p.id} className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={planIds.includes(p.id)}
+                    onChange={() => togglePlan(p.id)}
+                    disabled={loading}
+                    className="w-4 h-4 cursor-pointer"
+                  />
+                  <span className="text-[13px]" style={{ color: p.isActive ? 'var(--ink-700)' : '#B91C1C' }}>
+                    {p.name}
+                    {!p.isActive && <b> (desactivado — desmárcalo para poder guardar)</b>}
+                  </span>
+                </label>
+              ))}
+            {(lookups?.plans ?? []).filter((p) => (planTab === 'sub' ? p.isSubscription : !p.isSubscription) && (p.isActive || planIds.includes(p.id))).length === 0 && (
+              <span className="text-[12.5px]" style={{ color: 'var(--ink-400)' }}>
+                {planTab === 'sub' ? 'Sin planes de suscripción activos' : 'Sin planes de pago único activos'}
+              </span>
             )}
           </div>
+          {planTab === 'sub' && (
+            <p className="text-[11.5px] mt-1" style={{ color: 'var(--ink-400)' }}>
+              En suscripciones el descuento aplica una sola vez: solo el primer cobro — las renovaciones van a precio completo.
+            </p>
+          )}
         </div>
 
         {/* Lista blanca de RFCs */}

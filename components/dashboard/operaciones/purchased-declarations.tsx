@@ -45,7 +45,7 @@ const PERIOD_OPTIONS: { id: number; label: string }[] = [
 
 const TAKE = 50
 
-type Mode = 'future' | 'regularization'
+type Mode = 'future' | 'regularization' | 'all'
 
 type Copy = { help: string; noun: string; nounPlural: string; emptyGroups: string; emptyRows: string }
 
@@ -64,24 +64,36 @@ const COPY: Record<Mode, Copy> = {
     emptyGroups: 'No hay contribuyentes con regularizaciones compradas.',
     emptyRows: 'Este contribuyente no tiene regularizaciones en proceso con los filtros aplicados.',
   },
+  all: {
+    help: 'Contribuyentes con declaraciones compradas y en proceso, a futuro o de regularización. Elige uno para ver sus declaraciones.',
+    noun: 'declaración en proceso',
+    nounPlural: 'declaraciones en proceso',
+    emptyGroups: 'No hay contribuyentes con declaraciones compradas.',
+    emptyRows: 'Este contribuyente no tiene declaraciones en proceso con los filtros aplicados.',
+  },
 }
 
-/** Variante del modo future acotada a periodos posteriores al mes actual. */
-const FUTURE_ONLY_COPY: Copy = {
-  help: 'Contribuyentes con declaraciones compradas de periodos futuros (posteriores al mes actual). Elige uno para ver sus declaraciones.',
-  noun: 'declaración a futuro',
-  nounPlural: 'declaraciones a futuro',
-  emptyGroups: 'No hay contribuyentes con declaraciones de periodos futuros.',
-  emptyRows: 'Este contribuyente no tiene declaraciones de periodos futuros con los filtros aplicados.',
-}
-
-const copyFor = (mode: Mode, futureOnly?: boolean): Copy =>
-  mode === 'future' && futureOnly ? FUTURE_ONLY_COPY : COPY[mode]
-
+/** `declaration-taxpayers`/`declarations-by-taxpayer` sirven tanto "a futuro" (kind
+ * explícito) como "todo" (Centro de operaciones, sin kind = ambas, desde E5.1). */
 const ACTIONS = {
   future: { groups: getDeclarationTaxpayers, rows: getDeclarationsByTaxpayer },
   regularization: { groups: getRegularizationTaxpayers, rows: getRegularizationsByTaxpayer },
+  all: { groups: getDeclarationTaxpayers, rows: getDeclarationsByTaxpayer },
 } as const
+
+/**
+ * `kind` que cada modo manda al backend: 1 = regularización, 2 = a futuro,
+ * `undefined` = ambas. Desde E5.1 el backend ya NO asume kind=2 por default en
+ * estos endpoints, así que "future"/"regularization" deben mandarlo explícito o
+ * mostrarían de todo.
+ */
+const KIND_BY_MODE: Record<Mode, 1 | 2 | undefined> = {
+  future: 2,
+  regularization: 1,
+  all: undefined,
+}
+
+const TIPO_LABEL: Record<number, string> = { 1: 'Regularización', 2: 'A futuro' }
 
 const emptyPage = <T,>(take: number): PagedDeclarations<T> => ({ items: [], total: 0, skip: 0, take })
 
@@ -91,14 +103,13 @@ const emptyPage = <T,>(take: number): PagedDeclarations<T> => ({ items: [], tota
 
 function TaxpayerGroups({
   mode,
-  futureOnly,
   onOpen,
 }: {
   mode: Mode
-  futureOnly?: boolean
   onOpen: (g: TaxpayerGroup) => void
 }) {
-  const copy = copyFor(mode, futureOnly)
+  const copy = COPY[mode]
+  const kind = KIND_BY_MODE[mode]
   const [page, setPage] = useState<PagedDeclarations<TaxpayerGroup>>(emptyPage(TAKE))
   const [skip, setSkip] = useState(0)
   const [search, setSearch] = useState('')
@@ -120,7 +131,7 @@ function TaxpayerGroups({
     setLoading(true)
     setError(null)
     void (async () => {
-      const res = await ACTIONS[mode].groups({ search: query || undefined, skip, take: TAKE, futureOnly })
+      const res = await ACTIONS[mode].groups({ search: query || undefined, skip, take: TAKE, kind })
       if (cancelled) return
       if (res.success) setPage(res.value)
       else {
@@ -132,7 +143,7 @@ function TaxpayerGroups({
     return () => {
       cancelled = true
     }
-  }, [mode, futureOnly, query, skip])
+  }, [mode, kind, query, skip])
 
   const totalPages = Math.max(1, Math.ceil(page.total / TAKE))
 
@@ -264,20 +275,19 @@ function TaxpayerGroups({
 
 function PurchasedTable({
   mode,
-  futureOnly,
   rfc,
   legalName,
   onBack,
   onOpen,
 }: {
   mode: Mode
-  futureOnly?: boolean
   rfc: string
   legalName: string
   onBack: () => void
   onOpen: (d: TaxpayerDeclarationItem) => void
 }) {
-  const copy = copyFor(mode, futureOnly)
+  const copy = COPY[mode]
+  const kind = KIND_BY_MODE[mode]
   const { params, setParams } = useUrlState()
 
   const [page, setPage] = useState<PagedDeclarations<TaxpayerDeclarationItem>>(emptyPage(TAKE))
@@ -294,14 +304,14 @@ function PurchasedTable({
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
-    const res = await ACTIONS[mode].rows({ rfc, skip, take: TAKE, futureOnly })
+    const res = await ACTIONS[mode].rows({ rfc, skip, take: TAKE, kind })
     if (res.success) setPage(res.value)
     else {
       setError(res.error.message)
       setPage(emptyPage(TAKE))
     }
     setLoading(false)
-  }, [mode, futureOnly, rfc, skip])
+  }, [mode, kind, rfc, skip])
 
   useEffect(() => {
     void load()
@@ -435,7 +445,14 @@ function PurchasedTable({
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Ejercicio', 'Periodo', 'Régimen', 'Estatus', ''].map((h) => (
+                    {[
+                      'Ejercicio',
+                      'Periodo',
+                      'Régimen',
+                      ...(mode === 'all' ? ['Tipo'] : []),
+                      'Estatus',
+                      '',
+                    ].map((h) => (
                       <th
                         key={h}
                         className="px-5 py-3 text-left font-extrabold whitespace-nowrap"
@@ -452,6 +469,24 @@ function PurchasedTable({
                       <td className="px-5 py-4 font-semibold" style={{ color: 'var(--ink-900)' }}>{d.fiscalYear}</td>
                       <td className="px-5 py-4" style={{ color: 'var(--ink-700)' }}>{periodLabel(d.periodValueId)}</td>
                       <td className="px-5 py-4" style={{ color: 'var(--ink-700)' }}>{d.taxRegimeName ?? '—'}</td>
+                      {mode === 'all' && (
+                        <td className="px-5 py-4">
+                          {d.declarationKind != null && TIPO_LABEL[d.declarationKind] ? (
+                            <span
+                              className="inline-flex px-2.5 py-1 rounded-md text-[11px] font-bold whitespace-nowrap"
+                              style={
+                                d.declarationKind === 2
+                                  ? { background: 'var(--sky-soft)', color: 'var(--sky)' }
+                                  : { background: 'var(--violet-soft)', color: 'var(--violet)' }
+                              }
+                            >
+                              {TIPO_LABEL[d.declarationKind]}
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--ink-500)' }}>—</span>
+                          )}
+                        </td>
+                      )}
                       <td className="px-5 py-4">
                         <span
                           className="inline-flex px-2.5 py-1 rounded-md text-[11px] font-bold whitespace-nowrap"
@@ -521,12 +556,9 @@ const stubSubject = (declarationId: number, rfc: string | null): DeclarationSubj
 export function PurchasedDeclarations({
   mode,
   currentUser,
-  futureOnly,
 }: {
   mode: Mode
   currentUser: CurrentUser
-  /** Solo declaraciones de periodos futuros (posteriores al mes actual). */
-  futureOnly?: boolean
 }) {
   const { params, setParams } = useUrlState()
   const rfcParam = params.get('rfc')
@@ -570,7 +602,6 @@ export function PurchasedDeclarations({
     return (
       <PurchasedTable
         mode={mode}
-        futureOnly={futureOnly}
         rfc={rfcParam}
         legalName={legalName}
         onBack={backToGroups}
@@ -579,5 +610,5 @@ export function PurchasedDeclarations({
     )
   }
 
-  return <TaxpayerGroups mode={mode} futureOnly={futureOnly} onOpen={openGroup} />
+  return <TaxpayerGroups mode={mode} onOpen={openGroup} />
 }

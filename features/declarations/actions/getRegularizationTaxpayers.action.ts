@@ -19,11 +19,11 @@ export async function getRegularizationTaxpayers(
     })
   }
 
-  const { search, skip, take } = parsed.data
+  const { search, skip, take, kind } = parsed.data
 
   try {
     const data = await fetchGet<PagedDeclarations<TaxpayerGroup>>(
-      API_ROUTES.DECLARATION.REGULARIZATION_TAXPAYERS(search, skip, take),
+      API_ROUTES.DECLARATION.REGULARIZATION_TAXPAYERS(search, skip, take, kind),
       'declaration',
     )
     return ok({ items: data?.items ?? [], total: data?.total ?? 0, skip, take })

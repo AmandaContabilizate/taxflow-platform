@@ -379,13 +379,8 @@ export function CodigosDescuentoScreen({ permissions = [] }: { permissions?: str
                       )}
                     </td>
                     <td className="py-3 px-3 text-[13px]" style={{ color: 'var(--ink-700)' }}>
-                      {c.subscriptionPlanIds.length === 0 ? (
-                        <span className="inline-flex items-center gap-1" style={{ color: 'var(--violet-ink)' }}>
-                          <AlertTriangle size={12} /> sin planes
-                        </span>
-                      ) : (
-                        c.subscriptionPlanIds.length
-                      )}
+                      {/* Sin planes ligados = el código aplica a TODO el catálogo */}
+                      {c.subscriptionPlanIds.length === 0 ? 'Todos' : c.subscriptionPlanIds.length}
                     </td>
                     <td className="py-3 px-3 text-[13px]" style={{ ...MONO, color: 'var(--ink-700)' }}>
                       {c.usedCount}/{c.maxUses ?? '—'}
