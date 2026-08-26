@@ -159,8 +159,12 @@ export function PlanPickerModal({
   const isGiftCode = appliedDiscount?.discountTypeId === 2
   const discountApplies = useMemo(() => {
     if (!appliedDiscount) return false
-    if (isGiftCode) return !!selectedPlan && appliedDiscount.subscriptionPlanIds.includes(selectedPlan.id)
-    return appliedDiscount.subscriptionPlanIds.some((id) => cartProductIds.has(id))
+    // Sin planes ligados el código aplica a todos (mismo criterio que el backend);
+    // el tipo Declaraciones sigue exigiendo un plan en el carrito.
+    const sinRestriccion = appliedDiscount.subscriptionPlanIds.length === 0
+    if (isGiftCode)
+      return !!selectedPlan && (sinRestriccion || appliedDiscount.subscriptionPlanIds.includes(selectedPlan.id))
+    return sinRestriccion || appliedDiscount.subscriptionPlanIds.some((id) => cartProductIds.has(id))
   }, [appliedDiscount, isGiftCode, selectedPlan, cartProductIds])
 
   const discountedTotal =

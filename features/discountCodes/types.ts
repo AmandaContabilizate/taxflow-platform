@@ -60,7 +60,9 @@ export interface DiscountCodeAuthorization {
 export interface DiscountCodeLookups {
   sellers: { userId: string; name: string; profileType: string }[];
   partners: { id: number; name: string }[];
-  plans: { id: number; name: string; price: number }[];
+  // isSubscription: el plan cobra recurrente (tiene precio de suscripción en Stripe);
+  // false = solo pago único. Alimenta los tabs Suscripciones / Pago único del modal.
+  plans: { id: number; name: string; price: number; isSubscription: boolean }[];
 }
 
 export interface SaveDiscountCodeInput {
