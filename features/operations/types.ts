@@ -271,6 +271,8 @@ export interface VentaResumen {
   discountCode: string | null;
   /** % del código tipo Porcentaje (null en códigos tipo Declaraciones). */
   discountPercent: number | null;
+  /** Teléfono de contacto del usuario titular de la cuenta. */
+  userPhone?: string | null;
 }
 
 /** Declaración pendiente de la cartera (panel del contador). */

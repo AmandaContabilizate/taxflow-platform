@@ -20,7 +20,7 @@ export function ContribuyentesScreen() {
   const regimenOptions = useRegimenOptions(list.items)
 
   return (
-    <div className="flex flex-col gap-5 max-w-full h-[calc(100dvh-8.5rem)]">
+    <div className="flex flex-col gap-5 max-w-full h-[calc(100dvh-8.5rem)] min-h-[600px]">
       <HelpBox>
         Padrón de contribuyentes. Filtra por RFC, régimen fiscal o por número de ventas pagadas
         (con 2+ ves solo a los que renovaron).
@@ -34,7 +34,7 @@ export function ContribuyentesScreen() {
             regimeId={list.regimeId}
             onRegimeChange={list.setRegimeId}
             regimenes={regimenOptions}
-            placeholder="Buscar por RFC, correo, nombre o teléfono…"
+            placeholder="Buscar por RFC, correo, teléfono o nombre…"
             minSales={list.minSales}
             onMinSalesChange={list.setMinSales}
             minSalesAllLabel="Todos (con o sin venta)"
@@ -42,7 +42,7 @@ export function ContribuyentesScreen() {
         </div>
       </Card>
 
-      <Card className="flex-1 min-h-0 flex flex-col">
+      <Card className="flex-1 min-h-[480px] flex flex-col">
         <div
           className="px-5 py-4 flex items-center justify-between flex-wrap gap-2 border-b shrink-0"
           style={{ borderColor: 'var(--border)' }}

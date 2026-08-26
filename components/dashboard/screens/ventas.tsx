@@ -128,7 +128,7 @@ export function VentasScreen() {
   }
 
   return (
-    <div className="flex flex-col gap-5 max-w-full">
+    <div className="flex flex-col gap-5 max-w-full h-[calc(100dvh-8.5rem)] min-h-[600px]">
       <HelpBox>
         Resumen de ventas registradas. Cada renglón muestra la cuenta que compró, los productos
         incluidos y el monto. Filtra por RFC y navega entre páginas. Con el botón de Stripe abres
@@ -136,10 +136,10 @@ export function VentasScreen() {
         rastrearlo en el dashboard de Stripe.
       </HelpBox>
 
-      <Card>
+      <Card className="shrink-0">
         <div className="p-4 flex items-center gap-3 flex-wrap">
           <div className="flex-1 min-w-[220px]">
-            <SearchBar value={list.rfc} onChange={list.setRfc} placeholder="Buscar por RFC…" />
+            <SearchBar value={list.rfc} onChange={list.setRfc} placeholder="Buscar por RFC, correo, teléfono o nombre…" />
           </div>
           <select
             value={status}
@@ -166,9 +166,9 @@ export function VentasScreen() {
         </div>
       </Card>
 
-      <Card>
+      <Card className="flex-1 min-h-[480px] flex flex-col">
         <div
-          className="px-5 py-4 flex items-center justify-between flex-wrap gap-2 border-b"
+          className="px-5 py-4 flex items-center justify-between flex-wrap gap-2 border-b shrink-0"
           style={{ borderColor: 'var(--border)' }}
         >
           <div className="text-[15px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
@@ -177,22 +177,24 @@ export function VentasScreen() {
         </div>
 
         {list.error ? (
-          <ErrorState message={list.error} />
+          <div className="flex-1 flex flex-col justify-center">
+            <ErrorState message={list.error} />
+          </div>
         ) : list.loading ? (
-          <div className="px-5 py-10 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
+          <div className="flex-1 px-5 py-10 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
             <Loader2 size={18} className="animate-spin" /> Cargando ventas…
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            <div className="flex-1 min-h-0 overflow-auto">
               <table className="w-full text-sm">
-                <thead>
+                <thead className="sticky top-0 z-10">
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
                     {['Venta', 'Cuenta', 'RFC', 'Productos', 'Monto', 'Código', 'Estatus', 'Stripe'].map((h) => (
                       <th
                         key={h}
                         className={`px-5 py-3 font-extrabold ${h === 'Monto' ? 'text-right' : h === 'Stripe' ? 'text-center' : 'text-left'}`}
-                        style={{ color: 'var(--ink-700)' }}
+                        style={{ color: 'var(--ink-700)', background: 'var(--card)' }}
                       >
                         {h}
                       </th>
@@ -217,6 +219,11 @@ export function VentasScreen() {
                         <div className="text-xs mt-0.5" style={{ color: 'var(--ink-500)' }}>
                           {v.userEmail}
                         </div>
+                        {v.userPhone && (
+                          <div className="text-[11.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                            📞 {v.userPhone}
+                          </div>
+                        )}
                       </td>
                       <td className="px-5 py-4 align-top">
                         <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-700)' }}>{v.rfc}</code>
@@ -266,7 +273,7 @@ export function VentasScreen() {
             </div>
 
             {list.items.length === 0 ? (
-              <div className="text-center py-8">
+              <div className="text-center py-8 shrink-0">
                 <div style={{ color: 'var(--ink-500)' }}>No se encontraron ventas</div>
               </div>
             ) : (

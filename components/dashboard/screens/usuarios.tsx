@@ -125,7 +125,7 @@ export function UsuariosScreen({ scopedToSeller = false }: { scopedToSeller?: bo
             <SearchBar
               value={search}
               onChange={setSearch}
-              placeholder="Buscar por nombre, correo o teléfono…"
+              placeholder="Buscar por RFC, correo, teléfono o nombre…"
             />
           </div>
           <select
@@ -222,7 +222,7 @@ export function UsuariosScreen({ scopedToSeller = false }: { scopedToSeller?: bo
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Usuario', 'Teléfono', 'Contribuyentes', 'Estatus', 'Origen', 'Código de vendedor', 'Código de descuento', 'Vendedor', 'Estado', 'Registro'].map((h) => (
+                    {['Usuario', 'Contribuyentes', 'Estatus', 'Origen', 'Código de vendedor', 'Código de descuento', 'Vendedor', 'Estado', 'Registro'].map((h) => (
                       <th
                         key={h}
                         className="px-5 py-3 text-left font-extrabold"
@@ -247,21 +247,15 @@ export function UsuariosScreen({ scopedToSeller = false }: { scopedToSeller?: bo
                         <div className="text-xs mt-0.5" style={{ color: 'var(--ink-500)' }}>
                           {u.email}
                         </div>
-                      </td>
-                      <td className="px-5 py-3">
-                        {u.phoneNumber ? (
-                          <div className="flex items-center gap-1.5">
-                            <code style={{ ...MONO, fontSize: '11.5px', color: 'var(--ink-700)' }}>
-                              {u.phoneNumber}
-                            </code>
+                        {u.phoneNumber && (
+                          <div className="text-[11.5px] mt-0.5 flex items-center gap-1" style={{ color: 'var(--ink-500)' }}>
+                            <span>📞 {u.phoneNumber}</span>
                             {u.phoneNumberConfirmed && (
                               <span title="Teléfono confirmado" style={{ color: 'var(--brand-700)' }}>
                                 ✓
                               </span>
                             )}
                           </div>
-                        ) : (
-                          <span className="text-xs" style={{ color: 'var(--ink-500)' }}>—</span>
                         )}
                       </td>
                       <td className="px-5 py-3">
@@ -327,7 +321,7 @@ export function UsuariosScreen({ scopedToSeller = false }: { scopedToSeller?: bo
  * que un spinner centrado. Anchos variados para que se lea como datos, no como barras.
  */
 function SkeletonTable() {
-  const widths = ['70%', '45%', '55%', '60%', '50%', '40%', '45%', '55%', '50%', '35%']
+  const widths = ['70%', '55%', '60%', '50%', '40%', '45%', '55%', '50%', '35%']
   return (
     <div className="flex-1 min-h-0 overflow-hidden px-5 py-2" aria-hidden>
       {Array.from({ length: 9 }).map((_, row) => (
