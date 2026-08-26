@@ -70,8 +70,15 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthoriz
   const validRfcs = rfcTokens.filter((r) => r.length === 12 || r.length === 13)
   const invalidRfcs = rfcTokens.filter((r) => r.length !== 12 && r.length !== 13)
 
+  // Planes DESACTIVADOS que siguen palomeados (ligas viejas del código): se
+  // muestran para poder desmarcarlos, pero bloquean el guardado.
+  const planesInactivosSeleccionados = (lookups?.plans ?? []).filter(
+    (p) => !p.isActive && planIds.includes(p.id),
+  )
+
   const isPercent = discountTypeId === 1
   const canSubmit =
+    planesInactivosSeleccionados.length === 0 &&
     codeText.trim().length >= 3 &&
     // MaxUses solo es obligatorio para códigos ACTIVOS (el checkout rechaza códigos
     // sin límite); un código inactivo puede guardarse sin tope (legacy).
@@ -98,6 +105,10 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthoriz
   if (ownerType === 'user' && sellerUserId === '') faltantes.push('el dueño (selecciona un ejecutivo, o usa "Sin dueño")')
   if (ownerType === 'partner' && partnershipId === '') faltantes.push('el partner dueño')
   if (invalidRfcs.length > 0) faltantes.push(`RFCs inválidos: ${invalidRfcs.join(', ')}`)
+  if (planesInactivosSeleccionados.length > 0)
+    faltantes.push(
+      `desmarcar los planes desactivados: ${planesInactivosSeleccionados.map((p) => p.name).join(', ')}`,
+    )
   if (isPercent && discountPercent === '') faltantes.push('el % de descuento')
   if (isPercent && Number(discountPercent) > 100) faltantes.push('el % no puede ser mayor a 100')
   if (isPercent && discountPercent !== '' && !Number.isInteger(Number(discountPercent)))
@@ -407,8 +418,11 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthoriz
             className="flex flex-col gap-1.5 max-h-[160px] overflow-y-auto rounded-lg p-3"
             style={{ border: '1px solid var(--border)', background: 'var(--input)' }}
           >
+            {/* Activos siempre; desactivados solo si el código los trae palomeados
+                (ligas viejas): visibles para desmarcarlos, pero bloquean el guardado. */}
             {(lookups?.plans ?? [])
               .filter((p) => (planTab === 'sub' ? p.isSubscription : !p.isSubscription))
+              .filter((p) => p.isActive || planIds.includes(p.id))
               .map((p) => (
                 <label key={p.id} className="flex items-center gap-2.5 cursor-pointer select-none">
                   <input
@@ -418,10 +432,13 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthoriz
                     disabled={loading}
                     className="w-4 h-4 cursor-pointer"
                   />
-                  <span className="text-[13px]" style={{ color: 'var(--ink-700)' }}>{p.name}</span>
+                  <span className="text-[13px]" style={{ color: p.isActive ? 'var(--ink-700)' : '#B91C1C' }}>
+                    {p.name}
+                    {!p.isActive && <b> (desactivado — desmárcalo para poder guardar)</b>}
+                  </span>
                 </label>
               ))}
-            {(lookups?.plans ?? []).filter((p) => (planTab === 'sub' ? p.isSubscription : !p.isSubscription)).length === 0 && (
+            {(lookups?.plans ?? []).filter((p) => (planTab === 'sub' ? p.isSubscription : !p.isSubscription) && (p.isActive || planIds.includes(p.id))).length === 0 && (
               <span className="text-[12.5px]" style={{ color: 'var(--ink-400)' }}>
                 {planTab === 'sub' ? 'Sin planes de suscripción activos' : 'Sin planes de pago único activos'}
               </span>
