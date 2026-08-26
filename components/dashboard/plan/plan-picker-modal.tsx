@@ -227,6 +227,34 @@ export function PlanPickerModal({
 
     const items = buildItems()
 
+    // Venta gratis (código de 100%): Stripe no acepta cobros de $0, así que se
+    // salta por completo — la venta se registra directo (el backend la marca
+    // PAGADA y dispara el cumplimiento: declaraciones, contador, trámites).
+    if (total > 0 && discountedTotal <= 0) {
+      const freeSale = await registerSaleNew({
+        checkoutId: `free_${Date.now()}`,
+        rfc,
+        discountCode: discountCode.trim() || null,
+        items,
+      })
+      if (!freeSale.success) {
+        setError(freeSale.error.message)
+        setProcessing(false)
+        return
+      }
+      // El backend revalida el código (activo, usos, 1 vez por RFC): si NO aplicó,
+      // la compra no es gratis — no mostrar éxito, el cliente debe corregir el código.
+      if (!freeSale.value.discountApplied) {
+        setError(freeSale.value.discountMessage ?? 'El código de descuento ya no es válido.')
+        setProcessing(false)
+        return
+      }
+      setDiscountNotice(freeSale.value.discountMessage)
+      setStep('success')
+      setProcessing(false)
+      return
+    }
+
     // 1) Pedir parámetros de pago a Stripe (con el código: el cobro sale descontado).
     const sheet = await createPaymentSheet(rfc, items, discountCode)
     if (!sheet.success) {
