@@ -510,12 +510,12 @@ function CredencialCiec({ ciecOk, historial }: { ciecOk: boolean; historial: Exp
   )
 }
 
-/** Abre un PDF (base64) en una pestaña nueva sin dejar blobs colgando. */
-function openPdf(base64: string) {
+/** Convierte un PDF en base64 a un blob URL efímero (se revoca solo a los 60s). */
+function base64ToPdfUrl(base64: string): string {
   const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
   const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }))
-  window.open(url, '_blank', 'noopener')
   setTimeout(() => URL.revokeObjectURL(url), 60_000)
+  return url
 }
 
 function TabDocumentos({ rfc, permissions }: { rfc: string; permissions: string[] }) {
@@ -581,10 +581,21 @@ function DocumentoRow({
   async function ver() {
     setLoading(true)
     setError(null)
+    // La pestaña se abre AHORA, dentro del gesto del click. Si se espera al
+    // await (la descarga del SAT puede tardar minutos) el navegador bloquea el
+    // window.open por "popup no solicitado por el usuario".
+    const tab = window.open('', '_blank')
+    if (tab) tab.document.write('Generando documento, no cierres esta pestaña…')
     const res = await fetchDoc(rfc)
     setLoading(false)
-    if (res.success) openPdf(res.value.base64)
-    else setError(res.error.message)
+    if (res.success) {
+      const url = base64ToPdfUrl(res.value.base64)
+      if (tab && !tab.closed) tab.location.href = url
+      else window.open(url, '_blank')
+    } else {
+      if (tab && !tab.closed) tab.close()
+      setError(res.error.message)
+    }
   }
 
   return (

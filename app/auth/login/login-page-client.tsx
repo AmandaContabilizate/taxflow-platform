@@ -103,14 +103,22 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
     setCode("");
   }
 
-  async function handleLogin(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setErrorCode(null);
 
+    // Leer el valor real del DOM en vez de confiar solo en el state: si el
+    // autofill/gestor de contraseñas rellena el input sin disparar el evento
+    // que React escucha, el state queda desactualizado y el submit manda un
+    // password vacío o viejo.
+    const formData = new FormData(e.currentTarget);
+    const emailValue = (formData.get("email") as string) || email;
+    const passwordValue = (formData.get("password") as string) || password;
+
     const redirectTo = params.get("from") || "/dashboard";
-    const res = await signIn({ email, password, rememberMe }, redirectTo);
+    const res = await signIn({ email: emailValue, password: passwordValue, rememberMe }, redirectTo);
 
     if (!res.success) {
       const flat = Object.values(res.error.fieldErrors).flat();
@@ -373,6 +381,7 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                   </label>
                   <input
                     id="email"
+                    name="email"
                     type="email"
                     autoComplete="email"
                     required
@@ -399,6 +408,7 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                   <div className="relative">
                     <input
                       id="password"
+                      name="password"
                       type={showPassword ? "text" : "password"}
                       autoComplete="current-password"
                       minLength={8}

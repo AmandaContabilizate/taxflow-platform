@@ -241,7 +241,11 @@ export async function fetchGetBlob(
   const url = `${getBaseUrl(apiType)}${endpoint}`;
   const headers = await buildAuthHeaders();
 
-  const response = await fetch(url, { method: "GET", headers });
+  const response = await fetch(url, {
+    method: "GET",
+    headers,
+    cache: "no-store",
+  });
   if (!response.ok) {
     const errorText = await response.text();
     throw new ApiError({

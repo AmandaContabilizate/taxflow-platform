@@ -28,6 +28,9 @@ const PRESENTED_CODES = new Set(['Presentada', 'PresentadaManual', 'PresentadaPr
 const KIND_REGULARIZATION = 1
 const KIND_FUTURE_PLAN = 2
 
+/** DeclarationStatus.Unknown: registros basura migrados de MySQL con estatus na/null. */
+const STATUS_UNKNOWN = 12
+
 /**
  * Una regularizacion esta comprada cuando tiene venta activa (kind 1) y ya se
  * activo ("En proceso"). Sin venta el back manda `declarationKind: null` y el
@@ -61,7 +64,7 @@ export function TodasTab({ onViewDetail, currentUser }: Props) {
   const [regimeFilter, setRegimeFilter] = useState(ALL_REGIMES)
   const [commentFor, setCommentFor] = useState<number | null>(null)
 
-  const items = state.status === 'ready' ? state.data.items : []
+  const items = state.status === 'ready' ? state.data.items.filter((i) => i.statusId !== STATUS_UNKNOWN) : []
 
   const years = useMemo(
     () => Array.from(new Set(items.map((i) => i.fiscalYear))).sort((a, b) => b - a),

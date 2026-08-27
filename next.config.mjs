@@ -33,6 +33,17 @@ const nextConfig = {
       },
     ]
   },
+  // Red de seguridad: si algo (OAuth mal configurado en BD/Azure, notificacion
+  // vieja, bookmark) manda a /sign-in, evitar el 404 y llevar al login real.
+  async redirects() {
+    return [
+      {
+        source: "/sign-in",
+        destination: "/auth/login",
+        permanent: true,
+      },
+    ]
+  },
 }
 
 export default nextConfig
