@@ -1,6 +1,6 @@
 'use client'
 
-import { Loader2 } from 'lucide-react'
+import { Info, Loader2 } from 'lucide-react'
 import { getTaxpayers } from '@/features/taxpayers/actions/getTaxpayers.action'
 import { MONO } from '../constants'
 import { Card, ErrorState, HelpBox } from '../ui'
@@ -20,7 +20,7 @@ export function ContribuyentesScreen() {
   const regimenOptions = useRegimenOptions(list.items)
 
   return (
-    <div className="flex flex-col gap-5 max-w-full h-[calc(100dvh-8.5rem)]">
+    <div className="flex flex-col gap-5 max-w-full h-[calc(100dvh-8.5rem)] min-h-[600px]">
       <HelpBox>
         Padrón de contribuyentes. Filtra por RFC, régimen fiscal o por número de ventas pagadas
         (con 2+ ves solo a los que renovaron).
@@ -34,7 +34,7 @@ export function ContribuyentesScreen() {
             regimeId={list.regimeId}
             onRegimeChange={list.setRegimeId}
             regimenes={regimenOptions}
-            placeholder="Buscar por RFC…"
+            placeholder="Buscar por RFC, correo, teléfono o nombre…"
             minSales={list.minSales}
             onMinSalesChange={list.setMinSales}
             minSalesAllLabel="Todos (con o sin venta)"
@@ -42,7 +42,7 @@ export function ContribuyentesScreen() {
         </div>
       </Card>
 
-      <Card className="flex-1 min-h-0 flex flex-col">
+      <Card className="flex-1 min-h-[480px] flex flex-col">
         <div
           className="px-5 py-4 flex items-center justify-between flex-wrap gap-2 border-b shrink-0"
           style={{ borderColor: 'var(--border)' }}
@@ -66,13 +66,27 @@ export function ContribuyentesScreen() {
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Contribuyente', 'RFC', 'Correo', 'Regímenes', 'Ventas pagadas'].map((h) => (
+                    {['Contribuyente', 'RFC', 'Correo', 'Regímenes', 'Venta de Planes'].map((h) => (
                       <th
                         key={h}
                         className="px-5 py-3 text-left font-extrabold"
                         style={{ color: 'var(--ink-700)', background: 'var(--card)' }}
                       >
-                        {h}
+                        <div className="flex items-center gap-1.5">
+                          <span>{h}</span>
+                          {h === 'Venta de Planes' && (
+                            <div className="relative group/tooltip inline-flex items-center">
+                              <span className="cursor-help inline-flex items-center text-amber-500 hover:text-amber-600 dark:text-amber-400 transition-colors">
+                                <Info size={14} />
+                              </span>
+                              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover/tooltip:flex flex-col w-max px-3 py-2 bg-zinc-900/95 dark:bg-zinc-800/95 text-white text-[11.5px] font-medium leading-relaxed rounded-xl shadow-2xl backdrop-blur-md border border-zinc-700/50 pointer-events-none z-50 text-center animate-in fade-in zoom-in-95 duration-150">
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 -mb-1 border-4 border-transparent border-b-zinc-900/95 dark:border-b-zinc-800/95" />
+                                <span className="whitespace-nowrap">No se consideran las ventas de regularizaciones, trámites,</span>
+                                <span className="whitespace-nowrap">declaraciones anuales ni complementarias.</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </th>
                     ))}
                   </tr>
@@ -89,9 +103,14 @@ export function ContribuyentesScreen() {
                         <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-700)' }}>{t.rfc}</code>
                       </td>
                       <td className="px-5 py-4">
-                        <span className="text-sm" style={{ color: 'var(--ink-700)' }}>
+                        <div className="text-sm" style={{ color: 'var(--ink-700)' }}>
                           {t.email}
-                        </span>
+                        </div>
+                        {t.phone && (
+                          <div className="text-[11.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                            📞 {t.phone}
+                          </div>
+                        )}
                       </td>
                       <td className="px-5 py-4">
                         <RegimenesCell regimenes={t.regimenes} />

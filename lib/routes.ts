@@ -27,6 +27,7 @@ export const PUBLIC_ROUTES = {
 export const PROTECTED_ROUTES = {
   DASHBOARD: "/dashboard",
   ONBOARDING: "/onboarding",
+  NOTIFICATIONS: "/notifications",
 } as const;
 
 // Si el usuario ya tiene sesión, NO debería ver estas páginas → redirige al dashboard.

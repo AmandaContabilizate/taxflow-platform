@@ -57,14 +57,20 @@ export function usePagedList<T>(
 
   useEffect(() => {
     let cancelled = false
+    const trimmed = rfc.trim()
+    if (trimmed.length > 0 && trimmed.length < 3) {
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     setError(null)
-    const delay = rfc ? 350 : 0
+    const delay = trimmed ? 350 : 0
     const handle = setTimeout(async () => {
       const res = await fetcher({
         skip,
         take,
-        rfc: rfc.trim() || undefined,
+        rfc: trimmed || undefined,
         regimeId: regimeId || undefined,
         minSales: minSales || undefined,
       })
@@ -261,26 +267,36 @@ export function TaxpayerFilters({
 export function SearchBar({
   value,
   onChange,
-  placeholder = 'Buscar por RFC…',
+  placeholder = 'Buscar por RFC, correo, nombre o teléfono…',
 }: {
   value: string
   onChange: (v: string) => void
   placeholder?: string
 }) {
+  const trimmed = value.trim()
+  const isShort = trimmed.length > 0 && trimmed.length < 3
+
   return (
-    <div className="relative">
-      <Search
-        size={16}
-        style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-500)' }}
-      />
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full pl-10 pr-4 py-2.5 rounded-lg"
-        style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
-      />
+    <div className="relative flex flex-col gap-1">
+      <div className="relative">
+        <Search
+          size={16}
+          style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-500)' }}
+        />
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full pl-10 pr-4 py-2.5 rounded-lg text-[13.5px]"
+          style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+        />
+      </div>
+      {isShort && (
+        <span className="text-[11.5px] font-semibold text-amber-500 dark:text-amber-400 flex items-center gap-1 pl-1 animate-in fade-in duration-200">
+          <span>ℹ️</span> Ingresa al menos 3 caracteres para buscar
+        </span>
+      )}
     </div>
   )
 }

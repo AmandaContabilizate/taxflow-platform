@@ -294,5 +294,13 @@
   "CLASSIFICATION_SERVICE_ERROR": {
     "es": "El clasificador no respondió. Intenta recalcular de nuevo en un momento.",
     "en": "The classifier did not respond. Try recalculating again in a moment."
+  },
+  "TAXPAYER_EMAIL_NOT_FOUND": {
+    "es": "El contribuyente no tiene un correo registrado: no se puede reenviar la declaración.",
+    "en": "The taxpayer has no email on file: the declaration cannot be resent."
+  },
+  "REPORT_LINK_NOT_AVAILABLE": {
+    "es": "Falta el periodo o régimen de la declaración para generar el enlace del reporte.",
+    "en": "The declaration is missing the period or regime needed to generate the report link."
   }
 }

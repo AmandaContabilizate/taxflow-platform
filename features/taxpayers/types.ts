@@ -25,6 +25,7 @@ export interface TaxpayerListItem {
   rfc: string;
   legalName: string;
   email: string;
+  phone?: string | null;
   regimenes: TaxpayerRegimen[];
   /** Ventas pagadas (StatusSaleId=2 con referencia de Stripe). */
   ventasPagadas: number;

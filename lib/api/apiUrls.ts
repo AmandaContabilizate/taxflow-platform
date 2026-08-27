@@ -16,6 +16,10 @@ export const API_BASE_URLS = {
   metadata: `${BASE_IDENTITY}/metadata${DbOrigin}`,
   roles: `${BASE_IDENTITY}/roles${DbOrigin}`,
   declaration: `${BASE_PROCEDURES}/declaration${DbOrigin}`,
+  // Controller nuevo `api/declarations` (plural) de Procedures — endpoint
+  // "reenviar declaración al cliente" (POST .../resend-to-client). Distinto de
+  // `declaration` (singular, listados por contribuyente). OJO: NO lleva /SQLServer.
+  declarations_procedures: `${BASE_PROCEDURES}/declarations`,
   // Reporte público de la declaración (enlace del correo, sin JWT).
   // OJO: NO lleva /SQLServer — el controlador expone la variante sin dbOrigin.
   declaration_report: `${BASE_PROCEDURES}/DeclarationReport`,
@@ -48,6 +52,7 @@ export const API_BASE_URLS = {
   assignments: `${BASE_PROCEDURES}/assignments`,
   // Preferencias de notificación del usuario autenticado (autoservicio). Incluye DbOrigin.
   notification_prefs: `${BASE_PROCEDURES}/Notification${DbOrigin}`,
+  user_notifications: `${BASE_PROCEDURES}/v1/user-notifications`,
 } as const;
 
 export type ApiType = keyof typeof API_BASE_URLS;

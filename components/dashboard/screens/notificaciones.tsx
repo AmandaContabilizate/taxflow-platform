@@ -6,6 +6,15 @@ import { DISPLAY, MONO } from '../constants'
 import { Btn, Card, HelpBox } from '../ui'
 
 type Audiencia = 'emails' | 'registrados' | 'instalados-sin-registro'
+type Categoria = 'Sistema' | 'SAT' | 'Contable' | 'Renovacion' | 'Alertas'
+
+const CATEGORIAS: { id: Categoria; label: string; badgeBg: string; badgeFg: string }[] = [
+  { id: 'Sistema', label: 'Sistema', badgeBg: 'rgba(59, 130, 246, 0.18)', badgeFg: '#3B82F6' },
+  { id: 'SAT', label: 'SAT', badgeBg: 'rgba(245, 158, 11, 0.18)', badgeFg: '#F59E0B' },
+  { id: 'Contable', label: 'Contable', badgeBg: 'rgba(16, 185, 129, 0.18)', badgeFg: '#10B981' },
+  { id: 'Renovacion', label: 'Renovación', badgeBg: 'rgba(139, 92, 246, 0.18)', badgeFg: '#8B5CF6' },
+  { id: 'Alertas', label: 'Alertas', badgeBg: 'rgba(244, 63, 94, 0.18)', badgeFg: '#F43F5E' },
+]
 
 const AUDIENCIAS: { id: Audiencia; label: string; hint: string; Icon: typeof Users }[] = [
   {
@@ -42,6 +51,7 @@ function parseEmails(raw: string): string[] {
 
 export function NotificacionesScreen() {
   const [audiencia, setAudiencia] = useState<Audiencia>('emails')
+  const [categoria, setCategoria] = useState<Categoria>('Sistema')
   const [emails, setEmails] = useState('')
   const [titulo, setTitulo] = useState('')
   const [cuerpo, setCuerpo] = useState('')
@@ -64,7 +74,7 @@ export function NotificacionesScreen() {
     (audiencia !== 'emails' || (lista.length > 0 && invalidos.length === 0)) &&
     !enviando
 
-  const enviar = () => {
+  const enviar = async () => {
     setError(null)
     setEnviado(null)
     if (audiencia === 'emails' && lista.length === 0) {
@@ -76,10 +86,34 @@ export function NotificacionesScreen() {
       return
     }
     setEnviando(true)
-    setTimeout(() => {
+    try {
+      const payload = {
+        title: titulo.trim(),
+        body: cuerpo.trim(),
+        category: categoria,
+        imageUrl: imagenUrl.trim() || undefined,
+        targetAudience: audiencia === 'emails' ? 'SpecificUsers' : 'All',
+        userIds: audiencia === 'emails' ? lista : undefined,
+      };
+
+      const response = await fetch('/api/v1/marketing/broadcast-push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const res = await response.json();
+      if (!response.ok) {
+        throw new Error(res.message || `Error HTTP ${response.status}`);
+      }
+
+      setEnviado(res?.message || `Notificación enviada con éxito a ${destinatarioLabel}.`);
+    } catch (err: any) {
+      console.error('Error al enviar difusión:', err);
+      setError(err.message || 'Error al enviar la notificación masiva');
+    } finally {
       setEnviando(false)
-      setEnviado(`Notificación enviada a ${destinatarioLabel}.`)
-    }, 900)
+    }
   }
 
   const limpiar = () => {
@@ -92,20 +126,20 @@ export function NotificacionesScreen() {
   }
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] items-start">
-      <div className="grid gap-5">
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] items-start">
+      <div className="grid gap-4">
         <Card>
-          <div className="p-5 lg:p-6 grid gap-5">
+          <div className="p-4 lg:p-5 grid gap-3.5">
             <div>
-              <div className="text-[15px] font-extrabold" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
+              <div className="text-[14.5px] font-extrabold" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
                 Destinatarios
               </div>
-              <div className="text-[13px] font-semibold mt-0.5" style={{ color: 'var(--ink-500)' }}>
+              <div className="text-[12px] font-semibold mt-0.5" style={{ color: 'var(--ink-500)' }}>
                 Elige a quién le llega esta notificación
               </div>
             </div>
 
-            <div className="grid gap-2.5 sm:grid-cols-3">
+            <div className="grid gap-2 sm:grid-cols-3">
               {AUDIENCIAS.map(({ id, label, hint, Icon }) => {
                 const activo = audiencia === id
                 return (
@@ -113,7 +147,7 @@ export function NotificacionesScreen() {
                     key={id}
                     type="button"
                     onClick={() => setAudiencia(id)}
-                    className="text-left rounded-2xl p-4 transition"
+                    className="text-left rounded-xl p-3 transition"
                     style={{
                       background: activo ? 'var(--nav-active-bg)' : 'var(--card)',
                       color: activo ? 'var(--nav-active-fg)' : 'var(--foreground)',
@@ -121,17 +155,17 @@ export function NotificacionesScreen() {
                     }}
                   >
                     <div
-                      className="w-9 h-9 rounded-full flex items-center justify-center mb-2.5"
+                      className="w-7 h-7 rounded-full flex items-center justify-center mb-2"
                       style={{
                         background: activo ? 'var(--nav-active-icon-bg)' : 'var(--ink-50)',
                         color: activo ? 'var(--nav-active-icon-fg)' : 'var(--ink-700)',
                       }}
                     >
-                      <Icon size={16} />
+                      <Icon size={15} />
                     </div>
-                    <div className="text-[13.5px] font-bold leading-tight">{label}</div>
+                    <div className="text-[13px] font-bold leading-tight">{label}</div>
                     <div
-                      className="text-[12px] font-semibold mt-1 leading-snug"
+                      className="text-[11px] font-semibold mt-0.5 leading-snug"
                       style={{ color: activo ? 'var(--nav-active-hint)' : 'var(--ink-500)' }}
                     >
                       {hint}
@@ -142,16 +176,16 @@ export function NotificacionesScreen() {
             </div>
 
             {audiencia === 'emails' && (
-              <div className="grid gap-2">
-                <label className="text-[13px] font-bold" style={{ color: 'var(--ink-700)' }}>
+              <div className="grid gap-1.5 mt-1">
+                <label className="text-[12.5px] font-bold" style={{ color: 'var(--ink-700)' }}>
                   Correos (separados por coma)
                 </label>
                 <textarea
                   value={emails}
                   onChange={e => setEmails(e.target.value)}
-                  rows={3}
+                  rows={2}
                   placeholder="ana@correo.com, luis@correo.com"
-                  className="w-full rounded-2xl px-4 py-3 text-[14px] outline-none resize-y"
+                  className="w-full rounded-xl px-3.5 py-2 text-[13px] outline-none resize-y"
                   style={{
                     background: 'var(--input)',
                     color: 'var(--foreground)',
@@ -159,7 +193,7 @@ export function NotificacionesScreen() {
                     ...MONO,
                   }}
                 />
-                <div className="flex items-center justify-between gap-3 text-[12px] font-semibold">
+                <div className="flex items-center justify-between gap-3 text-[11.5px] font-semibold">
                   <span style={{ color: 'var(--ink-500)' }}>
                     {lista.length} {lista.length === 1 ? 'destinatario' : 'destinatarios'}
                   </span>
@@ -175,22 +209,49 @@ export function NotificacionesScreen() {
         </Card>
 
         <Card>
-          <div className="p-5 lg:p-6 grid gap-5">
+          <div className="p-4 lg:p-5 grid gap-3.5">
             <div>
-              <div className="text-[15px] font-extrabold" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
+              <div className="text-[14.5px] font-extrabold" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
                 Contenido
               </div>
-              <div className="text-[13px] font-semibold mt-0.5" style={{ color: 'var(--ink-500)' }}>
+              <div className="text-[12px] font-semibold mt-0.5" style={{ color: 'var(--ink-500)' }}>
                 Lo que verá el usuario en su dispositivo
               </div>
             </div>
 
-            <div className="grid gap-2">
+            <div className="grid gap-1.5">
+              <label className="text-[12.5px] font-bold" style={{ color: 'var(--ink-700)' }}>
+                Categoría del aviso
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {CATEGORIAS.map(cat => {
+                  const activo = categoria === cat.id
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setCategoria(cat.id)}
+                      className="px-3 py-1.5 rounded-xl text-[12px] font-bold transition flex items-center gap-1.5"
+                      style={{
+                        background: activo ? cat.badgeBg : 'var(--input)',
+                        color: activo ? cat.badgeFg : 'var(--ink-600)',
+                        border: `1.5px solid ${activo ? cat.badgeFg : 'var(--border)'}`,
+                      }}
+                    >
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: cat.badgeFg }} />
+                      <span>{cat.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="grid gap-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-[13px] font-bold" style={{ color: 'var(--ink-700)' }}>
+                <label className="text-[12.5px] font-bold" style={{ color: 'var(--ink-700)' }}>
                   Título
                 </label>
-                <span className="text-[12px] font-semibold" style={{ color: 'var(--ink-500)' }}>
+                <span className="text-[11.5px] font-semibold" style={{ color: 'var(--ink-500)' }}>
                   {titulo.length}/{TITULO_MAX}
                 </span>
               </div>
@@ -198,39 +259,39 @@ export function NotificacionesScreen() {
                 value={titulo}
                 onChange={e => setTitulo(e.target.value.slice(0, TITULO_MAX))}
                 placeholder="Tu declaración de mayo ya está lista"
-                className="w-full rounded-2xl px-4 py-3 text-[14px] outline-none"
+                className="w-full rounded-xl px-3.5 py-2 text-[13.5px] outline-none"
                 style={{ background: 'var(--input)', color: 'var(--foreground)', border: '1px solid var(--border)' }}
               />
             </div>
 
-            <div className="grid gap-2">
+            <div className="grid gap-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-[13px] font-bold" style={{ color: 'var(--ink-700)' }}>
+                <label className="text-[12.5px] font-bold" style={{ color: 'var(--ink-700)' }}>
                   Cuerpo
                 </label>
-                <span className="text-[12px] font-semibold" style={{ color: 'var(--ink-500)' }}>
+                <span className="text-[11.5px] font-semibold" style={{ color: 'var(--ink-500)' }}>
                   {cuerpo.length}/{CUERPO_MAX}
                 </span>
               </div>
               <textarea
                 value={cuerpo}
                 onChange={e => setCuerpo(e.target.value.slice(0, CUERPO_MAX))}
-                rows={4}
+                rows={2.5 as any}
                 placeholder="Entra a la app para revisarla y hacer tu pago antes del día 17."
-                className="w-full rounded-2xl px-4 py-3 text-[14px] outline-none resize-y"
+                className="w-full rounded-xl px-3.5 py-2 text-[13.5px] outline-none resize-y"
                 style={{ background: 'var(--input)', color: 'var(--foreground)', border: '1px solid var(--border)' }}
               />
             </div>
 
-            <div className="grid gap-2">
-              <label className="text-[13px] font-bold" style={{ color: 'var(--ink-700)' }}>
+            <div className="grid gap-1.5">
+              <label className="text-[12.5px] font-bold" style={{ color: 'var(--ink-700)' }}>
                 URL de la imagen <span style={{ color: 'var(--ink-500)' }}>(opcional)</span>
               </label>
               <input
                 value={imagenUrl}
                 onChange={e => setImagenUrl(e.target.value)}
                 placeholder="https://cdn.contabilizate.com/banner.png"
-                className="w-full rounded-2xl px-4 py-3 text-[14px] outline-none"
+                className="w-full rounded-xl px-3.5 py-2 text-[13px] outline-none"
                 style={{
                   background: 'var(--input)',
                   color: 'var(--foreground)',
@@ -242,27 +303,27 @@ export function NotificacionesScreen() {
 
             {error && (
               <div
-                className="rounded-2xl px-4 py-3 flex items-start gap-2.5 text-[13px] font-semibold"
+                className="rounded-xl px-3.5 py-2 flex items-start gap-2 text-[12.5px] font-semibold"
                 style={{ background: 'var(--hero-coral-soft-bg)', color: 'var(--destructive)' }}
               >
-                <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+                <AlertCircle size={15} className="mt-0.5 flex-shrink-0" />
                 <span>{error}</span>
               </div>
             )}
 
             {enviado && (
               <div
-                className="rounded-2xl px-4 py-3 flex items-start gap-2.5 text-[13px] font-semibold"
+                className="rounded-xl px-3.5 py-2 flex items-start gap-2 text-[12.5px] font-semibold"
                 style={{ background: 'var(--hero-brand-soft)', color: 'var(--brand-700)' }}
               >
-                <CheckCircle2 size={16} className="mt-0.5 flex-shrink-0" />
+                <CheckCircle2 size={15} className="mt-0.5 flex-shrink-0" />
                 <span>{enviado}</span>
               </div>
             )}
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2.5 pt-1">
               <Btn onClick={enviar} disabled={!puedeEnviar}>
-                {enviando ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                {enviando ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
                 {enviando ? 'Enviando…' : 'Enviar notificación'}
               </Btn>
               <Btn kind="ghost" onClick={limpiar}>
@@ -273,15 +334,15 @@ export function NotificacionesScreen() {
         </Card>
       </div>
 
-      <div className="grid gap-5">
+      <div className="grid gap-4">
         <Card>
-          <div className="p-5 lg:p-6 grid gap-4">
-            <div className="text-[15px] font-extrabold" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
+          <div className="p-4 lg:p-5 grid gap-3.5">
+            <div className="text-[14.5px] font-extrabold" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
               Vista previa
             </div>
 
             <div
-              className="rounded-2xl overflow-hidden"
+              className="rounded-xl overflow-hidden"
               style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}
             >
               {imagenUrl.trim() ? (
@@ -289,33 +350,33 @@ export function NotificacionesScreen() {
                   src={imagenUrl.trim()}
                   alt=""
                   className="w-full object-cover"
-                  style={{ maxHeight: 160 }}
+                  style={{ maxHeight: 140 }}
                   onError={e => {
                     e.currentTarget.style.display = 'none'
                   }}
                 />
               ) : (
                 <div
-                  className="flex flex-col items-center justify-center gap-1.5 py-8"
+                  className="flex flex-col items-center justify-center gap-1.5 py-6"
                   style={{ color: 'var(--ink-500)' }}
                 >
-                  <ImageIcon size={20} />
-                  <span className="text-[12px] font-semibold">Sin imagen</span>
+                  <ImageIcon size={18} />
+                  <span className="text-[11.5px] font-semibold">Sin imagen</span>
                 </div>
               )}
-              <div className="p-4 flex items-start gap-3" style={{ background: 'var(--card)' }}>
+              <div className="p-3.5 flex items-start gap-3" style={{ background: 'var(--card)' }}>
                 <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                  className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
                   style={{ background: 'var(--hero-brand-soft)', color: 'var(--brand-700)' }}
                 >
-                  <Bell size={15} />
+                  <Bell size={14} />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[13.5px] font-bold leading-snug" style={{ color: 'var(--ink-900)' }}>
+                  <div className="text-[13px] font-bold leading-snug" style={{ color: 'var(--ink-900)' }}>
                     {titulo.trim() || 'Título de la notificación'}
                   </div>
                   <div
-                    className="text-[12.5px] font-semibold mt-1 leading-relaxed"
+                    className="text-[12px] font-semibold mt-0.5 leading-relaxed"
                     style={{ color: 'var(--ink-500)' }}
                   >
                     {cuerpo.trim() || 'Aquí aparece el cuerpo del mensaje que recibirá el usuario.'}
@@ -324,15 +385,14 @@ export function NotificacionesScreen() {
               </div>
             </div>
 
-            <div className="text-[12.5px] font-semibold" style={{ color: 'var(--ink-500)' }}>
+            <div className="text-[12px] font-semibold" style={{ color: 'var(--ink-500)' }}>
               Se enviará a: <span style={{ color: 'var(--ink-700)' }}>{destinatarioLabel}</span>
             </div>
           </div>
         </Card>
 
         <HelpBox>
-          Este formulario todavía no está conectado al servicio de notificaciones: el envío es
-          simulado y no llega a ningún usuario.
+          Los avisos de difusión se envían directamente como notificaciones a los dispositivos de los usuarios (móvil y web) y quedan guardados automáticamente en su Centro de Notificaciones.
         </HelpBox>
       </div>
     </div>

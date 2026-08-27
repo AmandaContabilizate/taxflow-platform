@@ -6,6 +6,8 @@ import { signOut } from '@/features/auth/actions'
 import { RfcProvider, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import SatConnectScreen from '@/components/sat-connect-screen'
 import { DashboardHeader } from './header'
+import NotificationCenterPage from '@/app/dashboard/notificaciones/page'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { PushNotificationPrompt } from './PushNotificationPrompt'
 import { DISPLAY, TITLES, normalizeRole } from './constants'
 import { Sidebar } from './sidebar'
@@ -21,6 +23,7 @@ import {
   PanelGerenciaContableScreen,
   CuentaScreen,
   DeclaracionesScreen,
+  DeclaracionesRechazadasScreen,
   AsignacionesScreen,
   CodigosDescuentoScreen,
   ComisionesScreen,
@@ -59,6 +62,7 @@ import {
 // El resto se mantiene en max-w-[1280px] para lectura cómoda.
 const WIDE_SCREENS = new Set<Screen>([
   'operaciones',
+  'declaraciones-rechazadas',
   'declaraciones-futuras',
   'regularizaciones',
   'tramites-adicionales',
@@ -82,6 +86,7 @@ const WIDE_SCREENS = new Set<Screen>([
   'manual',
   'ayuda',
   'partnership',
+  'centro-notificaciones',
 ]);
 
 const isScreen = (v: string | null): v is Screen =>
@@ -121,7 +126,7 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
   // Cambiar de pantalla limpia el estado profundo de la anterior (contribuyente,
   // declaración abierta, filtros); si no, quedan parámetros huérfanos en la URL.
   const go = (s: Screen) => {
-    setParams({ s, rfc: null, regimen: null, decl: null, year: null, period: null, status: null })
+    setParams({ s, rfc: null, regimen: null, decl: null, year: null, period: null, status: null, skip: null, proximas: null })
     setMobileOpen(false)
     window.scrollTo(0, 0)
   }
@@ -182,7 +187,7 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
         </button>
 
         <main className={`min-w-0 px-5 py-6 lg:px-10 lg:py-7 pb-20 ${WIDE_SCREENS.has(screen) ? 'w-full' : 'max-w-[1280px]'}`}>
-          <div className='flex items-center justify-between gap-4 mb-7'>
+          <div className='sticky top-0 z-20 flex items-center justify-between gap-4 py-2.5 mb-5 backdrop-blur-md' style={{ background: 'var(--background)' }}>
             <div className='flex items-center gap-3 flex-1'>
               <button
                 onClick={() => setMobileOpen(true)}
@@ -204,11 +209,13 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
                 </div>
               </div>
             </div>
-            {/* Selector de RFC y alta de RFC: solo para el cliente. Los roles
-                operativos no operan sobre un RFC propio. */}
-            {isClient && (
+            {isClient ? (
               <div className='hidden lg:flex'>
                 <DashboardHeader go={go} />
+              </div>
+            ) : (
+              <div className='hidden lg:flex items-center gap-2'>
+                <NotificationBell />
               </div>
             )}
           </div>
@@ -328,6 +335,9 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
     if (screen === 'operaciones') {
       return <OperacionesScreen currentUser={{ userId: userId ?? '', fullName }} />
     }
+    if (screen === 'declaraciones-rechazadas') {
+      return <DeclaracionesRechazadasScreen currentUser={{ userId: userId ?? '', fullName }} />
+    }
     if (screen === 'declaraciones-futuras') {
       return <DeclaracionesFuturasScreen currentUser={{ userId: userId ?? '', fullName }} />
     }
@@ -399,6 +409,9 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
     if (screen === 'marketing') {
       return <MarketingScreen />;
     }
+    if (screen === 'centro-notificaciones') {
+      return <NotificationCenterPage />;
+    }
     if (screen === 'notificaciones') {
       return <NotificacionesScreen />;
     }
@@ -450,6 +463,8 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
           onAutoOpenHandled={onPlanPickerHandled}
         />
       );
+    case 'centro-notificaciones':
+      return <NotificationCenterPage />;
     case 'ayuda':
       return <AyudaScreen />;
     case 'manual':

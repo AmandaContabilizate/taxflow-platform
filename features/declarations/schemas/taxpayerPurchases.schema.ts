@@ -9,10 +9,22 @@ const paging = {
 /** 1 = solo regularizaciones, 2 = solo a futuro, ausente = ambas (E5.1). */
 const kind = z.union([z.literal(1), z.literal(2)]).optional()
 
+/**
+ * Filtros server-side compartidos por nivel 1 y nivel 2.
+ * `taxRegimeId` es el Id interno de `Users.TaxRegimes`, NO el código SAT.
+ * `onlyUpcoming` deja pasar solo periodos aún no vencidos; los endpoints de
+ * regularización no lo aceptan (la ruta lo descarta).
+ */
+const filters = {
+  taxRegimeId: z.number().int().positive().optional(),
+  onlyUpcoming: z.boolean().optional(),
+}
+
 /** Nivel 1: contribuyentes con compras. `search` filtra por RFC o razón social. */
 export const taxpayerGroupsSchema = z.object({
   search: z.string().trim().min(1).optional(),
   kind,
+  ...filters,
   ...paging,
 })
 
@@ -20,6 +32,7 @@ export const taxpayerGroupsSchema = z.object({
 export const taxpayerPurchasesSchema = z.object({
   rfc: z.string().trim().toUpperCase().min(12).max(13).optional(),
   kind,
+  ...filters,
   ...paging,
 })
 

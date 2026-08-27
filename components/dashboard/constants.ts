@@ -6,6 +6,7 @@ import {
   Briefcase,
   Calendar,
   CheckSquare,
+  Ban,
   ClipboardList,
   DollarSign,
   FilePlus,
@@ -30,6 +31,7 @@ import {
   ShoppingCart,
   Sparkles,
   Stethoscope,
+  Send,
   Target,
   TrendingUp,
   LayoutGrid,
@@ -53,6 +55,7 @@ export const TITLES: Record<Screen, [string, string]> = {
   diagnostico: ['Diagnóstico fiscal', 'Cómo estás y qué puedes mejorar'],
   estatussat: ['Estatus ante SAT', 'Monitoreo continuo de listas y cumplimiento'],
   'estatus-sat': ['Conecta tu SAT', 'Vincula tu RFC para activar tu información fiscal'],
+  'centro-notificaciones': ['Centro de Notificaciones', 'Tus avisos fiscales, pre-reportes contables y alertas del sistema'],
   aprende: ['Aprende', 'Lecciones cortas para entender tus impuestos'],
   'tip-detail': ['Lección', 'Aprende algo útil en pocos minutos'],
   tramites: ['Trámites adicionales', 'Servicios extra que puedes contratar cuando los necesites'],
@@ -69,7 +72,7 @@ export const TITLES: Record<Screen, [string, string]> = {
   comisiones: ['Comisiones', 'Tus comisiones y liquidaciones'],
   'mis-tareas': ['Mis tareas', 'Pendientes asignados a ti'],
   bandeja: ['Bandeja', 'Solicitudes y mensajes entrantes'],
-  notificaciones: ['Notificaciones', 'Envía avisos push a los usuarios de la app'],
+  notificaciones: ['Envío de Avisos', 'Envía avisos push a los usuarios de la app'],
   upsell: ['Upsell', 'Oportunidades para ampliar servicios'],
   'clientes-asignados': ['Clientes asignados', 'Tu cartera de atención'],
   'pipelines-por-etapa': ['Pipelines por etapa', 'Estado de tus oportunidades'],
@@ -86,6 +89,7 @@ export const TITLES: Record<Screen, [string, string]> = {
   'codigos-descuento': ['Códigos de descuento', 'Códigos por dueño: ejecutivos, finder fees y partners'],
   'reportes-ejecutivos': ['Reportes ejecutivos', 'KPIs y resultados del área'],
   operaciones: ['Centro de operaciones', 'Gestión y supervisión de declaraciones fiscales'],
+  'declaraciones-rechazadas': ['Declaraciones rechazadas', 'Declaraciones que el cliente rechazó y esperan corrección'],
   'declaraciones-futuras': ['Declaraciones futuras', 'Declaraciones compradas de periodos posteriores al mes actual'],
   'tramites-adicionales': ['Trámites adicionales', 'Seguimiento de trámites vendidos a tus clientes'],
   ventas: ['Ventas', 'Resumen de ventas registradas por cuenta'],
@@ -100,7 +104,9 @@ const GUEST_NAV: NavDef[] = [
   { id: 'diagnostico', label: 'Diagnóstico', Icon: Stethoscope, hint: 'Tu situación fiscal' },
   { id: 'declaraciones', label: 'Declaraciones', Icon: FileText, hint: 'Tus impuestos del mes' },
   { id: 'facturas', label: 'Facturación', Icon: FilePlus, hint: 'Emite y revisa facturas' },
+  { id: 'george', label: 'Recibos → Facturas', Icon: Receipt, hint: 'Convierte recibos en facturas' },
   { id: 'documentos', label: 'Bóveda', Icon: FolderLock, hint: 'Tu bóveda digital de CFDI y constancias' },
+  { id: 'centro-notificaciones', label: 'Notificaciones', Icon: Bell, hint: 'Tus avisos y notificaciones' },
   { id: 'tramites', label: 'Trámites', Icon: FilePlus2, hint: 'Servicios extra' },
   { id: 'plan', label: 'Mi plan', Icon: Gem, hint: 'Tu suscripción' },
   { id: 'ayuda', label: 'Ayuda', Icon: HelpCircle, hint: 'Tutoriales y dudas' },
@@ -128,6 +134,7 @@ export const GUEST_NAV_GROUPED: NavSection[] = [
   {
     section: 'CUENTA',
     items: [
+      { id: 'centro-notificaciones', label: 'Notificaciones', Icon: Bell, hint: 'Tus avisos y notificaciones' },
       { id: 'tramites', label: 'Trámites', Icon: FilePlus2, hint: 'Servicios extra' },
       { id: 'plan', label: 'Mi plan', Icon: Gem, hint: 'Tu suscripción' },
     ]
@@ -160,9 +167,9 @@ const MIS_TAREAS_ITEM: NavDef = { id: 'mis-tareas', label: 'Mis tareas', Icon: C
 const BANDEJA_ITEM: NavDef = { id: 'bandeja', label: 'Bandeja', Icon: Inbox, hint: 'Mensajes entrantes' }
 const NOTIFICACIONES_ITEM: NavDef = {
   id: 'notificaciones',
-  label: 'Notificaciones',
-  Icon: Bell,
-  hint: 'Envía avisos a los usuarios',
+  label: 'Envío de Avisos',
+  Icon: Send,
+  hint: 'Envía avisos push a los usuarios',
 }
 const UPSELL_ITEM: NavDef = { id: 'upsell', label: 'Upsell', Icon: TrendingUp, hint: 'Oportunidades' }
 const CLIENTES_ASIGNADOS_ITEM: NavDef = {
@@ -258,6 +265,12 @@ const OPERACIONES_ITEM: NavDef = {
   Icon: Briefcase,
   hint: 'Gestión de declaraciones',
 }
+const DECLARACIONES_RECHAZADAS_ITEM: NavDef = {
+  id: 'declaraciones-rechazadas',
+  label: 'Declaraciones rechazadas',
+  Icon: Ban,
+  hint: 'Rechazadas por el cliente',
+}
 const DECLARACIONES_FUTURAS_ITEM: NavDef = {
   id: 'declaraciones-futuras',
   label: 'Declaraciones futuras',
@@ -339,6 +352,7 @@ export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
     CLIENTES_ITEM,
     CONTRIBUYENTES_ITEM,
     OPERACIONES_ITEM,
+    DECLARACIONES_RECHAZADAS_ITEM,
     REGULARIZACIONES_ITEM,
     TRAMITES_ADICIONALES_ITEM,
     DECLARACIONES_ANUALES_ITEM,
@@ -397,6 +411,13 @@ export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
   ],
 }
 
+const CENTRO_NOTIFICACIONES_ITEM: NavDef = {
+  id: 'centro-notificaciones',
+  label: 'Notificaciones',
+  Icon: Bell,
+  hint: 'Tus avisos y notificaciones',
+}
+
 /**
  * DISEÑO ÚNICO del sidebar interno: un solo mapa maestro de secciones para
  * TODOS los roles. Qué módulos ve cada rol lo decide su lista de ROLE_NAV
@@ -404,7 +425,7 @@ export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
  * Las secciones sin ítems permitidos para el rol no se muestran.
  */
 export const MASTER_NAV_SECTIONS: NavSection[] = [
-  { section: 'PANEL', items: [DASHBOARD_ITEM] },
+  { section: 'PANEL', items: [DASHBOARD_ITEM, CENTRO_NOTIFICACIONES_ITEM] },
   {
     section: 'VENTAS',
     items: [
@@ -427,6 +448,7 @@ export const MASTER_NAV_SECTIONS: NavSection[] = [
     section: 'OPERACIÓN',
     items: [
       OPERACIONES_ITEM,
+      DECLARACIONES_RECHAZADAS_ITEM,
       DECLARACIONES_FUTURAS_ITEM,
       MIS_CLIENTES_ITEM,
       REGULARIZACIONES_ITEM,
@@ -489,6 +511,7 @@ export const MODULE_CLAIMS: Record<string, string[]> = {
   ],
   renovaciones: ['Comercial.ReadRenovaciones'],
   operaciones: ['Contador.ReadDeclaraciones'],
+  'declaraciones-rechazadas': ['Contador.ReadDeclaraciones'],
   'declaraciones-futuras': ['Contador.ReadDeclaracionesFuturas'],
   // Cartera propia (contador) o todas las carteras (gerencia con AssignAccountant)
   'mis-clientes': ['Contador.ReadMisClientes', 'AssignAccountant'],
@@ -529,7 +552,7 @@ export function roleNavSections(roleKey: RoleKey, permissions: string[] = []): N
       .filter((s) => s.items.length > 0)
   }
   const perms = new Set(permissions)
-  const visible = (id: string) => MODULE_CLAIMS[id]?.some((c) => perms.has(c)) ?? false
+  const visible = (id: string) => id === 'home' || id === 'centro-notificaciones' || (MODULE_CLAIMS[id]?.some((c) => perms.has(c)) ?? false)
   return MASTER_NAV_SECTIONS
     .map((s) => ({ ...s, items: s.items.filter((i) => visible(i.id)) }))
     .filter((s) => s.items.length > 0)

@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Loader2, Tags, UserCog, Users } from 'lucide-react'
+import { Info, Loader2, Tags, UserCog, Users } from 'lucide-react'
 import { getMyClients } from '@/features/taxpayers/actions/getMyClients.action'
 import type { ClientListItem } from '@/features/taxpayers/types'
 import { MONO } from '../constants'
@@ -75,8 +75,8 @@ export function MisClientesScreen({ permissions = [], userId }: MisClientesProps
   }
 
   const headers = isManager
-    ? ['Cliente', 'RFC', 'Regímenes', 'Ventas pagadas', 'Compras', 'Planes', 'Contador', 'Acciones']
-    : ['Cliente', 'RFC', 'Regímenes', 'Ventas pagadas', 'Compras', 'Planes']
+    ? ['Cliente', 'RFC', 'Regímenes', 'Venta de Planes', 'Compras', 'Planes', 'Contador', 'Acciones']
+    : ['Cliente', 'RFC', 'Regímenes', 'Venta de Planes', 'Compras', 'Planes']
 
   return (
     <div className="flex flex-col gap-5 max-w-full h-[calc(100dvh-8.5rem)]">
@@ -99,7 +99,7 @@ export function MisClientesScreen({ permissions = [], userId }: MisClientesProps
       <Card className="shrink-0">
         <div className="p-4 flex flex-col sm:flex-row gap-3">
           <div className="flex-1 min-w-0">
-            <SearchBar value={list.rfc} onChange={list.setRfc} placeholder="Buscar por RFC…" />
+            <SearchBar value={list.rfc} onChange={list.setRfc} placeholder="Buscar por RFC, correo, nombre o teléfono…" />
           </div>
           {isManager && (
             <select
@@ -157,7 +157,21 @@ export function MisClientesScreen({ permissions = [], userId }: MisClientesProps
                         className="px-5 py-3 text-left font-extrabold"
                         style={{ color: 'var(--ink-700)', background: 'var(--card)' }}
                       >
-                        {h}
+                        <div className="flex items-center gap-1.5">
+                          <span>{h}</span>
+                          {h === 'Venta de Planes' && (
+                            <div className="relative group/tooltip inline-flex items-center">
+                              <span className="cursor-help inline-flex items-center text-amber-500 hover:text-amber-600 dark:text-amber-400 transition-colors">
+                                <Info size={14} />
+                              </span>
+                              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover/tooltip:flex flex-col w-max px-3 py-2 bg-zinc-900/95 dark:bg-zinc-800/95 text-white text-[11.5px] font-medium leading-relaxed rounded-xl shadow-2xl backdrop-blur-md border border-zinc-700/50 pointer-events-none z-50 text-center animate-in fade-in zoom-in-95 duration-150">
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 -mb-1 border-4 border-transparent border-b-zinc-900/95 dark:border-b-zinc-800/95" />
+                                <span className="whitespace-nowrap">No se consideran las ventas de regularizaciones, trámites,</span>
+                                <span className="whitespace-nowrap">declaraciones anuales ni complementarias.</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </th>
                     ))}
                   </tr>
@@ -172,6 +186,11 @@ export function MisClientesScreen({ permissions = [], userId }: MisClientesProps
                         <div className="text-xs mt-0.5" style={{ color: 'var(--ink-500)' }}>
                           {c.email}
                         </div>
+                        {c.phone && (
+                          <div className="text-[11.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                            📞 {c.phone}
+                          </div>
+                        )}
                       </td>
                       <td className="px-5 py-4">
                         <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-700)' }}>{c.rfc}</code>

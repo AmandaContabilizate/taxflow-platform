@@ -315,6 +315,17 @@ export interface PagedDeclarations<T> {
   take: number
 }
 
+/**
+ * Régimen de las declaraciones compradas del contribuyente (`RegimeItemDto`).
+ * `id` es el Id interno de `Users.TaxRegimes` (lo que espera `taxRegimeId`);
+ * `satCode` es el código SAT ("625", "626"), que solo sirve para pintar.
+ */
+export interface TaxpayerRegime {
+  id: number
+  satCode: string | null
+  name: string | null
+}
+
 /** Nivel 1: contribuyente con declaraciones compradas y en proceso. */
 export interface TaxpayerGroup {
   taxpayerId: number
@@ -323,6 +334,11 @@ export interface TaxpayerGroup {
   email: string | null
   declarationCount: number
   lastFiscalYear: number | null
+  /**
+   * Regímenes distintos de sus declaraciones bajo los filtros aplicados. Nunca
+   * null desde el backend, pero puede venir `[]` (declaraciones sin régimen).
+   */
+  regimes?: TaxpayerRegime[]
 }
 
 /**
@@ -341,6 +357,8 @@ export interface TaxpayerDeclarationItem {
   taxRegimeId: number
   taxRegimeName: string | null
   statusId: number
+  /** `Catalogs.StatusDeclaration.Code` (EnProceso, Presentada, RebotadaCliente…). */
+  statusCode?: string | null
   statusLabel: string | null
   /** 1 = regularización, 2 = plan a futuro. */
   declarationKind?: number

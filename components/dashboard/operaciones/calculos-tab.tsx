@@ -21,6 +21,8 @@ interface RowSpec {
   kind?: 'money' | 'percent'
   /** Se captura a mano (el cálculo no lo determina). */
   editable?: boolean
+  /** Renglón de cierre del panel (se destaca). */
+  total?: boolean
 }
 
 // Los ingresos no viven en el objeto `iva`: salen de la raíz de `isr`, que es
@@ -89,10 +91,62 @@ const ISR_TABS: IsrTab[] = [
 ]
 
 /* -------------------------------------------------------------------------- */
+/*  Régimen 626 (RESICO) — forma propia del JSON, nada que ver con la del 625   */
+/* -------------------------------------------------------------------------- */
+
+const IVA_626_ROWS: RowSpec[] = [
+  { id: 'r626-iva-16', label: 'Ingresos gravados al 16%', keys: ['subtotalIncome16'] },
+  { id: 'r626-iva-0', label: 'Ingresos tasa 0%', keys: ['subtotalIncome0'] },
+  { id: 'r626-iva-ex', label: 'Ingresos exentos', keys: ['subtotalIncomeExento'] },
+  { id: 'r626-iva-tras', label: 'IVA trasladado', keys: ['totalTaxe16'] },
+  { id: 'r626-iva-acr', label: 'IVA acreditable', keys: ['totalIvaCreditable'] },
+  { id: 'r626-iva-ret', label: 'IVA retenido', keys: ['totalIvaRetained'] },
+  { id: 'r626-iva-prev', label: 'IVA a acreditar de periodos anteriores', keys: ['IVAMonthsPrev'] },
+  { id: 'r626-iva-sub', label: 'Subtotal de IVA', keys: ['subtotalIVA'] },
+  { id: 'r626-iva-tot', label: 'IVA del periodo a cargo', keys: ['totalIVA'], total: true },
+]
+
+/** Ingresos y tarifa. Los gastos van aparte: en RESICO normalmente no existen. */
+const ISR_626_INCOME_ROWS: RowSpec[] = [
+  { id: 'r626-isr-ing', label: 'Ingresos del periodo', keys: ['incomesSubtotalAutorized'] },
+  { id: 'r626-isr-acum', label: 'Ingresos acumulados', keys: ['incomesAccumulatedsTotal'] },
+]
+
+const ISR_626_EXPENSE_ROWS: RowSpec[] = [
+  { id: 'r626-isr-gas', label: 'Gastos del periodo', keys: ['expensesSubtotalAutorized'] },
+  { id: 'r626-isr-gas-acum', label: 'Gastos acumulados', keys: ['expensesAccumulatedsTotal'] },
+]
+
+const ISR_626_TAX_ROWS: RowSpec[] = [
+  { id: 'r626-isr-li', label: 'Límite inferior', keys: ['ISR.lowerLimit'] },
+  { id: 'r626-isr-ls', label: 'Límite superior', keys: ['ISR.upperLimit'] },
+  { id: 'r626-isr-tasa', label: 'Tasa', keys: ['ISR.porcentage'], kind: 'percent' },
+  { id: 'r626-isr-cau', label: 'ISR causado', keys: ['ISR.taxeBeforeRetentions'] },
+  { id: 'r626-isr-ret', label: 'Retenciones de ISR', keys: ['ISR.isrRetentions'] },
+  { id: 'r626-isr-cargo', label: 'ISR a cargo', keys: ['ISR.retentionToPay'], total: true },
+]
+
+/**
+ * En RESICO no hay deducciones autorizadas por gasto: los renglones de gastos
+ * solo se pintan si el motor devolvió algo distinto de cero, para no inventar
+ * filas en ceros.
+ */
+function isr626Rows(isr: Json | null): RowSpec[] {
+  const gastos =
+    (toNumber(pick(isr, ['expensesSubtotalAutorized'])) ?? 0) +
+    (toNumber(pick(isr, ['expensesAccumulatedsTotal'])) ?? 0)
+  return [
+    ...ISR_626_INCOME_ROWS,
+    ...(gastos > 0 ? ISR_626_EXPENSE_ROWS : []),
+    ...ISR_626_TAX_ROWS,
+  ]
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Piezas de UI                                                               */
 /* -------------------------------------------------------------------------- */
 
-function PanelHeader({ title }: { title: string }) {
+function PanelHeader({ title, subtitle }: { title: string; subtitle?: string | null }) {
   return (
     <div
       className="px-5 py-3.5"
@@ -101,6 +155,11 @@ function PanelHeader({ title }: { title: string }) {
       <h3 className="text-[15px] font-extrabold" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
         {title}
       </h3>
+      {subtitle && (
+        <div className="text-[12px] font-semibold mt-0.5" style={{ color: 'var(--ink-500)' }}>
+          {subtitle}
+        </div>
+      )}
     </div>
   )
 }
@@ -112,6 +171,7 @@ function ValueRow({
   draft,
   onDraftChange,
   last,
+  total,
 }: {
   label: string
   value: string
@@ -119,13 +179,20 @@ function ValueRow({
   draft?: string
   onDraftChange?: (v: string) => void
   last: boolean
+  total?: boolean
 }) {
   return (
     <div
       className="flex items-center gap-4 px-5 py-3"
-      style={last ? undefined : { borderBottom: '1px solid var(--border)' }}
+      style={{
+        ...(last ? {} : { borderBottom: '1px solid var(--border)' }),
+        ...(total ? { background: 'var(--muted)' } : {}),
+      }}
     >
-      <div className="flex-1 min-w-0 text-[13px] leading-snug" style={{ color: 'var(--ink-700)' }}>
+      <div
+        className={`flex-1 min-w-0 text-[13px] leading-snug ${total ? 'font-extrabold' : ''}`}
+        style={{ color: total ? 'var(--ink-900)' : 'var(--ink-700)' }}
+      >
         {label}
       </div>
       {editable ? (
@@ -189,6 +256,7 @@ function RowList({
             draft={drafts[row.id] ?? (raw != null ? String(raw) : '')}
             onDraftChange={(v) => setDraft(row.id, v)}
             last={i === rows.length - 1}
+            total={row.total}
           />
         )
       })}
@@ -200,7 +268,16 @@ function RowList({
 /*  Tab principal                                                              */
 /* -------------------------------------------------------------------------- */
 
-export function CalculosTab({ declarationId, readOnly }: { declarationId: number; readOnly?: boolean }) {
+export function CalculosTab({
+  declarationId,
+  readOnly,
+  regimeSatCode,
+}: {
+  declarationId: number
+  readOnly?: boolean
+  /** Fallback de `/general` mientras `/calculations` no responde. */
+  regimeSatCode?: string | null
+}) {
   const [calc, setCalc] = useState<DeclarationCalculations | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -227,6 +304,12 @@ export function CalculosTab({ declarationId, readOnly }: { declarationId: number
 
   const iva = (calc?.iva ?? null) as Json | null
   const isr = (calc?.isr ?? null) as Json | null
+  // Fuente única del régimen: `/calculations` (E3). `general.regimeSatCode` solo
+  // entra como fallback si el backend todavía no devuelve el campo.
+  const satCode = calc?.regimeSatCode ?? regimeSatCode ?? null
+  const is626 = satCode === '626'
+  const rawMonth = pick(isr, ['nameMonth'])
+  const nameMonth = typeof rawMonth === 'string' && rawMonth.trim() ? rawMonth : null
   const activeIsr = ISR_TABS[isrTab]
   const isrSection = subObject(isr, activeIsr.section)
 
@@ -282,6 +365,21 @@ export function CalculosTab({ declarationId, readOnly }: { declarationId: number
         </div>
       )}
 
+      {is626 ? (
+        <div className="grid gap-4 lg:grid-cols-2 items-start">
+          {/* IVA · RESICO (626). Vista de solo lectura en esta iteración. */}
+          <Card>
+            <PanelHeader title="IVA" subtitle={nameMonth} />
+            <RowList rows={IVA_626_ROWS} data={iva} drafts={drafts} setDraft={setDraft} readOnly />
+          </Card>
+
+          {/* ISR · RESICO (626): tarifa única, sin las sub-tabs del 625. */}
+          <Card>
+            <PanelHeader title="ISR" subtitle={nameMonth} />
+            <RowList rows={isr626Rows(isr)} data={isr} drafts={drafts} setDraft={setDraft} readOnly />
+          </Card>
+        </div>
+      ) : (
       <div className="grid gap-4 lg:grid-cols-2 items-start">
         {/* IVA */}
         <Card>
@@ -320,6 +418,7 @@ export function CalculosTab({ declarationId, readOnly }: { declarationId: number
           <RowList rows={activeIsr.rows} data={isrSection} drafts={drafts} setDraft={setDraft} readOnly={readOnly} />
         </Card>
       </div>
+      )}
     </div>
   )
 }
