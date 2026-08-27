@@ -23,6 +23,7 @@ import {
   PanelGerenciaContableScreen,
   CuentaScreen,
   DeclaracionesScreen,
+  DeclaracionesRechazadasScreen,
   AsignacionesScreen,
   CodigosDescuentoScreen,
   ComisionesScreen,
@@ -61,6 +62,7 @@ import {
 // El resto se mantiene en max-w-[1280px] para lectura cómoda.
 const WIDE_SCREENS = new Set<Screen>([
   'operaciones',
+  'declaraciones-rechazadas',
   'declaraciones-futuras',
   'regularizaciones',
   'tramites-adicionales',
@@ -124,7 +126,7 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
   // Cambiar de pantalla limpia el estado profundo de la anterior (contribuyente,
   // declaración abierta, filtros); si no, quedan parámetros huérfanos en la URL.
   const go = (s: Screen) => {
-    setParams({ s, rfc: null, regimen: null, decl: null, year: null, period: null, status: null })
+    setParams({ s, rfc: null, regimen: null, decl: null, year: null, period: null, status: null, skip: null, proximas: null })
     setMobileOpen(false)
     window.scrollTo(0, 0)
   }
@@ -332,6 +334,9 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
     }
     if (screen === 'operaciones') {
       return <OperacionesScreen currentUser={{ userId: userId ?? '', fullName }} />
+    }
+    if (screen === 'declaraciones-rechazadas') {
+      return <DeclaracionesRechazadasScreen currentUser={{ userId: userId ?? '', fullName }} />
     }
     if (screen === 'declaraciones-futuras') {
       return <DeclaracionesFuturasScreen currentUser={{ userId: userId ?? '', fullName }} />

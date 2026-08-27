@@ -19,6 +19,49 @@ function periodInvoicesQuery(p: DeclarationPeriodInvoicesParams): string {
   return `?${qs.toString()}`
 }
 
+/** Query común de los listados del contador (nivel 1 y nivel 2). */
+interface TaxpayerListQuery {
+  skip?: number
+  take?: number
+  /** 1 solo regularizaciones, 2 solo a futuro, ausente = ambas. */
+  kind?: 1 | 2
+  /** Id interno de Users.TaxRegimes, NO el código SAT. */
+  taxRegimeId?: number
+  /** Solo periodos de calendario aún no vencidos. No lo aceptan las rutas de regularización. */
+  onlyUpcoming?: boolean
+}
+
+export interface TaxpayerGroupsQuery extends TaxpayerListQuery {
+  search?: string
+}
+
+export interface TaxpayerPurchasesQuery extends TaxpayerListQuery {
+  rfc?: string
+}
+
+function taxpayerListQuery(p: TaxpayerListQuery): URLSearchParams {
+  const qs = new URLSearchParams({
+    skip: String(p.skip ?? 0),
+    take: String(p.take ?? 50),
+  })
+  if (p.kind) qs.set("kind", String(p.kind))
+  if (p.taxRegimeId) qs.set("taxRegimeId", String(p.taxRegimeId))
+  if (p.onlyUpcoming) qs.set("onlyUpcoming", "true")
+  return qs
+}
+
+function taxpayerGroupsQuery(p: TaxpayerGroupsQuery): string {
+  const qs = taxpayerListQuery(p)
+  if (p.search) qs.set("search", p.search)
+  return `?${qs.toString()}`
+}
+
+function taxpayerPurchasesQuery(p: TaxpayerPurchasesQuery): string {
+  const qs = taxpayerListQuery(p)
+  if (p.rfc) qs.set("rfc", p.rfc)
+  return `?${qs.toString()}`
+}
+
 export const API_ROUTES = {
   AUTH: {
     LOGIN: "/login",
@@ -202,6 +245,16 @@ export const API_ROUTES = {
       return `/${params.declarationId}/invoices?${qs.toString()}`
     },
     GENERAL: (declarationId: number) => `/${declarationId}/general`,
+    // apiType "declarations_reports" · GET. Bitácora de cambios de estatus
+    // (`DeclarationLog`). Devuelve un ARRAY plano (NO PagedResult), changedAt DESC.
+    LOGS: (declarationId: number, skip = 0, take = 100) =>
+      `/logs?declarationId=${declarationId}&skip=${skip}&take=${take}`,
+  },
+  // Controller nuevo de Procedures (`api/declarations`, plural). apiType
+  // "declarations_procedures". Policy Contador.UpdateDeclaracionEstatus.
+  DECLARATIONS_PROCEDURES: {
+    // POST · body opcional `{ note?: string }`. 10|15 -> 9 + correo (best-effort).
+    RESEND_TO_CLIENT: (declarationId: number) => `/${declarationId}/resend-to-client`,
   },
   SALES_OPS: {
     PROCEDURES: (skip = 0, take = 500) =>
@@ -297,17 +350,21 @@ export const API_ROUTES = {
     // declaraciones compradas ("En proceso") del tipo pedido, paginado por
     // contribuyente. `search` filtra por RFC o razón social.
     // `kind`: 1 solo regularizaciones, 2 solo a futuro, ausente = ambas (desde E5.1).
-    DECLARATION_TAXPAYERS: (search?: string, skip = 0, take = 50, kind?: 1 | 2) =>
-      `/declaration-taxpayers?skip=${skip}&take=${take}${search ? `&search=${encodeURIComponent(search)}` : ""}${kind ? `&kind=${kind}` : ""}`,
-    REGULARIZATION_TAXPAYERS: (search?: string, skip = 0, take = 50, kind?: 1 | 2) =>
-      `/regularization-taxpayers?skip=${skip}&take=${take}${search ? `&search=${encodeURIComponent(search)}` : ""}${kind ? `&kind=${kind}` : ""}`,
+    // `taxRegimeId`: Id interno de Users.TaxRegimes (NO el código SAT); filtra el
+    // listado y el `declarationCount` server-side.
+    // `onlyUpcoming`: solo periodos de calendario aún no vencidos. OJO: las rutas
+    // de regularización NO lo aceptan.
+    DECLARATION_TAXPAYERS: (p: TaxpayerGroupsQuery = {}) =>
+      `/declaration-taxpayers${taxpayerGroupsQuery(p)}`,
+    REGULARIZATION_TAXPAYERS: (p: TaxpayerGroupsQuery = {}) =>
+      `/regularization-taxpayers${taxpayerGroupsQuery({ ...p, onlyUpcoming: undefined })}`,
     // apiType "declaration" · GET. Nivel 2: planes a futuro (kind 2) / regularizaciones
     // (kind 1) compradas y en proceso. Sin `rfc` trae las de todos los contribuyentes.
-    // `kind`: 1 solo regularizaciones, 2 solo a futuro, ausente = ambas (desde E5.1).
-    DECLARATIONS_BY_TAXPAYER: (rfc?: string, skip = 0, take = 50, kind?: 1 | 2) =>
-      `/declarations-by-taxpayer?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${kind ? `&kind=${kind}` : ""}`,
-    REGULARIZATIONS_BY_TAXPAYER: (rfc?: string, skip = 0, take = 50, kind?: 1 | 2) =>
-      `/regularizations-by-taxpayer?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${kind ? `&kind=${kind}` : ""}`,
+    // Mismos params nuevos que el nivel 1 (`taxRegimeId`, `onlyUpcoming`).
+    DECLARATIONS_BY_TAXPAYER: (p: TaxpayerPurchasesQuery = {}) =>
+      `/declarations-by-taxpayer${taxpayerPurchasesQuery(p)}`,
+    REGULARIZATIONS_BY_TAXPAYER: (p: TaxpayerPurchasesQuery = {}) =>
+      `/regularizations-by-taxpayer${taxpayerPurchasesQuery({ ...p, onlyUpcoming: undefined })}`,
   },
   // apiType "declaration_report". Flujo público: el cliente abre /reporte?t={token}
   // desde el correo. El token AES (Base64 url-safe) es la única credencial, los

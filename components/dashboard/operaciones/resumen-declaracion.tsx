@@ -65,7 +65,54 @@ interface Resumen {
   total: number | null
 }
 
-function readResumen(calc: DeclarationCalculations | null, generalTotal: Money): Resumen {
+/** El total a pagar sale de `/general` cuando es un número > 0; si no, se suma. */
+function totalAPagar(generalTotal: Money, isrCargo: number | null, ivaPagar: number | null) {
+  const generalNumber =
+    typeof generalTotal === 'string' ? Number(generalTotal) : typeof generalTotal === 'number' ? generalTotal : null
+  if (generalNumber != null && Number.isFinite(generalNumber) && generalNumber > 0) return generalNumber
+  return isrCargo != null || ivaPagar != null ? (isrCargo ?? 0) + (ivaPagar ?? 0) : null
+}
+
+/**
+ * RESICO (626): el JSON no tiene nada en común con el del 625 — ni sub-objetos
+ * por tipo de servicio ni `ivaCaused`. Se lee con sus propias llaves; campo
+ * ausente → null → "—".
+ */
+function readResumen626(calc: DeclarationCalculations | null, generalTotal: Money): Resumen {
+  const iva = (calc?.iva ?? null) as Json | null
+  const isr = (calc?.isr ?? null) as Json | null
+
+  const ingresosGravados = [
+    num(iva, ['subtotalIncome16']),
+    num(iva, ['subtotalIncome0']),
+    num(iva, ['subtotalIncomeExento']),
+  ].filter((n): n is number => n != null)
+
+  const ingresos =
+    num(isr, ['incomesSubtotalAutorized']) ??
+    (ingresosGravados.length > 0 ? ingresosGravados.reduce((a, b) => a + b, 0) : null)
+
+  const isrCargo = num(isr, ['ISR.retentionToPay'])
+  const ivaPagar = num(iva, ['totalIVA'])
+
+  return {
+    ingresos,
+    // En RESICO no hay deducciones autorizadas por gasto: solo se muestra si el
+    // motor devolvió algo.
+    egresos: num(isr, ['expensesSubtotalAutorized', 'expensesAccumulatedsTotal']),
+    ivaTrasladado: num(iva, ['totalTaxe16']),
+    ivaAcreditable: num(iva, ['totalIvaCreditable']),
+    isrCausado: num(isr, ['ISR.taxeBeforeRetentions']),
+    isrRetenciones: num(isr, ['ISR.isrRetentions']),
+    isrCargo,
+    ivaPagar,
+    tasaIsr: num(isr, ['ISR.porcentage']),
+    total: totalAPagar(generalTotal, isrCargo, ivaPagar),
+  }
+}
+
+/** 625 (Plataformas Tecnológicas): la forma histórica, intacta. */
+function readResumen625(calc: DeclarationCalculations | null, generalTotal: Money): Resumen {
   const iva = (calc?.iva ?? null) as Json | null
   const isr = (calc?.isr ?? null) as Json | null
 
@@ -82,8 +129,6 @@ function readResumen(calc: DeclarationCalculations | null, generalTotal: Money):
 
   const isrCargo = num(isr, ['totalIsr']) ?? sumSections(isr, ['totalIsr'])
   const ivaPagar = num(iva, ['totalIva'])
-  const generalNumber =
-    typeof generalTotal === 'string' ? Number(generalTotal) : typeof generalTotal === 'number' ? generalTotal : null
 
   return {
     ingresos,
@@ -95,13 +140,21 @@ function readResumen(calc: DeclarationCalculations | null, generalTotal: Money):
     isrCargo,
     ivaPagar,
     tasaIsr: isrRate(isr),
-    total:
-      generalNumber != null && Number.isFinite(generalNumber) && generalNumber > 0
-        ? generalNumber
-        : isrCargo != null || ivaPagar != null
-          ? (isrCargo ?? 0) + (ivaPagar ?? 0)
-          : null,
+    total: totalAPagar(generalTotal, isrCargo, ivaPagar),
   }
+}
+
+/**
+ * Elige el parser por régimen. Prohibido cruzarlos: el JSON del 626 con el
+ * parser del 625 (o al revés) pinta cifras equivocadas, no "—". Los regímenes
+ * distintos de 625/626 nunca llegan aquí — los bloquea el gate del detalle.
+ */
+function readResumen(
+  calc: DeclarationCalculations | null,
+  generalTotal: Money,
+  satCode: string | null,
+): Resumen {
+  return satCode === '626' ? readResumen626(calc, generalTotal) : readResumen625(calc, generalTotal)
 }
 
 /* -------------------------------------------------------------------------- */
@@ -336,7 +389,9 @@ export function ResumenDeclaracion({ declarationId, general, periodo, fiscalYear
     }
   }, [declarationId])
 
-  const r = readResumen(calc, general?.totalDeclaration ?? null)
+  // Fuente única del régimen: `/calculations` (E3); `/general` solo como fallback.
+  const satCode = calc?.regimeSatCode ?? general?.regimeSatCode ?? null
+  const r = readResumen(calc, general?.totalDeclaration ?? null, satCode)
   const status = readStatus(general)
   const range = periodRange(general?.periodValueId, general?.fiscalYear ?? fiscalYear)
   const presentadaHace = daysAgo(general?.submittedAt ?? null)

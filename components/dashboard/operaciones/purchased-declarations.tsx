@@ -10,11 +10,13 @@ import type {
   PagedDeclarations,
   TaxpayerDeclarationItem,
   TaxpayerGroup,
+  TaxpayerRegime,
 } from '@/features/declarations/types'
 import type { DeclarationSubject } from '@/features/operations/types'
+import { declarationStatusBadge } from '../declaraciones/parts'
 import { Pagination } from '../clientes/parts'
 import { DISPLAY, MONO } from '../constants'
-import { Card, ErrorState, HelpBox } from '../ui'
+import { Badge, Card, ErrorState, HelpBox } from '../ui'
 import { numParam, useUrlState } from '../url-state'
 import { DeclarationDetail } from './declaration-detail'
 
@@ -97,6 +99,16 @@ const TIPO_LABEL: Record<number, string> = { 1: 'Regularización', 2: 'A futuro'
 
 const emptyPage = <T,>(take: number): PagedDeclarations<T> => ({ items: [], total: 0, skip: 0, take })
 
+/** Etiqueta del régimen para los selects: "625 · Plataformas Tecnológicas". */
+const regimeLabel = (r: TaxpayerRegime) =>
+  [r.satCode, r.name].filter(Boolean).join(' · ') || `Régimen ${r.id}`
+
+const selectStyle = {
+  background: 'var(--input)',
+  border: '1px solid var(--border)',
+  color: 'var(--ink-700)',
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Nivel 1 — contribuyentes con compras                                       */
 /* -------------------------------------------------------------------------- */
@@ -106,10 +118,16 @@ function TaxpayerGroups({
   onOpen,
 }: {
   mode: Mode
-  onOpen: (g: TaxpayerGroup) => void
+  onOpen: (g: TaxpayerGroup, taxRegimeId: number | null) => void
 }) {
   const copy = COPY[mode]
   const kind = KIND_BY_MODE[mode]
+  const { params, setParams } = useUrlState()
+  // Solo "futuras" ofrece el filtro de periodo próximo; el back de
+  // regularizaciones ni siquiera acepta el param.
+  const upcomingAvailable = mode === 'future'
+  const onlyUpcoming = upcomingAvailable && params.get('proximas') === '1'
+
   const [page, setPage] = useState<PagedDeclarations<TaxpayerGroup>>(emptyPage(TAKE))
   const [skip, setSkip] = useState(0)
   const [search, setSearch] = useState('')
@@ -117,6 +135,9 @@ function TaxpayerGroups({
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Régimen elegido por fila (Id interno). Se pierde al repaginar a propósito:
+  // la selección solo vive hasta que se entra al nivel 2.
+  const [regimeByTaxpayer, setRegimeByTaxpayer] = useState<Record<number, number>>({})
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -131,7 +152,15 @@ function TaxpayerGroups({
     setLoading(true)
     setError(null)
     void (async () => {
-      const res = await ACTIONS[mode].groups({ search: query || undefined, skip, take: TAKE, kind })
+      // Sin `taxRegimeId`: el conteo de la fila es el total del contribuyente y
+      // `regimes` trae todos sus regímenes para poblar el selector.
+      const res = await ACTIONS[mode].groups({
+        search: query || undefined,
+        skip,
+        take: TAKE,
+        kind,
+        onlyUpcoming: onlyUpcoming || undefined,
+      })
       if (cancelled) return
       if (res.success) setPage(res.value)
       else {
@@ -143,7 +172,12 @@ function TaxpayerGroups({
     return () => {
       cancelled = true
     }
-  }, [mode, kind, query, skip])
+  }, [mode, kind, query, skip, onlyUpcoming])
+
+  const toggleUpcoming = (next: boolean) => {
+    setSkip(0)
+    setParams({ proximas: next ? '1' : null }, { replace: true })
+  }
 
   const totalPages = Math.max(1, Math.ceil(page.total / TAKE))
 
@@ -152,7 +186,7 @@ function TaxpayerGroups({
       <HelpBox>{copy.help}</HelpBox>
 
       <Card className="shrink-0">
-        <div className="p-4">
+        <div className="p-4 flex flex-col gap-3">
           <div className="relative">
             <Search
               size={16}
@@ -167,6 +201,21 @@ function TaxpayerGroups({
               style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
             />
           </div>
+
+          {upcomingAvailable && (
+            <label className="inline-flex items-center gap-2 cursor-pointer select-none self-start">
+              <input
+                type="checkbox"
+                checked={onlyUpcoming}
+                onChange={(e) => toggleUpcoming(e.target.checked)}
+                className="w-4 h-4 rounded"
+                style={{ accentColor: 'var(--brand-600)' }}
+              />
+              <span className="text-[12.5px] font-semibold" style={{ color: 'var(--ink-700)' }}>
+                Solo periodo próximo a trabajar
+              </span>
+            </label>
+          )}
         </div>
       </Card>
 
@@ -194,7 +243,7 @@ function TaxpayerGroups({
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Contribuyente', 'RFC', 'Correo', 'Compradas', 'Último ejercicio', ''].map((h) => (
+                    {['Contribuyente', 'RFC', 'Correo', 'Compradas', 'Último ejercicio', 'Régimen', ''].map((h) => (
                       <th
                         key={h}
                         className="px-5 py-3 text-left font-extrabold whitespace-nowrap"
@@ -206,7 +255,12 @@ function TaxpayerGroups({
                   </tr>
                 </thead>
                 <tbody>
-                  {page.items.map((g) => (
+                  {page.items.map((g) => {
+                    const regimes = g.regimes ?? []
+                    // Con un solo régimen no se ofrece filtro: mandar su id escondería
+                    // las declaraciones sin régimen asignado del mismo contribuyente.
+                    const selectedRegime = regimeByTaxpayer[g.taxpayerId] ?? null
+                    return (
                     <tr key={g.taxpayerId} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td className="px-5 py-4">
                         <div className="font-semibold" style={{ color: 'var(--ink-900)' }}>
@@ -230,10 +284,39 @@ function TaxpayerGroups({
                       <td className="px-5 py-4" style={{ color: 'var(--ink-500)' }}>
                         {g.lastFiscalYear ?? '—'}
                       </td>
+                      <td className="px-5 py-4">
+                        {regimes.length === 0 ? (
+                          <span className="text-[12.5px]" style={{ color: 'var(--ink-500)' }}>—</span>
+                        ) : regimes.length === 1 ? (
+                          <span className="text-[12.5px] font-semibold" style={{ color: 'var(--ink-700)' }}>
+                            {regimeLabel(regimes[0])}
+                          </span>
+                        ) : (
+                          <select
+                            value={selectedRegime ?? ''}
+                            onChange={(e) => {
+                              const value = e.target.value
+                              setRegimeByTaxpayer((prev) => {
+                                const next = { ...prev }
+                                if (value) next[g.taxpayerId] = Number(value)
+                                else delete next[g.taxpayerId]
+                                return next
+                              })
+                            }}
+                            className="px-2.5 py-1.5 rounded-lg text-[12px] font-semibold max-w-[220px]"
+                            style={selectStyle}
+                          >
+                            <option value="">Todos los regímenes</option>
+                            {regimes.map((r) => (
+                              <option key={r.id} value={r.id}>{regimeLabel(r)}</option>
+                            ))}
+                          </select>
+                        )}
+                      </td>
                       <td className="px-5 py-4 text-right">
                         <button
                           type="button"
-                          onClick={() => onOpen(g)}
+                          onClick={() => onOpen(g, selectedRegime)}
                           className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12.5px] font-bold whitespace-nowrap transition hover:opacity-90"
                           style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}
                         >
@@ -241,7 +324,8 @@ function TaxpayerGroups({
                         </button>
                       </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -277,12 +361,15 @@ function PurchasedTable({
   mode,
   rfc,
   legalName,
+  regimes,
   onBack,
   onOpen,
 }: {
   mode: Mode
   rfc: string
   legalName: string
+  /** Regímenes del contribuyente traídos del nivel 1; vacío si se entró por URL directa. */
+  regimes: TaxpayerRegime[]
   onBack: () => void
   onOpen: (d: TaxpayerDeclarationItem) => void
 }) {
@@ -295,33 +382,47 @@ function PurchasedTable({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Los filtros viven en la URL para que el refresh no los pierda. El back solo
-  // pagina por RFC, así que periodo/ejercicio/régimen se aplican sobre la página.
+  // Los filtros viven en la URL para que el refresh no los pierda. `regimen`
+  // viaja al back (total y paginación del universo filtrado); periodo y
+  // ejercicio siguen siendo client-side sobre la página cargada.
   const periodValueId = numParam(params, 'period') ?? ''
   const year = numParam(params, 'year') ?? ''
   const regimeId = numParam(params, 'regimen') ?? ''
+  const onlyUpcoming = mode === 'future' && params.get('proximas') === '1'
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
-    const res = await ACTIONS[mode].rows({ rfc, skip, take: TAKE, kind })
+    const res = await ACTIONS[mode].rows({
+      rfc,
+      skip,
+      take: TAKE,
+      kind,
+      taxRegimeId: regimeId || undefined,
+      onlyUpcoming: onlyUpcoming || undefined,
+    })
     if (res.success) setPage(res.value)
     else {
       setError(res.error.message)
       setPage(emptyPage(TAKE))
     }
     setLoading(false)
-  }, [mode, kind, rfc, skip])
+  }, [mode, kind, rfc, skip, regimeId, onlyUpcoming])
 
   useEffect(() => {
     void load()
   }, [load])
 
+  // Con el filtro activo la página solo trae ese régimen, así que las opciones
+  // salen del nivel 1. Fallback (entrada por URL directa): lo que traiga la página.
   const regimeOptions = useMemo(() => {
     const map = new Map<number, string>()
-    for (const d of page.items) map.set(d.taxRegimeId, d.taxRegimeName ?? `Régimen ${d.taxRegimeId}`)
+    for (const r of regimes) map.set(r.id, regimeLabel(r))
+    for (const d of page.items) {
+      if (!map.has(d.taxRegimeId)) map.set(d.taxRegimeId, d.taxRegimeName ?? `Régimen ${d.taxRegimeId}`)
+    }
     return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]))
-  }, [page.items])
+  }, [regimes, page.items])
 
   const yearOptions = useMemo(
     () => [...new Set(page.items.map((d) => d.fiscalYear))].sort((a, b) => b - a),
@@ -333,19 +434,19 @@ function PurchasedTable({
       page.items.filter(
         (d) =>
           (!periodValueId || d.periodValueId === periodValueId) &&
-          (!year || d.fiscalYear === year) &&
-          (!regimeId || d.taxRegimeId === regimeId),
+          (!year || d.fiscalYear === year),
       ),
-    [page.items, periodValueId, year, regimeId],
+    [page.items, periodValueId, year],
   )
 
   const totalPages = Math.max(1, Math.ceil(page.total / TAKE))
   const filtering = Boolean(periodValueId || year || regimeId)
 
-  const selectStyle = {
-    background: 'var(--input)',
-    border: '1px solid var(--border)',
-    color: 'var(--ink-700)',
+  // El régimen viaja al back: cambiar de régimen reordena el universo, así que
+  // la paginación vuelve al inicio.
+  const changeRegime = (value: string) => {
+    setSkip(0)
+    setParams({ regimen: value || null }, { replace: true })
   }
 
   return (
@@ -370,10 +471,10 @@ function PurchasedTable({
 
       <Card className="shrink-0">
         <div className="p-4 flex items-center gap-2 flex-wrap">
-          {regimeOptions.length > 1 && (
+          {(regimeOptions.length > 1 || regimeId !== '') && (
             <select
               value={regimeId}
-              onChange={(e) => setParams({ regimen: e.target.value || null }, { replace: true })}
+              onChange={(e) => changeRegime(e.target.value)}
               className="px-3 py-2 rounded-lg text-[12.5px] font-semibold"
               style={selectStyle}
             >
@@ -411,7 +512,10 @@ function PurchasedTable({
           {filtering && (
             <button
               type="button"
-              onClick={() => setParams({ period: null, year: null, regimen: null }, { replace: true })}
+              onClick={() => {
+                setSkip(0)
+                setParams({ period: null, year: null, regimen: null }, { replace: true })
+              }}
               className="px-3 py-2 rounded-lg text-[12.5px] font-bold"
               style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--ink-700)' }}
             >
@@ -488,12 +592,19 @@ function PurchasedTable({
                         </td>
                       )}
                       <td className="px-5 py-4">
-                        <span
-                          className="inline-flex px-2.5 py-1 rounded-md text-[11px] font-bold whitespace-nowrap"
-                          style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
-                        >
-                          {d.statusLabel ?? 'En proceso'}
-                        </span>
+                        {d.statusCode ? (
+                          (() => {
+                            const badge = declarationStatusBadge(d.statusCode as string, d.statusLabel ?? d.statusCode as string)
+                            return <Badge kind={badge.kind}>{badge.label}</Badge>
+                          })()
+                        ) : (
+                          <span
+                            className="inline-flex px-2.5 py-1 rounded-md text-[11px] font-bold whitespace-nowrap"
+                            style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
+                          >
+                            {d.statusLabel ?? 'En proceso'}
+                          </span>
+                        )}
                       </td>
                       <td className="px-5 py-4 text-right">
                         <button
@@ -565,11 +676,13 @@ export function PurchasedDeclarations({
   const declarationId = numParam(params, 'decl')
 
   const [legalName, setLegalName] = useState('')
+  const [groupRegimes, setGroupRegimes] = useState<TaxpayerRegime[]>([])
   const [subject, setSubject] = useState<DeclarationSubject | null>(null)
 
-  const openGroup = (g: TaxpayerGroup) => {
+  const openGroup = (g: TaxpayerGroup, taxRegimeId: number | null) => {
     setLegalName(g.legalName ?? '')
-    setParams({ rfc: g.rfc, decl: null })
+    setGroupRegimes(g.regimes ?? [])
+    setParams({ rfc: g.rfc, decl: null, regimen: taxRegimeId })
   }
 
   const openDeclaration = (d: TaxpayerDeclarationItem) => {
@@ -604,6 +717,7 @@ export function PurchasedDeclarations({
         mode={mode}
         rfc={rfcParam}
         legalName={legalName}
+        regimes={groupRegimes}
         onBack={backToGroups}
         onOpen={openDeclaration}
       />

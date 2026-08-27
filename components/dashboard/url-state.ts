@@ -14,6 +14,7 @@ import { useCallback, useMemo, useSyncExternalStore } from 'react'
  *   rfc      contribuyente seleccionado en Operaciones
  *   regimen  id interno del régimen (Users.TaxRegimes)
  *   decl     id de la declaración abierta
+ *   proximas "1" = solo periodos aún no vencidos (onlyUpcoming), solo en futuras
  *   year / period / status  filtros del listado de declaraciones
  */
 

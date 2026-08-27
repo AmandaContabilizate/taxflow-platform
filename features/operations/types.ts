@@ -10,6 +10,11 @@ export interface DeclarationCalculations {
   declarationId: number;
   iva: Record<string, unknown> | null;
   isr: Record<string, unknown> | null;
+  /** Id interno de Users.TaxRegimes (E3). */
+  taxRegimeId?: number | null;
+  /** Código SAT ("625", "626"): decide qué parser se aplica a `iva`/`isr` (E3). */
+  regimeSatCode?: string | null;
+  regimeName?: string | null;
 }
 
 /** Montos del backend: number o string decimal ("438.49"). */
@@ -32,6 +37,44 @@ export interface DeclarationListItem {
   assignedAt: string | null;
   submittedAt: string | null;
   consumoStatusId: number | null;
+  /** Razón social / nombre del contribuyente. */
+  legalName: string | null;
+  /** `Catalogs.Period.Description`. */
+  periodo: string | null;
+  taxRegimeId: number | null;
+  /** Código SAT del régimen (601, 605, 625…). */
+  regimeSatCode: string | null;
+  regimeName: string | null;
+  /** `StatusDeclaration.Description`. */
+  statusLabel: string | null;
+}
+
+/**
+ * Fila de `GET /declarations/logs` (DeclaracionLogDto): bitácora de cambios de
+ * estatus de `Declarations.DeclarationLog`. Array plano, no paginado.
+ */
+export interface DeclarationLog {
+  id: number;
+  declarationId: number;
+  oldStatusId: number | null;
+  newStatusId: number;
+  changedAt: string;
+  changedBy: string;
+  /** `client-report` | `manual` | `contador-resend`. */
+  source: string;
+  note: string | null;
+}
+
+/** Respuesta de `POST declarations/{id}/resend-to-client` (E2). */
+export interface ResendDeclarationResult {
+  declarationId: number;
+  /** Siempre 9 (EnRevisionCliente) en un 200. */
+  statusId: number;
+  statusCode: string | null;
+  /** false si ya estaba en 9 (idempotente): no hubo cambio de estatus. */
+  changed: boolean;
+  /** false = estatus actualizado pero el correo falló; reintentable. */
+  emailSent: boolean;
 }
 
 /**
@@ -202,6 +245,20 @@ export interface DeclarationGeneral {
   paymentAcknowledgmentPdfUrl: string | null;
   accountantUserId: string | null;
   accountantName: string | null;
+  /** `DeclarationSummary.Ingresos`; fallback `Declaration.AccumulatedIncome`. */
+  ingresosBrutos: Money;
+  /**
+   * Derivado de facturas deducibles del periodo. `null` = no determinable (p.
+   * ej. régimen 605, sin `PeriodValueId` o sin corrida del clasificador) — NO
+   * es un 0 inventado; `0` real cuando sí hay corrida pero nada deducible entró.
+   */
+  gastosDeducibles: Money;
+  /** `DeclarationSummary.IvaCargo`; `null` si no hay fila de summary. */
+  ivaCargo: Money;
+  /** `DeclarationSummary.IvaFavor`; `null` si no hay fila de summary. */
+  ivaFavor: Money;
+  /** `Declaration.TotalDeclaration`; fallback `AnnualTax`. */
+  isrCalculado: Money;
 }
 
 /** Respuesta paginada del backend (skip/take/total). */

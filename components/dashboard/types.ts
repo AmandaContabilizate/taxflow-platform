@@ -48,6 +48,7 @@ export type Screen =
   | 'codigos-descuento'
   | 'reportes-ejecutivos'
   | 'operaciones'
+  | 'declaraciones-rechazadas'
   | 'declaraciones-futuras'
   | 'tramites-adicionales'
   | 'ventas'

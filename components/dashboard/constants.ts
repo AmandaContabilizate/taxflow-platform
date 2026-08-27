@@ -6,6 +6,7 @@ import {
   Briefcase,
   Calendar,
   CheckSquare,
+  Ban,
   ClipboardList,
   DollarSign,
   FilePlus,
@@ -88,6 +89,7 @@ export const TITLES: Record<Screen, [string, string]> = {
   'codigos-descuento': ['Códigos de descuento', 'Códigos por dueño: ejecutivos, finder fees y partners'],
   'reportes-ejecutivos': ['Reportes ejecutivos', 'KPIs y resultados del área'],
   operaciones: ['Centro de operaciones', 'Gestión y supervisión de declaraciones fiscales'],
+  'declaraciones-rechazadas': ['Declaraciones rechazadas', 'Declaraciones que el cliente rechazó y esperan corrección'],
   'declaraciones-futuras': ['Declaraciones futuras', 'Declaraciones compradas de periodos posteriores al mes actual'],
   'tramites-adicionales': ['Trámites adicionales', 'Seguimiento de trámites vendidos a tus clientes'],
   ventas: ['Ventas', 'Resumen de ventas registradas por cuenta'],
@@ -263,6 +265,12 @@ const OPERACIONES_ITEM: NavDef = {
   Icon: Briefcase,
   hint: 'Gestión de declaraciones',
 }
+const DECLARACIONES_RECHAZADAS_ITEM: NavDef = {
+  id: 'declaraciones-rechazadas',
+  label: 'Declaraciones rechazadas',
+  Icon: Ban,
+  hint: 'Rechazadas por el cliente',
+}
 const DECLARACIONES_FUTURAS_ITEM: NavDef = {
   id: 'declaraciones-futuras',
   label: 'Declaraciones futuras',
@@ -344,6 +352,7 @@ export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
     CLIENTES_ITEM,
     CONTRIBUYENTES_ITEM,
     OPERACIONES_ITEM,
+    DECLARACIONES_RECHAZADAS_ITEM,
     REGULARIZACIONES_ITEM,
     TRAMITES_ADICIONALES_ITEM,
     DECLARACIONES_ANUALES_ITEM,
@@ -439,6 +448,7 @@ export const MASTER_NAV_SECTIONS: NavSection[] = [
     section: 'OPERACIÓN',
     items: [
       OPERACIONES_ITEM,
+      DECLARACIONES_RECHAZADAS_ITEM,
       DECLARACIONES_FUTURAS_ITEM,
       MIS_CLIENTES_ITEM,
       REGULARIZACIONES_ITEM,
@@ -501,6 +511,7 @@ export const MODULE_CLAIMS: Record<string, string[]> = {
   ],
   renovaciones: ['Comercial.ReadRenovaciones'],
   operaciones: ['Contador.ReadDeclaraciones'],
+  'declaraciones-rechazadas': ['Contador.ReadDeclaraciones'],
   'declaraciones-futuras': ['Contador.ReadDeclaracionesFuturas'],
   // Cartera propia (contador) o todas las carteras (gerencia con AssignAccountant)
   'mis-clientes': ['Contador.ReadMisClientes', 'AssignAccountant'],
