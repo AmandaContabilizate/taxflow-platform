@@ -5,7 +5,9 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useNotifications } from '@/hooks/useNotifications';
 import { NotificationCategory, UserNotification } from '@/types/notification';
 import { NotificationItem } from '@/components/notifications/NotificationItem';
-import { Bell, Search, CheckCheck, RefreshCw, PlusCircle, Inbox, Filter, Shield, FileText, Building2, CreditCard, AlertTriangle } from 'lucide-react';
+import { Bell, Search, CheckCheck, RefreshCw, PlusCircle, Inbox, Filter, Shield, FileText, Building2, CreditCard, AlertTriangle, ExternalLink } from 'lucide-react';
+import { formatDistanceToNow, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 const CATEGORIES: { id: NotificationCategory; label: string; icon: React.ElementType }[] = [
   { id: 'Todas', label: 'Todas', icon: Bell },
@@ -15,6 +17,38 @@ const CATEGORIES: { id: NotificationCategory; label: string; icon: React.Element
   { id: 'Renovacion', label: 'Renovación', icon: CreditCard },
   { id: 'Alertas', label: 'Alertas', icon: AlertTriangle },
 ];
+
+function getDetailImageUrl(item: UserNotification): string | null {
+  if (item.imageUrl?.trim()) return item.imageUrl.trim();
+  if (item.payloadJson?.trim()) {
+    try {
+      const parsed = JSON.parse(item.payloadJson);
+      return parsed?.imageUrl || parsed?.ImageUrl || null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function getModalCategoryConfig(category: string) {
+  const catLower = (category || '').toLowerCase();
+  switch (catLower) {
+    case 'pre-reportes':
+    case 'contable':
+      return { icon: FileText, badgeBg: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' };
+    case 'sat':
+      return { icon: Building2, badgeBg: 'bg-amber-500/10 text-amber-500 border-amber-500/20' };
+    case 'renovacion':
+    case 'renovación':
+      return { icon: CreditCard, badgeBg: 'bg-purple-500/10 text-purple-500 border-purple-500/20' };
+    case 'alertas':
+      return { icon: AlertTriangle, badgeBg: 'bg-rose-500/10 text-rose-500 border-rose-500/20' };
+    case 'sistema':
+    default:
+      return { icon: Shield, badgeBg: 'bg-blue-500/10 text-blue-500 border-blue-500/20' };
+  }
+}
 
 export default function NotificationCenterPage() {
   const router = useRouter();
@@ -210,35 +244,87 @@ export default function NotificationCenterPage() {
 
       {/* Modal de Detalle Completo */}
       {selectedDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-card w-full max-w-lg rounded-2xl border shadow-2xl p-6 space-y-4 relative">
-            <div className="flex items-start justify-between border-b pb-3">
-              <div>
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                  {selectedDetail.category}
-                </span>
-                <h3 className="text-base font-bold text-foreground mt-2">{selectedDetail.title}</h3>
-              </div>
-              <button
-                onClick={() => setSelectedDetail(null)}
-                className="text-muted-foreground hover:text-foreground text-sm font-semibold p-1"
-              >
-                ✕
-              </button>
-            </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-card w-full max-w-3xl rounded-3xl border shadow-2xl p-7 space-y-5 relative max-h-[92vh] overflow-y-auto">
+            {(() => {
+              const modalConfig = getModalCategoryConfig(selectedDetail.category);
+              const IconComponent = modalConfig.icon;
+              const detailImageUrl = getDetailImageUrl(selectedDetail);
 
-            <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">
-              {selectedDetail.summary}
-            </p>
+              return (
+                <>
+                  <div className="flex items-start justify-between border-b pb-4">
+                    <div className="flex items-start gap-3.5">
+                      <div className={`p-3 rounded-2xl border ${modalConfig.badgeBg} flex-shrink-0 mt-0.5`}>
+                        <IconComponent className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2.5">
+                          <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${modalConfig.badgeBg}`}>
+                            {selectedDetail.category}
+                          </span>
+                          {selectedDetail.createdAt && (
+                            <span className="text-xs font-medium text-muted-foreground">
+                              {formatDistanceToNow(parseISO(selectedDetail.createdAt), { addSuffix: true, locale: es })}
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="text-xl sm:text-2xl font-bold text-foreground mt-1.5">{selectedDetail.title}</h3>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setSelectedDetail(null)}
+                      className="text-muted-foreground hover:text-foreground text-base font-bold p-1.5 rounded-xl hover:bg-accent transition-colors"
+                    >
+                      ✕
+                    </button>
+                  </div>
 
-            <div className="pt-4 border-t flex justify-end gap-2">
-              <button
-                onClick={() => setSelectedDetail(null)}
-                className="px-4 py-2 text-xs font-medium rounded-xl border bg-card hover:bg-accent text-foreground"
-              >
-                Cerrar
-              </button>
-            </div>
+                  <p className="text-base text-foreground/90 leading-relaxed whitespace-pre-line">
+                    {selectedDetail.summary}
+                  </p>
+
+                  {detailImageUrl && (
+                    <div className="my-4 overflow-hidden rounded-2xl border border-border/50 bg-black/10 dark:bg-black/40 p-3 flex justify-center max-h-[420px]">
+                      <img
+                        src={detailImageUrl}
+                        alt=""
+                        className="max-h-[390px] w-auto object-contain rounded-xl"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  <div className="pt-4 border-t flex items-center justify-between gap-3">
+                    {selectedDetail.detailUrl ? (
+                      <a
+                        href={
+                          selectedDetail.detailUrl.trim() === '/dashboard' || selectedDetail.detailUrl.trim() === '/dashboard/'
+                            ? '/dashboard?s=home'
+                            : selectedDetail.detailUrl.startsWith('/dashboard/') && !selectedDetail.detailUrl.includes('?s=')
+                            ? `/dashboard?s=${selectedDetail.detailUrl.split('/')[2] || 'home'}`
+                            : selectedDetail.detailUrl
+                        }
+                        onClick={() => setSelectedDetail(null)}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-bold rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity shadow-sm"
+                      >
+                        <span>Ir a Detalle</span>
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    ) : <div />}
+
+                    <button
+                      onClick={() => setSelectedDetail(null)}
+                      className="px-5 py-2.5 text-xs font-semibold rounded-xl border bg-card hover:bg-accent text-foreground transition-colors"
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}

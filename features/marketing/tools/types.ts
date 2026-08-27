@@ -14,20 +14,20 @@ export interface BroadcastPushRequest {
 export interface BroadcastPushDetail {
   userId?: string
   UserId?: string
-  email?: string
-  Email?: string
-  rfc?: string
-  Rfc?: string
+  email?: string | null
+  Email?: string | null
+  rfc?: string | null
+  Rfc?: string | null
   token?: string
   Token?: string
   platform?: string
   Platform?: string
   status?: string
   Status?: string
-  messageId?: string
-  MessageId?: string
-  error?: string
-  Error?: string
+  messageId?: string | null
+  MessageId?: string | null
+  error?: string | null
+  Error?: string | null
 }
 
 export interface BroadcastPushResponse {

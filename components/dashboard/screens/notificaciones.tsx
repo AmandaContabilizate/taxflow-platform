@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { AlertCircle, Bell, CheckCircle2, ImageIcon, Loader2, Send, Smartphone, Users } from 'lucide-react'
-import { sendBroadcastPushAction } from '@/features/marketing/actions/sendBroadcastPush.action'
+import { sendBroadcastPushAction, type BroadcastPushResponse } from '@/features/marketing/actions/sendBroadcastPush.action'
 import { DISPLAY, MONO } from '../constants'
 import { Btn, Card, HelpBox } from '../ui'
 
@@ -41,7 +41,7 @@ const AUDIENCIAS: { id: Audiencia; label: string; hint: string; Icon: typeof Use
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const TITULO_MAX = 65
-const CUERPO_MAX = 240
+const CUERPO_MAX = 1000
 
 function parseEmails(raw: string): string[] {
   return raw
@@ -57,9 +57,11 @@ export function NotificacionesScreen() {
   const [titulo, setTitulo] = useState('')
   const [cuerpo, setCuerpo] = useState('')
   const [imagenUrl, setImagenUrl] = useState('')
+  const [actionUrl, setActionUrl] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [enviado, setEnviado] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [envioResult, setEnvioResult] = useState<BroadcastPushResponse | null>(null)
 
   const lista = useMemo(() => parseEmails(emails), [emails])
   const invalidos = useMemo(() => lista.filter(e => !EMAIL_RE.test(e)), [lista])
@@ -78,6 +80,7 @@ export function NotificacionesScreen() {
   const enviar = async () => {
     setError(null)
     setEnviado(null)
+    setEnvioResult(null)
     if (audiencia === 'emails' && lista.length === 0) {
       setError('Agrega al menos un correo destinatario.')
       return
@@ -92,6 +95,7 @@ export function NotificacionesScreen() {
         title: titulo.trim(),
         body: cuerpo.trim(),
         category: categoria,
+        actionUrl: actionUrl.trim() || undefined,
         imageUrl: imagenUrl.trim() || undefined,
         targetAudience: audiencia === 'emails' ? 'SpecificUsers' : 'All',
         userIds: audiencia === 'emails' ? lista : undefined,
@@ -103,6 +107,7 @@ export function NotificacionesScreen() {
         return
       }
 
+      setEnvioResult(result.value)
       setEnviado(result.value.message || `Notificación enviada con éxito a ${destinatarioLabel}.`)
     } catch (err: any) {
       console.error('Error al enviar difusión:', err)
@@ -117,8 +122,10 @@ export function NotificacionesScreen() {
     setTitulo('')
     setCuerpo('')
     setImagenUrl('')
+    setActionUrl('')
     setEnviado(null)
     setError(null)
+    setEnvioResult(null)
   }
 
   return (
@@ -150,18 +157,20 @@ export function NotificacionesScreen() {
                       border: `1px solid ${activo ? 'transparent' : 'var(--border)'}`,
                     }}
                   >
-                    <div
-                      className="w-7 h-7 rounded-full flex items-center justify-center mb-2"
-                      style={{
-                        background: activo ? 'var(--nav-active-icon-bg)' : 'var(--ink-50)',
-                        color: activo ? 'var(--nav-active-icon-fg)' : 'var(--ink-700)',
-                      }}
-                    >
-                      <Icon size={15} />
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <div
+                        className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+                        style={{
+                          background: activo ? 'var(--nav-active-icon-bg)' : 'var(--ink-50)',
+                          color: activo ? 'var(--nav-active-icon-fg)' : 'var(--ink-700)',
+                        }}
+                      >
+                        <Icon size={15} />
+                      </div>
+                      <div className="text-[13px] font-bold leading-tight min-w-0">{label}</div>
                     </div>
-                    <div className="text-[13px] font-bold leading-tight">{label}</div>
                     <div
-                      className="text-[11px] font-semibold mt-0.5 leading-snug"
+                      className="text-[11px] font-semibold leading-snug"
                       style={{ color: activo ? 'var(--nav-active-hint)' : 'var(--ink-500)' }}
                     >
                       {hint}
@@ -207,19 +216,19 @@ export function NotificacionesScreen() {
         <Card>
           <div className="p-4 lg:p-5 grid gap-3.5">
             <div>
-              <div className="text-[14.5px] font-extrabold" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
+              <div className="text-[14.5px] font-extrabold mb-2" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
                 Contenido
               </div>
-              <div className="text-[12px] font-semibold mt-0.5" style={{ color: 'var(--ink-500)' }}>
-                Lo que verá el usuario en su dispositivo
-              </div>
+              <HelpBox>
+                Lo que verá el usuario en su dispositivo. Los avisos de difusión se envían directamente como notificaciones a sus dispositivos (móvil y web) y quedan guardados automáticamente en su Centro de Notificaciones.
+              </HelpBox>
             </div>
 
-            <div className="grid gap-1.5">
-              <label className="text-[12.5px] font-bold" style={{ color: 'var(--ink-700)' }}>
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="text-[12.5px] font-bold flex-shrink-0" style={{ color: 'var(--ink-700)' }}>
                 Categoría del aviso
               </label>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 items-center">
                 {CATEGORIAS.map(cat => {
                   const activo = categoria === cat.id
                   return (
@@ -272,29 +281,49 @@ export function NotificacionesScreen() {
               <textarea
                 value={cuerpo}
                 onChange={e => setCuerpo(e.target.value.slice(0, CUERPO_MAX))}
-                rows={2.5 as any}
+                rows={3.5 as any}
                 placeholder="Entra a la app para revisarla y hacer tu pago antes del día 17."
                 className="w-full rounded-xl px-3.5 py-2 text-[13.5px] outline-none resize-y"
                 style={{ background: 'var(--input)', color: 'var(--foreground)', border: '1px solid var(--border)' }}
               />
             </div>
 
-            <div className="grid gap-1.5">
-              <label className="text-[12.5px] font-bold" style={{ color: 'var(--ink-700)' }}>
-                URL de la imagen <span style={{ color: 'var(--ink-500)' }}>(opcional)</span>
-              </label>
-              <input
-                value={imagenUrl}
-                onChange={e => setImagenUrl(e.target.value)}
-                placeholder="https://cdn.contabilizate.com/banner.png"
-                className="w-full rounded-xl px-3.5 py-2 text-[13px] outline-none"
-                style={{
-                  background: 'var(--input)',
-                  color: 'var(--foreground)',
-                  border: '1px solid var(--border)',
-                  ...MONO,
-                }}
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid gap-1.5">
+                <label className="text-[12.5px] font-bold" style={{ color: 'var(--ink-700)' }}>
+                  URL de destino / Redirección <span style={{ color: 'var(--ink-500)' }}>(opcional)</span>
+                </label>
+                <input
+                  value={actionUrl}
+                  onChange={e => setActionUrl(e.target.value)}
+                  placeholder="https://contabilizate.com/promocion"
+                  className="w-full rounded-xl px-3.5 py-2 text-[13px] outline-none"
+                  style={{
+                    background: 'var(--input)',
+                    color: 'var(--foreground)',
+                    border: '1px solid var(--border)',
+                    ...MONO,
+                  }}
+                />
+              </div>
+
+              <div className="grid gap-1.5">
+                <label className="text-[12.5px] font-bold" style={{ color: 'var(--ink-700)' }}>
+                  URL de la imagen <span style={{ color: 'var(--ink-500)' }}>(opcional)</span>
+                </label>
+                <input
+                  value={imagenUrl}
+                  onChange={e => setImagenUrl(e.target.value)}
+                  placeholder="https://cdn.contabilizate.com/banner.png"
+                  className="w-full rounded-xl px-3.5 py-2 text-[13px] outline-none"
+                  style={{
+                    background: 'var(--input)',
+                    color: 'var(--foreground)',
+                    border: '1px solid var(--border)',
+                    ...MONO,
+                  }}
+                />
+              </div>
             </div>
 
             {error && (
@@ -387,9 +416,120 @@ export function NotificacionesScreen() {
           </div>
         </Card>
 
-        <HelpBox>
-          Los avisos de difusión se envían directamente como notificaciones a los dispositivos de los usuarios (móvil y web) y quedan guardados automáticamente en su Centro de Notificaciones.
-        </HelpBox>
+        <Card>
+          <div className="p-4 lg:p-5 grid gap-4">
+            <div className="flex items-start gap-2.5">
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                style={{
+                  background: envioResult ? 'rgba(16, 185, 129, 0.18)' : 'var(--hero-brand-soft)',
+                  color: envioResult ? '#10B981' : 'var(--brand-700)',
+                }}
+              >
+                <CheckCircle2 size={16} />
+              </div>
+              <div>
+                <div className="text-[14px] font-extrabold" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
+                  Resultado del Envío
+                </div>
+                <div className="text-[11.5px] font-semibold mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                  {envioResult
+                    ? `Procesado envío de notificación Push masiva: ${envioResult.sentCount ?? 0} exitosas, ${envioResult.failedCount ?? 0} fallidas.`
+                    : 'Aquí se mostrarán las métricas y el detalle de entrega al despachar la notificación.'}
+                </div>
+              </div>
+            </div>
+
+            {/* Grid 4 métricas */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="p-2.5 rounded-xl border" style={{ background: 'var(--muted)', borderColor: 'var(--border)' }}>
+                <div className="text-[9.5px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+                  CUENTAS DESTINO
+                </div>
+                <div className="text-[18px] font-extrabold mt-0.5" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
+                  {envioResult?.totalUsersTargeted ?? 0}
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-xl border" style={{ background: 'var(--muted)', borderColor: 'var(--border)' }}>
+                <div className="text-[9.5px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+                  DISPOSITIVOS DETECTADOS
+                </div>
+                <div className="text-[18px] font-extrabold mt-0.5" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
+                  {envioResult?.totalTokensFound ?? 0}
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-xl border" style={{ background: 'rgba(16, 185, 129, 0.12)', borderColor: 'rgba(16, 185, 129, 0.3)' }}>
+                <div className="text-[9.5px] font-extrabold uppercase tracking-wider" style={{ color: '#10B981' }}>
+                  ENTREGADOS OK
+                </div>
+                <div className="text-[18px] font-extrabold mt-0.5" style={{ ...DISPLAY, color: '#10B981' }}>
+                  {envioResult?.sentCount ?? 0}
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-xl border" style={{ background: 'var(--hero-coral-soft-bg)', borderColor: 'rgba(244, 63, 94, 0.3)' }}>
+                <div className="text-[9.5px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--destructive)' }}>
+                  FALLIDOS
+                </div>
+                <div className="text-[18px] font-extrabold mt-0.5" style={{ ...DISPLAY, color: 'var(--destructive)' }}>
+                  {envioResult?.failedCount ?? 0}
+                </div>
+              </div>
+            </div>
+
+            {/* Lista de detalles de destinatarios */}
+            {envioResult?.details && envioResult.details.length > 0 && (
+              <div className="grid gap-2 border-t pt-3" style={{ borderColor: 'var(--border)' }}>
+                <div className="text-[11px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+                  DETALLE DE DESTINATARIOS ({envioResult.details.length})
+                </div>
+
+                <div className="max-h-[220px] overflow-y-auto grid gap-2 pr-1">
+                  {envioResult.details.map((d, idx) => {
+                    const isSent = d.status === 'sent'
+                    return (
+                      <div
+                        key={idx}
+                        className="p-2.5 rounded-xl border text-[11.5px]"
+                        style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold truncate min-w-0" style={{ color: 'var(--ink-900)' }}>
+                            {d.email || d.userId || 'Usuario'}
+                          </span>
+                          <span
+                            className="px-2 py-0.5 rounded-md text-[9.5px] font-extrabold flex-shrink-0"
+                            style={{
+                              background: isSent ? 'rgba(16, 185, 129, 0.18)' : 'var(--hero-coral-soft-bg)',
+                              color: isSent ? '#10B981' : 'var(--destructive)',
+                            }}
+                          >
+                            {isSent ? 'ENTREGADO' : 'FALLIDO'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2 mt-1 text-[10.5px]" style={{ color: 'var(--ink-500)' }}>
+                          <span>Plataforma: <strong style={{ color: 'var(--ink-700)' }}>{d.platform || 'Web'}</strong></span>
+                          {d.token && (
+                            <span className="truncate max-w-[120px]" style={MONO}>
+                              Token: {d.token.slice(0, 15)}...
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="text-[10.5px] font-semibold mt-0.5" style={{ color: isSent ? '#10B981' : 'var(--destructive)' }}>
+                          {isSent ? 'Enviado correctamente' : d.error || 'Error en entrega de token'}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </Card>
       </div>
     </div>
   )

@@ -14,7 +14,22 @@ interface NotificationItemProps {
   onSelectDetail?: (notification: UserNotification) => void;
 }
 
+function getNotificationImageUrl(n: UserNotification): string | null {
+  if (n.imageUrl?.trim()) return n.imageUrl.trim();
+  if (n.payloadJson?.trim()) {
+    try {
+      const parsed = JSON.parse(n.payloadJson);
+      return parsed?.imageUrl || parsed?.ImageUrl || null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 export function NotificationItem({ notification, onMarkAsRead, onDelete, onSelectDetail }: NotificationItemProps) {
+  const displayImageUrl = React.useMemo(() => getNotificationImageUrl(notification), [notification]);
+
   const getCategoryConfig = (category: string, code: string) => {
     const catLower = (category || '').toLowerCase();
     switch (catLower) {
@@ -113,6 +128,19 @@ export function NotificationItem({ notification, onMarkAsRead, onDelete, onSelec
         <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed mb-2">
           {notification.summary}
         </p>
+
+        {displayImageUrl && (
+          <div className="my-2.5 overflow-hidden rounded-xl border border-border/50 bg-black/10 dark:bg-black/40 p-1 flex justify-start max-w-sm">
+            <img
+              src={displayImageUrl}
+              alt=""
+              className="max-h-36 w-auto object-contain rounded-lg"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          </div>
+        )}
 
         {notification.detailUrl && (
           <Link

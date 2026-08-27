@@ -8,19 +8,33 @@ export interface BroadcastPushRequest {
   title: string;
   body: string;
   category?: string;
+  actionUrl?: string;
   imageUrl?: string;
   targetAudience?: string;
   roleName?: string;
   userIds?: string[];
 }
 
+export interface BroadcastPushDetail {
+  userId?: string;
+  email?: string | null;
+  rfc?: string | null;
+  token?: string;
+  platform?: string;
+  status?: string;
+  messageId?: string | null;
+  error?: string | null;
+}
+
 export interface BroadcastPushResponse {
   success: boolean;
-  totalTargetUsers?: number;
-  totalTokensFound?: number;
-  successCount?: number;
-  failureCount?: number;
   message?: string;
+  targetAudience?: string;
+  totalUsersTargeted?: number;
+  totalTokensFound?: number;
+  sentCount?: number;
+  failedCount?: number;
+  details?: BroadcastPushDetail[];
 }
 
 interface MarketingError {
