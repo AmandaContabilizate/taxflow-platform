@@ -10,6 +10,7 @@ import { MONO } from '../constants'
 import { Card, HelpBox } from '../ui'
 import { Pagination, SearchBar } from '../clientes/parts'
 import { StripeDetailModal } from '../ventas/stripe-detail-modal'
+import { OtherPaymentButton } from './ventas'
 
 const TAKE = 50
 const DIAS_OPTIONS = [7, 15, 30, 60, 90]
@@ -235,15 +236,21 @@ export function RenovacionesScreen() {
                         <div className="text-[11.5px] mt-0.5" style={{ ...MONO, color: 'var(--ink-500)' }}>
                           {money.format(v.amount)} · {formatDate(v.saleDate)}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setStripeSaleId(v.saleId)}
-                          title="Ver datos de Stripe"
-                          className="mt-1.5 inline-flex items-center px-2 py-1 rounded-lg border transition hover:bg-[var(--ink-50)]"
-                          style={{ borderColor: 'var(--border)' }}
-                        >
-                          <Image src="/stripe-logo.png" alt="Stripe" width={38} height={16} />
-                        </button>
+                        {v.paymentIntentId ? (
+                          <button
+                            type="button"
+                            onClick={() => setStripeSaleId(v.saleId)}
+                            title="Ver datos de Stripe"
+                            className="mt-1.5 inline-flex items-center px-2 py-1 rounded-lg border transition hover:bg-[var(--ink-50)]"
+                            style={{ borderColor: 'var(--border)' }}
+                          >
+                            <Image src="/stripe-logo.png" alt="Stripe" width={38} height={16} />
+                          </button>
+                        ) : (
+                          <div className="mt-1.5">
+                            <OtherPaymentButton onClick={() => setStripeSaleId(v.saleId)} />
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}

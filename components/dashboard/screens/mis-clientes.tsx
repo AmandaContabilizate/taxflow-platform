@@ -17,7 +17,7 @@ import {
 import { ReassignModal } from '../clientes/reassign-modal'
 import { ActividadesModal } from '../clientes/actividades-modal'
 
-const DEFAULT_MIN_SALES = 2
+const DEFAULT_MIN_SALES: number | '' = ''
 
 const ASSIGN_PERMISSION = 'AssignAccountant'
 const ACTIVITIES_PERMISSION = 'AccountingManager.GetRegimeActivities'

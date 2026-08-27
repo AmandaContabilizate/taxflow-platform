@@ -1,6 +1,6 @@
 'use client'
 
-import { Loader2 } from 'lucide-react'
+import { CreditCard, Loader2 } from 'lucide-react'
 import Image from 'next/image'
 import { useCallback, useState } from 'react'
 import { getSalesSummary } from '@/features/operations/actions/getSalesSummary.action'
@@ -105,6 +105,27 @@ function StripeButton({ onClick }: { onClick: () => void }) {
   )
 }
 
+function isStripeId(id: string | null | undefined): boolean {
+  if (!id) return false
+  const t = id.trim()
+  return t.startsWith('cs_') || t.startsWith('pi_') || t.startsWith('cus_') || t.startsWith('sub_') || t.startsWith('in_')
+}
+
+export function OtherPaymentButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title="Ver detalle del pago (Otro medio)"
+      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11.5px] font-bold transition hover:bg-[var(--ink-50)]"
+      style={{ borderColor: 'var(--border)', color: 'var(--ink-700)' }}
+    >
+      <CreditCard size={14} className="text-amber-500" />
+      <span>Otro medio</span>
+    </button>
+  )
+}
+
 export function VentasScreen() {
   const [status, setStatus] = useState(0)
   const [pageSize, setPageSize] = useState(50)
@@ -190,10 +211,10 @@ export function VentasScreen() {
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Venta', 'Cuenta', 'RFC', 'Productos', 'Monto', 'Código', 'Estatus', 'Stripe'].map((h) => (
+                    {['Venta', 'Cuenta', 'RFC', 'Productos', 'Monto', 'Código', 'Estatus', 'Medio de Pago'].map((h) => (
                       <th
                         key={h}
-                        className={`px-5 py-3 font-extrabold ${h === 'Monto' ? 'text-right' : h === 'Stripe' ? 'text-center' : 'text-left'}`}
+                        className={`px-5 py-3 font-extrabold ${h === 'Monto' ? 'text-right' : h === 'Medio de Pago' ? 'text-center' : 'text-left'}`}
                         style={{ color: 'var(--ink-700)', background: 'var(--card)' }}
                       >
                         {h}
@@ -202,72 +223,85 @@ export function VentasScreen() {
                   </tr>
                 </thead>
                 <tbody>
-                  {list.items.map((v) => (
-                    <tr key={v.saleId} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td className="px-5 py-4 align-top">
-                        <div className="font-semibold" style={{ color: 'var(--ink-900)' }}>
-                          #{v.saleId}
-                        </div>
-                        <div className="text-xs mt-0.5" style={{ color: 'var(--ink-500)' }}>
-                          {formatDate(v.saleDate)}
-                        </div>
-                      </td>
-                      <td className="px-5 py-4 align-top">
-                        <div className="font-semibold" style={{ color: 'var(--ink-900)' }}>
-                          {v.userFullName}
-                        </div>
-                        <div className="text-xs mt-0.5" style={{ color: 'var(--ink-500)' }}>
-                          {v.userEmail}
-                        </div>
-                        {v.userPhone && (
-                          <div className="text-[11.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
-                            📞 {v.userPhone}
+                  {list.items.map((v) => {
+                    const stripeId = isStripeId(v.paymentIntentId)
+                      ? v.paymentIntentId
+                      : isStripeId(v.checkoutId)
+                        ? v.checkoutId
+                        : null
+                    return (
+                      <tr key={v.saleId} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td className="px-5 py-4 align-top">
+                          <div className="font-semibold" style={{ color: 'var(--ink-900)' }}>
+                            #{v.saleId}
                           </div>
-                        )}
-                      </td>
-                      <td className="px-5 py-4 align-top">
-                        <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-700)' }}>{v.rfc}</code>
-                      </td>
-                      <td className="px-5 py-4 align-top">
-                        <ProductosCell productos={v.productos} />
-                      </td>
-                      <td className="px-5 py-4 align-top text-right">
-                        <span className="font-bold" style={{ ...MONO, color: 'var(--ink-900)' }}>
-                          {money.format(v.amount)}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4 align-top">
-                        {v.discountCode ? (
-                          <div
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold"
-                            style={{ background: 'var(--violet-soft)', color: 'var(--violet-ink)' }}
-                            title="Código de promoción aplicado en la compra"
-                          >
-                            <span style={MONO}>{v.discountCode}</span>
-                            {v.discountPercent != null && v.discountPercent > 0 && (
-                              <span>· {v.discountPercent}%</span>
-                            )}
+                          <div className="text-xs mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                            {formatDate(v.saleDate)}
                           </div>
-                        ) : (
-                          <span className="text-[12px]" style={{ color: 'var(--ink-400)' }}>—</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-4 align-top">
-                        <EstatusBadge statusSaleId={v.statusSaleId} estatus={v.estatus} />
-                      </td>
-                      <td className="px-5 py-4 align-top text-center">
-                        <StripeButton onClick={() => setStripeSaleId(v.saleId)} />
-                        {v.paymentIntentId && (
-                          <div
-                            className="text-[10.5px] mt-1 truncate max-w-[130px] mx-auto"
-                            style={{ ...MONO, color: 'var(--ink-400)' }}
-                          >
-                            {v.paymentIntentId}
+                        </td>
+                        <td className="px-5 py-4 align-top">
+                          <div className="font-semibold" style={{ color: 'var(--ink-900)' }}>
+                            {v.userFullName}
                           </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                          <div className="text-xs mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                            {v.userEmail}
+                          </div>
+                          {v.userPhone && (
+                            <div className="text-[11.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                              📞 {v.userPhone}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-5 py-4 align-top">
+                          <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-700)' }}>{v.rfc}</code>
+                        </td>
+                        <td className="px-5 py-4 align-top">
+                          <ProductosCell productos={v.productos} />
+                        </td>
+                        <td className="px-5 py-4 align-top text-right">
+                          <span className="font-bold" style={{ ...MONO, color: 'var(--ink-900)' }}>
+                            {money.format(v.amount)}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4 align-top">
+                          {v.discountCode ? (
+                            <div
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold"
+                              style={{ background: 'var(--violet-soft)', color: 'var(--violet-ink)' }}
+                              title="Código de promoción aplicado en la compra"
+                            >
+                              <span style={MONO}>{v.discountCode}</span>
+                              {v.discountPercent != null && v.discountPercent > 0 && (
+                                <span>· {v.discountPercent}%</span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-[12px]" style={{ color: 'var(--ink-400)' }}>—</span>
+                          )}
+                        </td>
+                        <td className="px-5 py-4 align-top">
+                          <EstatusBadge statusSaleId={v.statusSaleId} estatus={v.estatus} />
+                        </td>
+                        <td className="px-5 py-4 align-top text-center">
+                          {stripeId ? (
+                            <>
+                              <StripeButton onClick={() => setStripeSaleId(v.saleId)} />
+                              <div
+                                className="text-[10.5px] mt-1 truncate max-w-[130px] mx-auto"
+                                style={{ ...MONO, color: 'var(--ink-400)' }}
+                              >
+                                {stripeId}
+                              </div>
+                            </>
+                          ) : v.statusSaleId === 2 ? (
+                            <OtherPaymentButton onClick={() => setStripeSaleId(v.saleId)} />
+                          ) : (
+                            <span className="text-[12px]" style={{ color: 'var(--ink-400)' }}>—</span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

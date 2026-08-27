@@ -360,6 +360,8 @@ export interface VentaResumen {
   discountPercent: number | null;
   /** Teléfono de contacto del usuario titular de la cuenta. */
   userPhone?: string | null;
+  /** cs_... de la sesión de checkout en Stripe (null si no trajo). */
+  checkoutId?: string | null;
 }
 
 /** Declaración pendiente de la cartera (panel del contador). */
