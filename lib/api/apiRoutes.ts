@@ -324,58 +324,26 @@ export const API_ROUTES = {
     FUTURE_PLAN: (rfc: string) => `/future-plan?rfc=${encodeURIComponent(rfc)}`,
     ANNUALS: (rfc: string) => `/annuals?rfc=${encodeURIComponent(rfc)}`,
     ALL: (rfc: string) => `/all?rfc=${encodeURIComponent(rfc)}`,
-    // Hilo de comentarios de una declaración — mismo declarationId, visible
-    // pa' contador (asignado o no) y contribuyente dueño.
     COMMENTS: (declarationId: number) => `/${declarationId}/comments`,
-    // apiType "declaration" · POST RecalculateDeclarationRequestDto. Botón
-    // "Recalcular" del contador: el RFC va explícito (el GET
-    // recalculate-declaration viejo resuelve al contribuyente por el email del
-    // token, así que solo sirve cuando el cliente recalcula lo suyo).
-    // `adjustments` vacío/ausente = reclasifica desde cero. El cálculo puede
-    // tardar minutos (timeout del clasificador: 180s).
     RECALCULATE: "/recalculate",
-    // apiType "declaration" · GET. Todas las facturas del periodo con su
-    // clasificación (mismo universo que se le manda al clasificador).
-    // idRegime = Id interno de Users.TaxRegimes (p.ej. 18), NO el código SAT.
     ISSUED_INVOICES_DECLARATION: (p: DeclarationPeriodInvoicesParams) =>
       `/issued-invoices-declaration${periodInvoicesQuery(p)}`,
     RECEIVED_INVOICES_DECLARATION: (p: DeclarationPeriodInvoicesParams) =>
       `/received-invoices-declaration${periodInvoicesQuery(p)}`,
-    // apiType "declaration" · GET. Vista del cliente: los CFDI ligados a la
-    // declaracion sin nada de clasificacion, solo el detalle y si es deducible.
-    // Responde el array pelon (sin envelope ResultHandler).
     CLIENT_INVOICES: (declarationId: number) =>
       `/client-invoices?declarationId=${declarationId}`,
-    // apiType "declaration" · GET. Vista del contador, nivel 1: contribuyentes con
-    // declaraciones compradas ("En proceso") del tipo pedido, paginado por
-    // contribuyente. `search` filtra por RFC o razón social.
-    // `kind`: 1 solo regularizaciones, 2 solo a futuro, ausente = ambas (desde E5.1).
-    // `taxRegimeId`: Id interno de Users.TaxRegimes (NO el código SAT); filtra el
-    // listado y el `declarationCount` server-side.
-    // `onlyUpcoming`: solo periodos de calendario aún no vencidos. OJO: las rutas
-    // de regularización NO lo aceptan.
     DECLARATION_TAXPAYERS: (p: TaxpayerGroupsQuery = {}) =>
       `/declaration-taxpayers${taxpayerGroupsQuery(p)}`,
     REGULARIZATION_TAXPAYERS: (p: TaxpayerGroupsQuery = {}) =>
       `/regularization-taxpayers${taxpayerGroupsQuery({ ...p, onlyUpcoming: undefined })}`,
-    // apiType "declaration" · GET. Nivel 2: planes a futuro (kind 2) / regularizaciones
-    // (kind 1) compradas y en proceso. Sin `rfc` trae las de todos los contribuyentes.
-    // Mismos params nuevos que el nivel 1 (`taxRegimeId`, `onlyUpcoming`).
     DECLARATIONS_BY_TAXPAYER: (p: TaxpayerPurchasesQuery = {}) =>
       `/declarations-by-taxpayer${taxpayerPurchasesQuery(p)}`,
     REGULARIZATIONS_BY_TAXPAYER: (p: TaxpayerPurchasesQuery = {}) =>
       `/regularizations-by-taxpayer${taxpayerPurchasesQuery({ ...p, onlyUpcoming: undefined })}`,
   },
-  // apiType "declaration_report". Flujo público: el cliente abre /reporte?t={token}
-  // desde el correo. El token AES (Base64 url-safe) es la única credencial, los
-  // tres endpoints son AllowAnonymous → se consumen con las variantes *Public
-  // (sin header Authorization) y el token se reenvía tal cual llegó.
   DECLARATION_REPORT: {
-    // GET · DeclarationReportDto con la ficha, totales y el desglose crudo.
     REPORT: (token: string) => `/report?t=${encodeURIComponent(token)}`,
-    // POST { token } · "Autorizar y presentar": 9 (EnRevisionCliente) → 11 (PorPresentar).
     AUTHORIZE: "/authorize",
-    // POST { token, comment } · "Tengo una duda": 9|10 → 10 (RebotadaCliente).
     COMMENT: "/comment",
   },
   VAULT: {
@@ -402,19 +370,14 @@ export const API_ROUTES = {
     PLANS: (rfc: string) => `/plans?rfc=${encodeURIComponent(rfc)}`,
     ADDITIONAL_PROCEDURES: "/additional-procedures",
     TAX_REGIMES: "/taxregimes",
-    // apiType "catalogs_procedures" · GET. Categorías de classification.clasificacion:
-    // el `name` de aquí es el único valor que acepta `adjustments[].classification`
-    // al recalcular. `isExpense` omitido = gastos e ingresos.
     CLASSIFICATIONS: (isExpense?: boolean) =>
       `/classifications${isExpense == null ? "" : `?isExpense=${isExpense}`}`,
   },
   FINANCES: {
     REGISTER_SALE_NEW: "/register-sale/new",
-    /** Preview del código de descuento (mismas validaciones que el registro). 404 = inválido/agotado. */
     DISCOUNT_CODE_PREVIEW: (code: string, rfc: string) =>
       `/discount-code?code=${encodeURIComponent(code)}&rfc=${encodeURIComponent(rfc)}`,
   },
-  // Administración de partnerships externos (SSO). apiType "partnership"
   PARTNERSHIP: {
     CORS: {
       LIST: "/cors",
@@ -433,13 +396,10 @@ export const API_ROUTES = {
     SUBSCRIPTION_CURRENT: (rfc: string) =>
       `/subscription/current?rfc=${encodeURIComponent(rfc)}`,
     SUBSCRIPTION_CANCEL: "/subscription/cancel",
-    // apiType "stripe" · GET. Devuelve la cuenta completa del RFC (plan,
-    // compras y otrosRfc), no solo el plan.
     ACTIVE_PLAN: (rfc: string) =>
       `/active-plan?rfc=${encodeURIComponent(rfc)}`,
   },
   TIMBRAME: {
-    /** apiType "timbrame" · GET. Token SSO para portal de facturación. */
     PORTAL_ACCESS: "/portal-access",
   },
   MARKETING: {

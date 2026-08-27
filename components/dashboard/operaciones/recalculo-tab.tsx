@@ -1,6 +1,6 @@
 'use client'
 
-import { AlertCircle, Check, Loader2, RotateCcw, Search, Undo2 } from 'lucide-react'
+import { AlertCircle, AlertTriangle, Check, Loader2, RotateCcw, Search, Undo2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { getClassificationCategories } from '@/features/declarations/actions/getClassificationCategories.action'
 import { getDeclarationPeriodInvoices } from '@/features/declarations/actions/getDeclarationPeriodInvoices.action'
@@ -668,6 +668,27 @@ function ResultadoRecalculo({ result }: { result: NonNullable<Recalculation['res
             </span>
           )}
         </div>
+
+        {result.invoicingWarnings && result.invoicingWarnings.length > 0 && (
+          <div className="flex flex-col gap-2">
+            {result.invoicingWarnings.map((w, i) => (
+              <div
+                key={i}
+                className="rounded-2xl px-4 py-3 flex items-start gap-2.5 text-[13px]"
+                style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)', border: '1px solid var(--border)' }}
+              >
+                <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                <span>
+                  Facturación faltante{w.section ? ` en ${w.section}` : ''}
+                  {w.concept ? ` (${w.concept})` : ''}: la plataforma reportó{' '}
+                  <strong>{amount(w.platformReported)}</strong> y se facturaron{' '}
+                  <strong>{amount(w.invoiced)}</strong>. Faltan{' '}
+                  <strong>{amount(w.missingInvoicing)}</strong> por facturar.
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </Card>
   )
