@@ -4,7 +4,7 @@ const getApiBaseUrl = () => {
   if (typeof window !== 'undefined') {
     return '/api/v1/user-notifications';
   }
-  const baseProc = process.env.NEXT_PUBLIC_API_BASE_PROCEDURES || process.env.API_BASE_PROCEDURES || 'https://localhost:7165/api';
+  const baseProc = process.env.API_BASE_PROCEDURES || 'https://localhost:7165/api';
   return `${baseProc.replace(/\/api\/?$/, '')}/api/v1/user-notifications`;
 };
 
