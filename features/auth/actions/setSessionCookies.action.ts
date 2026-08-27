@@ -45,7 +45,7 @@ export async function setSessionCookies(
 
   const isHttps =
     process.env.NODE_ENV === "production" ||
-    process.env.NEXT_PUBLIC_API_URL?.startsWith("https");
+    process.env.API_URL?.startsWith("https");
 
   let maxAge: number | undefined;
   if (sessionData.expiresAt) {
