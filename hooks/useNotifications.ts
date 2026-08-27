@@ -2,14 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { UserNotification, NotificationCategory } from '@/types/notification';
-import {
-  fetchNotifications,
-  fetchUnreadCount,
-  markNotificationAsRead,
-  markAllNotificationsAsRead,
-  deleteNotification,
-  seedTestNotification,
-} from '@/lib/api/notifications';
+import { getNotificationsAction } from '@/features/notifications/actions/getNotifications.action';
+import { markNotificationAsReadAction } from '@/features/notifications/actions/markNotificationAsRead.action';
+import { markAllNotificationsAsReadAction } from '@/features/notifications/actions/markAllNotificationsAsRead.action';
+import { deleteNotificationAction } from '@/features/notifications/actions/deleteNotification.action';
 
 export function useNotifications(initialCategory: NotificationCategory = 'Todas') {
   const [notifications, setNotifications] = useState<UserNotification[]>([]);
@@ -25,10 +21,14 @@ export function useNotifications(initialCategory: NotificationCategory = 'Todas'
     try {
       if (!isSilent) setIsLoading(true);
       setError(null);
-      const data = await fetchNotifications(1, 50, filterUnreadOnly ? false : undefined, activeCategory);
-      setNotifications(data.items);
-      setUnreadCount(data.unreadCount);
-      setTotalCount(data.totalCount);
+      const res = await getNotificationsAction(1, 50, filterUnreadOnly ? false : undefined, activeCategory);
+      if (res.success) {
+        setNotifications(res.value.items);
+        setUnreadCount(res.value.unreadCount);
+        setTotalCount(res.value.totalCount);
+      } else {
+        setError(res.error.message);
+      }
     } catch (err: any) {
       console.error('Error al cargar notificaciones:', err);
       setError(err.message || 'Error al conectar con el centro de notificaciones');
@@ -66,12 +66,15 @@ export function useNotifications(initialCategory: NotificationCategory = 'Todas'
     setUnreadCount((prev) => Math.max(0, isRead ? prev - 1 : prev + 1));
 
     try {
-      const res = await markNotificationAsRead(id, isRead);
-      setUnreadCount(res.unreadCount);
-      notifySync();
+      const res = await markNotificationAsReadAction(id, isRead);
+      if (res.success) {
+        setUnreadCount(res.value.unreadCount);
+        notifySync();
+      } else {
+        loadNotifications();
+      }
     } catch (err) {
       console.error('Error al actualizar estado de lectura:', err);
-      // Revert in case of error
       loadNotifications();
     }
   };
@@ -82,9 +85,13 @@ export function useNotifications(initialCategory: NotificationCategory = 'Todas'
     setUnreadCount(0);
 
     try {
-      const res = await markAllNotificationsAsRead();
-      setUnreadCount(res.unreadCount);
-      notifySync();
+      const res = await markAllNotificationsAsReadAction();
+      if (res.success) {
+        setUnreadCount(res.value.unreadCount);
+        notifySync();
+      } else {
+        setNotifications(previous);
+      }
     } catch (err) {
       console.error('Error al marcar todas como leídas:', err);
       setNotifications(previous);
@@ -99,25 +106,16 @@ export function useNotifications(initialCategory: NotificationCategory = 'Todas'
     }
 
     try {
-      const res = await deleteNotification(id);
-      setUnreadCount(res.unreadCount);
-      notifySync();
+      const res = await deleteNotificationAction(id);
+      if (res.success) {
+        setUnreadCount(res.value.unreadCount);
+        notifySync();
+      } else {
+        loadNotifications();
+      }
     } catch (err) {
       console.error('Error al eliminar notificación:', err);
       loadNotifications();
-    }
-  };
-
-  const handleSeedTestNotification = async () => {
-    try {
-      setIsLoading(true);
-      await seedTestNotification();
-      await loadNotifications();
-      notifySync();
-    } catch (err) {
-      console.error('Error al generar notificación simulada:', err);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -148,7 +146,6 @@ export function useNotifications(initialCategory: NotificationCategory = 'Todas'
     markAsRead: handleMarkAsRead,
     markAllAsRead: handleMarkAllAsRead,
     deleteNotification: handleDelete,
-    seedTestNotification: handleSeedTestNotification,
     refresh: () => loadNotifications(false),
   };
 }

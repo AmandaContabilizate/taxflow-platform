@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { AlertCircle, Bell, CheckCircle2, ImageIcon, Loader2, Send, Smartphone, Users } from 'lucide-react'
+import { sendBroadcastPushAction } from '@/features/marketing/actions/sendBroadcastPush.action'
 import { DISPLAY, MONO } from '../constants'
 import { Btn, Card, HelpBox } from '../ui'
 
@@ -94,23 +95,18 @@ export function NotificacionesScreen() {
         imageUrl: imagenUrl.trim() || undefined,
         targetAudience: audiencia === 'emails' ? 'SpecificUsers' : 'All',
         userIds: audiencia === 'emails' ? lista : undefined,
-      };
-
-      const response = await fetch('/api/v1/marketing/broadcast-push', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const res = await response.json();
-      if (!response.ok) {
-        throw new Error(res.message || `Error HTTP ${response.status}`);
       }
 
-      setEnviado(res?.message || `Notificación enviada con éxito a ${destinatarioLabel}.`);
+      const result = await sendBroadcastPushAction(payload)
+      if (!result.success) {
+        setError(result.error.message || 'Error al enviar la notificación masiva')
+        return
+      }
+
+      setEnviado(result.value.message || `Notificación enviada con éxito a ${destinatarioLabel}.`)
     } catch (err: any) {
-      console.error('Error al enviar difusión:', err);
-      setError(err.message || 'Error al enviar la notificación masiva');
+      console.error('Error al enviar difusión:', err)
+      setError(err.message || 'Error al enviar la notificación masiva')
     } finally {
       setEnviando(false)
     }
