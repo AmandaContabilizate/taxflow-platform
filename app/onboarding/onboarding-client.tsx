@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import SatCredentialsForm from '@/components/sat-credentials-form'
 
@@ -20,17 +21,14 @@ export default function OnboardingClient({ existingRfc, hasCredentials }: Props)
       >
         <div>
           <div className="flex items-center gap-2.5 mb-12">
-            <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center"
-              style={{ background: 'var(--brand-500)' }}
-            >
-              <span
-                className="text-lg font-black text-white"
-                style={{ fontFamily: 'var(--font-display)' }}
-              >
-                C
-              </span>
-            </div>
+            <Image
+              src="/logo.png"
+              alt="Contabilízate"
+              width={36}
+              height={36}
+              priority
+              className="w-9 h-9 select-none"
+            />
             <span
               className="text-base font-black text-white"
               style={{ fontFamily: 'var(--font-display)' }}
@@ -148,14 +146,13 @@ export default function OnboardingClient({ existingRfc, hasCredentials }: Props)
       <div className="flex-1 flex flex-col items-center justify-center p-6 lg:p-12 overflow-y-auto">
         {/* Mobile header */}
         <div className="flex items-center gap-2 mb-8 lg:hidden">
-          <div
-            className="w-8 h-8 rounded-xl flex items-center justify-center"
-            style={{ background: 'var(--ink-900)' }}
-          >
-            <span className="text-base font-black" style={{ color: 'var(--brand-400)', fontFamily: 'var(--font-display)' }}>
-              C
-            </span>
-          </div>
+          <Image
+            src="/logo.png"
+            alt="Contabilízate"
+            width={32}
+            height={32}
+            className="w-8 h-8 select-none"
+          />
           <span className="text-base font-black" style={{ fontFamily: 'var(--font-display)', color: 'var(--foreground)' }}>
             Contabilízate
           </span>

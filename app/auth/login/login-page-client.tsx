@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
@@ -221,14 +222,14 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
           style={{ background: "linear-gradient(165deg, #221158 0%, #34197F 62%, #4B21B8 100%)" }}
         >
           <Link href="/" className="inline-flex items-center gap-2.5">
-            <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center"
-              style={{ background: "#00AD87" }}
-            >
-              <span className="text-base font-black text-white" style={DISPLAY_FONT}>
-                C
-              </span>
-            </div>
+            <Image
+              src="/logo.png"
+              alt="Contabilízate"
+              width={36}
+              height={36}
+              priority
+              className="w-9 h-9 select-none"
+            />
             <span className="text-base font-black text-white" style={DISPLAY_FONT}>
               Contabilízate
             </span>
@@ -300,17 +301,14 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
             }}
           >
             <div className="flex flex-col items-center text-center mb-6">
-              <div
-                className="w-14 h-14 rounded-xl flex items-center justify-center"
-                style={{ background: "#221158" }}
-              >
-                <span
-                  className="text-2xl font-black"
-                  style={{ ...DISPLAY_FONT, color: "#06FF94" }}
-                >
-                  C
-                </span>
-              </div>
+              <Image
+                src="/logo.png"
+                alt="Contabilízate"
+                width={56}
+                height={56}
+                priority
+                className="w-14 h-14 select-none"
+              />
               <h2
                 className="mt-3 text-2xl font-black"
                 style={{ ...DISPLAY_FONT, color: "#221158" }}

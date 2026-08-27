@@ -34,6 +34,8 @@ export interface RoleOverviewDto {
   description: string | null;
   isDefault: boolean;
   isSystem: boolean;
+  /** Cuántos usuarios tienen asignado este rol. */
+  usersCount: number;
   claims: RoleClaimDto[];
 }
 

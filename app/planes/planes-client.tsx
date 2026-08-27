@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import PricingPlans from '@/components/pricing-plans'
 import { startCheckoutSession } from '@/app/actions/stripe'
 import { formatMXN, periodLabel, type ActivePlan } from '@/features/account/types'
@@ -52,17 +53,14 @@ export default function PlanesClient({ regimes, detectedRegimeName, activePlan }
         }}
       >
         <a href="/dashboard" className="flex items-center gap-2.5">
-          <div
-            className="w-8 h-8 rounded-xl flex items-center justify-center"
-            style={{ background: 'var(--ink-900)' }}
-          >
-            <span
-              className="text-base font-black"
-              style={{ fontFamily: 'var(--font-display)', color: 'var(--brand-400)' }}
-            >
-              C
-            </span>
-          </div>
+          <Image
+            src="/logo.png"
+            alt="Contabilízate"
+            width={32}
+            height={32}
+            priority
+            className="w-8 h-8 select-none"
+          />
           <span
             className="text-base font-black"
             style={{ fontFamily: 'var(--font-display)', color: 'var(--foreground)' }}

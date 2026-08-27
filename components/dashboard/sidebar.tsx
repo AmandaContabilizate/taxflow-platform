@@ -3,6 +3,7 @@
 import type { ComponentType } from 'react'
 import { useState, useEffect } from 'react'
 import { ChevronDown, LogOut, Moon, Plus, Sun, PanelLeftClose, PanelLeftOpen, UserPlus, PlusCircle, X } from 'lucide-react'
+import Image from 'next/image'
 import { useTheme } from 'next-themes'
 import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import { useNotifications } from '@/hooks/useNotifications'
@@ -101,17 +102,14 @@ export function Sidebar({
           style={{ borderBottom: '1px solid var(--sidebar-border)' }}
         >
           <div className="flex items-center gap-2.5 min-w-0">
-            <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300"
-              style={{
-                background: 'var(--brand-500)',
-                boxShadow: 'var(--brand-500) 0 4px 12px rgba(0,0,0,0.15)'
-              }}
-            >
-              <span className="text-base font-black text-white" style={DISPLAY}>
-                C
-              </span>
-            </div>
+            <Image
+              src="/logo.png"
+              alt="Contabilízate"
+              width={36}
+              height={36}
+              priority
+              className="w-9 h-9 flex-shrink-0 select-none"
+            />
             {!collapsed && (
               <span className="text-[18px] font-extrabold tracking-tight truncate" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
                 contabilízate
