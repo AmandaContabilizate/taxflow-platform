@@ -2,6 +2,7 @@
 
 import {
   AlertCircle,
+  AlertTriangle,
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
@@ -478,7 +479,18 @@ function RetencionBlock({ r }: { r: Retencion }) {
   )
 }
 
-export function ComprobantesTab({ declarationId, periodo }: { declarationId: number; periodo: string }) {
+/** Solo el 625 depende de las constancias de retención para sus ingresos. */
+const REGIMEN_PLATAFORMAS = '625'
+
+export function ComprobantesTab({
+  declarationId,
+  periodo,
+  regimeSatCode,
+}: {
+  declarationId: number
+  periodo: string
+  regimeSatCode?: string | null
+}) {
   const { params, setParams } = useUrlState()
 
   const [page, setPage] = useState<Paged<DeclarationInvoice>>({ items: [], total: 0, skip: 0, take: TAKE })
@@ -612,6 +624,15 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
   const retenciones = useMemo(() => rows.filter((i) => i.esRetencion), [rows])
   const visibles = subTab === 1 ? retenciones : normales
 
+  // Base para el aviso de "sin constancias": sobre `page.items` (sin el filtro
+  // de búsqueda de texto), para que el aviso no dependa de lo que el usuario
+  // haya escrito en el buscador.
+  const sinConstanciasDeRetencion = useMemo(
+    () => !loading && !error && page.items.every((i) => !i.esRetencion),
+    [loading, error, page.items],
+  )
+  const esRegimenPlataformas = regimeSatCode === REGIMEN_PLATAFORMAS
+
   // Suma de lo que se está viendo: cambia con los filtros, la búsqueda y la
   // página, así que el encabezado dice explícitamente sobre qué se sumó.
   const totales = useMemo(() => {
@@ -651,6 +672,20 @@ export function ComprobantesTab({ declarationId, periodo }: { declarationId: num
             </button>
           )}
         </div>
+
+        {esRegimenPlataformas && sinConstanciasDeRetencion && (
+          <div
+            className="rounded-2xl px-4 py-3 flex items-start gap-2.5 text-[13px]"
+            style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)', border: '1px solid var(--border)' }}
+          >
+            <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+            <span>
+              No se recibieron constancias de retención para este periodo; en el régimen 625 los
+              ingresos provienen de ellas. Un <strong>$0.00</strong> en Ingresos/IVA/ISR puede
+              significar que la constancia no llegó, no que no hubo ingresos.
+            </span>
+          </div>
+        )}
 
         <div className="relative">
           <Search

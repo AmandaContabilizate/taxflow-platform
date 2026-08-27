@@ -1,6 +1,6 @@
 'use client'
 
-import { AlertCircle, Check, Copy, ExternalLink, Loader2 } from 'lucide-react'
+import { AlertCircle, Check, Copy, CreditCard, ExternalLink, Loader2 } from 'lucide-react'
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { getSaleStripeDetail } from '@/features/operations/actions/getSaleStripeDetail.action'
@@ -40,6 +40,12 @@ interface Props {
   onClose: () => void
 }
 
+function isStripeId(id: string | null | undefined): boolean {
+  if (!id) return false
+  const t = id.trim()
+  return t.startsWith('cs_') || t.startsWith('pi_') || t.startsWith('cus_') || t.startsWith('sub_') || t.startsWith('in_')
+}
+
 export function StripeDetailModal({ saleId, onClose }: Props) {
   const [state, setState] = useState<{
     loading: boolean
@@ -68,25 +74,56 @@ export function StripeDetailModal({ saleId, onClose }: Props) {
   }, [saleId])
 
   const d = state.data
+  const hasStripeData = Boolean(
+    isStripeId(d?.paymentIntentId) ||
+      isStripeId(d?.stripeCustomerId) ||
+      isStripeId(d?.checkoutId) ||
+      isStripeId(d?.stripeSubscriptionId),
+  )
 
   return (
-    <Modal isOpen={saleId !== null} onClose={onClose} title={`Venta #${saleId ?? ''} en Stripe`}>
+    <Modal
+      isOpen={saleId !== null}
+      onClose={onClose}
+      title={hasStripeData ? `Venta #${saleId ?? ''} en Stripe` : `Detalle de Venta #${saleId ?? ''}`}
+    >
       <div className="flex flex-col gap-4">
-        <div
-          className="rounded-xl px-4 py-3 flex items-center justify-between gap-3"
-          style={{ background: 'var(--ink-50)' }}
-        >
-          <Image src="/stripe-logo.png" alt="Stripe" width={92} height={38} priority />
-          <span className="text-[11.5px] font-semibold text-right" style={{ color: 'var(--ink-500)' }}>
-            Identificadores para rastrear el cobro
-            <br />
-            en el dashboard de Stripe
-          </span>
-        </div>
+        {hasStripeData ? (
+          <div
+            className="rounded-xl px-4 py-3 flex items-center justify-between gap-3"
+            style={{ background: 'var(--ink-50)' }}
+          >
+            <Image src="/stripe-logo.png" alt="Stripe" width={92} height={38} priority />
+            <span className="text-[11.5px] font-semibold text-right" style={{ color: 'var(--ink-500)' }}>
+              Identificadores para rastrear el cobro
+              <br />
+              en el dashboard de Stripe
+            </span>
+          </div>
+        ) : (
+          <div
+            className="rounded-xl px-4 py-3 flex items-center justify-between gap-3"
+            style={{ background: 'var(--amber-soft)' }}
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                <CreditCard size={22} />
+              </div>
+              <div>
+                <div className="text-[13.5px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
+                  Pago por Otro Medio / Pasarela Externa
+                </div>
+                <div className="text-[11.5px] font-medium" style={{ color: 'var(--ink-500)' }}>
+                  Cobro registrado fuera de Stripe
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {state.loading ? (
           <div className="py-8 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
-            <Loader2 size={18} className="animate-spin" /> Cargando datos de Stripe…
+            <Loader2 size={18} className="animate-spin" /> Cargando datos de la venta…
           </div>
         ) : state.error ? (
           <div className="py-8 text-center flex flex-col items-center gap-2">
@@ -124,7 +161,18 @@ export function StripeDetailModal({ saleId, onClose }: Props) {
               <IdRow label="Checkout Session" field="checkoutId" value={d.checkoutId} />
             </div>
 
-            {!d.stripeCustomerId && (
+            {!hasStripeData ? (
+              <div
+                className="rounded-xl px-4 py-3 text-[12.5px] font-medium flex items-center gap-2.5"
+                style={{ background: 'var(--ink-50)', color: 'var(--ink-700)' }}
+              >
+                <CreditCard size={16} className="shrink-0 text-amber-500" />
+                <span>
+                  Esta venta fue pagada a través de un medio o pasarela anterior diferente a Stripe.
+                  No cuenta con identificadores de transacción de Stripe.
+                </span>
+              </div>
+            ) : !d.stripeCustomerId ? (
               <div
                 className="rounded-xl px-4 py-3 text-[12.5px]"
                 style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
@@ -132,7 +180,7 @@ export function StripeDetailModal({ saleId, onClose }: Props) {
                 No pudimos obtener el <b>Customer</b> de Stripe. Puede que la llave de API no esté
                 configurada en este ambiente o que el correo no exista en Stripe.
               </div>
-            )}
+            ) : null}
           </>
         ) : null}
       </div>

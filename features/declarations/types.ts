@@ -195,6 +195,20 @@ export interface RecalculationResult {
   ivaDetail: Record<string, unknown> | null
   classifications: RecalculatedClassification[]
   input: RecalculationInputSummary
+  /**
+   * Avisos del clasificador cuando lo facturado (`invoiced`) es menor a lo
+   * que la plataforma reportó (`platformReported`); en el 625 implica CFDI
+   * de ingreso pendientes de emitir. `[]`/`null`/ausente = sin avisos.
+   */
+  invoicingWarnings?: InvoicingWarning[] | null
+}
+
+export interface InvoicingWarning {
+  section: string | null
+  concept: string | null
+  invoiced: number | null
+  platformReported: number | null
+  missingInvoicing: number | null
 }
 
 /**

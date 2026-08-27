@@ -19,7 +19,7 @@ import { ExpedienteCliente } from '../clientes/expediente-cliente'
 
 const ASSIGN_PERMISSION = 'AssignAccountant'
 const EXPEDIENTE_PERMISSION = 'GerenciaComercial.ReadExpedienteCliente'
-const DEFAULT_MIN_SALES = 2
+const DEFAULT_MIN_SALES: number | '' = ''
 
 export function ClientesScreen({ permissions = [] }: { permissions?: string[] }) {
   const list = usePagedList(getClientsWithPaidSales, 50, DEFAULT_MIN_SALES)

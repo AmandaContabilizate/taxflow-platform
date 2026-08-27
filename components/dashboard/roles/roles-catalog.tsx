@@ -1,12 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertCircle, Loader2, Pencil, Plus, Search, Star, Trash2, X } from 'lucide-react'
+import { AlertCircle, Loader2, Pencil, Plus, Search, Star, Trash2, Users, X } from 'lucide-react'
 import { getRolesList } from '@/features/roles/actions/getRolesList.action'
 import { deleteRole } from '@/features/roles/actions/deleteRole.action'
 import { roleLabel, type RoleOverviewDto } from '@/features/roles/types'
 import { Badge, Btn, Card, ErrorState } from '../ui'
 import { RoleEditor } from './role-editor'
+import { RoleUsersPanel } from './role-users-panel'
 
 export function RolesCatalog() {
   const [roles, setRoles] = useState<RoleOverviewDto[]>([])
@@ -16,7 +17,12 @@ export function RolesCatalog() {
   const [editorOpen, setEditorOpen] = useState(false)
   const [editing, setEditing] = useState<RoleOverviewDto | null>(null)
 
+  // Vista rol → usuarios (panel inline, misma mecánica de colapso que el editor)
+  const [viewingUsers, setViewingUsers] = useState<RoleOverviewDto | null>(null)
+
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  // Confirmación inline de borrado (nunca un confirm() del navegador)
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
@@ -58,7 +64,7 @@ export function RolesCatalog() {
   }
 
   async function handleDelete(role: RoleOverviewDto) {
-    if (!confirm(`¿Eliminar el rol "${role.name}"? Esta acción lo desactiva.`)) return
+    setConfirmingDeleteId(null)
     setDeletingId(role.id)
     setActionError(null)
     const res = await deleteRole(role.id)
@@ -67,8 +73,24 @@ export function RolesCatalog() {
     else setActionError(res.error.message)
   }
 
+  // Escape cancela la confirmación inline
+  useEffect(() => {
+    if (!confirmingDeleteId) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setConfirmingDeleteId(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [confirmingDeleteId])
+
   return (
     <div className="flex flex-col gap-4 max-w-full">
+      <style>{`
+        @keyframes rc-pop-in {
+          from { opacity: 0; transform: scale(0.97); }
+          to { opacity: 1; transform: scale(1); }
+        }
+      `}</style>
       <Card>
         <div
           className="px-5 py-4 flex items-center justify-between flex-wrap gap-2 border-b"
@@ -130,7 +152,7 @@ export function RolesCatalog() {
 
         <div
           className="grid transition-[grid-template-rows] duration-300 ease-out"
-          style={{ gridTemplateRows: editorOpen ? '0fr' : '1fr' }}
+          style={{ gridTemplateRows: editorOpen || viewingUsers ? '0fr' : '1fr' }}
         >
           <div className="overflow-hidden">
         {error ? (
@@ -144,7 +166,7 @@ export function RolesCatalog() {
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                  {['Rol', 'Descripción', 'Permisos', ''].map((h, i) => (
+                  {['Rol', 'Descripción', 'Permisos', 'Usuarios', ''].map((h, i) => (
                     <th key={i} className="px-5 py-3 text-left font-extrabold" style={{ color: 'var(--ink-700)' }}>
                       {h}
                     </th>
@@ -175,31 +197,72 @@ export function RolesCatalog() {
                       <Badge kind="default">{r.claims.length}</Badge>
                     </td>
                     <td className="px-5 py-4">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => openEdit(r)}
-                          title={
-                            r.isSystem
-                              ? 'Editar permisos y descripción (el nombre técnico está protegido)'
-                              : 'Editar'
-                          }
-                          className="w-8 h-8 rounded-lg flex items-center justify-center transition hover:opacity-80"
-                          style={{ background: 'var(--ink-50)', color: 'var(--ink-700)', border: '1px solid var(--border)' }}
+                      <Badge kind={r.usersCount > 0 ? 'default' : 'amber'}>{r.usersCount}</Badge>
+                    </td>
+                    <td className="px-5 py-4">
+                      {confirmingDeleteId === r.id ? (
+                        <div
+                          className="flex items-center justify-end gap-2"
+                          style={{ animation: 'rc-pop-in 150ms cubic-bezier(0.23, 1, 0.32, 1)', transformOrigin: 'right center' }}
                         >
-                          <Pencil size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(r)}
-                          disabled={r.isSystem || deletingId === r.id}
-                          title={r.isSystem ? 'Los roles del sistema no se eliminan' : 'Eliminar'}
-                          className="w-8 h-8 rounded-lg flex items-center justify-center transition hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-                          style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}
-                        >
-                          {deletingId === r.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                        </button>
-                      </div>
+                          <span className="text-[11.5px] font-semibold text-right leading-tight hidden lg:block" style={{ color: 'var(--violet-ink)', maxWidth: 200 }}>
+                            {r.usersCount > 0
+                              ? `${r.usersCount} ${r.usersCount === 1 ? 'usuario lo tiene' : 'usuarios lo tienen'} — se desactiva.`
+                              : '¿Eliminar este rol? Se desactiva.'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(r)}
+                            className="px-3 py-1.5 rounded-lg text-[12px] font-bold transition-transform duration-150 ease-out active:scale-[0.97] hover:opacity-90"
+                            style={{ background: 'var(--violet-ink)', color: '#fff' }}
+                          >
+                            Eliminar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmingDeleteId(null)}
+                            className="px-3 py-1.5 rounded-lg text-[12px] font-bold transition-transform duration-150 ease-out active:scale-[0.97] hover:opacity-80"
+                            style={{ background: 'var(--ink-50)', color: 'var(--ink-700)', border: '1px solid var(--border)' }}
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setViewingUsers(r)}
+                            title="Ver y asignar usuarios de este rol"
+                            className="w-8 h-8 rounded-lg flex items-center justify-center transition-transform duration-150 ease-out active:scale-[0.97] hover:opacity-80"
+                            style={{ background: 'var(--ink-50)', color: 'var(--ink-700)', border: '1px solid var(--border)' }}
+                          >
+                            <Users size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openEdit(r)}
+                            title={
+                              r.isSystem
+                                ? 'Editar permisos y descripción (el nombre técnico está protegido)'
+                                : 'Editar'
+                            }
+                            className="w-8 h-8 rounded-lg flex items-center justify-center transition-transform duration-150 ease-out active:scale-[0.97] hover:opacity-80"
+                            style={{ background: 'var(--ink-50)', color: 'var(--ink-700)', border: '1px solid var(--border)' }}
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmingDeleteId(r.id)}
+                            disabled={r.isSystem || deletingId === r.id}
+                            title={r.isSystem ? 'Los roles del sistema no se eliminan' : 'Eliminar'}
+                            className="w-8 h-8 rounded-lg flex items-center justify-center transition-transform duration-150 ease-out active:scale-[0.97] hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
+                            style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}
+                          >
+                            {deletingId === r.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -228,6 +291,17 @@ export function RolesCatalog() {
               load()
             }}
             onCancel={() => setEditorOpen(false)}
+          />
+        </div>
+      )}
+
+      {viewingUsers && (
+        <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+          <RoleUsersPanel
+            key={viewingUsers.id}
+            role={viewingUsers}
+            onBack={() => setViewingUsers(null)}
+            onChanged={load}
           />
         </div>
       )}

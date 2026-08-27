@@ -385,7 +385,13 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
       </div>
 
       {/* Tab content */}
-      {tab === 0 && <ComprobantesTab declarationId={d.declarationId} periodo={`${periodo} ${ejercicio}`} />}
+      {tab === 0 && (
+        <ComprobantesTab
+          declarationId={d.declarationId}
+          periodo={`${periodo} ${ejercicio}`}
+          regimeSatCode={general?.regimeSatCode ?? null}
+        />
+      )}
       {tab === 1 &&
         conPantallasDeCalculo(
           <CalculosTab declarationId={d.declarationId} regimeSatCode={general?.regimeSatCode ?? null} />,

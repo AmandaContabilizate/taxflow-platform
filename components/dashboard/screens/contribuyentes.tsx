@@ -13,7 +13,7 @@ import {
   useRegimenOptions,
 } from '../clientes/parts'
 
-const DEFAULT_MIN_SALES = 2
+const DEFAULT_MIN_SALES: number | '' = ''
 
 export function ContribuyentesScreen() {
   const list = usePagedList(getTaxpayers, 50, DEFAULT_MIN_SALES)
