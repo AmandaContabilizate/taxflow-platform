@@ -121,6 +121,7 @@ export interface ClientListItem extends TaxpayerListItem {
   accountantUserId: string | null;
   accountantName: string | null;
   accountantEmail: string | null;
+  fechaPrimeraVenta?: string | null;
 }
 
 /**
