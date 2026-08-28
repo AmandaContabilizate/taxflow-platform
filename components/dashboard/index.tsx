@@ -406,14 +406,11 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
     if (screen === 'partnership') {
       return <PartnershipScreen />;
     }
-    if (screen === 'marketing') {
-      return <MarketingScreen />;
+    if (screen === 'marketing' || screen === 'notificaciones') {
+      return <NotificacionesScreen />;
     }
     if (screen === 'centro-notificaciones') {
       return <NotificationCenterPage />;
-    }
-    if (screen === 'notificaciones') {
-      return <NotificacionesScreen />;
     }
     const [title, hint] = TITLES[screen] ?? ['Próximamente', ''];
     return (
