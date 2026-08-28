@@ -20,6 +20,8 @@ import {
   isAvailableForMode,
   paymentIntentIdFromSecret,
   periodLabel,
+  priceForMode,
+  SUBSCRIPTION_DISCOUNT_PERCENT,
   type DiscountCodePreview,
   type PaymentMode,
   type PlansCatalog,
@@ -131,17 +133,23 @@ export function PlanPickerModal({
     })
   }, [paymentMode, selectedPlan, procedures, regularizations])
 
+  // En suscripción el price recurrente de Stripe ya trae el 10% de descuento;
+  // el catálogo solo expone el precio de lista, así que lo descontamos aquí.
+  const isSubscriptionMode = paymentMode === 0
   const proceduresTotal = freeAddons
     ? 0
-    : procedures.reduce((sum, a) => sum + a.price * (qty[a.id] ?? 0), 0)
+    : procedures.reduce((sum, a) => sum + priceForMode(a.price, paymentMode) * (qty[a.id] ?? 0), 0)
   // grantsFreeAddOns solo libera los trámites adicionales: las regularizaciones
   // se cobran siempre. Ponerlas en 0 aquí mostraba un total menor al que
   // termina cobrando Stripe, porque el cargo sale de los price de `items`.
   const regsTotal = regularizations.reduce(
-    (sum, r) => sum + (r.plan && selectedDecls.has(r.declarationId) ? r.plan.price : 0),
+    (sum, r) =>
+      sum +
+      (r.plan && selectedDecls.has(r.declarationId) ? priceForMode(r.plan.price, paymentMode) : 0),
     0,
   )
-  const total = (selectedPlan?.price ?? 0) + proceduresTotal + regsTotal
+  const total =
+    (selectedPlan ? priceForMode(selectedPlan.price, paymentMode) : 0) + proceduresTotal + regsTotal
 
   // ===== Preview del código de descuento (misma regla que el backend) =====
   // Porcentaje: aplica si ALGÚN producto del carrito está ligado al código y
@@ -360,7 +368,23 @@ export function PlanPickerModal({
                         : { color: 'var(--ink-500)' }
                     }
                   >
-                    {mode === 0 ? 'Suscripción' : 'Pago único'}
+                    {mode === 0 ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        Suscripción
+                        <span
+                          className="text-[10.5px] font-extrabold px-1.5 py-0.5 rounded-full"
+                          style={
+                            active
+                              ? { background: 'rgba(255,255,255,0.22)', color: 'var(--nav-active-fg)' }
+                              : { background: 'var(--hero-brand-soft)', color: 'var(--brand-700)' }
+                          }
+                        >
+                          −{SUBSCRIPTION_DISCOUNT_PERCENT}%
+                        </span>
+                      </span>
+                    ) : (
+                      'Pago único'
+                    )}
                   </button>
                 )
               })}
@@ -406,9 +430,23 @@ export function PlanPickerModal({
                         <div className="font-bold text-[15px] pr-6 leading-snug" style={{ color: 'var(--ink-900)' }}>
                           {plan.name}
                         </div>
-                        <div className="mt-2 flex items-baseline gap-1">
-                          <span className="font-extrabold text-[22px]" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
-                            {formatMXN(plan.price)}
+                        <div className="mt-2 flex items-baseline gap-1 flex-wrap">
+                          {isSubscriptionMode && enabled && (
+                            <span
+                              className="text-[13px] font-semibold line-through"
+                              style={{ color: 'var(--ink-400)' }}
+                            >
+                              {formatMXN(plan.price)}
+                            </span>
+                          )}
+                          <span
+                            className="font-extrabold text-[22px]"
+                            style={{
+                              ...DISPLAY,
+                              color: isSubscriptionMode && enabled ? 'var(--brand-700)' : 'var(--ink-900)',
+                            }}
+                          >
+                            {formatMXN(priceForMode(plan.price, paymentMode))}
                           </span>
                           <span className="text-[11.5px] font-semibold" style={{ color: 'var(--ink-500)' }}>
                             {plan.currency} · {periodLabel(plan.billingPeriod)}
@@ -459,7 +497,19 @@ export function PlanPickerModal({
                               {addon.name}
                             </div>
                             <div className="text-[12px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
-                              {freeAddons ? 'Incluido' : `${formatMXN(addon.price)} · ${periodLabel(addon.billingPeriod)}`}
+                              {freeAddons ? (
+                                'Incluido'
+                              ) : (
+                                <>
+                                  {isSubscriptionMode && enabled && (
+                                    <span className="line-through mr-1.5" style={{ color: 'var(--ink-400)' }}>
+                                      {formatMXN(addon.price)}
+                                    </span>
+                                  )}
+                                  {formatMXN(priceForMode(addon.price, paymentMode))} ·{' '}
+                                  {periodLabel(addon.billingPeriod)}
+                                </>
+                              )}
                             </div>
                           </div>
                           <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -533,7 +583,9 @@ export function PlanPickerModal({
                             </div>
                             <div className="text-[12px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
                               {periodo || 'Declaración pendiente'}
-                              {reg.plan && !freeAddons ? ` · ${formatMXN(reg.plan.price)}` : ''}
+                              {reg.plan && !freeAddons
+                                ? ` · ${formatMXN(priceForMode(reg.plan.price, paymentMode))}`
+                                : ''}
                               {freeAddons ? ' · Incluido' : ''}
                             </div>
                           </div>

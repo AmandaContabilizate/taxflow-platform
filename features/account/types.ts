@@ -362,3 +362,21 @@ export function isAvailableForMode(plan: Plan, mode: PaymentMode): boolean {
 export function priceIdForMode(plan: Plan, mode: PaymentMode): string | null {
   return mode === 0 ? plan.stripeSubscriptionPriceId : plan.stripeOneTimePriceId;
 }
+
+/**
+ * Descuento que Stripe ya trae aplicado en los `price` recurrentes
+ * (`stripeSubscriptionPriceId`, paymentMode 0). El catálogo del backend expone
+ * un solo `price` — el de lista / pago único —, así que la UI tiene que
+ * descontarlo para no mostrar un total mayor al que termina cobrando Stripe.
+ */
+export const SUBSCRIPTION_DISCOUNT_PERCENT = 10;
+
+/** Aplica el 10% de suscripción a un importe (redondeado a centavos). */
+export function applySubscriptionDiscount(amount: number): number {
+  return Math.round(amount * (1 - SUBSCRIPTION_DISCOUNT_PERCENT / 100) * 100) / 100;
+}
+
+/** Precio a mostrar/sumar según el modo de pago elegido. */
+export function priceForMode(price: number, mode: PaymentMode): number {
+  return mode === 0 ? applySubscriptionDiscount(price) : price;
+}
