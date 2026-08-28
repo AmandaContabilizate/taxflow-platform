@@ -1,13 +1,14 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { AlertCircle, Bell, CheckCircle2, ImageIcon, Loader2, Send, Smartphone, Users } from 'lucide-react'
+import { AlertCircle, Bell, CheckCircle2, ImageIcon, Loader2, Mail, Send, Smartphone, Users } from 'lucide-react'
 import { sendBroadcastPushAction, type BroadcastPushResponse } from '@/features/marketing/actions/sendBroadcastPush.action'
 import { DISPLAY, MONO } from '../constants'
 import { Btn, Card, HelpBox } from '../ui'
 
 type Audiencia = 'emails' | 'registrados' | 'instalados-sin-registro'
 type Categoria = 'Sistema' | 'SAT' | 'Contable' | 'Renovacion' | 'Alertas'
+type SendChannel = 'push_inapp' | 'all' | 'email_only'
 
 const CATEGORIAS: { id: Categoria; label: string; badgeBg: string; badgeFg: string }[] = [
   { id: 'Sistema', label: 'Sistema', badgeBg: 'rgba(59, 130, 246, 0.18)', badgeFg: '#3B82F6' },
@@ -33,7 +34,7 @@ const AUDIENCIAS: { id: Audiencia; label: string; hint: string; Icon: typeof Use
   {
     id: 'instalados-sin-registro',
     label: 'Instalaron la app sin registrarse',
-    hint: 'Descargaron la app pero nunca crearon su cuenta',
+    hint: 'Dispositivos anónimos con token push',
     Icon: Smartphone,
   },
 ]
@@ -53,6 +54,7 @@ function parseEmails(raw: string): string[] {
 export function NotificacionesScreen() {
   const [audiencia, setAudiencia] = useState<Audiencia>('emails')
   const [categoria, setCategoria] = useState<Categoria>('Sistema')
+  const [sendChannel, setSendChannel] = useState<SendChannel>('push_inapp')
   const [emails, setEmails] = useState('')
   const [titulo, setTitulo] = useState('')
   const [cuerpo, setCuerpo] = useState('')
@@ -99,6 +101,7 @@ export function NotificacionesScreen() {
         imageUrl: imagenUrl.trim() || undefined,
         targetAudience: audiencia === 'emails' ? 'SpecificUsers' : 'All',
         userIds: audiencia === 'emails' ? lista : undefined,
+        sendChannel,
       }
 
       const result = await sendBroadcastPushAction(payload)
@@ -182,13 +185,25 @@ export function NotificacionesScreen() {
 
             {audiencia === 'emails' && (
               <div className="grid gap-1.5 mt-1">
-                <label className="text-[12.5px] font-bold" style={{ color: 'var(--ink-700)' }}>
-                  Correos (separados por coma)
-                </label>
+                <div className="flex items-center justify-between gap-3">
+                  <label className="text-[12.5px] font-bold" style={{ color: 'var(--ink-700)' }}>
+                    Correos (separados por coma)
+                  </label>
+                  <div className="flex items-center gap-2 text-[11.5px] font-semibold">
+                    <span style={{ color: 'var(--ink-500)' }}>
+                      {lista.length} {lista.length === 1 ? 'destinatario' : 'destinatarios'}
+                    </span>
+                    {invalidos.length > 0 && (
+                      <span style={{ color: 'var(--destructive)' }}>
+                        ({invalidos.length} inválidos)
+                      </span>
+                    )}
+                  </div>
+                </div>
                 <textarea
                   value={emails}
                   onChange={e => setEmails(e.target.value)}
-                  rows={2}
+                  rows={1}
                   placeholder="ana@correo.com, luis@correo.com"
                   className="w-full rounded-xl px-3.5 py-2 text-[13px] outline-none resize-y"
                   style={{
@@ -198,16 +213,6 @@ export function NotificacionesScreen() {
                     ...MONO,
                   }}
                 />
-                <div className="flex items-center justify-between gap-3 text-[11.5px] font-semibold">
-                  <span style={{ color: 'var(--ink-500)' }}>
-                    {lista.length} {lista.length === 1 ? 'destinatario' : 'destinatarios'}
-                  </span>
-                  {invalidos.length > 0 && (
-                    <span style={{ color: 'var(--destructive)' }}>
-                      {invalidos.length} con formato inválido
-                    </span>
-                  )}
-                </div>
               </div>
             )}
           </div>
@@ -215,43 +220,94 @@ export function NotificacionesScreen() {
 
         <Card>
           <div className="p-4 lg:p-5 grid gap-3.5">
-            <div>
-              <div className="text-[14.5px] font-extrabold mb-2" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-start">
+              {/* Columna 1: Categoría del aviso (3 columnas) */}
+              <div className="md:col-span-3 flex flex-col gap-2">
+                <div className="text-[14.5px] font-extrabold" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
+                  Categoría del aviso
+                </div>
+                <div className="inline-grid grid-cols-2 items-stretch gap-1.5 w-fit">
+                  {CATEGORIAS.map(cat => {
+                    const activo = categoria === cat.id
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setCategoria(cat.id)}
+                        className="px-3 py-1.5 rounded-xl text-[11.5px] font-bold transition flex items-center justify-start gap-1.5 border"
+                        style={{
+                          background: activo ? cat.badgeBg : 'var(--input)',
+                          color: activo ? cat.badgeFg : 'var(--ink-600)',
+                          borderColor: activo ? cat.badgeFg : 'var(--border)',
+                        }}
+                      >
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: cat.badgeFg }} />
+                        <span className="whitespace-nowrap">{cat.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Columna 2: Canal de envío (3 columnas) */}
+              <div className="md:col-span-3 flex flex-col gap-2">
+                <div className="text-[14.5px] font-extrabold" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
+                  Canal de envío
+                </div>
+                <div className="inline-flex flex-col items-stretch gap-1.5 w-fit">
+                  <button
+                    type="button"
+                    onClick={() => setSendChannel('push_inapp')}
+                    className={`px-3.5 py-1.5 rounded-xl text-[11.5px] font-bold transition flex items-center gap-2 border ${
+                      sendChannel === 'push_inapp'
+                        ? 'bg-blue-500/15 text-blue-500 border-blue-500/40 shadow-sm'
+                        : 'bg-background/80 text-muted-foreground border-border/70 hover:text-foreground hover:bg-accent/40'
+                    }`}
+                  >
+                    <Bell className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
+                    <span className="whitespace-nowrap">Push + In-App</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSendChannel('all')}
+                    className={`px-3.5 py-1.5 rounded-xl text-[11.5px] font-bold transition flex items-center gap-2 border ${
+                      sendChannel === 'all'
+                        ? 'bg-purple-500/15 text-purple-500 border-purple-500/40 shadow-sm'
+                        : 'bg-background/80 text-muted-foreground border-border/70 hover:text-foreground hover:bg-accent/40'
+                    }`}
+                  >
+                    <Mail className="h-3.5 w-3.5 text-purple-500 flex-shrink-0" />
+                    <span className="whitespace-nowrap">Push + In-App + Correo</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSendChannel('email_only')}
+                    className={`px-3.5 py-1.5 rounded-xl text-[11.5px] font-bold transition flex items-center gap-2 border ${
+                      sendChannel === 'email_only'
+                        ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/40 shadow-sm'
+                        : 'bg-background/80 text-muted-foreground border-border/70 hover:text-foreground hover:bg-accent/40'
+                    }`}
+                  >
+                    <Mail className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
+                    <span className="whitespace-nowrap">Solo Correo</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Columna 3: HelpBox Informativo (6 columnas) */}
+              <div className="md:col-span-6 flex flex-col gap-2">
+                <HelpBox>
+                  Lo que verá el usuario en su dispositivo. Los avisos de difusión se envían directamente como notificaciones a sus dispositivos (móvil y web) y quedan guardados automáticamente en su Centro de Notificaciones.
+                </HelpBox>
+              </div>
+            </div>
+
+            <div className="grid gap-1.5 pt-2">
+              <div className="text-[14.5px] font-extrabold mb-1" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
                 Contenido
               </div>
-              <HelpBox>
-                Lo que verá el usuario en su dispositivo. Los avisos de difusión se envían directamente como notificaciones a sus dispositivos (móvil y web) y quedan guardados automáticamente en su Centro de Notificaciones.
-              </HelpBox>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="text-[12.5px] font-bold flex-shrink-0" style={{ color: 'var(--ink-700)' }}>
-                Categoría del aviso
-              </label>
-              <div className="flex flex-wrap gap-2 items-center">
-                {CATEGORIAS.map(cat => {
-                  const activo = categoria === cat.id
-                  return (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => setCategoria(cat.id)}
-                      className="px-3 py-1.5 rounded-xl text-[12px] font-bold transition flex items-center gap-1.5"
-                      style={{
-                        background: activo ? cat.badgeBg : 'var(--input)',
-                        color: activo ? cat.badgeFg : 'var(--ink-600)',
-                        border: `1.5px solid ${activo ? cat.badgeFg : 'var(--border)'}`,
-                      }}
-                    >
-                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: cat.badgeFg }} />
-                      <span>{cat.label}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div className="grid gap-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-[12.5px] font-bold" style={{ color: 'var(--ink-700)' }}>
                   Título
@@ -371,15 +427,16 @@ export function NotificacionesScreen() {
               style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}
             >
               {imagenUrl.trim() ? (
-                <img
-                  src={imagenUrl.trim()}
-                  alt=""
-                  className="w-full object-cover"
-                  style={{ maxHeight: 140 }}
-                  onError={e => {
-                    e.currentTarget.style.display = 'none'
-                  }}
-                />
+                <div className="w-full h-[115px] flex items-center justify-center p-2 bg-muted/40 overflow-hidden">
+                  <img
+                    src={imagenUrl.trim()}
+                    alt=""
+                    className="max-w-full max-h-full object-contain rounded-md"
+                    onError={e => {
+                      e.currentTarget.style.display = 'none'
+                    }}
+                  />
+                </div>
               ) : (
                 <div
                   className="flex flex-col items-center justify-center gap-1.5 py-6"
@@ -401,8 +458,9 @@ export function NotificacionesScreen() {
                     {titulo.trim() || 'Título de la notificación'}
                   </div>
                   <div
-                    className="text-[12px] font-semibold mt-0.5 leading-relaxed"
+                    className="text-[12px] font-semibold mt-0.5 leading-relaxed line-clamp-3"
                     style={{ color: 'var(--ink-500)' }}
+                    title={cuerpo.trim()}
                   >
                     {cuerpo.trim() || 'Aquí aparece el cuerpo del mensaje que recibirá el usuario.'}
                   </div>

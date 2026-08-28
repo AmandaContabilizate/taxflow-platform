@@ -13,6 +13,7 @@ export interface BroadcastPushRequest {
   targetAudience?: string;
   roleName?: string;
   userIds?: string[];
+  sendChannel?: string;
 }
 
 export interface BroadcastPushDetail {
