@@ -14,6 +14,7 @@ import {
   TabLoading,
   declarationStatusBadge,
   monthYear,
+  resolvePdfUrl,
   useRfcResource,
 } from './parts'
 
@@ -204,13 +205,38 @@ export function TodasTab({ onViewDetail, currentUser }: Props) {
                       </button>
                       {d.acknowledgmentPdfUrl && (
                         <a
-                          href={d.acknowledgmentPdfUrl}
+                          href={resolvePdfUrl(d.acknowledgmentPdfUrl) ?? d.acknowledgmentPdfUrl}
                           target="_blank"
                           rel="noreferrer"
+                          title="Descargar Acuse del SAT"
                           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-bold transition hover:opacity-90"
                           style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
                         >
                           <Download size={14} /> Acuse
+                        </a>
+                      )}
+                      {d.paymentLinePdfUrl && (
+                        <a
+                          href={resolvePdfUrl(d.paymentLinePdfUrl) ?? d.paymentLinePdfUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="Descargar Línea de Captura"
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-bold transition hover:opacity-90"
+                          style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+                        >
+                          <Download size={14} /> Línea de captura
+                        </a>
+                      )}
+                      {d.paymentAcknowledgmentPdfUrl && (
+                        <a
+                          href={resolvePdfUrl(d.paymentAcknowledgmentPdfUrl) ?? d.paymentAcknowledgmentPdfUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="Descargar Comprobante de Pago"
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-bold transition hover:opacity-90"
+                          style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+                        >
+                          <Download size={14} /> Pago
                         </a>
                       )}
                       <button
@@ -226,6 +252,8 @@ export function TodasTab({ onViewDetail, currentUser }: Props) {
                             regimeName: d.regimeName,
                             periodicity: d.periodicity,
                             acknowledgmentPdfUrl: d.acknowledgmentPdfUrl,
+                            paymentLinePdfUrl: d.paymentLinePdfUrl,
+                            paymentAcknowledgmentPdfUrl: d.paymentAcknowledgmentPdfUrl,
                             submittedAt: d.submittedAt,
                           })
                         }

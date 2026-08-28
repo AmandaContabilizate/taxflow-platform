@@ -46,6 +46,14 @@ export function fmtDate(iso: string): string {
   return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+/**
+ * Normaliza la URL de un documento PDF. El backend ya entrega la URL completa y firmada con SAS.
+ */
+export function resolvePdfUrl(url: string | null | undefined): string | null {
+  if (!url || !url.trim()) return null
+  return url.trim()
+}
+
 type Fetcher<T> = (rfc: string) => Promise<Result<T, { message: string }>>
 
 export type Async<T> =

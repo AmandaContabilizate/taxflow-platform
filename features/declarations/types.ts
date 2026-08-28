@@ -87,6 +87,8 @@ export interface AllDeclarationItem {
   /** 1 = Regularización, 2 = Futuro. Null si no tiene venta activa asociada. */
   declarationKind: number | null
   acknowledgmentPdfUrl: string | null
+  paymentLinePdfUrl?: string | null
+  paymentAcknowledgmentPdfUrl?: string | null
   submittedAt: string | null
 }
 
@@ -275,6 +277,8 @@ export interface ClientDeclarationSubject {
   regimeName: string | null
   periodicity: string | null
   acknowledgmentPdfUrl: string | null
+  paymentLinePdfUrl?: string | null
+  paymentAcknowledgmentPdfUrl?: string | null
   submittedAt: string | null
 }
 
