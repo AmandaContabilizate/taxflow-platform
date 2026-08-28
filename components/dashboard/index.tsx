@@ -9,6 +9,7 @@ import { DashboardHeader } from './header'
 import NotificationCenterPage from '@/app/dashboard/notificaciones/page'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { PushNotificationPrompt } from './PushNotificationPrompt'
+import { FloatingContadorButton } from './FloatingContadorButton'
 import { DISPLAY, TITLES, normalizeRole } from './constants'
 import { PermissionsProvider } from './permissions'
 import { Sidebar } from './sidebar'
@@ -223,6 +224,7 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
           </div>
 
           <PushNotificationPrompt userId={userId} />
+          {isClient && <FloatingContadorButton />}
 
           <ScreenRouter
             screen={screen}
