@@ -278,7 +278,7 @@ function TabResumen({ data, ciecOk }: { data: ExpedienteCliente; ciecOk: boolean
           />
           <IndicadorRow
             icon={<Check size={15} style={{ color: 'var(--ink-500)' }} />}
-            label="Periodos presentados (últimos)"
+            label="Periodos presentados"
             value={`${presentadas} de ${data.periodos.length}`}
           />
         </div>
@@ -732,8 +732,8 @@ function TabProductos({ data }: { data: ExpedienteCliente }) {
         <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="text-[14.5px] font-extrabold" style={DISPLAY}>Periodos del servicio</div>
           <div className="text-[12px]" style={{ color: 'var(--ink-500)' }}>
-            Declaraciones del contribuyente (las {data.periodos.length} más recientes): verdes ya
-            presentadas, ámbar por presentar.
+            Declaraciones del contribuyente ({data.periodos.length} registradas): verdes ya
+            presentadas, violetas por presentar.
           </div>
         </div>
         {data.periodos.length === 0 ? (
