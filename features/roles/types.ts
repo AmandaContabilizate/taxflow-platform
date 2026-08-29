@@ -139,9 +139,11 @@ export interface SwitchRolePayload {
   roleId: string;
 }
 
-/** Respuesta de POST /switch-role (nuevo JWT). */
+/** Respuesta de POST /switch-role (LoginResponse: nuevo JWT + su expiración). */
 export interface SwitchRoleResponse {
   token: string;
+  /** ISO. Necesaria para que la cookie de sesión conserve su maxAge. */
+  expiresAt?: string;
 }
 
 /** Error uniforme de las acciones de roles. */

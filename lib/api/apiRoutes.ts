@@ -67,6 +67,8 @@ export const API_ROUTES = {
     LOGIN: "/login",
     SIGN_OUT: "/signout",
     VALIDATE: "/validate",
+    /** POST auth (Identity). Re-emite el access token (sliding expiration) con un JWT aún válido. */
+    REFRESH: "/refresh",
     /** POST auth (Identity), anonimo. Desactiva la cuenta (isActive = 0) validando email + password. */
     DELETE_ACCOUNT: "/delete-account",
   },

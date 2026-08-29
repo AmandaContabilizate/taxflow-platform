@@ -1,5 +1,6 @@
 "use server";
 
+import { decodeJwt } from "jose";
 import { fetchPost } from "@/lib/api";
 import { API_ROUTES } from "@/lib/api/apiRoutes";
 import { type Result, err, ok } from "@/lib/common";
@@ -28,7 +29,15 @@ export async function switchRole(
         message: "El servidor no devolvió un token válido.",
       });
     }
-    await setSessionCookies({ token: data.token });
+    // El JWT nuevo trae rmb=1 si la sesión es "Recuérdame"; setSessionCookies
+    // vuelve a calcular el maxAge a 30 d en ese caso.
+    let rememberMe = false;
+    try {
+      rememberMe = (decodeJwt(data.token) as Record<string, unknown>).rmb === "1";
+    } catch {
+      // claim opcional
+    }
+    await setSessionCookies({ token: data.token, expiresAt: data.expiresAt }, { rememberMe });
     return ok(true);
   } catch (e) {
     return err(toRolesError(e, "No pudimos cambiar el rol activo."));

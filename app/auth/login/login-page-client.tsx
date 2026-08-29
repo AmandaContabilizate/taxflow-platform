@@ -91,7 +91,7 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
   const [referralCode, setReferralCode] = useState("");
   const [code, setCode] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -433,15 +433,32 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                   </div>
                 </div>
 
-                <Link
-                  href={PUBLIC_ROUTES.FORGOT_PASSWORD}
-                  className={`block text-right text-xs font-semibold hover:underline${
-                    errorCode === "PASSWORD_RESET_REQUIRED" ? " animate-pulse" : ""
-                  }`}
-                  style={{ color: errorCode === "PASSWORD_RESET_REQUIRED" ? "#E84D4D" : "#857AC0" }}
-                >
-                  ¿Olvidaste tu contraseña?
-                </Link>
+                <div className="flex items-center justify-between gap-3">
+                  <label
+                    className="flex items-center gap-2 text-xs font-semibold select-none cursor-pointer"
+                    style={{ color: "#221158" }}
+                  >
+                    <input
+                      type="checkbox"
+                      name="rememberMe"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="h-4 w-4 rounded"
+                      style={{ accentColor: "#00AD87" }}
+                    />
+                    Recuérdame
+                  </label>
+
+                  <Link
+                    href={PUBLIC_ROUTES.FORGOT_PASSWORD}
+                    className={`text-right text-xs font-semibold hover:underline${
+                      errorCode === "PASSWORD_RESET_REQUIRED" ? " animate-pulse" : ""
+                    }`}
+                    style={{ color: errorCode === "PASSWORD_RESET_REQUIRED" ? "#E84D4D" : "#857AC0" }}
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </Link>
+                </div>
 
                 <button
                   type="submit"
