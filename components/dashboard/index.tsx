@@ -9,7 +9,9 @@ import { DashboardHeader } from './header'
 import NotificationCenterPage from '@/app/dashboard/notificaciones/page'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { PushNotificationPrompt } from './PushNotificationPrompt'
+import { FloatingContadorButton } from './FloatingContadorButton'
 import { DISPLAY, TITLES, normalizeRole } from './constants'
+import { PermissionsProvider } from './permissions'
 import { Sidebar } from './sidebar'
 import type { DashboardProps, Screen } from './types'
 import { useUrlState } from './url-state'
@@ -142,6 +144,7 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
   };
 
   return (
+    <PermissionsProvider permissions={permissions}>
     <RfcProvider>
       <div
         className={`grid min-h-screen transition-all duration-300 ${sidebarCollapsed ? 'lg:grid-cols-[80px_1fr]' : 'lg:grid-cols-[260px_1fr]'}`}
@@ -221,6 +224,7 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
           </div>
 
           <PushNotificationPrompt userId={userId} />
+          {isClient && <FloatingContadorButton />}
 
           <ScreenRouter
             screen={screen}
@@ -243,6 +247,7 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
         </main>
       </div>
     </RfcProvider>
+    </PermissionsProvider>
   );
 }
 
@@ -406,14 +411,11 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
     if (screen === 'partnership') {
       return <PartnershipScreen />;
     }
-    if (screen === 'marketing') {
-      return <MarketingScreen />;
+    if (screen === 'marketing' || screen === 'notificaciones') {
+      return <NotificacionesScreen />;
     }
     if (screen === 'centro-notificaciones') {
       return <NotificationCenterPage />;
-    }
-    if (screen === 'notificaciones') {
-      return <NotificacionesScreen />;
     }
     const [title, hint] = TITLES[screen] ?? ['Próximamente', ''];
     return (

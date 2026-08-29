@@ -1,12 +1,14 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { AlertCircle, Bell, CheckCircle2, ImageIcon, Loader2, Send, Smartphone, Users } from 'lucide-react'
+import { AlertCircle, Bell, CheckCircle2, ImageIcon, Loader2, Mail, Send, Smartphone, Users } from 'lucide-react'
+import { sendBroadcastPushAction, type BroadcastPushResponse } from '@/features/marketing/actions/sendBroadcastPush.action'
 import { DISPLAY, MONO } from '../constants'
 import { Btn, Card, HelpBox } from '../ui'
 
 type Audiencia = 'emails' | 'registrados' | 'instalados-sin-registro'
 type Categoria = 'Sistema' | 'SAT' | 'Contable' | 'Renovacion' | 'Alertas'
+type SendChannel = 'push_inapp' | 'all' | 'email_only'
 
 const CATEGORIAS: { id: Categoria; label: string; badgeBg: string; badgeFg: string }[] = [
   { id: 'Sistema', label: 'Sistema', badgeBg: 'rgba(59, 130, 246, 0.18)', badgeFg: '#3B82F6' },
@@ -32,7 +34,7 @@ const AUDIENCIAS: { id: Audiencia; label: string; hint: string; Icon: typeof Use
   {
     id: 'instalados-sin-registro',
     label: 'Instalaron la app sin registrarse',
-    hint: 'Descargaron la app pero nunca crearon su cuenta',
+    hint: 'Dispositivos anónimos con token push',
     Icon: Smartphone,
   },
 ]
@@ -40,7 +42,7 @@ const AUDIENCIAS: { id: Audiencia; label: string; hint: string; Icon: typeof Use
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const TITULO_MAX = 65
-const CUERPO_MAX = 240
+const CUERPO_MAX = 1000
 
 function parseEmails(raw: string): string[] {
   return raw
@@ -52,13 +54,16 @@ function parseEmails(raw: string): string[] {
 export function NotificacionesScreen() {
   const [audiencia, setAudiencia] = useState<Audiencia>('emails')
   const [categoria, setCategoria] = useState<Categoria>('Sistema')
+  const [sendChannel, setSendChannel] = useState<SendChannel>('push_inapp')
   const [emails, setEmails] = useState('')
   const [titulo, setTitulo] = useState('')
   const [cuerpo, setCuerpo] = useState('')
   const [imagenUrl, setImagenUrl] = useState('')
+  const [actionUrl, setActionUrl] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [enviado, setEnviado] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [envioResult, setEnvioResult] = useState<BroadcastPushResponse | null>(null)
 
   const lista = useMemo(() => parseEmails(emails), [emails])
   const invalidos = useMemo(() => lista.filter(e => !EMAIL_RE.test(e)), [lista])
@@ -77,6 +82,7 @@ export function NotificacionesScreen() {
   const enviar = async () => {
     setError(null)
     setEnviado(null)
+    setEnvioResult(null)
     if (audiencia === 'emails' && lista.length === 0) {
       setError('Agrega al menos un correo destinatario.')
       return
@@ -91,26 +97,24 @@ export function NotificacionesScreen() {
         title: titulo.trim(),
         body: cuerpo.trim(),
         category: categoria,
+        actionUrl: actionUrl.trim() || undefined,
         imageUrl: imagenUrl.trim() || undefined,
         targetAudience: audiencia === 'emails' ? 'SpecificUsers' : 'All',
         userIds: audiencia === 'emails' ? lista : undefined,
-      };
-
-      const response = await fetch('/api/v1/marketing/broadcast-push', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const res = await response.json();
-      if (!response.ok) {
-        throw new Error(res.message || `Error HTTP ${response.status}`);
+        sendChannel,
       }
 
-      setEnviado(res?.message || `Notificación enviada con éxito a ${destinatarioLabel}.`);
+      const result = await sendBroadcastPushAction(payload)
+      if (!result.success) {
+        setError(result.error.message || 'Error al enviar la notificación masiva')
+        return
+      }
+
+      setEnvioResult(result.value)
+      setEnviado(result.value.message || `Notificación enviada con éxito a ${destinatarioLabel}.`)
     } catch (err: any) {
-      console.error('Error al enviar difusión:', err);
-      setError(err.message || 'Error al enviar la notificación masiva');
+      console.error('Error al enviar difusión:', err)
+      setError(err.message || 'Error al enviar la notificación masiva')
     } finally {
       setEnviando(false)
     }
@@ -121,8 +125,10 @@ export function NotificacionesScreen() {
     setTitulo('')
     setCuerpo('')
     setImagenUrl('')
+    setActionUrl('')
     setEnviado(null)
     setError(null)
+    setEnvioResult(null)
   }
 
   return (
@@ -154,18 +160,20 @@ export function NotificacionesScreen() {
                       border: `1px solid ${activo ? 'transparent' : 'var(--border)'}`,
                     }}
                   >
-                    <div
-                      className="w-7 h-7 rounded-full flex items-center justify-center mb-2"
-                      style={{
-                        background: activo ? 'var(--nav-active-icon-bg)' : 'var(--ink-50)',
-                        color: activo ? 'var(--nav-active-icon-fg)' : 'var(--ink-700)',
-                      }}
-                    >
-                      <Icon size={15} />
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <div
+                        className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+                        style={{
+                          background: activo ? 'var(--nav-active-icon-bg)' : 'var(--ink-50)',
+                          color: activo ? 'var(--nav-active-icon-fg)' : 'var(--ink-700)',
+                        }}
+                      >
+                        <Icon size={15} />
+                      </div>
+                      <div className="text-[13px] font-bold leading-tight min-w-0">{label}</div>
                     </div>
-                    <div className="text-[13px] font-bold leading-tight">{label}</div>
                     <div
-                      className="text-[11px] font-semibold mt-0.5 leading-snug"
+                      className="text-[11px] font-semibold leading-snug"
                       style={{ color: activo ? 'var(--nav-active-hint)' : 'var(--ink-500)' }}
                     >
                       {hint}
@@ -177,13 +185,25 @@ export function NotificacionesScreen() {
 
             {audiencia === 'emails' && (
               <div className="grid gap-1.5 mt-1">
-                <label className="text-[12.5px] font-bold" style={{ color: 'var(--ink-700)' }}>
-                  Correos (separados por coma)
-                </label>
+                <div className="flex items-center justify-between gap-3">
+                  <label className="text-[12.5px] font-bold" style={{ color: 'var(--ink-700)' }}>
+                    Correos (separados por coma)
+                  </label>
+                  <div className="flex items-center gap-2 text-[11.5px] font-semibold">
+                    <span style={{ color: 'var(--ink-500)' }}>
+                      {lista.length} {lista.length === 1 ? 'destinatario' : 'destinatarios'}
+                    </span>
+                    {invalidos.length > 0 && (
+                      <span style={{ color: 'var(--destructive)' }}>
+                        ({invalidos.length} inválidos)
+                      </span>
+                    )}
+                  </div>
+                </div>
                 <textarea
                   value={emails}
                   onChange={e => setEmails(e.target.value)}
-                  rows={2}
+                  rows={1}
                   placeholder="ana@correo.com, luis@correo.com"
                   className="w-full rounded-xl px-3.5 py-2 text-[13px] outline-none resize-y"
                   style={{
@@ -193,16 +213,6 @@ export function NotificacionesScreen() {
                     ...MONO,
                   }}
                 />
-                <div className="flex items-center justify-between gap-3 text-[11.5px] font-semibold">
-                  <span style={{ color: 'var(--ink-500)' }}>
-                    {lista.length} {lista.length === 1 ? 'destinatario' : 'destinatarios'}
-                  </span>
-                  {invalidos.length > 0 && (
-                    <span style={{ color: 'var(--destructive)' }}>
-                      {invalidos.length} con formato inválido
-                    </span>
-                  )}
-                </div>
               </div>
             )}
           </div>
@@ -210,43 +220,94 @@ export function NotificacionesScreen() {
 
         <Card>
           <div className="p-4 lg:p-5 grid gap-3.5">
-            <div>
-              <div className="text-[14.5px] font-extrabold" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-start">
+              {/* Columna 1: Categoría del aviso (3 columnas) */}
+              <div className="md:col-span-3 flex flex-col gap-2">
+                <div className="text-[14.5px] font-extrabold" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
+                  Categoría del aviso
+                </div>
+                <div className="inline-grid grid-cols-2 items-stretch gap-1.5 w-fit">
+                  {CATEGORIAS.map(cat => {
+                    const activo = categoria === cat.id
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setCategoria(cat.id)}
+                        className="px-3 py-1.5 rounded-xl text-[11.5px] font-bold transition flex items-center justify-start gap-1.5 border"
+                        style={{
+                          background: activo ? cat.badgeBg : 'var(--input)',
+                          color: activo ? cat.badgeFg : 'var(--ink-600)',
+                          borderColor: activo ? cat.badgeFg : 'var(--border)',
+                        }}
+                      >
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: cat.badgeFg }} />
+                        <span className="whitespace-nowrap">{cat.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Columna 2: Canal de envío (3 columnas) */}
+              <div className="md:col-span-3 flex flex-col gap-2">
+                <div className="text-[14.5px] font-extrabold" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
+                  Canal de envío
+                </div>
+                <div className="inline-flex flex-col items-stretch gap-1.5 w-fit">
+                  <button
+                    type="button"
+                    onClick={() => setSendChannel('push_inapp')}
+                    className={`px-3.5 py-1.5 rounded-xl text-[11.5px] font-bold transition flex items-center gap-2 border ${
+                      sendChannel === 'push_inapp'
+                        ? 'bg-blue-500/15 text-blue-500 border-blue-500/40 shadow-sm'
+                        : 'bg-background/80 text-muted-foreground border-border/70 hover:text-foreground hover:bg-accent/40'
+                    }`}
+                  >
+                    <Bell className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
+                    <span className="whitespace-nowrap">Push + In-App</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSendChannel('all')}
+                    className={`px-3.5 py-1.5 rounded-xl text-[11.5px] font-bold transition flex items-center gap-2 border ${
+                      sendChannel === 'all'
+                        ? 'bg-purple-500/15 text-purple-500 border-purple-500/40 shadow-sm'
+                        : 'bg-background/80 text-muted-foreground border-border/70 hover:text-foreground hover:bg-accent/40'
+                    }`}
+                  >
+                    <Mail className="h-3.5 w-3.5 text-purple-500 flex-shrink-0" />
+                    <span className="whitespace-nowrap">Push + In-App + Correo</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSendChannel('email_only')}
+                    className={`px-3.5 py-1.5 rounded-xl text-[11.5px] font-bold transition flex items-center gap-2 border ${
+                      sendChannel === 'email_only'
+                        ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/40 shadow-sm'
+                        : 'bg-background/80 text-muted-foreground border-border/70 hover:text-foreground hover:bg-accent/40'
+                    }`}
+                  >
+                    <Mail className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
+                    <span className="whitespace-nowrap">Solo Correo</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Columna 3: HelpBox Informativo (6 columnas) */}
+              <div className="md:col-span-6 flex flex-col gap-2">
+                <HelpBox>
+                  Lo que verá el usuario en su dispositivo. Los avisos de difusión se envían directamente como notificaciones a sus dispositivos (móvil y web) y quedan guardados automáticamente en su Centro de Notificaciones.
+                </HelpBox>
+              </div>
+            </div>
+
+            <div className="grid gap-1.5 pt-2">
+              <div className="text-[14.5px] font-extrabold mb-1" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
                 Contenido
               </div>
-              <div className="text-[12px] font-semibold mt-0.5" style={{ color: 'var(--ink-500)' }}>
-                Lo que verá el usuario en su dispositivo
-              </div>
-            </div>
-
-            <div className="grid gap-1.5">
-              <label className="text-[12.5px] font-bold" style={{ color: 'var(--ink-700)' }}>
-                Categoría del aviso
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {CATEGORIAS.map(cat => {
-                  const activo = categoria === cat.id
-                  return (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => setCategoria(cat.id)}
-                      className="px-3 py-1.5 rounded-xl text-[12px] font-bold transition flex items-center gap-1.5"
-                      style={{
-                        background: activo ? cat.badgeBg : 'var(--input)',
-                        color: activo ? cat.badgeFg : 'var(--ink-600)',
-                        border: `1.5px solid ${activo ? cat.badgeFg : 'var(--border)'}`,
-                      }}
-                    >
-                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: cat.badgeFg }} />
-                      <span>{cat.label}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div className="grid gap-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-[12.5px] font-bold" style={{ color: 'var(--ink-700)' }}>
                   Título
@@ -276,29 +337,49 @@ export function NotificacionesScreen() {
               <textarea
                 value={cuerpo}
                 onChange={e => setCuerpo(e.target.value.slice(0, CUERPO_MAX))}
-                rows={2.5 as any}
+                rows={3.5 as any}
                 placeholder="Entra a la app para revisarla y hacer tu pago antes del día 17."
                 className="w-full rounded-xl px-3.5 py-2 text-[13.5px] outline-none resize-y"
                 style={{ background: 'var(--input)', color: 'var(--foreground)', border: '1px solid var(--border)' }}
               />
             </div>
 
-            <div className="grid gap-1.5">
-              <label className="text-[12.5px] font-bold" style={{ color: 'var(--ink-700)' }}>
-                URL de la imagen <span style={{ color: 'var(--ink-500)' }}>(opcional)</span>
-              </label>
-              <input
-                value={imagenUrl}
-                onChange={e => setImagenUrl(e.target.value)}
-                placeholder="https://cdn.contabilizate.com/banner.png"
-                className="w-full rounded-xl px-3.5 py-2 text-[13px] outline-none"
-                style={{
-                  background: 'var(--input)',
-                  color: 'var(--foreground)',
-                  border: '1px solid var(--border)',
-                  ...MONO,
-                }}
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid gap-1.5">
+                <label className="text-[12.5px] font-bold" style={{ color: 'var(--ink-700)' }}>
+                  URL de destino / Redirección <span style={{ color: 'var(--ink-500)' }}>(opcional)</span>
+                </label>
+                <input
+                  value={actionUrl}
+                  onChange={e => setActionUrl(e.target.value)}
+                  placeholder="https://contabilizate.com/promocion"
+                  className="w-full rounded-xl px-3.5 py-2 text-[13px] outline-none"
+                  style={{
+                    background: 'var(--input)',
+                    color: 'var(--foreground)',
+                    border: '1px solid var(--border)',
+                    ...MONO,
+                  }}
+                />
+              </div>
+
+              <div className="grid gap-1.5">
+                <label className="text-[12.5px] font-bold" style={{ color: 'var(--ink-700)' }}>
+                  URL de la imagen <span style={{ color: 'var(--ink-500)' }}>(opcional)</span>
+                </label>
+                <input
+                  value={imagenUrl}
+                  onChange={e => setImagenUrl(e.target.value)}
+                  placeholder="https://cdn.contabilizate.com/banner.png"
+                  className="w-full rounded-xl px-3.5 py-2 text-[13px] outline-none"
+                  style={{
+                    background: 'var(--input)',
+                    color: 'var(--foreground)',
+                    border: '1px solid var(--border)',
+                    ...MONO,
+                  }}
+                />
+              </div>
             </div>
 
             {error && (
@@ -346,15 +427,16 @@ export function NotificacionesScreen() {
               style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}
             >
               {imagenUrl.trim() ? (
-                <img
-                  src={imagenUrl.trim()}
-                  alt=""
-                  className="w-full object-cover"
-                  style={{ maxHeight: 140 }}
-                  onError={e => {
-                    e.currentTarget.style.display = 'none'
-                  }}
-                />
+                <div className="w-full h-[115px] flex items-center justify-center p-2 bg-muted/40 overflow-hidden">
+                  <img
+                    src={imagenUrl.trim()}
+                    alt=""
+                    className="max-w-full max-h-full object-contain rounded-md"
+                    onError={e => {
+                      e.currentTarget.style.display = 'none'
+                    }}
+                  />
+                </div>
               ) : (
                 <div
                   className="flex flex-col items-center justify-center gap-1.5 py-6"
@@ -376,8 +458,9 @@ export function NotificacionesScreen() {
                     {titulo.trim() || 'Título de la notificación'}
                   </div>
                   <div
-                    className="text-[12px] font-semibold mt-0.5 leading-relaxed"
+                    className="text-[12px] font-semibold mt-0.5 leading-relaxed line-clamp-3"
                     style={{ color: 'var(--ink-500)' }}
+                    title={cuerpo.trim()}
                   >
                     {cuerpo.trim() || 'Aquí aparece el cuerpo del mensaje que recibirá el usuario.'}
                   </div>
@@ -391,9 +474,120 @@ export function NotificacionesScreen() {
           </div>
         </Card>
 
-        <HelpBox>
-          Los avisos de difusión se envían directamente como notificaciones a los dispositivos de los usuarios (móvil y web) y quedan guardados automáticamente en su Centro de Notificaciones.
-        </HelpBox>
+        <Card>
+          <div className="p-4 lg:p-5 grid gap-4">
+            <div className="flex items-start gap-2.5">
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                style={{
+                  background: envioResult ? 'rgba(16, 185, 129, 0.18)' : 'var(--hero-brand-soft)',
+                  color: envioResult ? '#10B981' : 'var(--brand-700)',
+                }}
+              >
+                <CheckCircle2 size={16} />
+              </div>
+              <div>
+                <div className="text-[14px] font-extrabold" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
+                  Resultado del Envío
+                </div>
+                <div className="text-[11.5px] font-semibold mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                  {envioResult
+                    ? `Procesado envío de notificación Push masiva: ${envioResult.sentCount ?? 0} exitosas, ${envioResult.failedCount ?? 0} fallidas.`
+                    : 'Aquí se mostrarán las métricas y el detalle de entrega al despachar la notificación.'}
+                </div>
+              </div>
+            </div>
+
+            {/* Grid 4 métricas */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="p-2.5 rounded-xl border" style={{ background: 'var(--muted)', borderColor: 'var(--border)' }}>
+                <div className="text-[9.5px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+                  CUENTAS DESTINO
+                </div>
+                <div className="text-[18px] font-extrabold mt-0.5" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
+                  {envioResult?.totalUsersTargeted ?? 0}
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-xl border" style={{ background: 'var(--muted)', borderColor: 'var(--border)' }}>
+                <div className="text-[9.5px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+                  DISPOSITIVOS DETECTADOS
+                </div>
+                <div className="text-[18px] font-extrabold mt-0.5" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
+                  {envioResult?.totalTokensFound ?? 0}
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-xl border" style={{ background: 'rgba(16, 185, 129, 0.12)', borderColor: 'rgba(16, 185, 129, 0.3)' }}>
+                <div className="text-[9.5px] font-extrabold uppercase tracking-wider" style={{ color: '#10B981' }}>
+                  ENTREGADOS OK
+                </div>
+                <div className="text-[18px] font-extrabold mt-0.5" style={{ ...DISPLAY, color: '#10B981' }}>
+                  {envioResult?.sentCount ?? 0}
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-xl border" style={{ background: 'var(--hero-coral-soft-bg)', borderColor: 'rgba(244, 63, 94, 0.3)' }}>
+                <div className="text-[9.5px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--destructive)' }}>
+                  FALLIDOS
+                </div>
+                <div className="text-[18px] font-extrabold mt-0.5" style={{ ...DISPLAY, color: 'var(--destructive)' }}>
+                  {envioResult?.failedCount ?? 0}
+                </div>
+              </div>
+            </div>
+
+            {/* Lista de detalles de destinatarios */}
+            {envioResult?.details && envioResult.details.length > 0 && (
+              <div className="grid gap-2 border-t pt-3" style={{ borderColor: 'var(--border)' }}>
+                <div className="text-[11px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+                  DETALLE DE DESTINATARIOS ({envioResult.details.length})
+                </div>
+
+                <div className="max-h-[220px] overflow-y-auto grid gap-2 pr-1">
+                  {envioResult.details.map((d, idx) => {
+                    const isSent = d.status === 'sent'
+                    return (
+                      <div
+                        key={idx}
+                        className="p-2.5 rounded-xl border text-[11.5px]"
+                        style={{ background: 'var(--card)', borderColor: 'var(--border)' }}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold truncate min-w-0" style={{ color: 'var(--ink-900)' }}>
+                            {d.email || d.userId || 'Usuario'}
+                          </span>
+                          <span
+                            className="px-2 py-0.5 rounded-md text-[9.5px] font-extrabold flex-shrink-0"
+                            style={{
+                              background: isSent ? 'rgba(16, 185, 129, 0.18)' : 'var(--hero-coral-soft-bg)',
+                              color: isSent ? '#10B981' : 'var(--destructive)',
+                            }}
+                          >
+                            {isSent ? 'ENTREGADO' : 'FALLIDO'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2 mt-1 text-[10.5px]" style={{ color: 'var(--ink-500)' }}>
+                          <span>Plataforma: <strong style={{ color: 'var(--ink-700)' }}>{d.platform || 'Web'}</strong></span>
+                          {d.token && (
+                            <span className="truncate max-w-[120px]" style={MONO}>
+                              Token: {d.token.slice(0, 15)}...
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="text-[10.5px] font-semibold mt-0.5" style={{ color: isSent ? '#10B981' : 'var(--destructive)' }}>
+                          {isSent ? 'Enviado correctamente' : d.error || 'Error en entrega de token'}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </Card>
       </div>
     </div>
   )

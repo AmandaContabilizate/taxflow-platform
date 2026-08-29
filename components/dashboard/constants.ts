@@ -72,7 +72,7 @@ export const TITLES: Record<Screen, [string, string]> = {
   comisiones: ['Comisiones', 'Tus comisiones y liquidaciones'],
   'mis-tareas': ['Mis tareas', 'Pendientes asignados a ti'],
   bandeja: ['Bandeja', 'Solicitudes y mensajes entrantes'],
-  notificaciones: ['Envío de Avisos', 'Envía avisos push a los usuarios de la app'],
+  notificaciones: ['Marketing & Difusión', 'Envío masivo de notificaciones Push, In-App y Correo'],
   upsell: ['Upsell', 'Oportunidades para ampliar servicios'],
   'clientes-asignados': ['Clientes asignados', 'Tu cartera de atención'],
   'pipelines-por-etapa': ['Pipelines por etapa', 'Estado de tus oportunidades'],
@@ -167,9 +167,9 @@ const MIS_TAREAS_ITEM: NavDef = { id: 'mis-tareas', label: 'Mis tareas', Icon: C
 const BANDEJA_ITEM: NavDef = { id: 'bandeja', label: 'Bandeja', Icon: Inbox, hint: 'Mensajes entrantes' }
 const NOTIFICACIONES_ITEM: NavDef = {
   id: 'notificaciones',
-  label: 'Envío de Avisos',
-  Icon: Send,
-  hint: 'Envía avisos push a los usuarios',
+  label: 'Marketing & Difusión',
+  Icon: Megaphone,
+  hint: 'Envío masivo de notificaciones Push, In-App y Correo',
 }
 const UPSELL_ITEM: NavDef = { id: 'upsell', label: 'Upsell', Icon: TrendingUp, hint: 'Oportunidades' }
 const CLIENTES_ASIGNADOS_ITEM: NavDef = {
@@ -295,12 +295,7 @@ const PARTNERSHIP_ITEM: NavDef = {
   Icon: KeyRound,
   hint: 'CORS, llaves SSO y logins',
 }
-const MARKETING_ITEM: NavDef = {
-  id: 'marketing',
-  label: 'Marketing / Difusión',
-  Icon: Megaphone,
-  hint: 'Notificaciones masivas',
-}
+const MARKETING_ITEM: NavDef = NOTIFICACIONES_ITEM
 
 export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
   guest: GUEST_NAV,
@@ -310,7 +305,7 @@ export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
   // Developer conserva todo lo de Administrator (superusuario técnico).
   developer: [
     DASHBOARD_ITEM,
-    MARKETING_ITEM,
+    NOTIFICACIONES_ITEM,
     USUARIOS_ITEM,
     CONTRIBUYENTES_ITEM,
     CLIENTES_ITEM,
@@ -333,13 +328,12 @@ export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
   ],
   'atencion-clientes': [
     DASHBOARD_ITEM,
-    MARKETING_ITEM,
+    NOTIFICACIONES_ITEM,
     USUARIOS_ITEM,
     OPERACIONES_ITEM,
     RENOVACIONES_ITEM,
     COMISIONES_ITEM,
     BANDEJA_ITEM,
-    NOTIFICACIONES_ITEM,
     UPSELL_ITEM,
     CLIENTES_ASIGNADOS_ITEM,
     PIPELINES_ITEM,
@@ -442,7 +436,7 @@ export const MASTER_NAV_SECTIONS: NavSection[] = [
   },
   {
     section: 'ATENCIÓN',
-    items: [BANDEJA_ITEM, NOTIFICACIONES_ITEM, CLIENTES_ASIGNADOS_ITEM],
+    items: [BANDEJA_ITEM, CLIENTES_ASIGNADOS_ITEM],
   },
   {
     section: 'OPERACIÓN',
@@ -463,7 +457,7 @@ export const MASTER_NAV_SECTIONS: NavSection[] = [
       EQUIPO_OPERACIONES_ITEM,
       PARTNERS_ITEM,
       CODIGOS_DESCUENTO_ITEM,
-      MARKETING_ITEM,
+      NOTIFICACIONES_ITEM,
       REPORTES_ITEM,
       ACTIVIDAD_ITEM,
       MIS_TAREAS_ITEM,

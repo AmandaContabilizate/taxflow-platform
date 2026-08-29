@@ -1,20 +1,21 @@
 'use client'
 
 import { AlertCircle, Loader2 } from 'lucide-react'
-import { formatMXN, type SalePayment } from '@/features/account/types'
+import {
+  formatMXN,
+  modeOf,
+  priceForMode,
+  SUBSCRIPTION_DISCOUNT_PERCENT,
+  typeLabel,
+  type SalePayment,
+} from '@/features/account/types'
 import { DISPLAY, MONO } from '../constants'
-import { Divider } from '../ui'
+import { Badge, Divider } from '../ui'
 
 function fmtDate(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
   return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
-}
-
-function typeLabel(type: string): string {
-  if (type === 'subscription') return 'Suscripción'
-  if (type === 'one_time') return 'Pago único'
-  return type
 }
 
 interface Props {
@@ -53,24 +54,30 @@ export function PaymentsPanel({ loading, error, items, total }: Props) {
         </div>
       ) : (
         <div>
-          {items.map((p, i) => (
-            <div key={p.saleId}>
-              <div className="flex items-start justify-between gap-3 py-3">
-                <div className="min-w-0">
-                  <div className="font-bold text-[14px] truncate" style={{ color: 'var(--ink-900)' }}>
-                    {p.planName ?? 'Pago'}
+          {items.map((p, i) => {
+            const mode = modeOf(p.type)
+            return (
+              <div key={p.saleId}>
+                <div className="flex items-start justify-between gap-3 py-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-[14px] truncate" style={{ color: 'var(--ink-900)' }}>
+                        {p.planName ?? 'Pago'}
+                      </span>
+                      {mode === 0 && <Badge kind="brand">−{SUBSCRIPTION_DISCOUNT_PERCENT}% suscripción</Badge>}
+                    </div>
+                    <div className="text-[12px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                      {fmtDate(p.saleDate)} · {typeLabel(p.type)}
+                    </div>
                   </div>
-                  <div className="text-[12px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
-                    {fmtDate(p.saleDate)} · {typeLabel(p.type)}
+                  <div className="text-[14px] font-extrabold whitespace-nowrap" style={{ ...MONO, color: 'var(--ink-900)' }}>
+                    {formatMXN(priceForMode(p.amount, mode))}
                   </div>
                 </div>
-                <div className="text-[14px] font-extrabold whitespace-nowrap" style={{ ...MONO, color: 'var(--ink-900)' }}>
-                  {formatMXN(p.amount)}
-                </div>
+                {i < items.length - 1 && <Divider />}
               </div>
-              {i < items.length - 1 && <Divider />}
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

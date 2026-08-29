@@ -14,6 +14,7 @@ import {
   VentasPagadasCell,
   usePagedList,
 } from '../clientes/parts'
+import { PrimeraCompraCell } from '../clientes/PrimeraCompraCell'
 import { ReassignModal } from '../clientes/reassign-modal'
 import { ExpedienteCliente } from '../clientes/expediente-cliente'
 
@@ -42,8 +43,9 @@ export function ClientesScreen({ permissions = [] }: { permissions?: string[] })
   return (
     <div className="flex flex-col gap-5 max-w-full h-[calc(100dvh-8.5rem)]">
       <HelpBox>
-        Contribuyentes con ventas pagadas. Aquí ves cuántas veces ha pagado cada uno, sus compras y
-        los planes que contrataron. Con el filtro de ventas dejas fuera a los de una sola compra.
+        Padrón de contribuyentes con al menos una venta pagada en Stripe. Desde aquí consultas sus
+        compras acumuladas, los planes a futuro contratados y el contador asignado. Con el filtro
+        de ventas puedes acotar a clientes recurrentes (2 o más ventas).
       </HelpBox>
 
       <Card className="shrink-0">
@@ -84,7 +86,7 @@ export function ClientesScreen({ permissions = [] }: { permissions?: string[] })
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Cliente', 'RFC', 'Regímenes', 'Venta de Planes', 'Compras', 'Planes', 'Contador'].map((h) => (
+                    {['Cliente', 'RFC', 'Regímenes', 'Primera compra', 'Venta de Planes', 'Compras', 'Planes', 'Contador'].map((h) => (
                       <th
                         key={h}
                         className="px-5 py-3 text-left font-extrabold"
@@ -156,6 +158,9 @@ export function ClientesScreen({ permissions = [] }: { permissions?: string[] })
                       </td>
                       <td className="px-5 py-4">
                         <RegimenesCell regimenes={c.regimenes} />
+                      </td>
+                      <td className="px-5 py-4">
+                        <PrimeraCompraCell fecha={c.fechaPrimeraVenta} />
                       </td>
                       <td className="px-5 py-4">
                         <VentasPagadasCell ventas={c.ventasPagadas} />

@@ -14,6 +14,7 @@ import {
   VentasPagadasCell,
   usePagedList,
 } from '../clientes/parts'
+import { PrimeraCompraCell } from '../clientes/PrimeraCompraCell'
 import { ReassignModal } from '../clientes/reassign-modal'
 import { ActividadesModal } from '../clientes/actividades-modal'
 
@@ -75,8 +76,8 @@ export function MisClientesScreen({ permissions = [], userId }: MisClientesProps
   }
 
   const headers = isManager
-    ? ['Cliente', 'RFC', 'Regímenes', 'Venta de Planes', 'Compras', 'Planes', 'Contador', 'Acciones']
-    : ['Cliente', 'RFC', 'Regímenes', 'Venta de Planes', 'Compras', 'Planes']
+    ? ['Cliente', 'RFC', 'Regímenes', 'Primera compra', 'Venta de Planes', 'Compras', 'Planes', 'Contador', 'Acciones']
+    : ['Cliente', 'RFC', 'Regímenes', 'Primera compra', 'Venta de Planes', 'Compras', 'Planes']
 
   return (
     <div className="flex flex-col gap-5 max-w-full h-[calc(100dvh-8.5rem)]">
@@ -197,6 +198,9 @@ export function MisClientesScreen({ permissions = [], userId }: MisClientesProps
                       </td>
                       <td className="px-5 py-4">
                         <RegimenesCell regimenes={c.regimenes} />
+                      </td>
+                      <td className="px-5 py-4">
+                        <PrimeraCompraCell fecha={c.fechaPrimeraVenta} />
                       </td>
                       <td className="px-5 py-4">
                         <VentasPagadasCell ventas={c.ventasPagadas} />

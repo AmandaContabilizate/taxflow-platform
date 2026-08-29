@@ -6,6 +6,7 @@ export interface UserNotification {
   category: string;
   title: string;
   summary: string;
+  imageUrl?: string | null;
   detailUrl?: string | null;
   payloadJson?: string | null;
   isRead: boolean;

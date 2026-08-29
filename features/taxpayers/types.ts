@@ -100,6 +100,18 @@ export interface SatCredentials {
   tieneEfirma: boolean
 }
 
+/**
+ * Respuesta cruda de Identity `/sat-password` (policy `Contador.GetSatPassword`).
+ * Trae la CIEC en claro: no la persistas, no la loguees y bórrala del estado en
+ * cuanto deje de estar visible.
+ */
+export interface SatPassword {
+  satPassword: string
+  publicId: string
+  rfc: string
+  tieneEfirma: boolean
+}
+
 export interface ClientListItem extends TaxpayerListItem {
   declaracionesCompradas: number;
   regularizacionesCompradas: number;
@@ -109,6 +121,7 @@ export interface ClientListItem extends TaxpayerListItem {
   accountantUserId: string | null;
   accountantName: string | null;
   accountantEmail: string | null;
+  fechaPrimeraVenta?: string | null;
 }
 
 /**

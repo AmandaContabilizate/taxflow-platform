@@ -7,7 +7,7 @@ import type { ClientDeclarationInvoice, ClientDeclarationSubject } from '@/featu
 import { DISPLAY, MONO } from '../constants'
 import { Badge, Card } from '../ui'
 import { DeclarationComments } from './declaration-comments'
-import { declarationStatusBadge, fmtDate } from './parts'
+import { declarationStatusBadge, fmtDate, resolvePdfUrl } from './parts'
 
 interface CurrentUser {
   userId: string
@@ -120,17 +120,41 @@ export function ClientDeclarationDetail({ declaration: d, onBack, currentUser }:
           <Dato label="Periodicidad" value={d.periodicity ?? 'No definida'} />
           <Dato label="Presentada el" value={d.submittedAt ? fmtDate(d.submittedAt) : 'Aún no'} />
         </div>
-        {d.acknowledgmentPdfUrl && (
-          <div className="px-5 pb-5">
-            <a
-              href={d.acknowledgmentPdfUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12.5px] font-bold transition hover:opacity-90"
-              style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
-            >
-              <Download size={15} /> Descargar acuse
-            </a>
+        {(d.acknowledgmentPdfUrl || d.paymentLinePdfUrl || d.paymentAcknowledgmentPdfUrl) && (
+          <div className="px-5 pb-5 flex items-center gap-3 flex-wrap">
+            {d.acknowledgmentPdfUrl && (
+              <a
+                href={resolvePdfUrl(d.acknowledgmentPdfUrl) ?? d.acknowledgmentPdfUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12.5px] font-bold transition hover:opacity-90"
+                style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+              >
+                <Download size={15} /> Descargar acuse
+              </a>
+            )}
+            {d.paymentLinePdfUrl && (
+              <a
+                href={resolvePdfUrl(d.paymentLinePdfUrl) ?? d.paymentLinePdfUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12.5px] font-bold transition hover:opacity-90"
+                style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+              >
+                <Download size={15} /> Descargar línea de captura
+              </a>
+            )}
+            {d.paymentAcknowledgmentPdfUrl && (
+              <a
+                href={resolvePdfUrl(d.paymentAcknowledgmentPdfUrl) ?? d.paymentAcknowledgmentPdfUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12.5px] font-bold transition hover:opacity-90"
+                style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+              >
+                <Download size={15} /> Descargar comprobante de pago
+              </a>
+            )}
           </div>
         )}
       </Card>

@@ -23,11 +23,11 @@ export async function getRegularizationsByTaxpayer(
   }
 
   // `onlyUpcoming` no se manda: el backend de regularizaciones no lo acepta.
-  const { rfc, skip, take, kind, taxRegimeId } = parsed.data
+  const { rfc, skip, take, kind, taxRegimeId, statusId } = parsed.data
 
   try {
     const data = await fetchGet<PagedDeclarations<TaxpayerDeclarationItem>>(
-      API_ROUTES.DECLARATION.REGULARIZATIONS_BY_TAXPAYER({ rfc, skip, take, kind, taxRegimeId }),
+      API_ROUTES.DECLARATION.REGULARIZATIONS_BY_TAXPAYER({ rfc, skip, take, kind, taxRegimeId, statusId }),
       'declaration',
     )
     return ok({ items: data?.items ?? [], total: data?.total ?? 0, skip, take })

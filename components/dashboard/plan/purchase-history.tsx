@@ -2,7 +2,16 @@
 
 import { ChevronDown, Receipt } from 'lucide-react'
 import { useState } from 'react'
-import { formatMXN, type AccountPurchase, type AccountPurchaseItem } from '@/features/account/types'
+import {
+  formatMXN,
+  modeOf,
+  priceForMode,
+  SUBSCRIPTION_DISCOUNT_PERCENT,
+  typeLabel,
+  type AccountPurchase,
+  type AccountPurchaseItem,
+  type PaymentMode,
+} from '@/features/account/types'
 import { DISPLAY, MONO } from '../constants'
 import { Badge, Card, Divider } from '../ui'
 
@@ -12,15 +21,9 @@ function fmtDate(iso: string): string {
   return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-function typeLabel(type: string): string {
-  if (type === 'subscription') return 'Suscripción'
-  if (type === 'one_time') return 'Pago único'
-  return type
-}
-
 const PAID_STATUS_ID = 2
 
-function PurchaseItem({ item }: { item: AccountPurchaseItem }) {
+function PurchaseItem({ item, mode }: { item: AccountPurchaseItem; mode: PaymentMode }) {
   return (
     <div className="rounded-2xl p-3.5" style={{ background: 'var(--ink-50)' }}>
       <div className="flex items-start justify-between gap-3">
@@ -29,11 +32,11 @@ function PurchaseItem({ item }: { item: AccountPurchaseItem }) {
             {item.planName ?? 'Paquete'}
           </div>
           <div className="text-[11.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
-            {item.quantity} × {formatMXN(item.unitAmount)}
+            {item.quantity} × {formatMXN(priceForMode(item.unitAmount, mode))}
           </div>
         </div>
         <div className="text-[13.5px] font-extrabold whitespace-nowrap" style={{ ...MONO, color: 'var(--ink-900)' }}>
-          {formatMXN(item.amount)}
+          {formatMXN(priceForMode(item.amount, mode))}
         </div>
       </div>
 
@@ -52,6 +55,8 @@ function PurchaseItem({ item }: { item: AccountPurchaseItem }) {
 function PurchaseRow({ purchase }: { purchase: AccountPurchase }) {
   const [open, setOpen] = useState(false)
   const isPaid = purchase.statusId === PAID_STATUS_ID
+  const mode = modeOf(purchase.type)
+  const amount = priceForMode(purchase.amount, mode)
 
   return (
     <div>
@@ -71,6 +76,7 @@ function PurchaseRow({ purchase }: { purchase: AccountPurchase }) {
               {fmtDate(purchase.saleDate)}
             </span>
             <Badge kind={isPaid ? 'brand' : 'amber'}>{purchase.status}</Badge>
+            {mode === 0 && <Badge kind="brand">−{SUBSCRIPTION_DISCOUNT_PERCENT}% suscripción</Badge>}
           </div>
           <div className="text-[12px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
             {typeLabel(purchase.type)} · venta #{purchase.saleId} ·{' '}
@@ -79,7 +85,7 @@ function PurchaseRow({ purchase }: { purchase: AccountPurchase }) {
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <span className="text-[14.5px] font-extrabold" style={{ ...MONO, color: 'var(--ink-900)' }}>
-            {formatMXN(purchase.amount)}
+            {formatMXN(amount)}
           </span>
           <ChevronDown
             size={16}
@@ -95,7 +101,7 @@ function PurchaseRow({ purchase }: { purchase: AccountPurchase }) {
       {open && (
         <div className="px-4 pb-4 flex flex-col gap-2.5">
           {purchase.items.map((item) => (
-            <PurchaseItem key={item.saleItemId} item={item} />
+            <PurchaseItem key={item.saleItemId} item={item} mode={mode} />
           ))}
         </div>
       )}
@@ -108,7 +114,7 @@ interface Props {
 }
 
 export function PurchaseHistory({ compras }: Props) {
-  const total = compras.reduce((sum, c) => sum + c.amount, 0)
+  const total = compras.reduce((sum, c) => sum + priceForMode(c.amount, modeOf(c.type)), 0)
 
   return (
     <div>

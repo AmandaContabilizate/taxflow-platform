@@ -29,6 +29,8 @@ interface TaxpayerListQuery {
   taxRegimeId?: number
   /** Solo periodos de calendario aún no vencidos. No lo aceptan las rutas de regularización. */
   onlyUpcoming?: boolean
+  /** Id de `DeclarationStatus` (`Declarations.Declaration.IdStatusDeclaration`). "En proceso" = 15. */
+  statusId?: number
 }
 
 export interface TaxpayerGroupsQuery extends TaxpayerListQuery {
@@ -47,6 +49,7 @@ function taxpayerListQuery(p: TaxpayerListQuery): URLSearchParams {
   if (p.kind) qs.set("kind", String(p.kind))
   if (p.taxRegimeId) qs.set("taxRegimeId", String(p.taxRegimeId))
   if (p.onlyUpcoming) qs.set("onlyUpcoming", "true")
+  if (p.statusId) qs.set("statusId", String(p.statusId))
   return qs
 }
 

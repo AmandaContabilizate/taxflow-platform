@@ -335,6 +335,29 @@ export const NotificationCenterView = () => {
                   {item.summary}
                 </p>
 
+                {(() => {
+                  let imgUrl = item.imageUrl?.trim() || null;
+                  if (!imgUrl && item.payloadJson?.trim()) {
+                    try {
+                      const parsed = JSON.parse(item.payloadJson);
+                      imgUrl = parsed?.imageUrl || parsed?.ImageUrl || null;
+                    } catch {
+                      imgUrl = null;
+                    }
+                  }
+                  if (!imgUrl) return null;
+                  return (
+                    <div className="mt-2.5 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 bg-black/10 dark:bg-black/40 p-1 flex justify-start max-w-sm">
+                      <img
+                        src={imgUrl}
+                        alt=""
+                        className="max-h-36 w-auto object-contain rounded-lg"
+                        onError={e => { e.currentTarget.style.display = 'none'; }}
+                      />
+                    </div>
+                  );
+                })()}
+
                 {item.detailUrl && (
                   <div className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 group-hover:underline">
                     <span>Ir a Detalle</span>
