@@ -380,3 +380,15 @@ export function applySubscriptionDiscount(amount: number): number {
 export function priceForMode(price: number, mode: PaymentMode): number {
   return mode === 0 ? applySubscriptionDiscount(price) : price;
 }
+
+/** Modo de pago implícito en el tipo de venta que devuelve el backend. */
+export function modeOf(type: string): PaymentMode {
+  return type === 'subscription' ? 0 : 1;
+}
+
+/** Etiqueta visible del tipo de venta. */
+export function typeLabel(type: string): string {
+  if (type === 'subscription') return 'Suscripción';
+  if (type === 'one_time') return 'Pago único';
+  return type;
+}

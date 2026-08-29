@@ -3,6 +3,7 @@
 import { ApiError, fetchGet } from "@/lib/api";
 import { API_ROUTES } from "@/lib/api/apiRoutes";
 import { type Result, err, ok } from "@/lib/common";
+import { getSatPassword } from "./getSatPassword.action";
 import type { ExpedienteCliente, SatCredentials } from "../types";
 
 interface TaxpayersError {
@@ -34,22 +35,12 @@ export async function getExpedienteCliente(
  * Credenciales SAT del contribuyente (Identity, policy Contador.GetSatPassword):
  * contraseña CIEC + si tiene e.firma cargada. Se pide BAJO DEMANDA — nunca viaja
  * junto con el expediente ni se guarda en estado más tiempo del necesario.
+ * Delega en `getSatPassword` para no duplicar la llamada al endpoint.
  */
 export async function getSatCredentials(
   rfc: string,
 ): Promise<Result<SatCredentials, TaxpayersError>> {
-  try {
-    const data = await fetchGet<{
-      satPassword: string;
-      digitalIdentities?: { identityCertPath: string }[];
-    }>(API_ROUTES.TAXPAYERS.SAT_PASSWORD(rfc), "taxpayers");
-    return ok({
-      satPassword: data?.satPassword ?? "",
-      tieneEfirma: (data?.digitalIdentities?.length ?? 0) > 0,
-    });
-  } catch (e) {
-    if (e instanceof ApiError) return err({ statusCode: e.status, message: e.message });
-    console.error("[getSatCredentials] Error:", e);
-    return err({ statusCode: 500, message: "No pudimos obtener las credenciales SAT." });
-  }
+  const res = await getSatPassword(rfc);
+  if (!res.success) return err(res.error);
+  return ok({ satPassword: res.value.satPassword, tieneEfirma: res.value.tieneEfirma });
 }

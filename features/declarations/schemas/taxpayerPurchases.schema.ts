@@ -18,6 +18,8 @@ const kind = z.union([z.literal(1), z.literal(2)]).optional()
 const filters = {
   taxRegimeId: z.number().int().positive().optional(),
   onlyUpcoming: z.boolean().optional(),
+  /** Id de `DeclarationStatus` (Declarations.Declaration.IdStatusDeclaration). "En proceso" = 15. */
+  statusId: z.number().int().positive().optional(),
 }
 
 /** Nivel 1: contribuyentes con compras. `search` filtra por RFC o razón social. */

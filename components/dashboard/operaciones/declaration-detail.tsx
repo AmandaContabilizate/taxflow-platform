@@ -4,10 +4,14 @@ import {
   AlertTriangle,
   ArrowLeft,
   Calculator,
+  Check,
   CheckCircle2,
   Construction,
+  Copy,
   DollarSign,
   Download,
+  Eye,
+  EyeOff,
   Loader2,
   Mail,
   MessageSquarePlus,
@@ -24,6 +28,7 @@ import { getDeclarationGeneral } from '@/features/operations/actions/getDeclarat
 import { getDeclarationLogs } from '@/features/operations/actions/getDeclarationLogs.action'
 import { resendDeclarationToClient } from '@/features/operations/actions/resendDeclarationToClient.action'
 import type { DeclarationGeneral, DeclarationLog, DeclarationSubject } from '@/features/operations/types'
+import { getSatPassword } from '@/features/taxpayers/actions/getSatPassword.action'
 import { num, toNumber } from './calc-read'
 import { CalculosTab } from './calculos-tab'
 import { ComprobantesTab } from './comprobantes-tab'
@@ -31,6 +36,7 @@ import { RecalculoTab } from './recalculo-tab'
 import { ResumenDeclaracion } from './resumen-declaracion'
 import { declarationStatusBadge, fmtDate } from '../declaraciones/parts'
 import { DISPLAY, MONO } from '../constants'
+import { useHasPermission } from '../permissions'
 import { Modal } from '../modal'
 import { Badge, Card } from '../ui'
 
@@ -50,6 +56,118 @@ const money = (n: number) =>
 
 /** `null` = no determinable — nunca se inventa una cifra. */
 const moneyOrDash = (n: number | null | undefined) => (n == null ? '—' : money(n))
+
+
+/* -------------------------------------------------------------------------- */
+/*  CIEC del contribuyente                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * CIEC bajo demanda para el contador que está trabajando la declaración.
+ *
+ * Reglas de seguridad de este bloque (no las relajes):
+ * - La petición sale SOLO al pulsar "Ver"; montar la pantalla no pide nada.
+ * - La contraseña vive en el estado local de este componente: no se loguea, no
+ *   se sube por props ni se guarda en storage.
+ * - "Ocultar" la borra del estado; el siguiente "Ver" vuelve a pedirla.
+ * - Sin el claim `Contador.GetSatPassword` el control no se pinta.
+ */
+function CiecInline({ rfc }: { rfc: string }) {
+  const puedeVerCiec = useHasPermission('Contador.GetSatPassword')
+  const [ciec, setCiec] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [aviso, setAviso] = useState<string | null>(null)
+  const [copiado, setCopiado] = useState(false)
+
+  useEffect(() => {
+    setCiec(null)
+    setAviso(null)
+    setCopiado(false)
+  }, [rfc])
+
+  if (!puedeVerCiec || !rfc) return null
+
+  const ocultar = () => {
+    setCiec(null)
+    setAviso(null)
+    setCopiado(false)
+  }
+
+  const ver = async () => {
+    setLoading(true)
+    setAviso(null)
+    const res = await getSatPassword(rfc)
+    setLoading(false)
+    if (res.success && res.value.satPassword) {
+      setCiec(res.value.satPassword)
+      return
+    }
+    setCiec(null)
+    setAviso(res.success || res.error.statusCode === 404 ? 'Sin CIEC registrada' : 'No disponible')
+  }
+
+  const copiar = async () => {
+    if (!ciec) return
+    try {
+      await navigator.clipboard.writeText(ciec)
+      setCopiado(true)
+      setTimeout(() => setCopiado(false), 1600)
+    } catch {
+      setAviso('No se pudo copiar')
+    }
+  }
+
+  return (
+    <div
+      className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-xl"
+      style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+    >
+      <span
+        className="text-[10.5px] font-extrabold uppercase tracking-wide"
+        style={{ color: 'var(--ink-500)' }}
+      >
+        CIEC
+      </span>
+      <code style={{ ...MONO, fontSize: '13px', color: 'var(--ink-900)' }}>
+        {ciec ?? '••••••••'}
+      </code>
+      {aviso && (
+        <span className="text-[11.5px] font-semibold" style={{ color: 'var(--ink-500)' }}>
+          {aviso}
+        </span>
+      )}
+      <button
+        type="button"
+        onClick={() => (ciec ? ocultar() : void ver())}
+        disabled={loading}
+        title={ciec ? 'Ocultar la CIEC' : 'Consultar y mostrar la CIEC'}
+        className="inline-flex items-center gap-1 text-[11.5px] font-bold px-2 py-1 rounded-lg transition hover:opacity-80 disabled:opacity-60"
+        style={{ background: 'var(--ink-50)', color: 'var(--ink-700)', border: '1px solid var(--border)' }}
+      >
+        {loading ? (
+          <Loader2 size={12} className="animate-spin" />
+        ) : ciec ? (
+          <EyeOff size={12} />
+        ) : (
+          <Eye size={12} />
+        )}
+        {ciec ? 'Ocultar' : 'Ver'}
+      </button>
+      {ciec && (
+        <button
+          type="button"
+          onClick={() => void copiar()}
+          title="Copiar la CIEC al portapapeles"
+          className="inline-flex items-center gap-1 text-[11.5px] font-bold px-2 py-1 rounded-lg transition hover:opacity-80"
+          style={{ background: 'var(--ink-50)', color: 'var(--ink-700)', border: '1px solid var(--border)' }}
+        >
+          {copiado ? <Check size={12} /> : <Copy size={12} />}
+          {copiado ? 'Copiada' : 'Copiar'}
+        </button>
+      )}
+    </div>
+  )
+}
 
 /**
  * Códigos SAT con pantallas de cálculo propias. Los demás regímenes muestran el
@@ -276,6 +394,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               <MetaChip label="Ejercicio" value={String(ejercicio)} />
               <MetaChip label="Régimen" value={regimen ?? 'Sin régimen asignado'} muted={!regimen} />
+              <CiecInline rfc={rfc} />
             </div>
           </div>
         </div>

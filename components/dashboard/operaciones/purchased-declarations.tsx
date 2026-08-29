@@ -17,7 +17,8 @@ import { declarationStatusBadge } from '../declaraciones/parts'
 import { Pagination } from '../clientes/parts'
 import { DISPLAY, MONO } from '../constants'
 import { Badge, Card, ErrorState, HelpBox } from '../ui'
-import { numParam, useUrlState } from '../url-state'
+import { buildUrl, numParam, useUrlState } from '../url-state'
+import type { MouseEvent as ReactMouseEvent } from 'react'
 import { DeclarationDetail } from './declaration-detail'
 
 const MESES = [
@@ -46,6 +47,19 @@ const PERIOD_OPTIONS: { id: number; label: string }[] = [
 ]
 
 const TAKE = 50
+
+/**
+ * Clic izquierdo simple (sin Ctrl/Cmd/Shift/Alt): navega en la SPA sin
+ * recargar. Cualquier otro caso (clic central, Ctrl/Cmd+clic, clic derecho)
+ * se deja pasar tal cual para que el navegador haga lo suyo (pestaña nueva,
+ * menú contextual): por eso el `<a>` necesita un `href` real.
+ */
+function handlePlainLeftClick(e: ReactMouseEvent, onOpen: () => void) {
+  if (e.button === 0 && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
+    e.preventDefault()
+    onOpen()
+  }
+}
 
 type Mode = 'future' | 'regularization' | 'all'
 
@@ -97,6 +111,9 @@ const KIND_BY_MODE: Record<Mode, 1 | 2 | undefined> = {
 
 const TIPO_LABEL: Record<number, string> = { 1: 'Regularización', 2: 'A futuro' }
 
+/** `DeclarationStatus.InProcess` — E5: Regularizaciones entra filtrada a este estatus. */
+const IN_PROCESS_STATUS_ID = 15
+
 const emptyPage = <T,>(take: number): PagedDeclarations<T> => ({ items: [], total: 0, skip: 0, take })
 
 /** Etiqueta del régimen para los selects: "625 · Plataformas Tecnológicas". */
@@ -122,11 +139,16 @@ function TaxpayerGroups({
 }) {
   const copy = COPY[mode]
   const kind = KIND_BY_MODE[mode]
-  const { params, setParams } = useUrlState()
+  const { params, setParams, pathname } = useUrlState()
   // Solo "futuras" ofrece el filtro de periodo próximo; el back de
   // regularizaciones ni siquiera acepta el param.
   const upcomingAvailable = mode === 'future'
   const onlyUpcoming = upcomingAvailable && params.get('proximas') === '1'
+  // Solo "regularization" entra filtrado a "En proceso" (statusId=15); ausente
+  // en la URL = ese default, "todos" = sin filtro de estatus.
+  const statusFilterAvailable = mode === 'regularization'
+  const showAllStatuses = statusFilterAvailable && params.get('estatus') === 'todos'
+  const statusId = statusFilterAvailable && !showAllStatuses ? IN_PROCESS_STATUS_ID : undefined
 
   const [page, setPage] = useState<PagedDeclarations<TaxpayerGroup>>(emptyPage(TAKE))
   const [skip, setSkip] = useState(0)
@@ -160,6 +182,7 @@ function TaxpayerGroups({
         take: TAKE,
         kind,
         onlyUpcoming: onlyUpcoming || undefined,
+        statusId,
       })
       if (cancelled) return
       if (res.success) setPage(res.value)
@@ -172,11 +195,16 @@ function TaxpayerGroups({
     return () => {
       cancelled = true
     }
-  }, [mode, kind, query, skip, onlyUpcoming])
+  }, [mode, kind, query, skip, onlyUpcoming, statusId])
 
   const toggleUpcoming = (next: boolean) => {
     setSkip(0)
     setParams({ proximas: next ? '1' : null }, { replace: true })
+  }
+
+  const toggleShowAllStatuses = (next: boolean) => {
+    setSkip(0)
+    setParams({ estatus: next ? 'todos' : null }, { replace: true })
   }
 
   const totalPages = Math.max(1, Math.ceil(page.total / TAKE))
@@ -213,6 +241,21 @@ function TaxpayerGroups({
               />
               <span className="text-[12.5px] font-semibold" style={{ color: 'var(--ink-700)' }}>
                 Solo periodo próximo a trabajar
+              </span>
+            </label>
+          )}
+
+          {statusFilterAvailable && (
+            <label className="inline-flex items-center gap-2 cursor-pointer select-none self-start">
+              <input
+                type="checkbox"
+                checked={showAllStatuses}
+                onChange={(e) => toggleShowAllStatuses(e.target.checked)}
+                className="w-4 h-4 rounded"
+                style={{ accentColor: 'var(--brand-600)' }}
+              />
+              <span className="text-[12.5px] font-semibold" style={{ color: 'var(--ink-700)' }}>
+                Mostrar todas (incluye terminadas)
               </span>
             </label>
           )}
@@ -314,14 +357,14 @@ function TaxpayerGroups({
                         )}
                       </td>
                       <td className="px-5 py-4 text-right">
-                        <button
-                          type="button"
-                          onClick={() => onOpen(g, selectedRegime)}
+                        <a
+                          href={buildUrl({ rfc: g.rfc, decl: null, regimen: selectedRegime }, pathname, params.toString())}
+                          onClick={(e) => handlePlainLeftClick(e, () => onOpen(g, selectedRegime))}
                           className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12.5px] font-bold whitespace-nowrap transition hover:opacity-90"
                           style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}
                         >
                           Ver declaraciones <ArrowRight size={14} />
-                        </button>
+                        </a>
                       </td>
                     </tr>
                     )
@@ -375,7 +418,7 @@ function PurchasedTable({
 }) {
   const copy = COPY[mode]
   const kind = KIND_BY_MODE[mode]
-  const { params, setParams } = useUrlState()
+  const { params, setParams, pathname } = useUrlState()
 
   const [page, setPage] = useState<PagedDeclarations<TaxpayerDeclarationItem>>(emptyPage(TAKE))
   const [skip, setSkip] = useState(0)
@@ -389,6 +432,8 @@ function PurchasedTable({
   const year = numParam(params, 'year') ?? ''
   const regimeId = numParam(params, 'regimen') ?? ''
   const onlyUpcoming = mode === 'future' && params.get('proximas') === '1'
+  const showAllStatuses = mode === 'regularization' && params.get('estatus') === 'todos'
+  const statusId = mode === 'regularization' && !showAllStatuses ? IN_PROCESS_STATUS_ID : undefined
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -400,6 +445,7 @@ function PurchasedTable({
       kind,
       taxRegimeId: regimeId || undefined,
       onlyUpcoming: onlyUpcoming || undefined,
+      statusId,
     })
     if (res.success) setPage(res.value)
     else {
@@ -407,7 +453,7 @@ function PurchasedTable({
       setPage(emptyPage(TAKE))
     }
     setLoading(false)
-  }, [mode, kind, rfc, skip, regimeId, onlyUpcoming])
+  }, [mode, kind, rfc, skip, regimeId, onlyUpcoming, statusId])
 
   useEffect(() => {
     void load()
@@ -607,14 +653,14 @@ function PurchasedTable({
                         )}
                       </td>
                       <td className="px-5 py-4 text-right">
-                        <button
-                          type="button"
-                          onClick={() => onOpen(d)}
+                        <a
+                          href={buildUrl({ decl: d.declarationId }, pathname, params.toString())}
+                          onClick={(e) => handlePlainLeftClick(e, () => onOpen(d))}
                           className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12.5px] font-bold whitespace-nowrap"
                           style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
                         >
                           Abrir <ArrowRight size={14} />
-                        </button>
+                        </a>
                       </td>
                     </tr>
                   ))}

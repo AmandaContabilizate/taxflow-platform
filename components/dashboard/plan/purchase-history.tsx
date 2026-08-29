@@ -4,8 +4,10 @@ import { ChevronDown, Receipt } from 'lucide-react'
 import { useState } from 'react'
 import {
   formatMXN,
+  modeOf,
   priceForMode,
   SUBSCRIPTION_DISCOUNT_PERCENT,
+  typeLabel,
   type AccountPurchase,
   type AccountPurchaseItem,
   type PaymentMode,
@@ -19,22 +21,7 @@ function fmtDate(iso: string): string {
   return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-function typeLabel(type: string): string {
-  if (type === 'subscription') return 'Suscripción'
-  if (type === 'one_time') return 'Pago único'
-  return type
-}
-
 const PAID_STATUS_ID = 2
-
-/**
- * Las ventas de suscripción se cobran con el price recurrente de Stripe, que ya
- * trae el 10% de descuento; el backend guarda el importe de lista, así que aquí
- * lo descontamos para que el historial cuadre con lo que se cobró.
- */
-function modeOf(type: string): PaymentMode {
-  return type === 'subscription' ? 0 : 1
-}
 
 function PurchaseItem({ item, mode }: { item: AccountPurchaseItem; mode: PaymentMode }) {
   return (
