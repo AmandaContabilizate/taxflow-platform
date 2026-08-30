@@ -295,8 +295,8 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthoriz
                 background: !isPercent ? 'var(--hero-brand-soft)' : 'var(--card)',
               }}
             >
-              <div className="text-[13px] font-bold" style={{ color: 'var(--ink-900)' }}>Declaraciones</div>
-              <div className="text-[11.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>Precio completo + regularizaciones de regalo</div>
+              <div className="text-[13px] font-bold" style={{ color: 'var(--ink-900)' }}>Declaraciones futuras</div>
+              <div className="text-[11.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>Precio completo + declaraciones futuras extra</div>
             </button>
           </div>
         </div>
@@ -347,7 +347,7 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthoriz
         ) : (
           <div>
             <label className="block text-[12px] font-bold mb-1.5" style={{ color: 'var(--ink-700)' }}>
-              Declaraciones de regalo{' '}
+              Declaraciones futuras de regalo{' '}
               <span className="font-normal" style={{ color: 'var(--ink-400)' }}>
                 {canAuthorize ? '(sin tope con tu autorización)' : '(máximo 3)'}
               </span>
@@ -370,8 +370,8 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthoriz
               </p>
             )}
             <p className="text-[11.5px] mt-1" style={{ color: 'var(--ink-400)' }}>
-              Se suman al cupo de regularizaciones del plan comprado. Solo aplica en
-              compra de planes, no en regularizaciones sueltas.
+              Se suman al cupo de futuras del plan comprado (compra 12 con regalo de 3 =
+              15 meses). Solo aplica en compra de planes, no en regularizaciones sueltas.
             </p>
           </div>
         )}

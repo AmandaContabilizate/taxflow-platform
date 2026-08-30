@@ -32,6 +32,7 @@ import {
 import type { ExpedienteCliente, ExpedientePeriodo } from '@/features/taxpayers/types'
 import { DISPLAY, MONO } from '../constants'
 import { Badge, Card, ErrorState, NoAccessState, Tabs, isForbiddenError } from '../ui'
+import { TabDiagnostico } from './tab-diagnostico'
 
 const MESES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -84,6 +85,7 @@ const TAB_RESUMEN = 'Resumen'
 const TAB_CREDENCIALES = 'Credenciales'
 const TAB_PRODUCTOS = 'Productos'
 const TAB_DOCUMENTOS = 'Documentos'
+const TAB_DIAGNOSTICO = 'Diagnóstico'
 
 /**
  * Expediente del cliente (pantalla Clientes → clic en el nombre). Función de
@@ -96,13 +98,15 @@ export function ExpedienteCliente({ taxpayerId, permissions, onBack }: Props) {
   const canDocs =
     permissions.includes('Contador.GetTaxCertificate') ||
     permissions.includes('Contador.GetComplianceOpinion')
+  const canDiagnostico = permissions.includes('GerenciaComercial.RunDiagnosticoCliente')
   const tabs = useMemo(() => {
     const t = [TAB_RESUMEN]
     if (canCredentials) t.push(TAB_CREDENCIALES)
     t.push(TAB_PRODUCTOS)
     if (canDocs) t.push(TAB_DOCUMENTOS)
+    if (canDiagnostico) t.push(TAB_DIAGNOSTICO)
     return t
-  }, [canCredentials, canDocs])
+  }, [canCredentials, canDocs, canDiagnostico])
   const [tab, setTab] = useState(0)
 
   const [data, setData] = useState<ExpedienteCliente | null>(null)
@@ -202,6 +206,15 @@ export function ExpedienteCliente({ taxpayerId, permissions, onBack }: Props) {
       )}
       {activeTab === TAB_PRODUCTOS && <TabProductos data={data} />}
       {activeTab === TAB_DOCUMENTOS && canDocs && <TabDocumentos rfc={data.rfc} permissions={permissions} />}
+      {activeTab === TAB_DIAGNOSTICO && canDiagnostico && (
+        <TabDiagnostico
+          taxpayerId={taxpayerId}
+          onGoCredenciales={() => {
+            const i = tabs.indexOf(TAB_CREDENCIALES)
+            if (i >= 0) setTab(i)
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -690,6 +703,8 @@ function CredencialEfirmas({ efirmas }: { efirmas: ExpedienteCliente['efirmas'] 
 }
 
 function TabProductos({ data }: { data: ExpedienteCliente }) {
+  // Las anuales (501) no se muestran aquí: el servicio se sigue por periodos mensuales.
+  const periodos = data.periodos.filter((p) => p.periodValueId !== 501)
   return (
     <div className="flex flex-col gap-4">
       <Card>
@@ -732,17 +747,17 @@ function TabProductos({ data }: { data: ExpedienteCliente }) {
         <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="text-[14.5px] font-extrabold" style={DISPLAY}>Periodos del servicio</div>
           <div className="text-[12px]" style={{ color: 'var(--ink-500)' }}>
-            Declaraciones del contribuyente ({data.periodos.length} registradas): verdes ya
-            presentadas, violetas por presentar.
+            Declaraciones del contribuyente ({periodos.length} registradas): verdes ya
+            presentadas, violetas en curso.
           </div>
         </div>
-        {data.periodos.length === 0 ? (
+        {periodos.length === 0 ? (
           <div className="px-5 py-8 text-center text-[13px]" style={{ color: 'var(--ink-500)' }}>
             Aún no hay declaraciones registradas.
           </div>
         ) : (
           <div className="p-3 grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))' }}>
-            {data.periodos.map((p, i) => (
+            {periodos.map((p, i) => (
               <div
                 key={i}
                 className="rounded-xl px-3.5 py-3"
@@ -755,11 +770,11 @@ function TabProductos({ data }: { data: ExpedienteCliente }) {
                   {periodoLabel(p)}
                 </div>
                 <div
-                  className="text-[10.5px] font-extrabold uppercase tracking-wide mt-0.5"
+                  className="text-[11px] font-bold mt-0.5"
                   style={{ color: p.presentada ? 'var(--brand-900)' : 'var(--violet-ink)' }}
                   title={p.estatus}
                 >
-                  {p.presentada ? 'Presentada' : 'Por presentar'}
+                  {p.estatus}
                 </div>
               </div>
             ))}

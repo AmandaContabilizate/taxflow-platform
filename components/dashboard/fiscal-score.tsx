@@ -1,21 +1,19 @@
 'use client'
 
 import { ArrowUpRight, Loader2, RefreshCw } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
-import { getFiscalScore } from '@/features/declarations/actions/getFiscalScore.action'
+import { useRef, useState } from 'react'
+import { useFiscalScore } from '@/features/declarations/hooks/useFiscalScore'
 import type { FiscalScore } from '@/features/declarations/types'
-import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import { DISPLAY, MONO } from './constants'
 import type { GoFn } from './types'
 import { Btn } from './ui'
 import { scoreLabel, scoreColor } from './fiscal-score.utils'
 
 type State =
-  | { status: 'idle' }
   | { status: 'loading' }
   | { status: 'ready'; value: FiscalScore }
-  | { status: 'empty' } // total === 0 pero con documento de situación fiscal
-  | { status: 'processing' } // 0 declaraciones y sin documento: análisis en curso
+  | { status: 'empty' } // sincronizado y sin declaraciones registradas
+  | { status: 'processing' } // el robot del SAT sigue trabajando (CSF o reconciliación)
   | { status: 'error'; message: string }
 
 interface Props {
@@ -89,37 +87,23 @@ function headerBadge(
 }
 
 export function FiscalScore({ go, planTier, satSyncedLabel }: Props) {
-  const { selectedRfc } = useRfcStore()
-  const [state, setState] = useState<State>({ status: 'idle' })
+  // Lógica compartida de estatus del diagnóstico (docs/diagnostico-status.md):
+  // pasos conectando→revisando→listo + polling de 20s — el hero deja de
+  // quedarse pegado cuando el robot del SAT sigue trabajando.
+  const { score, step, error } = useFiscalScore()
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
   const containerRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    if (!selectedRfc) return
-    let cancelled = false
-    setState({ status: 'loading' })
-
-    void (async () => {
-      const scoreRes = await getFiscalScore(selectedRfc)
-      if (cancelled) return
-      if (!scoreRes.success) {
-        setState({ status: 'error', message: scoreRes.error.message })
-        return
-      }
-      // Sin declaraciones: distinguimos "ya terminamos y no hay nada" de "el
-      // scrapper sigue trabajando", usando las banderas del propio endpoint.
-      if (scoreRes.value.total === 0) {
-        const stillWorking = !scoreRes.value.hasCsfData || scoreRes.value.isReconciling
-        setState({ status: stillWorking ? 'processing' : 'empty' })
-        return
-      }
-      setState({ status: 'ready', value: scoreRes.value })
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [selectedRfc])
+  const state: State =
+    error && !score
+      ? { status: 'error', message: error }
+      : step === 'loading'
+        ? { status: 'loading' }
+        : step === 'connecting' || step === 'checking'
+          ? { status: 'processing' }
+          : !score || score.total === 0
+            ? { status: 'empty' }
+            : { status: 'ready', value: score }
 
   const badgeInfo = headerBadge(state.status, satSyncedLabel)
   const badge = { ...BADGE_TONES[badgeInfo.tone], label: badgeInfo.label, pulse: badgeInfo.pulse }
@@ -168,7 +152,7 @@ export function FiscalScore({ go, planTier, satSyncedLabel }: Props) {
         )}
       </div>
 
-      {state.status === 'loading' || state.status === 'idle' ? (
+      {state.status === 'loading' ? (
         <div
           className="flex items-center gap-3 mt-7 text-[15px] font-bold"
           style={{ color: 'rgba(255,255,255,0.78)' }}

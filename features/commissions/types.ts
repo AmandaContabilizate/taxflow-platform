@@ -33,7 +33,10 @@ export interface CommissionOperationRow {
   saleDate: string;
   operationType: string;
   segment: string | null;
+  /** Base que comisiona, sin IVA (en venta regalo = precio de lista). */
   amountNet: number;
+  /** Lo realmente cobrado al cliente, sin IVA. $0 en venta regalo. */
+  amountCharged: number;
   status: string;
   assignmentSource: string;
   vendorCodeUsed: string | null;

@@ -224,7 +224,7 @@ export function CodigosDescuentoScreen({ permissions = [] }: { permissions?: str
                       </td>
                       <td className="py-2.5 px-3 text-[13px]" style={{ color: 'var(--ink-900)' }}>
                         {a.discountTypeId === 2 ? (
-                          <b>{a.declarationsCount} declaraciones</b>
+                          <b>{a.declarationsCount} futuras</b>
                         ) : (
                           <b>{a.discountPercent}%</b>
                         )}
@@ -372,7 +372,7 @@ export function CodigosDescuentoScreen({ permissions = [] }: { permissions?: str
                       {c.discountTypeId === 2 ? (
                         <>
                           <b>{c.declarationsCount}</b> declaraciones
-                          <div className="text-[11px]" style={{ color: 'var(--ink-500)' }}>de regularización</div>
+                          <div className="text-[11px]" style={{ color: 'var(--ink-500)' }}>futuras de regalo</div>
                         </>
                       ) : (
                         <b>{c.discountPercent}%</b>

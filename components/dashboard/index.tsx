@@ -395,7 +395,7 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
       return <AsignacionesScreen isAdmin={permissions.includes('Admin.ApproveAssignments')} />;
     }
     if (screen === 'comisiones') {
-      return <ComisionesScreen permissions={permissions} />;
+      return <ComisionesScreen permissions={permissions} go={go} />;
     }
     if (screen === 'roles') {
       return <RolesScreen currentUserId={userId ?? undefined} currentUserEmail={email || undefined} />;

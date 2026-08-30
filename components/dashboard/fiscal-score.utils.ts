@@ -1,15 +1,41 @@
-/** Etiqueta cualitativa a partir del score numérico. */
-export function scoreLabel(score: number): string {
-  if (score >= 90) return 'Excelente'
-  if (score >= 75) return 'Muy bueno'
-  if (score >= 50) return 'Vas bien'
-  if (score >= 25) return 'A mejorar'
-  return 'Necesita atención'
+/**
+ * Estatus cualitativo del score fiscal — ÚNICA fuente de verdad para las tres
+ * pantallas que lo muestran (Diagnóstico, Home hero y Vista Fiscal). Antes cada
+ * una traía sus propios cortes y el mismo score se leía distinto entre pantallas.
+ * Cortes oficiales: 75 / 50 / 25 (los de la pantalla Diagnóstico, la referencia).
+ */
+export type FiscalStatusPill = 'brand' | 'amber' | 'coral'
+
+export interface FiscalScoreStatus {
+  /** Para frases: "tu situación fiscal está {word}". */
+  word: string
+  /** Etiqueta corta para tarjetas y heros. */
+  label: string
+  pill: FiscalStatusPill
+  pillText: string
+  accent: string
+  positive: boolean
 }
 
-/** Color del arco según el score. */
+export function fiscalStatus(score: number): FiscalScoreStatus {
+  if (score >= 75)
+    return { word: 'excelente', label: 'Excelente', pill: 'brand', pillText: 'Todo en orden', accent: '#00AD87', positive: true }
+  if (score >= 50)
+    return { word: 'buena', label: 'Vas bien', pill: 'brand', pillText: 'Vas bien', accent: '#00AD87', positive: true }
+  if (score >= 25)
+    return { word: 'regular', label: 'A mejorar', pill: 'amber', pillText: 'Requiere atención', accent: 'var(--violet-ink)', positive: false }
+  return { word: 'crítica', label: 'Necesita atención', pill: 'coral', pillText: 'Requiere atención', accent: 'var(--violet-ink)', positive: false }
+}
+
+/** Etiqueta cualitativa a partir del score numérico (derivada del estatus canónico). */
+export function scoreLabel(score: number): string {
+  return fiscalStatus(score).label
+}
+
+/** Color del arco según el score (alineado a la semántica del estatus: ≥50 es positivo). */
 export function scoreColor(score: number): string {
-  if (score >= 75) return '#00AD87' // brand-500
-  if (score >= 50) return '#7339FD' // amber
-  return 'var(--violet-ink)' // coral
+  const s = fiscalStatus(score)
+  if (s.positive) return '#00AD87' // brand-500
+  if (s.pill === 'amber') return '#7339FD'
+  return 'var(--violet-ink)'
 }

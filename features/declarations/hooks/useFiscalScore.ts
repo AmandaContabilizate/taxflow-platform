@@ -53,7 +53,9 @@ export function useFiscalScore() {
     }
   }, [score, fetchScore])
 
-  const step = diagnosticoStep(score, loading)
+  // Solo cuenta como "cargando" la PRIMERA consulta: los refetch del polling no
+  // deben regresar el paso a 'loading' (parpadeo) cuando ya hay un score en mano.
+  const step = diagnosticoStep(score, loading && score === null)
 
   return {
     score,
