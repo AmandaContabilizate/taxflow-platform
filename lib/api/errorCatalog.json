@@ -35,6 +35,34 @@
     "es": "No se pudo actualizar la contraseña del usuario.",
     "en": "Failed to update user password."
   },
+  "PasswordTooShort": {
+    "es": "Debe tener al menos 8 caracteres.",
+    "en": "Must be at least 8 characters long."
+  },
+  "PasswordRequiresLower": {
+    "es": "Debe incluir al menos una letra minúscula.",
+    "en": "Must include at least one lowercase letter."
+  },
+  "PasswordRequiresUpper": {
+    "es": "Debe incluir al menos una letra mayúscula.",
+    "en": "Must include at least one uppercase letter."
+  },
+  "PasswordRequiresDigit": {
+    "es": "Debe incluir al menos un número.",
+    "en": "Must include at least one number."
+  },
+  "PasswordRequiresNonAlphanumeric": {
+    "es": "Debe incluir al menos un carácter especial (ej. !@#$%).",
+    "en": "Must include at least one special character (e.g. !@#$%)."
+  },
+  "PasswordRequiresUniqueChars": {
+    "es": "Debe incluir más caracteres distintos.",
+    "en": "Must include more distinct characters."
+  },
+  "InvalidToken": {
+    "es": "El enlace ya no es válido o expiró. Solicita uno nuevo.",
+    "en": "The link is no longer valid or has expired. Request a new one."
+  },
   "UNEXPECTED_ERROR": {
     "es": "Ocurrió un error inesperado.",
     "en": "An unexpected error occurred."
