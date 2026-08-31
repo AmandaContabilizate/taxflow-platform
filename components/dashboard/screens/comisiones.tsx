@@ -68,7 +68,14 @@ function ProgressBar({ value }: { value: number | null | undefined }) {
   )
 }
 
-export function ComisionesScreen({ permissions = [] }: { permissions?: string[] }) {
+export function ComisionesScreen({
+  permissions = [],
+  go,
+}: {
+  permissions?: string[]
+  /** Navegación del dashboard — habilita el CTA hacia Asignaciones. */
+  go?: (screen: 'asignaciones') => void
+}) {
   // Qué se ve lo deciden los permisos del token (no el rol): mismo modelo que
   // los endpoints. ReadOwn → resumen/operaciones propias; ReadTeam → panel de
   // equipo (aunque el usuario no tenga perfil comercial propio).
@@ -127,7 +134,7 @@ export function ComisionesScreen({ permissions = [] }: { permissions?: string[] 
   }, [period, canReadOwn, canReadTeam])
 
   const exportCsv = () => {
-    const header = 'Fecha,Cliente,RFC,Tipo,Origen,Monto neto,Estatus'
+    const header = 'Fecha,Cliente,RFC,Tipo,Origen,Cobrado,Comisiona,Estatus'
     const rows = operations.map((o) =>
       [
         o.saleDate.slice(0, 10),
@@ -135,6 +142,7 @@ export function ComisionesScreen({ permissions = [] }: { permissions?: string[] 
         o.rfc,
         o.operationType,
         o.assignmentSource,
+        o.amountCharged.toFixed(2),
         o.amountNet.toFixed(2),
         o.status,
       ].join(','),
@@ -398,11 +406,49 @@ export function ComisionesScreen({ permissions = [] }: { permissions?: string[] 
                 </div>
 
                 {team.unassignedOperations > 0 && (
-                  <div className="mx-5 mt-3 p-3 rounded-lg text-[12.5px] flex items-center gap-2" style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}>
-                    <AlertTriangle size={14} className="flex-shrink-0" />
-                    <span>
-                      Hay <b>{team.unassignedOperations}</b> operación(es) sin vendedor asignado — revísalas en <b>Asignaciones</b>.
-                    </span>
+                  <div
+                    className="mx-5 mt-3 rounded-xl px-4 py-3.5 flex items-center gap-3.5 flex-wrap comm-rise"
+                    style={{
+                      background: 'var(--amber-soft)',
+                      border: '1px solid rgba(180, 83, 9, 0.25)',
+                      borderLeft: '4px solid #b45309',
+                    }}
+                  >
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                      style={{ background: 'rgba(180, 83, 9, 0.14)', color: '#92400e' }}
+                    >
+                      <AlertTriangle size={18} />
+                    </div>
+                    <div className="flex-1 min-w-[230px]">
+                      <div className="text-[14.5px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
+                        {team.unassignedOperations}{' '}
+                        {team.unassignedOperations === 1
+                          ? 'operación sin vendedor asignado'
+                          : 'operaciones sin vendedor asignado'}
+                      </div>
+                      <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                        Nadie está comisionando por estas ventas — asígnalas para que cuenten en el periodo.
+                      </div>
+                    </div>
+                    {go && (
+                      <button
+                        type="button"
+                        onClick={() => go('asignaciones')}
+                        className="px-4 py-2 rounded-lg text-[13px] font-bold flex items-center gap-1.5 flex-shrink-0"
+                        style={{
+                          background: '#b45309',
+                          color: '#fff',
+                          transition: 'transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background-color 150ms ease',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#92400e' }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#b45309' }}
+                        onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.97)' }}
+                        onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)' }}
+                      >
+                        Revisar asignaciones
+                      </button>
+                    )}
                   </div>
                 )}
 
@@ -546,7 +592,7 @@ export function ComisionesScreen({ permissions = [] }: { permissions?: string[] 
                   <table className="w-full text-left" style={{ borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                        {['Fecha', 'Cliente', 'Tipo', 'Origen', 'Monto neto', 'Estatus'].map((h) => (
+                        {['Fecha', 'Cliente', 'Tipo', 'Origen', 'Cobrado', 'Comisiona', 'Estatus'].map((h) => (
                           <th key={h} className="py-2.5 px-3 text-[11px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
                             {h}
                           </th>
@@ -572,7 +618,18 @@ export function ComisionesScreen({ permissions = [] }: { permissions?: string[] 
                               <div><code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-500)' }}>{o.vendorCodeUsed}</code></div>
                             )}
                           </td>
-                          <td className="py-2.5 px-3 text-[13px] font-semibold" style={{ ...MONO, color: 'var(--ink-900)' }}>
+                          <td className="py-2.5 px-3 text-[13px] font-semibold" style={{ ...MONO, color: 'var(--ink-500)' }}>
+                            {money.format(o.amountCharged)}
+                          </td>
+                          <td
+                            className="py-2.5 px-3 text-[13px] font-semibold"
+                            style={{
+                              ...MONO,
+                              // Violeta cuando comisiona más de lo cobrado (venta regalo a precio de lista).
+                              color: o.amountNet > o.amountCharged ? 'var(--violet-ink)' : 'var(--ink-900)',
+                            }}
+                            title={o.amountNet > o.amountCharged ? 'Venta regalo — comisiona a precio de lista' : undefined}
+                          >
                             {money.format(o.amountNet)}
                           </td>
                           <td className="py-2.5 px-3">

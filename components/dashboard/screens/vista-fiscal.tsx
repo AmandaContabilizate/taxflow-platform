@@ -1,16 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Stethoscope, FileText, FilePlus, FolderLock, FilePlus2, Gem, ArrowRight } from 'lucide-react'
+import { Stethoscope, FileText, FilePlus, FolderLock, FilePlus2, Gem, ArrowRight, Loader2 } from 'lucide-react'
 import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
-import { getFiscalScore } from '@/features/declarations/actions/getFiscalScore.action'
+import { useFiscalScore } from '@/features/declarations/hooks/useFiscalScore'
 import { getTaxRegimes, type TaxRegime } from '@/features/taxpayers/actions/getTaxRegimes.action'
 import { getTaxpayerByRfc } from '@/features/taxpayers/actions/getTaxpayerByRfc.action'
 import { MONO } from '../constants'
 import type { GoFn } from '../types'
 import { Card, HelpBox } from '../ui'
 import { NeedsSatConnect } from './needs-sat-connect'
-import type { FiscalScore } from '@/features/declarations/types'
 import { scoreLabel } from '../fiscal-score.utils'
 import { Card3D } from '../card-3d'
 
@@ -22,7 +21,10 @@ interface Props {
 export function VistaFiscalScreen({ go, firstName }: Props) {
   const { hasRfc, loading } = useHasRfc()
   const { selectedRfcInfo, selectedRfc } = useRfcStore()
-  const [score, setScore] = useState<FiscalScore | null>(null)
+  // Estatus compartido del diagnóstico (docs/diagnostico-status.md): antes esta
+  // pantalla pintaba el score como definitivo aunque el robot siguiera
+  // reconciliando; ahora distingue "revisando…" y se actualiza sola (polling).
+  const { score, step } = useFiscalScore()
   const [loadingData, setLoadingData] = useState(true)
   const [taxRegimes, setTaxRegimes] = useState<TaxRegime[]>([])
   const [rfcTaxRegimes, setRfcTaxRegimes] = useState<Array<{ regimeId: number; idActivities?: number[] }>>([])
@@ -42,13 +44,9 @@ export function VistaFiscalScreen({ go, firstName }: Props) {
     setLoadingData(true)
     void (async () => {
       try {
-        const [scoreRes, taxpayerRes] = await Promise.all([
-          getFiscalScore(selectedRfc),
-          getTaxpayerByRfc(selectedRfc),
-        ])
+        const taxpayerRes = await getTaxpayerByRfc(selectedRfc)
 
         if (!cancelled) {
-          setScore(scoreRes.success ? scoreRes.value : null)
           if (taxpayerRes.success && taxpayerRes.value?.taxRegimes) {
             setRfcTaxRegimes(taxpayerRes.value.taxRegimes)
           }
@@ -242,7 +240,52 @@ export function VistaFiscalScreen({ go, firstName }: Props) {
         </div>
 
         {/* Columna derecha - Score Fiscal */}
-        {score && !loadingData && (
+        {(step === 'connecting' || step === 'checking') && (
+          <div className="w-full lg:w-[360px] flex-shrink-0">
+            <div
+              className="rounded-3xl p-6 lg:p-7 text-white"
+              style={{ background: 'linear-gradient(155deg,#2A1C64 0%,#221158 100%)', boxShadow: 'var(--sh-ink)' }}
+            >
+              <div
+                className="inline-flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-wider"
+                style={{ color: 'rgba(255,255,255,0.6)' }}
+              >
+                <Loader2 size={13} className="animate-spin" /> Tu score fiscal
+              </div>
+              <div className="text-[22px] font-extrabold tracking-tight mt-2">
+                {step === 'connecting' ? 'Conectando con el SAT' : 'Revisando tu información'}
+              </div>
+              <div className="text-[13px] mt-2 leading-relaxed" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                {step === 'connecting'
+                  ? 'Estamos descargando tu constancia de situación fiscal.'
+                  : 'Estamos confirmando tus declaraciones con el SAT. El score aparecerá en cuanto sea confiable.'}
+              </div>
+            </div>
+          </div>
+        )}
+        {step === 'ready' && score && score.total === 0 && (
+          // Sin declaraciones: el score llega en 100 "por vacuidad" — mismo
+          // estado honesto que Home y Diagnóstico en lugar de "Excelente".
+          <div className="w-full lg:w-[360px] flex-shrink-0">
+            <div
+              className="rounded-3xl p-6 lg:p-7 text-white"
+              style={{ background: 'linear-gradient(155deg,#2A1C64 0%,#221158 100%)', boxShadow: 'var(--sh-ink)' }}
+            >
+              <div
+                className="text-[11px] font-extrabold uppercase tracking-wider"
+                style={{ color: 'rgba(255,255,255,0.6)' }}
+              >
+                Tu score fiscal
+              </div>
+              <div className="text-[22px] font-extrabold tracking-tight mt-2">Aún no tienes declaraciones</div>
+              <div className="text-[13px] mt-2 leading-relaxed" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                Tu RFC ya está conectado con el SAT. En cuanto presentemos la primera declaración, aquí verás tu
+                score fiscal en tiempo real.
+              </div>
+            </div>
+          </div>
+        )}
+        {step === 'ready' && score && score.total > 0 && (
           <div className="w-full lg:w-[360px] flex-shrink-0">
             <div
               className="rounded-3xl p-6 lg:p-7 text-white"

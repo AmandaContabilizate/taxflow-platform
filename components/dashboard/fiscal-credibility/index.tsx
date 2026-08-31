@@ -17,7 +17,10 @@ interface Props {
 export function FiscalCredibility({ go }: Props) {
   const { selectedRfc } = useRfcStore()
   const { step } = useFiscalScore()
-  const isSyncingWithSat = step === 'connecting'
+  // 'connecting' (sin CSF aún) y 'checking' (robots trabajando/re-leyendo la
+  // constancia, p. ej. un diagnóstico bajo demanda): en ambos las tarjetas
+  // muestran su estado de sincronización en lugar de brincar a "lista".
+  const isSyncingWithSat = step === 'connecting' || step === 'checking'
   const { csf, opinion, blacklist, busy, viewer, runAction, closeViewer } = useFiscalDocuments(selectedRfc, isSyncingWithSat)
 
   const csfMissing = csf.state === 'missing'

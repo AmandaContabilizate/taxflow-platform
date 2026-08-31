@@ -323,6 +323,18 @@ export const API_ROUTES = {
     PAYMENTS: (rfc: string, page = 1, pageSize = 20) =>
       `/payments?rfc=${encodeURIComponent(rfc)}&page=${page}&pageSize=${pageSize}`,
   },
+  // Diagnóstico fiscal bajo demanda (apiType "diagnostico", Identity, sin /SQLServer).
+  // Cliente: rfc del propio JWT, máx 1 corrida/día. Vendedor: por taxpayerId, cooldown 6h.
+  DIAGNOSTICO: {
+    RUN_CLIENTE: (rfc: string) => `/cliente?rfc=${encodeURIComponent(rfc)}`,
+    CAN_RUN_CLIENTE: (rfc: string) => `/cliente/puede-ejecutar?rfc=${encodeURIComponent(rfc)}`,
+    RUN_VENDEDOR: (taxpayerId: number) => `/vendedor/${taxpayerId}`,
+    CAN_RUN_VENDEDOR: (taxpayerId: number) => `/vendedor/puede-ejecutar/${taxpayerId}`,
+    // Declaraciones pendientes (13/14) que el diagnóstico encontró — backoffice.
+    RESULTADO_VENDEDOR: (taxpayerId: number) => `/vendedor/resultado/${taxpayerId}`,
+    // Historial de corridas (quién, cuándo, cómo terminó) — backoffice.
+    HISTORIAL_VENDEDOR: (taxpayerId: number) => `/vendedor/historial/${taxpayerId}`,
+  },
   DECLARATION: {
     FISCAL_SCORE: (rfc: string) => `/fiscal-score?rfc=${encodeURIComponent(rfc)}`,
     REGULARIZATIONS: (rfc: string) => `/regularizations?rfc=${encodeURIComponent(rfc)}`,

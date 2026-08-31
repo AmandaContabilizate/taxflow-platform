@@ -23,7 +23,12 @@ interface Props {
 }
 
 // Roles que la gerencia comercial puede invitar (el backend valida de nuevo).
-const MANAGER_ROLE_NAMES = new Set(['commercialmanager', 'commercial manager', 'gerencia comercial'])
+// OJO: en esta instalación no existe el rol CommercialManager — quien hace de
+// "Gerencia Comercial" es AccountingManager (DisplayName "Gerencia Comercial").
+const MANAGER_ROLE_NAMES = new Set([
+  'commercialmanager', 'commercial manager', 'gerencia comercial',
+  'accountingmanager', 'accounting manager',
+])
 const ALLOWED_ROLE_NAMES = new Set([
   'seller', 'ventas', 'finder fee', 'finderfee', ...MANAGER_ROLE_NAMES,
 ])

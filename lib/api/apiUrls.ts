@@ -33,6 +33,8 @@ export const API_BASE_URLS = {
   declarations_reports: `${BASE_REPORTS}/declarations`,
   sales_reports: `${BASE_REPORTS}/sales`,
   taxpayers_reports: `${BASE_REPORTS}/taxpayers`,
+  // Diagnóstico fiscal bajo demanda (Identity). OJO: NO lleva /SQLServer.
+  diagnostico: `${BASE_IDENTITY}/diagnostico`,
   marketing: `${BASE_IDENTITY}/Marketing`,
   push_tokens: `${BASE_IDENTITY}/PushTokens`,
   users_reports: `${BASE_REPORTS}/users`,

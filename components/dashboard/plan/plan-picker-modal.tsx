@@ -649,7 +649,7 @@ export function PlanPickerModal({
                       <Gift size={14} style={{ color: 'var(--brand-700)' }} className="flex-shrink-0" />
                       <span>
                         Código <b>{appliedDiscount.code}</b>: pagas el precio completo y recibes{' '}
-                        <b>{appliedDiscount.declarationsCount}</b> declaraciones de regularización de regalo.
+                        <b>{appliedDiscount.declarationsCount}</b> declaraciones futuras extra de regalo.
                       </span>
                     </>
                   ) : (
