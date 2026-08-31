@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Poppins, Assistant } from 'next/font/google'
 import Script from 'next/script'
 import { ThemeProvider } from '@/components/theme-provider'
+import { AuthGuard } from './auth-guard'
 import './globals.css'
 
 const CLARITY_PROJECT_ID = 'xy8b9l2b6i'
@@ -51,7 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           enableSystem={false}
           disableTransitionOnChange
         >
-          {children}
+          <AuthGuard>{children}</AuthGuard>
         </ThemeProvider>
       </body>
     </html>

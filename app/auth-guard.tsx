@@ -2,7 +2,6 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
-import { refreshSession } from "@/features/auth/actions";
 import { handleAuthFailure } from "@/features/auth/lib/handleAuthFailure";
 import { isInIframe } from "@/lib/auth/isInIframe";
 import { isPublicRoute } from "@/lib/routes";
@@ -14,9 +13,9 @@ const CHECK_INTERVAL_MS = 60_000;
  * Guard de cliente complementario al middleware.
  *
  * Implementa la sesión deslizante: en cada cambio de ruta, cada minuto, y al
- * volver el foco a la pestaña, llama a `refreshSession()`. El server action
- * re-emite el token cuando ha consumido el 50 % de su vida y expulsa a login
- * cuando el backend rechaza el refresh (tope absoluto de sesión alcanzado).
+ * volver el foco a la pestaña, llama a `POST /api/auth/refresh`. Ese Route
+ * Handler re-emite el token cuando ha consumido el 50 % de su vida y responde
+ * `expired` cuando el backend rechaza el refresh (tope absoluto alcanzado).
  */
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -32,12 +31,26 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       if (runningRef.current) return;
       runningRef.current = true;
       try {
-        const result = await refreshSession(isInIframe());
-        if (!cancelled && result.status === "expired") {
+        const res = await fetch("/api/auth/refresh", {
+          method: "POST",
+          headers: { "x-embedded": isInIframe() ? "1" : "0" },
+          cache: "no-store",
+          credentials: "include",
+        });
+        // SOLO se expulsa si el endpoint respondió OK y dijo explícitamente
+        // "expired". Un 500 / HTML / parseo fallido NO deben cerrar sesión.
+        if (!res.ok) return;
+        let data: { status?: string } | null = null;
+        try {
+          data = await res.json();
+        } catch {
+          return;
+        }
+        if (!cancelled && data?.status === "expired") {
           await handleAuthFailure();
         }
       } catch {
-        // Fallo inesperado del propio action: no expulsar por un tropiezo de red.
+        // Fallo de red: no expulsar por un tropiezo puntual.
       } finally {
         runningRef.current = false;
       }
