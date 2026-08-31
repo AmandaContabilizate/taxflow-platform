@@ -28,6 +28,7 @@ export function middleware(request: NextRequest) {
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api/webhooks") || // Stripe webhooks (sin auth)
+    pathname.startsWith("/api/auth/") || // sesión deslizante: el handler decide, sin redirect a login
     pathname.startsWith("/.well-known") || // Universal Links / App Links de la app movil
     pathname.startsWith("/favicon") ||
     /\.(svg|png|jpg|jpeg|gif|webp|ico|css|js|woff2?)$/.test(pathname)
