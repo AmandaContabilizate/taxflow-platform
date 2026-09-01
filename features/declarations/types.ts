@@ -27,6 +27,57 @@ export interface FiscalScoreError {
 // Error compartido por las acciones de declaraciones.
 export type DeclarationsError = FiscalScoreError
 
+// --- Descarga de archivos SAT bajo demanda (contador) ---
+
+/**
+ * GET download-files/puede-ejecutar — solo lectura, no dispara nada. Llamar SIEMPRE antes de
+ * pintar el botón (el POST revalida con la misma lógica).
+ */
+export interface CanRunDeclarationDownload {
+  /** PeriodValueId 101..112. */
+  esMensual: boolean
+  /** Periodo ya cerrado en hora de México. */
+  periodoPasado: boolean
+  /** Taxpayer.PasswordState == Valid. */
+  credencialValida: boolean
+  /** Ya se encoló una descarga para esta declaración hoy (día calendario MX). */
+  yaCorrioHoy: boolean
+  /** AND de todo — único campo necesario para habilitar el botón. */
+  puedeDescargar: boolean
+  /** ISO 8601: DateRequest más reciente de los 4 tipos para este periodo. null si nunca. */
+  ultimaDescargaUtc: string | null
+  /** ISO 8601: próxima medianoche MX (en UTC) si yaCorrioHoy. */
+  proximaVentanaUtc: string | null
+}
+
+/** POST download-files: encolada=false = un click concurrente ganó la carrera (idempotente). */
+export interface RunDeclarationDownloadResult {
+  encolada: boolean
+  ultimaDescargaUtc: string | null
+  proximaVentanaUtc: string | null
+}
+
+/** Mensajes en español por errorCode del 400 (el título del ProblemDetails no se parsea). */
+export function declarationDownloadErrorMessage(
+  code: string | undefined,
+  fallback: string,
+): string {
+  switch (code) {
+    case 'NO_VALID_CREDENTIAL':
+      return 'El contribuyente no tiene una CIEC válida. Actualiza su CIEC para descargar.'
+    case 'DOWNLOAD_THROTTLED':
+      return 'Ya se encoló una descarga para esta declaración hoy. Espera un día.'
+    case 'DOWNLOAD_NOT_MONTHLY':
+      return 'Solo las declaraciones mensuales pueden re-descargarse.'
+    case 'DOWNLOAD_PERIOD_NOT_PAST':
+      return 'El periodo aún no cierra: solo se re-descargan periodos pasados.'
+    case 'DECLARATION_NOT_FOUND':
+      return 'No encontramos la declaración.'
+    default:
+      return fallback
+  }
+}
+
 // --- Regularizaciones ---
 export type RegularizationBadge = 'NoPresentada' | 'NecesitaCorreccion' | 'EnProceso'
 

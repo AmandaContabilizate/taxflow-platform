@@ -349,6 +349,12 @@ export const API_ROUTES = {
       `/received-invoices-declaration${periodInvoicesQuery(p)}`,
     CLIENT_INVOICES: (declarationId: number) =>
       `/client-invoices?declarationId=${declarationId}`,
+    // Descarga de archivos SAT bajo demanda (contador, detalle de declaración). Mensual + periodo
+    // pasado + CIEC válida + máx 1/día calendario MX. GET = puede-ejecutar (no dispara nada).
+    DOWNLOAD_FILES_CAN_RUN: (declarationId: number) =>
+      `/download-files/puede-ejecutar?declarationId=${declarationId}`,
+    DOWNLOAD_FILES_RUN: (declarationId: number) =>
+      `/download-files?declarationId=${declarationId}`,
     DECLARATION_TAXPAYERS: (p: TaxpayerGroupsQuery = {}) =>
       `/declaration-taxpayers${taxpayerGroupsQuery(p)}`,
     REGULARIZATION_TAXPAYERS: (p: TaxpayerGroupsQuery = {}) =>
