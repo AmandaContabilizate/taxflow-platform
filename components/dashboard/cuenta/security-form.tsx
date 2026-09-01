@@ -3,10 +3,11 @@
 import { CheckCircle2, Loader2 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { updatePassword } from '@/features/auth/actions/updatePassword.action'
+import { getPasswordErrors, PASSWORD_MIN_LENGTH } from '@/features/auth/lib/passwordPolicy'
 import { DISPLAY } from '../constants'
 import { Btn } from '../ui'
 
-const MIN_LENGTH = 8
+const MIN_LENGTH = PASSWORD_MIN_LENGTH
 
 export function SecurityForm() {
   const [pwd, setPwd] = useState('')
@@ -14,13 +15,23 @@ export function SecurityForm() {
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null)
 
-  const tooShort = pwd.length > 0 && pwd.length < MIN_LENGTH
+  const passwordErrors = pwd.length > 0 ? getPasswordErrors(pwd) : []
+  const policyError = passwordErrors[0] ?? null
   const mismatch = confirm.length > 0 && confirm !== pwd
-  const canSubmit = pwd.length >= MIN_LENGTH && confirm === pwd && !submitting
+  const canSubmit = pwd.length > 0 && passwordErrors.length === 0 && confirm === pwd && !submitting
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (!canSubmit) return
+    const errors = getPasswordErrors(pwd)
+    if (errors.length > 0) {
+      setResult({ ok: false, text: errors[0] })
+      return
+    }
+    if (confirm !== pwd) {
+      setResult({ ok: false, text: 'Las contraseñas no coinciden.' })
+      return
+    }
     setSubmitting(true)
     setResult(null)
     const res = await updatePassword(pwd)
@@ -55,7 +66,7 @@ export function SecurityForm() {
           style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
         />
       </Field>
-      {tooShort && <Hint text={`Mínimo ${MIN_LENGTH} caracteres.`} />}
+      {policyError && <Hint text={policyError} />}
 
       <Field label="Confirmar contraseña">
         <input

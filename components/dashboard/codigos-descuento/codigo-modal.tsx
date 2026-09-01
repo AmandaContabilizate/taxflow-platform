@@ -12,7 +12,8 @@ interface Props {
   code: DiscountCodeAdmin | null
   lookups: DiscountCodeLookups | null
   onClose: () => void
-  onSaved: () => void
+  /** Al guardar un código BASE trae el resumen del reparto para el aviso de la pantalla. */
+  onSaved: (reparto?: { creadas: number; yaTenian: number }) => void
   /** Admin.AuthorizeHighDiscount: puede guardar ACTIVOS códigos fuera de tope (>20% / >3 decl.). */
   canAuthorize?: boolean
 }
@@ -40,6 +41,10 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthoriz
   const [planTab, setPlanTab] = useState<'sub' | 'once'>('sub')
   const [rfcsText, setRfcsText] = useState('')
   const [isActive, setIsActive] = useState(true)
+  // Código base para asesores: molde sin dueño, no canjeable; al guardarse activo se
+  // reparte una copia personal (CODE-VENDORCODE) a cada asesor del segmento.
+  const [isBaseTemplate, setIsBaseTemplate] = useState(false)
+  const [baseSegmentId, setBaseSegmentId] = useState<number | ''>('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -59,6 +64,8 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthoriz
     // que el usuario siempre debe partir de lo que ya existe.
     setRfcsText((code?.whitelistedRfcs ?? []).join('\n'))
     setIsActive(code?.isActive ?? true)
+    setIsBaseTemplate(code?.isBaseTemplate ?? false)
+    setBaseSegmentId(code?.baseTemplateSegmentId ?? '')
     setError(null)
   }, [open, code])
 
@@ -84,7 +91,9 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthoriz
     // sin límite); un código inactivo puede guardarse sin tope (legacy).
     (!isActive || Number(maxUses) > 0) &&
     invalidRfcs.length === 0 &&
-    (ownerType === 'none' ||
+    // Un código base no lleva dueño (las copias repartidas son de cada asesor).
+    (isBaseTemplate ||
+      ownerType === 'none' ||
       (ownerType === 'user' && sellerUserId !== '') ||
       (ownerType === 'partner' && partnershipId !== '')) &&
     // Topes de negocio para códigos ACTIVOS (el backend los valida de nuevo):
@@ -102,8 +111,8 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthoriz
   const faltantes: string[] = []
   if (codeText.trim().length < 3) faltantes.push('el código (mínimo 3 caracteres)')
   if (isActive && !(Number(maxUses) > 0)) faltantes.push('los usos máximos (obligatorios si está activo)')
-  if (ownerType === 'user' && sellerUserId === '') faltantes.push('el dueño (selecciona un ejecutivo, o usa "Sin dueño")')
-  if (ownerType === 'partner' && partnershipId === '') faltantes.push('el partner dueño')
+  if (!isBaseTemplate && ownerType === 'user' && sellerUserId === '') faltantes.push('el dueño (selecciona un ejecutivo, o usa "Sin dueño")')
+  if (!isBaseTemplate && ownerType === 'partner' && partnershipId === '') faltantes.push('el partner dueño')
   if (invalidRfcs.length > 0) faltantes.push(`RFCs inválidos: ${invalidRfcs.join(', ')}`)
   if (planesInactivosSeleccionados.length > 0)
     faltantes.push(
@@ -130,8 +139,8 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthoriz
       id: code?.id,
       code: codeText.trim().toUpperCase(),
       description: description.trim() || undefined,
-      sellerUserId: ownerType === 'user' ? sellerUserId : undefined,
-      partnershipId: ownerType === 'partner' && partnershipId !== '' ? partnershipId : undefined,
+      sellerUserId: !isBaseTemplate && ownerType === 'user' ? sellerUserId : undefined,
+      partnershipId: !isBaseTemplate && ownerType === 'partner' && partnershipId !== '' ? partnershipId : undefined,
       discountTypeId,
       discountPercent: isPercent ? Number(discountPercent) : undefined,
       declarationsCount: !isPercent ? Number(declarationsCount) : undefined,
@@ -139,13 +148,19 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthoriz
       subscriptionPlanIds: planIds,
       whitelistedRfcs: rfcs,
       isActive,
+      isBaseTemplate,
+      baseTemplateSegmentId: isBaseTemplate && baseSegmentId !== '' ? baseSegmentId : null,
     })
     setLoading(false)
     if (!res.success) {
       setError(res.error.message)
       return
     }
-    onSaved()
+    onSaved(
+      res.value.copiesCreated != null
+        ? { creadas: res.value.copiesCreated, yaTenian: res.value.copiesExisting ?? 0 }
+        : undefined,
+    )
     onClose()
   }
 
@@ -209,7 +224,56 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthoriz
           />
         </div>
 
-        {/* Dueño */}
+        {/* Código base para asesores */}
+        <div
+          className="rounded-xl p-3.5"
+          style={{
+            border: `2px solid ${isBaseTemplate ? 'var(--brand-500)' : 'var(--border)'}`,
+            background: isBaseTemplate ? 'var(--hero-brand-soft)' : 'var(--card)',
+          }}
+        >
+          <label className="flex items-start gap-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isBaseTemplate}
+              onChange={(e) => setIsBaseTemplate(e.target.checked)}
+              disabled={loading || code?.baseTemplateId != null}
+              className="mt-0.5 cursor-pointer"
+            />
+            <span>
+              <span className="block text-[13px] font-bold" style={{ color: 'var(--ink-900)' }}>
+                Código base para asesores
+              </span>
+              <span className="block text-[11.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                Es un molde: no se puede canjear y no lleva dueño. Al guardarlo activo, cada asesor
+                recibe su copia personal (p. ej. {codeText.trim() ? `${codeText.trim()}-JORGE2000001` : 'CODIGO-JORGE2000001'})
+                y los asesores nuevos la reciben al ser invitados.
+              </span>
+            </span>
+          </label>
+          {isBaseTemplate && (
+            <div className="mt-3">
+              <label className="block text-[12px] font-bold mb-1.5" style={{ color: 'var(--ink-700)' }}>
+                Repartir a asesores de
+              </label>
+              <select
+                value={baseSegmentId}
+                onChange={(e) => setBaseSegmentId(e.target.value === '' ? '' : Number(e.target.value))}
+                className="w-full px-3 py-2.5 rounded-lg text-[14px] outline-none focus:ring-2 cursor-pointer"
+                style={inputStyle}
+                disabled={loading}
+              >
+                <option value="">Todos los segmentos</option>
+                {(lookups?.segments ?? []).map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
+        {/* Dueño (un código base no lleva: las copias son de cada asesor) */}
+        {!isBaseTemplate && (
         <div>
           <label className="block text-[12px] font-bold mb-1.5" style={{ color: 'var(--ink-700)' }}>
             Tipo de dueño
@@ -236,8 +300,9 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthoriz
             ))}
           </div>
         </div>
+        )}
 
-        {ownerType === 'user' && (
+        {!isBaseTemplate && ownerType === 'user' && (
           <select
             value={sellerUserId}
             onChange={(e) => setSellerUserId(e.target.value)}
@@ -253,7 +318,7 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthoriz
             ))}
           </select>
         )}
-        {ownerType === 'partner' && (
+        {!isBaseTemplate && ownerType === 'partner' && (
           <select
             value={partnershipId}
             onChange={(e) => setPartnershipId(e.target.value === '' ? '' : Number(e.target.value))}

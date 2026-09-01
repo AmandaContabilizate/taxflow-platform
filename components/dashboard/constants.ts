@@ -610,8 +610,19 @@ export function normalizeRole(raw: string | null | undefined): RoleKey {
     case 'adminpartnership':
     case 'admin partnership':
       return 'external-provider'
+    // Autorizador de códigos de descuento: persona de backoffice; el menú se
+    // filtra por sus claims (como el administrador), no un nav propio.
+    case 'discountcodeauthorizer':
+    case 'discount code authorizer':
+    case 'autorizador codigos de descuento':
+    case 'autorizador de codigos de descuento':
+      return 'administrator'
     default:
-      return 'guest'
+      // Rol DESCONOCIDO = backoffice con menú filtrado por sus permisos, NUNCA
+      // cliente: los clientes reales siempre traen el rol Guest (mapeado arriba).
+      // Así un rol nuevo creado en Roles y permisos funciona sin tocar este mapa
+      // — ve exactamente las pantallas que sus claims le permitan.
+      return 'administrator'
   }
 }
 

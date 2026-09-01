@@ -47,14 +47,13 @@ const TAB_VIDEOS: Record<TabKey, [string, string][]> = {
   ],
 }
 
-// "Todas" va primera en la barra de tabs, pero la pestaña seleccionada por
-// defecto sigue siendo "Regularizaciones" (ver useState más abajo).
+// "Todas" va primera en la barra de tabs y es la pestaña seleccionada por defecto.
 const ORDER: TabKey[] = ['todas', 'regularizaciones', 'futuro', 'anuales']
 
 export function DeclaracionesScreen({ go, currentUser }: Props) {
   const { hasRfc, loading } = useHasRfc()
   const { selectedRfcInfo } = useRfcStore()
-  const [tab, setTab] = useState<TabKey>('regularizaciones')
+  const [tab, setTab] = useState<TabKey>('todas')
   const [detail, setDetail] = useState<ClientDeclarationSubject | null>(null)
 
   if (loading) return null

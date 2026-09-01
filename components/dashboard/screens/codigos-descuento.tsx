@@ -35,6 +35,8 @@ export function CodigosDescuentoScreen({ permissions = [] }: { permissions?: str
   const [editing, setEditing] = useState<DiscountCodeAdmin | null>(null)
   const [authorizingId, setAuthorizingId] = useState<number | null>(null)
   const [authError, setAuthError] = useState<string | null>(null)
+  // Resumen del último reparto de un código base ("repartido a N asesores…").
+  const [repartoMsg, setRepartoMsg] = useState<string | null>(null)
   const [showLog, setShowLog] = useState(false)
   const [log, setLog] = useState<DiscountCodeAuthorization[] | null>(null)
   const [logLoading, setLogLoading] = useState(false)
@@ -73,6 +75,9 @@ export function CodigosDescuentoScreen({ permissions = [] }: { permissions?: str
       subscriptionPlanIds: c.subscriptionPlanIds,
       whitelistedRfcs: c.whitelistedRfcs,
       isActive: true,
+      // Autorizar no debe borrar la marca de código base ni su segmento de reparto.
+      isBaseTemplate: c.isBaseTemplate,
+      baseTemplateSegmentId: c.baseTemplateSegmentId,
     })
     setAuthorizingId(null)
     if (res.success) {
@@ -275,6 +280,22 @@ export function CodigosDescuentoScreen({ permissions = [] }: { permissions?: str
           <AlertCircle size={15} className="flex-shrink-0" /> No se pudo autorizar — {authError}
         </div>
       )}
+      {repartoMsg && (
+        <div
+          className="flex items-center justify-between gap-2 px-4 py-3 rounded-2xl text-[13px] font-semibold"
+          style={{ background: 'var(--hero-brand-soft)', color: 'var(--ink-700)', border: '1px solid var(--border)' }}
+        >
+          <span>{repartoMsg}</span>
+          <button
+            type="button"
+            onClick={() => setRepartoMsg(null)}
+            className="text-[12px] font-bold cursor-pointer"
+            style={{ color: 'var(--ink-500)' }}
+          >
+            Cerrar
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <Card>
@@ -357,7 +378,9 @@ export function CodigosDescuentoScreen({ permissions = [] }: { permissions?: str
                       )}
                     </td>
                     <td className="py-3 px-3">
-                      {c.ownerType === 'none' ? (
+                      {c.isBaseTemplate ? (
+                        <Badge kind="brand">Base para asesores</Badge>
+                      ) : c.ownerType === 'none' ? (
                         <span className="text-[12.5px]" style={{ color: 'var(--ink-400)' }}>Sin dueño</span>
                       ) : (
                         <>
@@ -450,7 +473,16 @@ export function CodigosDescuentoScreen({ permissions = [] }: { permissions?: str
         lookups={lookups}
         canAuthorize={canAuthorize}
         onClose={() => setModalOpen(false)}
-        onSaved={() => void load()}
+        onSaved={(reparto) => {
+          setRepartoMsg(
+            reparto
+              ? reparto.creadas === 0 && reparto.yaTenian === 0
+                ? 'Código base guardado — aún no hay asesores a quienes repartirlo.'
+                : `Código base repartido: ${reparto.creadas} ${reparto.creadas === 1 ? 'copia nueva' : 'copias nuevas'}; ${reparto.yaTenian} ${reparto.yaTenian === 1 ? 'asesor ya tenía la suya' : 'asesores ya tenían la suya'}.`
+              : null,
+          )
+          void load()
+        }}
       />
     </div>
   )

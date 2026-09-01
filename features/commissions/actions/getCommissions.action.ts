@@ -1,6 +1,6 @@
 "use server";
 
-import { ApiError, fetchGet } from "@/lib/api";
+import { ApiError, fetchGet, fetchPost } from "@/lib/api";
 import { API_ROUTES } from "@/lib/api/apiRoutes";
 import { type Result, err, ok } from "@/lib/common";
 import type {
@@ -49,6 +49,27 @@ export async function getMyCommissionOperations(
     return ok(data?.operations ?? []);
   } catch (e) {
     return err(toError(e, "No pudimos obtener tus operaciones."));
+  }
+}
+
+/**
+ * Recalcula las metas dinámicas de los gerentes del periodo (Regla 10) —
+ * POST /commissions/goals/recalculate. Claim Admin.RunCommissionClose.
+ * Necesario cuando cambia la plantilla/elegibilidad a media mes; el cierre
+ * mensual también lo dispara solo.
+ */
+export async function recalculateManagerGoals(
+  period: string,
+): Promise<Result<number, CommissionsError>> {
+  try {
+    const data = await fetchPost<{ success: boolean; managersProcessed: number }>(
+      API_ROUTES.COMMISSIONS.RECALC_GOALS(period),
+      {},
+      "commissions",
+    );
+    return ok(data.managersProcessed);
+  } catch (e) {
+    return err(toError(e, "No pudimos recalcular las metas."));
   }
 }
 
