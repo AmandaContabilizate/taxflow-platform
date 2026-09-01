@@ -16,6 +16,7 @@ import {
   getMyCommissionOperations,
   getMyCommissionSummary,
   getTeamCommissionSummary,
+  recalculateManagerGoals,
 } from '@/features/commissions/actions/getCommissions.action'
 import type {
   CommissionOperationRow,
@@ -90,6 +91,26 @@ export function ComisionesScreen({
   const [loading, setLoading] = useState(true)
   const [noProfile, setNoProfile] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Recálculo de metas dinámicas (Regla 10) — solo con Admin.RunCommissionClose.
+  const canRecalcGoals = permissions.includes('Admin.RunCommissionClose')
+  const [recalcLoading, setRecalcLoading] = useState(false)
+  const [recalcMsg, setRecalcMsg] = useState<string | null>(null)
+  // Incrementarlo re-dispara la carga (tras recalcular metas).
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  const recalcGoals = async () => {
+    if (recalcLoading) return
+    setRecalcLoading(true)
+    setRecalcMsg(null)
+    const res = await recalculateManagerGoals(period)
+    setRecalcLoading(false)
+    if (res.success) {
+      setRecalcMsg(`Metas recalculadas (${res.value} ${res.value === 1 ? 'gerente' : 'gerentes'}).`)
+      setRefreshKey((k) => k + 1)
+    } else {
+      setRecalcMsg(`No se pudieron recalcular: ${res.error.message}`)
+    }
+  }
 
   useEffect(() => {
     if (!canReadOwn && !canReadTeam) {
@@ -131,7 +152,7 @@ export function ComisionesScreen({
     return () => {
       cancelled = true
     }
-  }, [period, canReadOwn, canReadTeam])
+  }, [period, canReadOwn, canReadTeam, refreshKey])
 
   const exportCsv = () => {
     const header = 'Fecha,Cliente,RFC,Tipo,Origen,Cobrado,Comisiona,Estatus'
@@ -200,12 +221,43 @@ export function ComisionesScreen({
             <option key={p.value} value={p.value} className="capitalize">{p.label}</option>
           ))}
         </select>
-        {summary && (
-          <Badge kind={summary.closed ? 'brand' : 'amber'}>
-            {summary.closed ? 'Cierre definitivo' : 'Proyección en vivo'}
-          </Badge>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {canRecalcGoals && (
+            <button
+              type="button"
+              onClick={() => void recalcGoals()}
+              disabled={recalcLoading}
+              title="Vuelve a calcular la meta dinámica de cada gerente con su plantilla elegible actual (Regla 10). El cierre mensual también lo hace solo."
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12.5px] font-bold cursor-pointer disabled:opacity-60"
+              style={{
+                background: 'var(--card)',
+                border: '1px solid var(--border)',
+                color: 'var(--ink-700)',
+                transition: 'transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background-color 150ms ease',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--ink-50)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--card)' }}
+              onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.97)' }}
+              onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)' }}
+            >
+              {recalcLoading ? 'Recalculando…' : 'Recalcular metas'}
+            </button>
+          )}
+          {summary && (
+            <Badge kind={summary.closed ? 'brand' : 'amber'}>
+              {summary.closed ? 'Cierre definitivo' : 'Proyección en vivo'}
+            </Badge>
+          )}
+        </div>
       </div>
+      {recalcMsg && (
+        <div
+          className="px-4 py-3 rounded-2xl text-[13px] font-semibold"
+          style={{ background: 'var(--hero-brand-soft)', color: 'var(--ink-700)', border: '1px solid var(--border)' }}
+        >
+          {recalcMsg}
+        </div>
+      )}
 
       {loading ? (
         /* Skeleton: misma silueta que el contenido para evitar saltos de layout. */

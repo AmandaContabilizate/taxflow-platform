@@ -39,6 +39,12 @@ export interface DiscountCodeAdmin {
   stripeStatus: "synced" | "error" | "none";
   /** Motivo del último fallo de sincronización con Stripe. */
   stripeSyncError: string | null;
+  /** Código base para asesores: molde no canjeable que se reparte en copias personales. */
+  isBaseTemplate: boolean;
+  /** Segmento objetivo del reparto del molde; null = todos los asesores. */
+  baseTemplateSegmentId: number | null;
+  /** En las copias: id del molde del que nació (null en códigos normales). */
+  baseTemplateId: number | null;
 }
 
 /** Fila de la bitácora de autorizaciones de códigos fuera de tope (inmutable). */
@@ -65,6 +71,8 @@ export interface DiscountCodeLookups {
   // isActive: los desactivados también vienen (visibles para desmarcar ligas viejas),
   // pero el modal no permite guardar con uno palomeado.
   plans: { id: number; name: string; price: number; isSubscription: boolean; isActive: boolean }[];
+  /** Segmentos comerciales: destino del reparto de un código base. */
+  segments: { id: number; name: string }[];
 }
 
 export interface SaveDiscountCodeInput {
@@ -80,4 +88,17 @@ export interface SaveDiscountCodeInput {
   subscriptionPlanIds: number[];
   whitelistedRfcs: string[];
   isActive: boolean;
+  /** Código base para asesores (molde): sin dueño, no canjeable, se reparte al guardar. */
+  isBaseTemplate?: boolean;
+  /** Segmento objetivo del reparto; undefined/null = todos los asesores. */
+  baseTemplateSegmentId?: number | null;
+}
+
+/** Resumen del reparto que regresa el guardado de un código base. */
+export interface SaveDiscountCodeResult {
+  discountCodeId: number;
+  /** Copias creadas en este guardado (solo códigos base). */
+  copiesCreated: number | null;
+  /** Asesores que ya tenían su copia (solo códigos base). */
+  copiesExisting: number | null;
 }

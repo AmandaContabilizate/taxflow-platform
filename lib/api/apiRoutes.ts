@@ -124,6 +124,8 @@ export const API_ROUTES = {
     MY_SUMMARY: (period: string) => `/my-summary?period=${encodeURIComponent(period)}`,
     MY_OPERATIONS: (period: string) => `/my-operations?period=${encodeURIComponent(period)}`,
     TEAM_SUMMARY: (period: string) => `/team-summary?period=${encodeURIComponent(period)}`,
+    // Recalcula las metas dinámicas de los gerentes (Regla 10). Claim Admin.RunCommissionClose.
+    RECALC_GOALS: (period: string) => `/goals/recalculate?period=${encodeURIComponent(period)}`,
   },
   // Preferencias de notificación del usuario autenticado. apiType "notification_prefs" (Procedures)
   NOTIFICATION_PREFS: {
