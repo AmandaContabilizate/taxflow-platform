@@ -12,6 +12,7 @@ import {
   Download,
   Eye,
   EyeOff,
+  FileCheck2,
   Loader2,
   Mail,
   MessageSquarePlus,
@@ -32,6 +33,7 @@ import { getSatPassword } from '@/features/taxpayers/actions/getSatPassword.acti
 import { num, toNumber } from './calc-read'
 import { CalculosTab } from './calculos-tab'
 import { ComprobantesTab } from './comprobantes-tab'
+import { DeclarationDocumentsModal } from './declaration-documents-modal'
 import { RecalculoTab } from './recalculo-tab'
 import { ResumenDeclaracion } from './resumen-declaracion'
 import { declarationStatusBadge, fmtDate } from '../declaraciones/parts'
@@ -245,6 +247,11 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
     .sort((a, b) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime())[0]
 
   /* ------------------------------------------------------------------ */
+  /*  "Documentos SAT" (Acuse y Línea de Captura)                       */
+  /* ------------------------------------------------------------------ */
+  const [documentsOpen, setDocumentsOpen] = useState(false)
+
+  /* ------------------------------------------------------------------ */
   /*  "Enviar Predeclaración"                                            */
   /* ------------------------------------------------------------------ */
   const [resendOpen, setResendOpen] = useState(false)
@@ -416,6 +423,13 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
               setTab(RECALCULO_TAB_INDEX)
               void recalc.run()
             }}
+          />
+          <HeaderBtn
+            icon={<FileCheck2 size={15} />}
+            label="Documentos SAT"
+            kind="ghost"
+            title="Subir o consultar Acuse de Declaración y Línea de Captura en PDF"
+            onClick={() => setDocumentsOpen(true)}
           />
           <HeaderBtn icon={<Download size={15} />} label="Exportar PDF" kind="ghost" />
           <HeaderBtn
@@ -592,6 +606,20 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
           </div>
         </div>
       </Modal>
+
+      {/* Modal de Carga y Descarga de Documentos SAT (Acuse y Línea de Captura) */}
+      <DeclarationDocumentsModal
+        open={documentsOpen}
+        onClose={() => setDocumentsOpen(false)}
+        declarationId={d.declarationId}
+        periodo={periodo}
+        ejercicio={ejercicio}
+        rfc={rfc}
+        legalName={legalName}
+        onDocumentUploaded={(statusId, statusLabel) => {
+          void loadGeneral()
+        }}
+      />
     </div>
   )
 }
