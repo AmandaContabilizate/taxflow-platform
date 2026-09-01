@@ -3,6 +3,10 @@
     "es": "Entrada inválida. Faltan o son incorrectos los parámetros.",
     "en": "Invalid input. Missing or incorrect parameters."
   },
+  "EXPORT_NO_RESULTS": {
+    "es": "Ningún registro cumple los filtros seleccionados.",
+    "en": "No records match the selected filters."
+  },
   "INVALID_PHOTO_TYPE": {
     "es": "El archivo debe ser una imagen JPG o PNG.",
     "en": "File must be a JPG or PNG image."

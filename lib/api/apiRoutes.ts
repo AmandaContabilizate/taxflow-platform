@@ -65,6 +65,37 @@ function taxpayerPurchasesQuery(p: TaxpayerPurchasesQuery): string {
   return `?${qs.toString()}`
 }
 
+/** Query de `export-report`: mismos filtros del modal de exportación, todos opcionales. */
+export interface ExportDeclarationsReportQuery {
+  /** 1 solo regularizaciones, 2 solo a futuro, ausente = ambas. Lo impone la pantalla. */
+  kind?: 1 | 2
+  search?: string
+  /** Id interno de Users.TaxRegimes, NO el código SAT. */
+  taxRegimeId?: number
+  statusId?: number
+  fiscalYear?: number
+  /** Mes calendario 1-12 (el backend lo traduce a PeriodValueId). */
+  month?: number
+  /** 1 válida, 2 inválida, 0 no registrada, ausente = todas. */
+  ciecState?: 0 | 1 | 2
+  /** Se ignora en el backend si el caller no tiene el claim AssignAccountant. */
+  accountantUserId?: string
+}
+
+function exportReportQuery(p: ExportDeclarationsReportQuery): string {
+  const qs = new URLSearchParams()
+  if (p.kind) qs.set("kind", String(p.kind))
+  if (p.search) qs.set("search", p.search)
+  if (p.taxRegimeId) qs.set("taxRegimeId", String(p.taxRegimeId))
+  if (p.statusId) qs.set("statusId", String(p.statusId))
+  if (p.fiscalYear) qs.set("fiscalYear", String(p.fiscalYear))
+  if (p.month) qs.set("month", String(p.month))
+  if (p.ciecState != null) qs.set("ciecState", String(p.ciecState))
+  if (p.accountantUserId) qs.set("accountantUserId", p.accountantUserId)
+  const s = qs.toString()
+  return `/export-report${s ? `?${s}` : ""}`
+}
+
 export const API_ROUTES = {
   AUTH: {
     LOGIN: "/login",
@@ -359,6 +390,9 @@ export const API_ROUTES = {
       `/declarations-by-taxpayer${taxpayerPurchasesQuery(p)}`,
     REGULARIZATIONS_BY_TAXPAYER: (p: TaxpayerPurchasesQuery = {}) =>
       `/regularizations-by-taxpayer${taxpayerPurchasesQuery({ ...p, onlyUpcoming: undefined })}`,
+    // GET declaration (Procedures). Policy Contador.ReadDeclaraciones. Responde el
+    // .xlsx binario; sin resultados el back manda 400 con errorCode EXPORT_NO_RESULTS.
+    EXPORT_REPORT: (p: ExportDeclarationsReportQuery = {}) => exportReportQuery(p),
   },
   DECLARATION_REPORT: {
     REPORT: (token: string) => `/report?t=${encodeURIComponent(token)}`,
