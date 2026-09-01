@@ -32,6 +32,7 @@ import type { DeclarationGeneral, DeclarationLog, DeclarationSubject } from '@/f
 import { getSatPassword } from '@/features/taxpayers/actions/getSatPassword.action'
 import { num, toNumber } from './calc-read'
 import { CalculosTab } from './calculos-tab'
+import { DescargarArchivosSatBtn } from './descargar-archivos-sat-btn'
 import { ComprobantesTab } from './comprobantes-tab'
 import { DeclarationDocumentsModal } from './declaration-documents-modal'
 import { RecalculoTab } from './recalculo-tab'
@@ -432,6 +433,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
             onClick={() => setDocumentsOpen(true)}
           />
           <HeaderBtn icon={<Download size={15} />} label="Exportar PDF" kind="ghost" />
+          {general && <DescargarArchivosSatBtn declarationId={d.declarationId} />}
           <HeaderBtn
             icon={<Send size={15} />}
             label="Enviar Predeclaración"

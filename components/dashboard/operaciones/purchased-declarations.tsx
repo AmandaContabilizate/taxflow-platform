@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowLeft, ArrowRight, Loader2, Search } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Download, Loader2, Search } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getDeclarationTaxpayers } from '@/features/declarations/actions/getDeclarationTaxpayers.action'
 import { getDeclarationsByTaxpayer } from '@/features/declarations/actions/getDeclarationsByTaxpayer.action'
@@ -16,12 +16,13 @@ import type { DeclarationSubject } from '@/features/operations/types'
 import { declarationStatusBadge } from '../declaraciones/parts'
 import { Pagination } from '../clientes/parts'
 import { DISPLAY, MONO } from '../constants'
-import { Badge, Card, ErrorState, HelpBox } from '../ui'
+import { Badge, Btn, Card, ErrorState, HelpBox } from '../ui'
 import { buildUrl, numParam, useUrlState } from '../url-state'
 import type { MouseEvent as ReactMouseEvent } from 'react'
 import { DeclarationDetail } from './declaration-detail'
+import { ExportReportModal, type StatusOption } from './export-report-modal'
 
-const MESES = [
+export const MESES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ]
@@ -117,10 +118,10 @@ const IN_PROCESS_STATUS_ID = 15
 const emptyPage = <T,>(take: number): PagedDeclarations<T> => ({ items: [], total: 0, skip: 0, take })
 
 /** Etiqueta del régimen para los selects: "625 · Plataformas Tecnológicas". */
-const regimeLabel = (r: TaxpayerRegime) =>
+export const regimeLabel = (r: TaxpayerRegime) =>
   [r.satCode, r.name].filter(Boolean).join(' · ') || `Régimen ${r.id}`
 
-const selectStyle = {
+export const selectStyle = {
   background: 'var(--input)',
   border: '1px solid var(--border)',
   color: 'var(--ink-700)',
@@ -160,6 +161,7 @@ function TaxpayerGroups({
   // Régimen elegido por fila (Id interno). Se pierde al repaginar a propósito:
   // la selección solo vive hasta que se entra al nivel 2.
   const [regimeByTaxpayer, setRegimeByTaxpayer] = useState<Record<number, number>>({})
+  const [exportOpen, setExportOpen] = useState(false)
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -270,6 +272,9 @@ function TaxpayerGroups({
           <div className="text-[15px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
             {loading ? 'Cargando…' : `${page.total} ${page.total === 1 ? 'contribuyente' : 'contribuyentes'}`}
           </div>
+          <Btn kind="ghost" size="sm" onClick={() => setExportOpen(true)}>
+            <Download size={14} /> Exportar
+          </Btn>
         </div>
 
         {error ? (
@@ -392,6 +397,14 @@ function TaxpayerGroups({
           </>
         )}
       </Card>
+
+      <ExportReportModal
+        isOpen={exportOpen}
+        onClose={() => setExportOpen(false)}
+        kind={kind}
+        initial={{ search: query || undefined }}
+        statusOptions={[]}
+      />
     </div>
   )
 }
@@ -424,6 +437,7 @@ function PurchasedTable({
   const [skip, setSkip] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [exportOpen, setExportOpen] = useState(false)
 
   // Los filtros viven en la URL para que el refresh no los pierda. `regimen`
   // viaja al back (total y paginación del universo filtrado); periodo y
@@ -474,6 +488,21 @@ function PurchasedTable({
     () => [...new Set(page.items.map((d) => d.fiscalYear))].sort((a, b) => b - a),
     [page.items],
   )
+
+  // Sin catálogo de estatus en el front: se ofrecen los visibles en la página cargada.
+  const statusOptions = useMemo(() => {
+    const map = new Map<number, string>()
+    for (const d of page.items) {
+      if (!map.has(d.statusId)) map.set(d.statusId, d.statusLabel ?? d.statusCode ?? `Estatus ${d.statusId}`)
+    }
+    return [...map.entries()].map(([id, label]) => ({ id, label }))
+  }, [page.items])
+
+  // Mes del export es 1-12 calendario; solo aplica si el periodo elegido es mensual.
+  const exportMonth =
+    typeof periodValueId === 'number' && periodValueId >= 101 && periodValueId <= 112
+      ? periodValueId - 100
+      : undefined
 
   const rows = useMemo(
     () =>
@@ -579,6 +608,9 @@ function PurchasedTable({
           <div className="text-[15px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
             {loading ? 'Cargando…' : `${rows.length} ${rows.length === 1 ? 'declaración' : 'declaraciones'}`}
           </div>
+          <Btn kind="ghost" size="sm" onClick={() => setExportOpen(true)}>
+            <Download size={14} /> Exportar
+          </Btn>
         </div>
 
         {error ? (
@@ -687,6 +719,19 @@ function PurchasedTable({
           </>
         )}
       </Card>
+
+      <ExportReportModal
+        isOpen={exportOpen}
+        onClose={() => setExportOpen(false)}
+        kind={kind}
+        initial={{
+          fiscalYear: year || undefined,
+          month: exportMonth,
+          taxRegimeId: regimeId || undefined,
+          statusId,
+        }}
+        statusOptions={statusOptions}
+      />
     </div>
   )
 }

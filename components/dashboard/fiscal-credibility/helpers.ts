@@ -1,5 +1,6 @@
 import type { DocumentMetadata } from '@/features/taxpayers/actions/getDocumentMetadata.action'
 import type { PdfDocument } from '@/features/taxpayers/actions/getTaxCertificate.action'
+import { downloadFile, toBlob } from '@/lib/common/downloadFile'
 import type { DocState } from './types'
 
 export function classifyError(statusCode: number, message: string): DocState {
@@ -41,22 +42,9 @@ export function formatDate(value: string): string {
   return date.toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })
 }
 
-function toBlob(doc: PdfDocument): Blob {
-  const byteChars = atob(doc.base64)
-  const bytes = new Uint8Array(byteChars.length)
-  for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i)
-  return new Blob([bytes], { type: doc.contentType || 'application/pdf' })
-}
-
 export function downloadPdf(doc: PdfDocument) {
-  const url = URL.createObjectURL(toBlob(doc))
-  const a = document.createElement('a')
-  a.href = url
-  a.download = doc.filename
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(url)
+  downloadFile({ ...doc, contentType: doc.contentType || 'application/pdf' })
 }
 
-export const pdfToBlobUrl = (doc: PdfDocument): string => URL.createObjectURL(toBlob(doc))
+export const pdfToBlobUrl = (doc: PdfDocument): string =>
+  URL.createObjectURL(toBlob({ ...doc, contentType: doc.contentType || 'application/pdf' }))

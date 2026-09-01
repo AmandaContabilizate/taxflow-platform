@@ -65,6 +65,37 @@ function taxpayerPurchasesQuery(p: TaxpayerPurchasesQuery): string {
   return `?${qs.toString()}`
 }
 
+/** Query de `export-report`: mismos filtros del modal de exportación, todos opcionales. */
+export interface ExportDeclarationsReportQuery {
+  /** 1 solo regularizaciones, 2 solo a futuro, ausente = ambas. Lo impone la pantalla. */
+  kind?: 1 | 2
+  search?: string
+  /** Id interno de Users.TaxRegimes, NO el código SAT. */
+  taxRegimeId?: number
+  statusId?: number
+  fiscalYear?: number
+  /** Mes calendario 1-12 (el backend lo traduce a PeriodValueId). */
+  month?: number
+  /** 1 válida, 2 inválida, 0 no registrada, ausente = todas. */
+  ciecState?: 0 | 1 | 2
+  /** Se ignora en el backend si el caller no tiene el claim AssignAccountant. */
+  accountantUserId?: string
+}
+
+function exportReportQuery(p: ExportDeclarationsReportQuery): string {
+  const qs = new URLSearchParams()
+  if (p.kind) qs.set("kind", String(p.kind))
+  if (p.search) qs.set("search", p.search)
+  if (p.taxRegimeId) qs.set("taxRegimeId", String(p.taxRegimeId))
+  if (p.statusId) qs.set("statusId", String(p.statusId))
+  if (p.fiscalYear) qs.set("fiscalYear", String(p.fiscalYear))
+  if (p.month) qs.set("month", String(p.month))
+  if (p.ciecState != null) qs.set("ciecState", String(p.ciecState))
+  if (p.accountantUserId) qs.set("accountantUserId", p.accountantUserId)
+  const s = qs.toString()
+  return `/export-report${s ? `?${s}` : ""}`
+}
+
 export const API_ROUTES = {
   AUTH: {
     LOGIN: "/login",
@@ -124,6 +155,8 @@ export const API_ROUTES = {
     MY_SUMMARY: (period: string) => `/my-summary?period=${encodeURIComponent(period)}`,
     MY_OPERATIONS: (period: string) => `/my-operations?period=${encodeURIComponent(period)}`,
     TEAM_SUMMARY: (period: string) => `/team-summary?period=${encodeURIComponent(period)}`,
+    // Recalcula las metas dinámicas de los gerentes (Regla 10). Claim Admin.RunCommissionClose.
+    RECALC_GOALS: (period: string) => `/goals/recalculate?period=${encodeURIComponent(period)}`,
   },
   // Preferencias de notificación del usuario autenticado. apiType "notification_prefs" (Procedures)
   NOTIFICATION_PREFS: {
@@ -349,6 +382,12 @@ export const API_ROUTES = {
       `/received-invoices-declaration${periodInvoicesQuery(p)}`,
     CLIENT_INVOICES: (declarationId: number) =>
       `/client-invoices?declarationId=${declarationId}`,
+    // Descarga de archivos SAT bajo demanda (contador, detalle de declaración). Mensual + periodo
+    // pasado + CIEC válida + máx 1/día calendario MX. GET = puede-ejecutar (no dispara nada).
+    DOWNLOAD_FILES_CAN_RUN: (declarationId: number) =>
+      `/download-files/puede-ejecutar?declarationId=${declarationId}`,
+    DOWNLOAD_FILES_RUN: (declarationId: number) =>
+      `/download-files?declarationId=${declarationId}`,
     DECLARATION_TAXPAYERS: (p: TaxpayerGroupsQuery = {}) =>
       `/declaration-taxpayers${taxpayerGroupsQuery(p)}`,
     REGULARIZATION_TAXPAYERS: (p: TaxpayerGroupsQuery = {}) =>
@@ -359,6 +398,9 @@ export const API_ROUTES = {
       `/regularizations-by-taxpayer${taxpayerPurchasesQuery({ ...p, onlyUpcoming: undefined })}`,
     UPLOAD_DOCUMENT: (declarationId: number) => `/${declarationId}/upload-document`,
     DOCUMENTS: (declarationId: number) => `/${declarationId}/documents`,
+    // GET declaration (Procedures). Policy Contador.ReadDeclaraciones. Responde el
+    // .xlsx binario; sin resultados el back manda 400 con errorCode EXPORT_NO_RESULTS.
+    EXPORT_REPORT: (p: ExportDeclarationsReportQuery = {}) => exportReportQuery(p),
   },
   DECLARATION_REPORT: {
     REPORT: (token: string) => `/report?t=${encodeURIComponent(token)}`,

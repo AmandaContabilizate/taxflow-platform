@@ -248,12 +248,33 @@ export async function fetchGetBlob(
   });
   if (!response.ok) {
     const errorText = await response.text();
+    // Los binarios también pueden fallar con ProblemDetails (400/403 antes de
+    // generar el archivo): se intenta extraer errorCode igual que en `request`.
+    let errorCode: string | undefined;
+    let message = errorText;
+    try {
+      const parsed = JSON.parse(errorText) as {
+        detail?: string;
+        title?: string;
+        errorCode?: string;
+        extensions?: { errorCode?: string };
+      };
+      errorCode = parsed.errorCode ?? parsed.extensions?.errorCode;
+      message =
+        (hasErrorCode(errorCode) ? getErrorMessage(errorCode) : undefined) ??
+        parsed.detail ??
+        parsed.title ??
+        errorText;
+    } catch {
+      // No era JSON: se deja el texto crudo como mensaje.
+    }
     throw new ApiError({
-      message: errorText || `HTTP ${response.status}`,
+      message: message || `HTTP ${response.status}`,
       status: response.status,
       statusText: response.statusText,
       body: errorText,
       url,
+      errorCode,
     });
   }
 

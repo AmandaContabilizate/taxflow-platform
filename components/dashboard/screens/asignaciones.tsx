@@ -1,6 +1,6 @@
 'use client'
 
-import { AlertCircle, Check, CheckCircle2, Clock, Loader2, Undo2, UserPlus, X, XCircle } from 'lucide-react'
+import { AlertCircle, Check, CheckCircle2, Clock, Loader2, Search, Undo2, UserPlus, X, XCircle } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import {
   cancelAssignmentRequest,
@@ -26,6 +26,11 @@ const MONTHS = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ]
+
+/** Minúsculas y sin acentos: "Gómez" y "gomez" deben encontrarse igual. */
+function normalize(raw: string): string {
+  return raw.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
+}
 
 function timeAgo(iso: string): string {
   const d = new Date(iso)
@@ -54,6 +59,8 @@ export function AsignacionesScreen({ isAdmin = false }: AsignacionesScreenProps)
   const today = new Date()
   const [filterYear, setFilterYear] = useState(today.getFullYear())
   const [filterMonth, setFilterMonth] = useState(today.getMonth() + 1)
+  // Buscador de la cola "Sin asignar": nombre, RFC o producto.
+  const [search, setSearch] = useState('')
   // Revisión de Administración: solicitud en revisión + modo (aprobar/rechazar).
   const [reviewing, setReviewing] = useState<{ request: AssignmentRequest; approve: boolean } | null>(null)
   const [reviewNotes, setReviewNotes] = useState('')
@@ -117,7 +124,10 @@ export function AsignacionesScreen({ isAdmin = false }: AsignacionesScreenProps)
 
   // Años disponibles: los que aparecen en la cola + el actual (para que el default exista).
   const availableYears = useMemo(() => {
-    const years = new Set<number>([today.getFullYear()])
+    // Se ofrecen el año actual y los 4 siguientes (la pantalla mira hacia adelante),
+    // más cualquier año presente en la cola de ventas.
+    const years = new Set<number>()
+    for (let y = today.getFullYear(); y < today.getFullYear() + 5; y++) years.add(y)
     for (const op of unassigned) {
       const y = new Date(op.saleDate).getFullYear()
       if (!Number.isNaN(y)) years.add(y)
@@ -126,16 +136,19 @@ export function AsignacionesScreen({ isAdmin = false }: AsignacionesScreenProps)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unassigned])
 
-  const filteredUnassigned = useMemo(
-    () =>
-      unassigned.filter((op) => {
-        const d = new Date(op.saleDate)
-        if (Number.isNaN(d.getTime())) return false
-        if (d.getFullYear() !== filterYear) return false
-        return filterMonth === 0 || d.getMonth() + 1 === filterMonth
-      }),
-    [unassigned, filterYear, filterMonth],
-  )
+  const filteredUnassigned = useMemo(() => {
+    const q = normalize(search.trim())
+    return unassigned.filter((op) => {
+      const d = new Date(op.saleDate)
+      if (Number.isNaN(d.getTime())) return false
+      if (d.getFullYear() !== filterYear) return false
+      if (filterMonth !== 0 && d.getMonth() + 1 !== filterMonth) return false
+      if (q === '') return true
+      return normalize(
+        `${op.clientName ?? ''} ${op.rfc} ${op.clientEmail ?? ''} ${op.products ?? ''}`,
+      ).includes(q)
+    })
+  }, [unassigned, filterYear, filterMonth, search])
 
   const stats = useMemo(() => {
     const currentMonth = new Date().toISOString().slice(0, 7)
@@ -215,12 +228,27 @@ export function AsignacionesScreen({ isAdmin = false }: AsignacionesScreenProps)
                 Estos clientes entraron al sistema sin código de vendedor. Solicita a Administración
                 asignar la venta al ejecutivo que la generó.
                 {filteredUnassigned.length !== unassigned.length && (
-                  <> Mostrando {filteredUnassigned.length} de {unassigned.length} según el periodo.</>
+                  <> Mostrando {filteredUnassigned.length} de {unassigned.length} según {search.trim() !== '' ? 'la búsqueda y el periodo' : 'el periodo'}.</>
                 )}
               </p>
             </div>
-            {/* Filtro por periodo de ingreso (default: mes y año actuales) */}
-            <div className="flex items-center gap-2">
+            {/* Buscador + filtro por periodo de ingreso (default: mes y año actuales) */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative">
+                <Search
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                  style={{ color: 'var(--ink-400)' }}
+                />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Buscar cliente, RFC o producto…"
+                  aria-label="Buscar en clientes sin asignar"
+                  className="pl-8 pr-3 py-2 rounded-lg border text-[12.5px] w-[240px] outline-none focus:ring-2"
+                  style={{ borderColor: 'var(--border)', background: 'var(--input)', color: 'var(--foreground)' }}
+                />
+              </div>
               <select
                 value={filterMonth}
                 onChange={(e) => setFilterMonth(Number(e.target.value))}
@@ -251,7 +279,9 @@ export function AsignacionesScreen({ isAdmin = false }: AsignacionesScreenProps)
               <CheckCircle2 size={22} style={{ color: 'var(--brand-700)' }} />
               {unassigned.length === 0
                 ? 'No hay operaciones sin asignar'
-                : `Sin operaciones en ${filterMonth === 0 ? filterYear : `${MONTHS[filterMonth - 1]} ${filterYear}`} — ajusta el periodo para ver las ${unassigned.length} pendientes`}
+                : search.trim() !== ''
+                  ? `Sin resultados para “${search.trim()}” en este periodo — prueba con otro texto o cambia el mes`
+                  : `Sin operaciones en ${filterMonth === 0 ? filterYear : `${MONTHS[filterMonth - 1]} ${filterYear}`} — ajusta el periodo para ver las ${unassigned.length} pendientes`}
             </div>
           ) : (
             <div className="overflow-x-auto px-2 py-2">
