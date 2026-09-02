@@ -396,6 +396,8 @@ export const API_ROUTES = {
       `/declarations-by-taxpayer${taxpayerPurchasesQuery(p)}`,
     REGULARIZATIONS_BY_TAXPAYER: (p: TaxpayerPurchasesQuery = {}) =>
       `/regularizations-by-taxpayer${taxpayerPurchasesQuery({ ...p, onlyUpcoming: undefined })}`,
+    UPLOAD_DOCUMENT: (declarationId: number) => `/${declarationId}/upload-document`,
+    DOCUMENTS: (declarationId: number) => `/${declarationId}/documents`,
     // GET declaration (Procedures). Policy Contador.ReadDeclaraciones. Responde el
     // .xlsx binario; sin resultados el back manda 400 con errorCode EXPORT_NO_RESULTS.
     EXPORT_REPORT: (p: ExportDeclarationsReportQuery = {}) => exportReportQuery(p),

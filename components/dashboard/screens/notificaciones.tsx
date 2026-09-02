@@ -68,6 +68,23 @@ export function NotificacionesScreen() {
   const lista = useMemo(() => parseEmails(emails), [emails])
   const invalidos = useMemo(() => lista.filter(e => !EMAIL_RE.test(e)), [lista])
 
+  const isValidUrl = (val: string, allowRelative = false): boolean => {
+    const trimmed = val.trim()
+    if (!trimmed) return true
+    if (/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u.test(trimmed)) return false
+    if (trimmed.includes(' ')) return false
+    if (allowRelative && trimmed.startsWith('/')) return true
+    try {
+      const url = new URL(trimmed)
+      return url.protocol === 'http:' || url.protocol === 'https:'
+    } catch {
+      return false
+    }
+  }
+
+  const isActionUrlValid = useMemo(() => isValidUrl(actionUrl, true), [actionUrl])
+  const isImageUrlValid = useMemo(() => isValidUrl(imagenUrl, false), [imagenUrl])
+
   const destinatarioLabel =
     audiencia === 'emails'
       ? `${lista.length} ${lista.length === 1 ? 'correo' : 'correos'}`
@@ -77,6 +94,8 @@ export function NotificacionesScreen() {
     titulo.trim().length > 0 &&
     cuerpo.trim().length > 0 &&
     (audiencia !== 'emails' || (lista.length > 0 && invalidos.length === 0)) &&
+    isActionUrlValid &&
+    isImageUrlValid &&
     !enviando
 
   const enviar = async () => {
@@ -89,6 +108,14 @@ export function NotificacionesScreen() {
     }
     if (invalidos.length > 0) {
       setError(`Correos con formato inválido: ${invalidos.join(', ')}`)
+      return
+    }
+    if (!isActionUrlValid) {
+      setError('La URL de destino no es válida (debe ser una dirección HTTPS/HTTP válida o una ruta relativa que empiece con / sin emojis ni espacios).')
+      return
+    }
+    if (!isImageUrlValid) {
+      setError('La URL de la imagen no es válida (debe ser una dirección HTTPS/HTTP válida sin emojis ni espacios).')
       return
     }
     setEnviando(true)
@@ -346,39 +373,63 @@ export function NotificacionesScreen() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="grid gap-1.5">
-                <label className="text-[12.5px] font-bold" style={{ color: 'var(--ink-700)' }}>
-                  URL de destino / Redirección <span style={{ color: 'var(--ink-500)' }}>(opcional)</span>
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-[12.5px] font-bold" style={{ color: 'var(--ink-700)' }}>
+                    URL de destino / Redirección <span style={{ color: 'var(--ink-500)' }}>(opcional)</span>
+                  </label>
+                  {!isActionUrlValid && (
+                    <span className="text-[11px] font-bold" style={{ color: 'var(--destructive)' }}>
+                      URL inválida
+                    </span>
+                  )}
+                </div>
                 <input
                   value={actionUrl}
                   onChange={e => setActionUrl(e.target.value)}
                   placeholder="https://contabilizate.com/promocion"
-                  className="w-full rounded-xl px-3.5 py-2 text-[13px] outline-none"
+                  className="w-full rounded-xl px-3.5 py-2 text-[13px] outline-none transition"
                   style={{
                     background: 'var(--input)',
                     color: 'var(--foreground)',
-                    border: '1px solid var(--border)',
+                    border: `1px solid ${!isActionUrlValid ? 'var(--destructive)' : 'var(--border)'}`,
                     ...MONO,
                   }}
                 />
+                {!isActionUrlValid && (
+                  <p className="text-[11px] font-medium" style={{ color: 'var(--destructive)' }}>
+                    Debe ser una URL válida (ej. https://wa.me/...) o ruta (/...) sin emojis.
+                  </p>
+                )}
               </div>
 
               <div className="grid gap-1.5">
-                <label className="text-[12.5px] font-bold" style={{ color: 'var(--ink-700)' }}>
-                  URL de la imagen <span style={{ color: 'var(--ink-500)' }}>(opcional)</span>
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-[12.5px] font-bold" style={{ color: 'var(--ink-700)' }}>
+                    URL de la imagen <span style={{ color: 'var(--ink-500)' }}>(opcional)</span>
+                  </label>
+                  {!isImageUrlValid && (
+                    <span className="text-[11px] font-bold" style={{ color: 'var(--destructive)' }}>
+                      URL inválida
+                    </span>
+                  )}
+                </div>
                 <input
                   value={imagenUrl}
                   onChange={e => setImagenUrl(e.target.value)}
                   placeholder="https://cdn.contabilizate.com/banner.png"
-                  className="w-full rounded-xl px-3.5 py-2 text-[13px] outline-none"
+                  className="w-full rounded-xl px-3.5 py-2 text-[13px] outline-none transition"
                   style={{
                     background: 'var(--input)',
                     color: 'var(--foreground)',
-                    border: '1px solid var(--border)',
+                    border: `1px solid ${!isImageUrlValid ? 'var(--destructive)' : 'var(--border)'}`,
                     ...MONO,
                   }}
                 />
+                {!isImageUrlValid && (
+                  <p className="text-[11px] font-medium" style={{ color: 'var(--destructive)' }}>
+                    Debe ser una URL HTTPS/HTTP válida sin emojis.
+                  </p>
+                )}
               </div>
             </div>
 

@@ -38,6 +38,23 @@ export function MarketingScreen() {
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<BroadcastPushResponse | null>(null)
 
+  const isValidUrl = (val: string, allowRelative = false): boolean => {
+    const trimmed = val.trim()
+    if (!trimmed) return true
+    if (/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u.test(trimmed)) return false
+    if (trimmed.includes(' ')) return false
+    if (allowRelative && trimmed.startsWith('/')) return true
+    try {
+      const url = new URL(trimmed)
+      return url.protocol === 'http:' || url.protocol === 'https:'
+    } catch {
+      return false
+    }
+  }
+
+  const isActionUrlValid = isValidUrl(actionUrl, true)
+  const isImageUrlValid = isValidUrl(imageUrl, false)
+
   const handleReset = () => {
     setTitle('')
     setBody('')
@@ -54,6 +71,16 @@ export function MarketingScreen() {
     e.preventDefault()
     if (!title.trim() || !body.trim()) {
       setError('El título y el mensaje son requeridos.')
+      return
+    }
+
+    if (!isActionUrlValid) {
+      setError('La URL de destino no es válida (debe ser una dirección HTTPS/HTTP válida o una ruta relativa /... sin emojis ni espacios).')
+      return
+    }
+
+    if (!isImageUrlValid) {
+      setError('La URL de la imagen no es válida (debe ser una dirección HTTPS/HTTP válida sin emojis ni espacios).')
       return
     }
 
@@ -234,36 +261,68 @@ export function MarketingScreen() {
               {/* Campos opcionales */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-extrabold uppercase tracking-wider mb-2" style={{ color: 'var(--ink-500)' }}>
-                    URL de Destino (Opcional)
-                  </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+                      URL de Destino (Opcional)
+                    </label>
+                    {!isActionUrlValid && (
+                      <span className="text-[11px] font-bold" style={{ color: 'var(--destructive)' }}>
+                        URL inválida
+                      </span>
+                    )}
+                  </div>
                   <div className="relative">
                     <LinkIcon className="w-4 h-4 absolute left-3 top-3.5 text-gray-400" />
                     <input
-                      type="url"
+                      type="text"
                       placeholder="https://app.contabilizate.com/updates"
                       value={actionUrl}
                       onChange={(e) => setActionUrl(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      style={{ background: 'var(--card)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+                      className="w-full pl-9 pr-3 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none focus:ring-2 transition"
+                      style={{
+                        background: 'var(--card)',
+                        borderColor: !isActionUrlValid ? 'var(--destructive)' : 'var(--border)',
+                        color: 'var(--foreground)',
+                      }}
                     />
                   </div>
+                  {!isActionUrlValid && (
+                    <p className="text-[11px] font-medium mt-1" style={{ color: 'var(--destructive)' }}>
+                      Debe ser una URL válida (ej. https://wa.me/...) o ruta (/...) sin emojis.
+                    </p>
+                  )}
                 </div>
                 <div>
-                  <label className="block text-xs font-extrabold uppercase tracking-wider mb-2" style={{ color: 'var(--ink-500)' }}>
-                    URL de Imagen (Opcional)
-                  </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-xs font-extrabold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+                      URL de Imagen (Opcional)
+                    </label>
+                    {!isImageUrlValid && (
+                      <span className="text-[11px] font-bold" style={{ color: 'var(--destructive)' }}>
+                        URL inválida
+                      </span>
+                    )}
+                  </div>
                   <div className="relative">
                     <ImageIcon className="w-4 h-4 absolute left-3 top-3.5 text-gray-400" />
                     <input
-                      type="url"
+                      type="text"
                       placeholder="https://.../banner.png"
                       value={imageUrl}
                       onChange={(e) => setImageUrl(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      style={{ background: 'var(--card)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+                      className="w-full pl-9 pr-3 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none focus:ring-2 transition"
+                      style={{
+                        background: 'var(--card)',
+                        borderColor: !isImageUrlValid ? 'var(--destructive)' : 'var(--border)',
+                        color: 'var(--foreground)',
+                      }}
                     />
                   </div>
+                  {!isImageUrlValid && (
+                    <p className="text-[11px] font-medium mt-1" style={{ color: 'var(--destructive)' }}>
+                      Debe ser una URL HTTPS/HTTP válida sin emojis.
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -273,7 +332,7 @@ export function MarketingScreen() {
                   kind="primary"
                   type="submit"
                   size="md"
-                  disabled={loading}
+                  disabled={loading || !isActionUrlValid || !isImageUrlValid}
                   style={{ flex: 1 }}
                 >
                   {loading ? (
