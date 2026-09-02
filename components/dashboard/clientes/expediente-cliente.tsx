@@ -746,12 +746,134 @@ function TabProductos({ data }: { data: ExpedienteCliente }) {
     return Array.from(map.values())
   }, [periodos])
 
-  const filteredPeriodos = useMemo(() => {
-    if (selectedRegime === 'ALL') return periodos
-    return periodos.filter((p) => {
-      const key = p.taxRegimeId ? String(p.taxRegimeId) : (p.taxRegimeSatCode || 'SIN_REGIMEN')
-      return key === selectedRegime
-    })
+  // Tarjetas agrupadas por periodo en vista general, o individuales en vista filtrada
+  const displayCards = useMemo(() => {
+    if (selectedRegime !== 'ALL') {
+      // Vista filtrada por un régimen específico: mostrar únicamente sus declaraciones individuales
+      const filtered = periodos.filter((p) => {
+        const key = p.taxRegimeId ? String(p.taxRegimeId) : (p.taxRegimeSatCode || 'SIN_REGIMEN')
+        return key === selectedRegime
+      })
+
+      return [...filtered]
+        .sort((a, b) => {
+          if (b.fiscalYear !== a.fiscalYear) return b.fiscalYear - a.fiscalYear
+          return (b.periodValueId ?? 0) - (a.periodValueId ?? 0)
+        })
+        .map((p) => {
+          const badge = formatRegimeBadge(p.taxRegimeSatCode, p.taxRegimeName)
+          return {
+            key: `${p.fiscalYear}-${p.periodValueId}-${p.taxRegimeId ?? p.taxRegimeSatCode}`,
+            fiscalYear: p.fiscalYear,
+            periodValueId: p.periodValueId,
+            label: periodoLabel(p),
+            regimes: badge
+              ? [
+                  {
+                    key: 'single',
+                    badge,
+                    fullName: p.taxRegimeName,
+                    presentada: p.presentada,
+                    estatus: p.estatus,
+                  },
+                ]
+              : [],
+            presentada: p.presentada,
+            isMixed: false,
+            estatus: p.estatus,
+          }
+        })
+    }
+
+    // Vista "Todos los regímenes": agrupar por mes/año para evitar tarjetas duplicadas del mismo periodo
+    const map = new Map<
+      string,
+      {
+        key: string
+        fiscalYear: number
+        periodValueId: number
+        label: string
+        regimes: {
+          key: string
+          badge: string
+          fullName?: string | null
+          presentada: boolean
+          estatus: string
+        }[]
+        items: ExpedientePeriodo[]
+      }
+    >()
+
+    for (const p of periodos) {
+      const groupKey = `${p.fiscalYear}-${p.periodValueId}`
+      const badge = formatRegimeBadge(p.taxRegimeSatCode, p.taxRegimeName)
+      const existing = map.get(groupKey)
+      if (existing) {
+        existing.items.push(p)
+        if (badge && !existing.regimes.some((r) => r.badge === badge)) {
+          existing.regimes.push({
+            key: p.taxRegimeId ? String(p.taxRegimeId) : (p.taxRegimeSatCode || badge),
+            badge,
+            fullName: p.taxRegimeName,
+            presentada: p.presentada,
+            estatus: p.estatus,
+          })
+        }
+      } else {
+        map.set(groupKey, {
+          key: groupKey,
+          fiscalYear: p.fiscalYear,
+          periodValueId: p.periodValueId,
+          label: periodoLabel(p),
+          regimes: badge
+            ? [
+                {
+                  key: p.taxRegimeId ? String(p.taxRegimeId) : (p.taxRegimeSatCode || badge),
+                  badge,
+                  fullName: p.taxRegimeName,
+                  presentada: p.presentada,
+                  estatus: p.estatus,
+                },
+              ]
+            : [],
+          items: [p],
+        })
+      }
+    }
+
+    // Ordenar cronológicamente descendente (más reciente primero)
+    return Array.from(map.values())
+      .sort((a, b) => {
+        if (b.fiscalYear !== a.fiscalYear) return b.fiscalYear - a.fiscalYear
+        return (b.periodValueId ?? 0) - (a.periodValueId ?? 0)
+      })
+      .map((g) => {
+        const allPresentada = g.items.every((i) => i.presentada)
+        const somePresentada = g.items.some((i) => i.presentada)
+        const isMixed = somePresentada && !allPresentada
+
+        let estatusText = ''
+        if (isMixed) {
+          // Desglose por régimen cuando hay estados combinados
+          estatusText = g.regimes
+            .map((r) => `${r.badge}: ${r.presentada ? 'Presentada' : 'En proceso'}`)
+            .join(' · ')
+        } else {
+          const distinctEstatus = Array.from(new Set(g.items.map((i) => i.estatus).filter(Boolean)))
+          estatusText = distinctEstatus.length === 1 ? distinctEstatus[0] : distinctEstatus.join(' · ')
+        }
+
+        return {
+          key: g.key,
+          fiscalYear: g.fiscalYear,
+          periodValueId: g.periodValueId,
+          label: g.label,
+          regimes: g.regimes,
+          presentada: allPresentada,
+          isMixed,
+          estatus: estatusText || (allPresentada ? 'Presentación procesada exitosamente' : 'En proceso'),
+        }
+      })
   }, [periodos, selectedRegime])
 
   return (
@@ -797,8 +919,7 @@ function TabProductos({ data }: { data: ExpedienteCliente }) {
           <div>
             <div className="text-[14.5px] font-extrabold" style={DISPLAY}>Periodos del servicio</div>
             <div className="text-[12px]" style={{ color: 'var(--ink-500)' }}>
-              Declaraciones del contribuyente ({filteredPeriodos.length} {filteredPeriodos.length === 1 ? 'registrada' : 'registradas'}): verdes ya
-              presentadas, violetas en curso.
+              Periodos fiscales del contribuyente ({displayCards.length} {displayCards.length === 1 ? 'periodo registrado' : 'periodos registrados'}): Verde = Presentada, Violeta = En proceso.
             </div>
           </div>
           {regimeOptions.length > 1 && (
@@ -827,47 +948,85 @@ function TabProductos({ data }: { data: ExpedienteCliente }) {
             </div>
           )}
         </div>
-        {filteredPeriodos.length === 0 ? (
+        {displayCards.length === 0 ? (
           <div className="px-5 py-8 text-center text-[13px]" style={{ color: 'var(--ink-500)' }}>
             Aún no hay declaraciones registradas{selectedRegime !== 'ALL' ? ' para el régimen seleccionado' : ''}.
           </div>
         ) : (
-          <div className="p-3 grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(215px, 1fr))' }}>
-            {filteredPeriodos.map((p, i) => {
-              const regimeBadge = formatRegimeBadge(p.taxRegimeSatCode, p.taxRegimeName)
+          <div className="p-3 grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(225px, 1fr))' }}>
+            {displayCards.map((card) => {
+              const cardBg = card.isMixed
+                ? 'linear-gradient(135deg, rgba(236,253,245,0.85) 0%, rgba(245,243,255,0.85) 100%)'
+                : card.presentada
+                  ? 'var(--brand-100)'
+                  : 'var(--amber-soft)'
+
+              const cardBorder = card.isMixed ? '1px solid var(--border-strong)' : '1px solid var(--border)'
+
               return (
                 <div
-                  key={i}
+                  key={card.key}
                   className="rounded-xl px-3.5 py-3 flex flex-col justify-between gap-1.5"
                   style={{
-                    background: p.presentada ? 'var(--brand-100)' : 'var(--amber-soft)',
-                    border: '1px solid var(--border)',
+                    background: cardBg,
+                    border: cardBorder,
                   }}
                 >
                   <div className="flex items-center justify-between gap-1.5 flex-wrap">
                     <span className="text-[13px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
-                      {periodoLabel(p)}
+                      {card.label}
                     </span>
-                    {regimeBadge && (
-                      <span
-                        className="px-2 py-0.5 rounded-md text-[10.5px] font-bold whitespace-nowrap shadow-sm"
-                        style={{
-                          background: '#ffffff',
-                          color: 'var(--ink-900)',
-                          border: '1px solid var(--border)',
-                        }}
-                        title={p.taxRegimeName ?? regimeBadge}
-                      >
-                        {regimeBadge}
-                      </span>
+                    {card.regimes.length > 0 && (
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {card.regimes.map((r, idx) => {
+                          const pillBg = card.isMixed
+                            ? r.presentada
+                              ? 'var(--brand-100)'
+                              : 'var(--amber-soft)'
+                            : '#ffffff'
+
+                          const pillColor = card.isMixed
+                            ? r.presentada
+                              ? 'var(--brand-900)'
+                              : 'var(--violet-ink)'
+                            : 'var(--ink-900)'
+
+                          const pillBorder = card.isMixed
+                            ? r.presentada
+                              ? '1px solid rgba(16, 185, 129, 0.4)'
+                              : '1px solid rgba(124, 58, 237, 0.35)'
+                            : '1px solid var(--border)'
+
+                          return (
+                            <span
+                              key={idx}
+                              className="px-2 py-0.5 rounded-md text-[10.5px] font-bold whitespace-nowrap shadow-sm"
+                              style={{
+                                background: pillBg,
+                                color: pillColor,
+                                border: pillBorder,
+                              }}
+                              title={r.fullName ? `${r.fullName} (${r.presentada ? 'Presentada' : 'En proceso'})` : r.badge}
+                            >
+                              {r.badge}
+                            </span>
+                          )
+                        })}
+                      </div>
                     )}
                   </div>
                   <div
                     className="text-[11px] font-bold mt-0.5"
-                    style={{ color: p.presentada ? 'var(--brand-900)' : 'var(--violet-ink)' }}
-                    title={p.estatus}
+                    style={{
+                      color: card.isMixed
+                        ? 'var(--ink-800)'
+                        : card.presentada
+                          ? 'var(--brand-900)'
+                          : 'var(--violet-ink)',
+                    }}
+                    title={card.estatus}
                   >
-                    {p.estatus}
+                    {card.estatus}
                   </div>
                 </div>
               )
