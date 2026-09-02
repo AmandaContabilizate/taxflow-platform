@@ -31,15 +31,22 @@ const NO_PLAN: ActivePlan = {
   paidAt: null,
 };
 
+const PAID_STATUS_ID = 2;
+
 function normalizeAccount(
   raw: Partial<PlanAccountBase> | null | undefined,
   fallbackRfc: string,
 ): PlanAccountBase {
+  const rawCompras = raw?.compras ?? [];
+  const paidCompras = rawCompras.filter(
+    (c) => c.statusId === PAID_STATUS_ID || c.status?.toLowerCase() === "pagada",
+  );
+
   return {
     rfc: raw?.rfc ?? fallbackRfc,
     legalName: raw?.legalName ?? null,
     plan: raw?.plan ?? NO_PLAN,
-    compras: raw?.compras ?? [],
+    compras: paidCompras,
   };
 }
 
