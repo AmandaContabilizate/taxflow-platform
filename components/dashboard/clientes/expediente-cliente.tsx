@@ -48,6 +48,28 @@ function periodoLabel(p: ExpedientePeriodo): string {
   return `Periodo ${p.periodValueId} · ${p.fiscalYear}`
 }
 
+function formatRegimeBadge(satCode?: string | null, name?: string | null): string | null {
+  if (!satCode && !name) return null
+  const code = (satCode || '').trim()
+  if (code === '625') return '625 Plataformas'
+  if (code === '626') return '626 RESICO'
+  if (code === '612') return '612 Act. Empresarial'
+  if (code === '606') return '606 Arrendamiento'
+  if (code === '605') return '605 Sueldos'
+  if (code === '621') return '621 RIF'
+  if (code && name) {
+    const cleanName = name.replace(/^Régimen\s+(de\s+)?(las\s+|los\s+)?/i, '')
+    const short = cleanName.length > 14 ? `${cleanName.substring(0, 14)}…` : cleanName
+    return `${code} ${short}`
+  }
+  if (code) return code
+  if (name) {
+    const cleanName = name.replace(/^Régimen\s+(de\s+)?(las\s+|los\s+)?/i, '')
+    return cleanName.length > 16 ? `${cleanName.substring(0, 16)}…` : cleanName
+  }
+  return null
+}
+
 const fmtMoney = (n: number) =>
   n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 })
 
@@ -703,8 +725,35 @@ function CredencialEfirmas({ efirmas }: { efirmas: ExpedienteCliente['efirmas'] 
 }
 
 function TabProductos({ data }: { data: ExpedienteCliente }) {
+  const [selectedRegime, setSelectedRegime] = useState<string>('ALL')
+
   // Las anuales (501) no se muestran aquí: el servicio se sigue por periodos mensuales.
   const periodos = data.periodos.filter((p) => p.periodValueId !== 501)
+
+  // Opciones de regímenes presentes en las declaraciones del cliente
+  const regimeOptions = useMemo(() => {
+    const map = new Map<string, { key: string; label: string; count: number }>()
+    for (const p of periodos) {
+      const key = p.taxRegimeId ? String(p.taxRegimeId) : (p.taxRegimeSatCode || 'SIN_REGIMEN')
+      const label = formatRegimeBadge(p.taxRegimeSatCode, p.taxRegimeName) || (p.taxRegimeName ?? 'Sin régimen')
+      const existing = map.get(key)
+      if (existing) {
+        existing.count++
+      } else {
+        map.set(key, { key, label, count: 1 })
+      }
+    }
+    return Array.from(map.values())
+  }, [periodos])
+
+  const filteredPeriodos = useMemo(() => {
+    if (selectedRegime === 'ALL') return periodos
+    return periodos.filter((p) => {
+      const key = p.taxRegimeId ? String(p.taxRegimeId) : (p.taxRegimeSatCode || 'SIN_REGIMEN')
+      return key === selectedRegime
+    })
+  }, [periodos, selectedRegime])
+
   return (
     <div className="flex flex-col gap-4">
       <Card>
@@ -744,40 +793,85 @@ function TabProductos({ data }: { data: ExpedienteCliente }) {
       </Card>
 
       <Card>
-        <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
-          <div className="text-[14.5px] font-extrabold" style={DISPLAY}>Periodos del servicio</div>
-          <div className="text-[12px]" style={{ color: 'var(--ink-500)' }}>
-            Declaraciones del contribuyente ({periodos.length} registradas): verdes ya
-            presentadas, violetas en curso.
+        <div className="px-5 py-4 border-b flex items-center justify-between flex-wrap gap-3" style={{ borderColor: 'var(--border)' }}>
+          <div>
+            <div className="text-[14.5px] font-extrabold" style={DISPLAY}>Periodos del servicio</div>
+            <div className="text-[12px]" style={{ color: 'var(--ink-500)' }}>
+              Declaraciones del contribuyente ({filteredPeriodos.length} {filteredPeriodos.length === 1 ? 'registrada' : 'registradas'}): verdes ya
+              presentadas, violetas en curso.
+            </div>
           </div>
-        </div>
-        {periodos.length === 0 ? (
-          <div className="px-5 py-8 text-center text-[13px]" style={{ color: 'var(--ink-500)' }}>
-            Aún no hay declaraciones registradas.
-          </div>
-        ) : (
-          <div className="p-3 grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))' }}>
-            {periodos.map((p, i) => (
-              <div
-                key={i}
-                className="rounded-xl px-3.5 py-3"
+          {regimeOptions.length > 1 && (
+            <div className="flex items-center gap-2">
+              <label htmlFor="regime-filter-periodos" className="text-[12px] font-bold" style={{ color: 'var(--ink-600)' }}>
+                Régimen:
+              </label>
+              <select
+                id="regime-filter-periodos"
+                value={selectedRegime}
+                onChange={(e) => setSelectedRegime(e.target.value)}
+                className="text-[12.5px] font-bold px-3 py-1.5 rounded-xl outline-none transition cursor-pointer"
                 style={{
-                  background: p.presentada ? 'var(--brand-100)' : 'var(--amber-soft)',
+                  background: 'var(--ink-50)',
+                  color: 'var(--ink-900)',
                   border: '1px solid var(--border)',
                 }}
               >
-                <div className="text-[13px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
-                  {periodoLabel(p)}
-                </div>
+                <option value="ALL">Todos los regímenes ({periodos.length})</option>
+                {regimeOptions.map((opt) => (
+                  <option key={opt.key} value={opt.key}>
+                    {opt.label} ({opt.count})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+        {filteredPeriodos.length === 0 ? (
+          <div className="px-5 py-8 text-center text-[13px]" style={{ color: 'var(--ink-500)' }}>
+            Aún no hay declaraciones registradas{selectedRegime !== 'ALL' ? ' para el régimen seleccionado' : ''}.
+          </div>
+        ) : (
+          <div className="p-3 grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(215px, 1fr))' }}>
+            {filteredPeriodos.map((p, i) => {
+              const regimeBadge = formatRegimeBadge(p.taxRegimeSatCode, p.taxRegimeName)
+              return (
                 <div
-                  className="text-[11px] font-bold mt-0.5"
-                  style={{ color: p.presentada ? 'var(--brand-900)' : 'var(--violet-ink)' }}
-                  title={p.estatus}
+                  key={i}
+                  className="rounded-xl px-3.5 py-3 flex flex-col justify-between gap-1.5"
+                  style={{
+                    background: p.presentada ? 'var(--brand-100)' : 'var(--amber-soft)',
+                    border: '1px solid var(--border)',
+                  }}
                 >
-                  {p.estatus}
+                  <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                    <span className="text-[13px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
+                      {periodoLabel(p)}
+                    </span>
+                    {regimeBadge && (
+                      <span
+                        className="px-2 py-0.5 rounded-md text-[10.5px] font-bold whitespace-nowrap shadow-sm"
+                        style={{
+                          background: '#ffffff',
+                          color: 'var(--ink-900)',
+                          border: '1px solid var(--border)',
+                        }}
+                        title={p.taxRegimeName ?? regimeBadge}
+                      >
+                        {regimeBadge}
+                      </span>
+                    )}
+                  </div>
+                  <div
+                    className="text-[11px] font-bold mt-0.5"
+                    style={{ color: p.presentada ? 'var(--brand-900)' : 'var(--violet-ink)' }}
+                    title={p.estatus}
+                  >
+                    {p.estatus}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </Card>

@@ -50,6 +50,9 @@ export interface ExpedientePeriodo {
   periodValueId: number
   estatus: string
   presentada: boolean
+  taxRegimeId?: number | null
+  taxRegimeSatCode?: string | null
+  taxRegimeName?: string | null
 }
 
 /**
