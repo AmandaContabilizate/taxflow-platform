@@ -427,7 +427,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
           />
           <HeaderBtn
             icon={<FileCheck2 size={15} />}
-            label="Documentos SAT"
+            label="Comprobantes SAT"
             kind="ghost"
             title="Subir o consultar Acuse de Declaración y Línea de Captura en PDF"
             onClick={() => setDocumentsOpen(true)}

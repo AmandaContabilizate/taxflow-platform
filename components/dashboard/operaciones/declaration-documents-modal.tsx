@@ -109,7 +109,7 @@ export function DeclarationDocumentsModal({ open, onClose, declarationId, period
   const lineas = documents.filter((d) => d.type === 'PaymentLine' && d.hasFile)
 
   return (
-    <Modal isOpen={open} onClose={onClose} title="Documentos de la Declaración">
+    <Modal isOpen={open} onClose={onClose} title="Comprobantes SAT">
       <div className="flex flex-col gap-4">
         <div className="p-2.5 rounded-xl flex items-center justify-between gap-2 text-[12.5px] font-semibold" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
           <span style={{ color: 'var(--ink-900)' }}>{legalName}</span>
