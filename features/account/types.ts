@@ -18,6 +18,7 @@ export interface Plan {
   stripeOneTimePriceId: string | null; // price pago único (paymentMode 1)
   productType: number; // 0 = Plan, 1 = Trámite / Add-on
   grantsFreeAddOns: boolean; // si true, los add-ons van gratis con el plan
+  canBeGrantedFree: boolean; // inverso: este trámite puede volverse gratis si el carrito lo otorga
   shortDescription: string | null;
   featuresJson: string | null;
   features: string[] | null;
@@ -387,6 +388,15 @@ export function resolvePlanFeatures(plan: Plan): string[] {
 /** ¿El producto es seleccionable en el modo de pago elegido? */
 export function isAvailableForMode(plan: Plan, mode: PaymentMode): boolean {
   return mode === 0 ? !!plan.stripeSubscriptionPriceId : !!plan.stripeOneTimePriceId;
+}
+
+/**
+ * ¿Este trámite se vuelve gratis? Mismo criterio que el backend
+ * (`FreeAddOnPolicy.IsFree`): el carrito debe otorgar el beneficio Y el
+ * trámite debe estar marcado como elegible. No todos los trámites lo son.
+ */
+export function isFreeAddon(addon: Plan, cartGrantsFreeAddOns: boolean): boolean {
+  return cartGrantsFreeAddOns && addon.canBeGrantedFree;
 }
 
 export function priceIdForMode(plan: Plan, mode: PaymentMode): string | null {

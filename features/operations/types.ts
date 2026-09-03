@@ -205,6 +205,12 @@ export interface DeclarationSubject {
   accountantName: string | null;
 }
 
+/** Actividad económica del contribuyente dentro del régimen (DeclaracionActividadDto). */
+export interface DeclarationActivity {
+  activityId: number;
+  description: string | null;
+}
+
 /** Datos generales de una declaración (DeclaracionGeneralDto). */
 export interface DeclarationGeneral {
   taxpayerId: number;
@@ -245,6 +251,8 @@ export interface DeclarationGeneral {
   paymentAcknowledgmentPdfUrl: string | null;
   accountantUserId: string | null;
   accountantName: string | null;
+  /** Actividades económicas del contribuyente en el régimen de esta declaración. */
+  activities: DeclarationActivity[];
   /** `DeclarationSummary.Ingresos`; fallback `Declaration.AccumulatedIncome`. */
   ingresosBrutos: Money;
   /**

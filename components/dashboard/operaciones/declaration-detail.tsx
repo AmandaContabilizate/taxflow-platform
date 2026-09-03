@@ -28,7 +28,7 @@ import { useRecalculation } from '@/features/declarations/hooks/useRecalculation
 import { getDeclarationGeneral } from '@/features/operations/actions/getDeclarationGeneral.action'
 import { getDeclarationLogs } from '@/features/operations/actions/getDeclarationLogs.action'
 import { resendDeclarationToClient } from '@/features/operations/actions/resendDeclarationToClient.action'
-import type { DeclarationGeneral, DeclarationLog, DeclarationSubject } from '@/features/operations/types'
+import type { DeclarationActivity, DeclarationGeneral, DeclarationLog, DeclarationSubject } from '@/features/operations/types'
 import { getSatPassword } from '@/features/taxpayers/actions/getSatPassword.action'
 import { num, toNumber } from './calc-read'
 import { CalculosTab } from './calculos-tab'
@@ -356,6 +356,10 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
     ? `${general.regimeSatCode ?? ''} ${general.regimeName}`.trim()
     : null
 
+  // Actividades económicas del régimen de la declaración. Si no hay ninguna
+  // registrada no se pinta nada (no un chip vacío).
+  const actividades = (general?.activities ?? []).filter((a) => a.description?.trim())
+
   // El gate solo se decide con /general resuelto: mientras carga se muestra el
   // loading normal, y si /general falló se conserva el comportamiento anterior.
   const regimeResuelto = general != null
@@ -404,6 +408,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
               <MetaChip label="Régimen" value={regimen ?? 'Sin régimen asignado'} muted={!regimen} />
               <CiecInline rfc={rfc} />
             </div>
+            {actividades.length > 0 && <ActivityChips activities={actividades} />}
           </div>
         </div>
 
@@ -680,6 +685,32 @@ function MetaChip({ label, value, muted }: { label: string; value: string; muted
         {value}
       </span>
     </span>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Actividades económicas del régimen                                        */
+/* -------------------------------------------------------------------------- */
+
+function ActivityChips({ activities }: { activities: DeclarationActivity[] }) {
+  return (
+    <div className="flex items-start gap-2 mt-2 flex-wrap max-w-full lg:max-w-[720px]">
+      <span
+        className="font-semibold uppercase tracking-wide text-[10px] pt-1.5 shrink-0"
+        style={{ color: 'var(--ink-500)' }}
+      >
+        {activities.length > 1 ? 'Actividades económicas' : 'Actividad económica'}
+      </span>
+      {activities.map((a) => (
+        <span
+          key={a.activityId}
+          className="inline-flex px-2.5 py-1 rounded-lg text-[12px] font-bold leading-snug break-words"
+          style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--ink-900)' }}
+        >
+          {a.description}
+        </span>
+      ))}
+    </div>
   )
 }
 

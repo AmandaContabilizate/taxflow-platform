@@ -18,6 +18,7 @@ import { registerSaleNew } from '@/features/account/actions/registerSaleNew.acti
 import {
   formatMXN,
   isAvailableForMode,
+  isFreeAddon,
   paymentIntentIdFromSecret,
   periodLabel,
   priceForMode,
@@ -136,9 +137,13 @@ export function PlanPickerModal({
   // En suscripción el price recurrente de Stripe ya trae el 10% de descuento;
   // el catálogo solo expone el precio de lista, así que lo descontamos aquí.
   const isSubscriptionMode = paymentMode === 0
-  const proceduresTotal = freeAddons
-    ? 0
-    : procedures.reduce((sum, a) => sum + priceForMode(a.price, paymentMode) * (qty[a.id] ?? 0), 0)
+  // Solo se pone en cero el trámite marcado como elegible (canBeGrantedFree);
+  // los demás se cobran aunque el plan otorgue el beneficio.
+  const proceduresTotal = procedures.reduce(
+    (sum, a) =>
+      sum + (isFreeAddon(a, freeAddons) ? 0 : priceForMode(a.price, paymentMode) * (qty[a.id] ?? 0)),
+    0,
+  )
   // grantsFreeAddOns solo libera los trámites adicionales: las regularizaciones
   // se cobran siempre. Ponerlas en 0 aquí mostraba un total menor al que
   // termina cobrando Stripe, porque el cargo sale de los price de `items`.
@@ -475,13 +480,16 @@ export function PlanPickerModal({
                     <div className="text-[12px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
                       Trámites adicionales
                     </div>
-                    {freeAddons && <Badge kind="brand">Gratis con tu plan</Badge>}
+                    {procedures.some((a) => isFreeAddon(a, freeAddons)) && (
+                      <Badge kind="brand">Gratis con tu plan</Badge>
+                    )}
                   </div>
                   <div className="grid gap-2.5 sm:grid-cols-2">
                     {procedures.map((addon) => {
                       const enabled = isAvailableForMode(addon, paymentMode)
                       const q = qty[addon.id] ?? 0
                       const inCart = q > 0
+                      const free = isFreeAddon(addon, freeAddons)
                       return (
                         <div
                           key={addon.id}
@@ -497,7 +505,7 @@ export function PlanPickerModal({
                               {addon.name}
                             </div>
                             <div className="text-[12px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
-                              {freeAddons ? (
+                              {free ? (
                                 'Incluido'
                               ) : (
                                 <>
@@ -549,7 +557,6 @@ export function PlanPickerModal({
                     <div className="text-[12px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
                       Declaraciones por regularizar
                     </div>
-                    {freeAddons && <Badge kind="brand">Gratis con tu plan</Badge>}
                   </div>
                   <div className="grid gap-2.5 sm:grid-cols-2">
                     {regularizations.map((reg) => {
@@ -583,10 +590,11 @@ export function PlanPickerModal({
                             </div>
                             <div className="text-[12px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
                               {periodo || 'Declaración pendiente'}
-                              {reg.plan && !freeAddons
+                              {/* Las regularizaciones se cobran siempre, incluso con un plan que
+                                  regala trámites: el precio se muestra sin condicionar al beneficio. */}
+                              {reg.plan
                                 ? ` · ${formatMXN(priceForMode(reg.plan.price, paymentMode))}`
                                 : ''}
-                              {freeAddons ? ' · Incluido' : ''}
                             </div>
                           </div>
                           <div

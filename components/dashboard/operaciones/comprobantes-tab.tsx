@@ -13,14 +13,6 @@ import {
   Search,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { getDeclarationInvoices } from '@/features/operations/actions/getDeclarationInvoices.action'
 import type {
@@ -35,6 +27,7 @@ import { Pagination } from '../clientes/parts'
 import { MONO } from '../constants'
 import { Card } from '../ui'
 import { useUrlState } from '../url-state'
+import { ColumnsModal, FilterSelect } from './filter-columns'
 
 const TAKE = 100
 
@@ -88,38 +81,6 @@ const DEFAULT_COLUMNS: ColumnKey[] = [
   'total',
   'clasificacion',
 ]
-
-function FilterSelect<T extends string>({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string
-  value: T
-  onChange: (v: T) => void
-  options: [T, string][]
-}) {
-  return (
-    <label className="flex flex-col gap-1 min-w-[150px] flex-1">
-      <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
-        {label}
-      </span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value as T)}
-        className="w-full px-3 py-2.5 rounded-lg text-[13px]"
-        style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
-      >
-        {options.map(([v, l]) => (
-          <option key={v} value={v}>
-            {l}
-          </option>
-        ))}
-      </select>
-    </label>
-  )
-}
 
 const money = (v: string | number | null) => {
   const n = typeof v === 'string' ? Number(v) : v
@@ -356,47 +317,6 @@ function ConceptosCell({
         )}
       </PopoverContent>
     </Popover>
-  )
-}
-
-/** Modal selector de columnas: Fecha y Folio/UUID son fijas y no aparecen aquí. */
-function ColumnsModal({
-  open,
-  onOpenChange,
-  selected,
-  onChange,
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  selected: ColumnKey[]
-  onChange: (next: ColumnKey[]) => void
-}) {
-  const toggle = (key: ColumnKey) => {
-    onChange(selected.includes(key) ? selected.filter((k) => k !== key) : [...selected, key])
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[420px]">
-        <DialogHeader>
-          <DialogTitle>Columnas de la tabla</DialogTitle>
-          <DialogDescription>Fecha y Folio / UUID siempre se muestran.</DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-col gap-1 max-h-[55vh] overflow-y-auto -mx-1 px-1">
-          {COLUMN_DEFS.map(({ key, label }) => (
-            <label
-              key={key}
-              className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer hover:bg-muted"
-            >
-              <Checkbox checked={selected.includes(key)} onCheckedChange={() => toggle(key)} />
-              <span className="text-[13px]" style={{ color: 'var(--foreground)' }}>
-                {label}
-              </span>
-            </label>
-          ))}
-        </div>
-      </DialogContent>
-    </Dialog>
   )
 }
 
@@ -1052,8 +972,10 @@ export function ComprobantesTab({
       <ColumnsModal
         open={columnsModalOpen}
         onOpenChange={setColumnsModalOpen}
+        defs={COLUMN_DEFS}
         selected={selectedCols}
         onChange={setSelectedCols}
+        fixedColumnsHint="Fecha y Folio / UUID siempre se muestran."
       />
     </Card>
   )

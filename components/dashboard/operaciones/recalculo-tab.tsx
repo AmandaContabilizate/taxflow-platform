@@ -1,6 +1,6 @@
 'use client'
 
-import { AlertCircle, AlertTriangle, Check, Loader2, RotateCcw, Search, Undo2 } from 'lucide-react'
+import { AlertCircle, AlertTriangle, Check, Columns3, Loader2, RotateCcw, Search, Undo2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { getClassificationCategories } from '@/features/declarations/actions/getClassificationCategories.action'
 import { getDeclarationPeriodInvoices } from '@/features/declarations/actions/getDeclarationPeriodInvoices.action'
@@ -12,8 +12,10 @@ import type {
   DeclarationPeriodInvoice,
 } from '@/features/declarations/types'
 import { money } from './calc-read'
+import { ColumnsModal, FilterSelect } from './filter-columns'
 import { MONO } from '../constants'
 import { Card } from '../ui'
+import { useUrlState } from '../url-state'
 
 interface Props {
   rfc: string
@@ -29,6 +31,37 @@ interface Props {
 }
 
 type Deducible = '' | 'true' | 'false'
+
+/**
+ * `DeclarationPeriodInvoice.tipoComprobante` es el enum TipoComprobante
+ * (0 desconocido, 1 I, 2 E, 3 T, 4 N, 5 P) — Nómina y Pago van al revés que el
+ * `invoiceTypeId` de comprobantes (1 I, 2 E, 3 T, 4 P, 5 N). No se reutiliza esa
+ * lista: los valores numéricos no significan lo mismo aunque las etiquetas coincidan.
+ */
+const TIPO_COMPROBANTE_OPTIONS: [string, string][] = [
+  ['1', 'Ingreso'],
+  ['2', 'Egreso'],
+  ['3', 'Traslado'],
+  ['4', 'Nómina'],
+  ['5', 'Pago'],
+]
+
+/** Columnas seleccionables de recálculo. Fecha, Folio/UUID y la columna de
+ *  corrección/retenciones son fijas y no aparecen aquí. Solo campos que ya
+ *  trae `DeclarationPeriodInvoice` — ese modelo no expone subtotal, IVA,
+ *  método/forma de pago ni conceptos, así que no se piden esas columnas. */
+type RecalcColumnKey = 'origen' | 'contraparte' | 'total' | 'claves' | 'clasificacion'
+
+const RECALC_COLUMN_DEFS: { key: RecalcColumnKey; label: string }[] = [
+  { key: 'origen', label: 'Origen' },
+  { key: 'contraparte', label: 'Contraparte' },
+  { key: 'total', label: 'Total' },
+  { key: 'claves', label: 'Claves prod/serv' },
+  { key: 'clasificacion', label: 'Clasificación actual' },
+]
+
+/** Todas visibles por default: es el comportamiento que ya tenía la tabla. */
+const RECALC_DEFAULT_COLUMNS: RecalcColumnKey[] = RECALC_COLUMN_DEFS.map((d) => d.key)
 
 const fmtDate = (iso: string | null) => {
   if (!iso) return '—'
@@ -58,6 +91,8 @@ export function RecalculoTab({
   recalc,
   readOnly,
 }: Props) {
+  const { params, setParams } = useUrlState()
+
   const [invoices, setInvoices] = useState<DeclarationPeriodInvoice[]>([])
   const [loading, setLoading] = useState(true)
   const [listError, setListError] = useState<string | null>(null)
@@ -65,6 +100,30 @@ export function RecalculoTab({
   const [query, setQuery] = useState('')
   const [soloProblemas, setSoloProblemas] = useState(false)
   const [adjustments, setAdjustments] = useState<Record<string, ClassificationAdjustment>>({})
+
+  // Filtros de comprobantes, pero EN CLIENTE: el EP de recálculo no los
+  // soporta y ya trae el universo completo del periodo en memoria.
+  const [origen, setOrigen] = useState<'' | 'true' | 'false'>('')
+  const [tipo, setTipo] = useState('')
+  const [clasificada, setClasificada] = useState<'' | 'true' | 'false'>('')
+  const [columnsModalOpen, setColumnsModalOpen] = useState(false)
+
+  // Selección de columnas persistida en la URL con prefijo propio (`rcols`):
+  // comprobantes usa `cols` en el mismo query string y pisarían el mismo param.
+  const rawCols = params.get('rcols')
+  const selectedCols = useMemo<RecalcColumnKey[]>(() => {
+    if (rawCols == null) return RECALC_DEFAULT_COLUMNS
+    if (rawCols === 'none') return []
+    const set = new Set(rawCols.split(','))
+    return RECALC_COLUMN_DEFS.map((d) => d.key).filter((k) => set.has(k))
+  }, [rawCols])
+
+  const setSelectedCols = (next: RecalcColumnKey[]) => {
+    setParams({ rcols: next.length === 0 ? 'none' : next.join(',') }, { replace: true })
+  }
+
+  const visibleColSet = useMemo(() => new Set(selectedCols), [selectedCols])
+  const visibleColumns = RECALC_COLUMN_DEFS.filter((d) => visibleColSet.has(d.key))
 
   const range = periodMonthRange(periodValueId)
 
@@ -129,6 +188,12 @@ export function RecalculoTab({
     return invoices
       .filter((i) => {
         if (soloProblemas && i.isDeductible !== false && i.isDeductible != null) return false
+        if (origen && i.isIssued !== (origen === 'true')) return false
+        if (tipo && i.tipoComprobante !== Number(tipo)) return false
+        // "clasificada" ↔ isDeductible == null: sin clasificar es null, clasificado no lo es.
+        const sinClasificar = i.isDeductible == null
+        if (clasificada === 'true' && sinClasificar) return false
+        if (clasificada === 'false' && !sinClasificar) return false
         if (!q) return true
         return [
           i.uuid,
@@ -142,8 +207,9 @@ export function RecalculoTab({
           ...i.productServiceKeys,
         ].some((f) => f?.toLowerCase().includes(q))
       })
-      .sort((a, b) => b.invoiceDate.localeCompare(a.invoiceDate))
-  }, [invoices, query, soloProblemas])
+      // Ascendente por fecha, mismo criterio que el default de comprobantes.
+      .sort((a, b) => a.invoiceDate.localeCompare(b.invoiceDate))
+  }, [invoices, query, soloProblemas, origen, tipo, clasificada])
 
   // Suma de los comprobantes que quedaron visibles con el filtro puesto; el
   // universo completo del periodo es `invoices`, no esto.
@@ -281,6 +347,58 @@ export function RecalculoTab({
                     : `${invoices.length} comprobantes entran al cálculo${sinClasificar > 0 ? ` · ${sinClasificar} sin clasificar` : ''}`}
               </p>
             </div>
+            <button
+              type="button"
+              onClick={() => setColumnsModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12.5px] font-bold transition hover:opacity-90"
+              style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+            >
+              <Columns3 size={14} /> Columnas
+            </button>
+          </div>
+
+          {/* Filtros del tab de comprobantes, reutilizados aquí pero aplicados
+              en cliente (ver `rows`): el EP de recálculo no los soporta. */}
+          <div className="flex flex-wrap gap-3 items-end">
+            <FilterSelect
+              label="Emitidas / Recibidas"
+              value={origen}
+              onChange={setOrigen}
+              options={[
+                ['', 'Todas'],
+                ['true', 'Emitidas'],
+                ['false', 'Recibidas'],
+              ]}
+            />
+            <FilterSelect
+              label="Tipo de comprobante"
+              value={tipo}
+              onChange={setTipo}
+              options={[['', 'Todos'], ...TIPO_COMPROBANTE_OPTIONS]}
+            />
+            <FilterSelect
+              label="Clasificación"
+              value={clasificada}
+              onChange={setClasificada}
+              options={[
+                ['', 'Todos'],
+                ['true', 'Clasificados'],
+                ['false', 'Sin clasificar'],
+              ]}
+            />
+            {(origen || tipo || clasificada) && (
+              <button
+                onClick={() => {
+                  setOrigen('')
+                  setTipo('')
+                  setClasificada('')
+                }}
+                className="px-3.5 py-2.5 rounded-lg text-[12.5px] font-bold transition hover:opacity-90"
+                style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+              >
+                Limpiar filtros
+              </button>
+            )}
           </div>
 
           <div className="flex flex-wrap gap-3 items-center">
@@ -375,11 +493,7 @@ export function RecalculoTab({
                     {[
                       'Fecha',
                       'Folio / UUID',
-                      'Origen',
-                      'Contraparte',
-                      'Total',
-                      'Claves prod/serv',
-                      'Clasificación actual',
+                      ...visibleColumns.map((c) => c.label),
                       readOnly ? 'Retenciones' : 'Corregir',
                     ].map((h) => (
                       <th
@@ -412,68 +526,78 @@ export function RecalculoTab({
                             {inv.uuid}
                           </code>
                         </td>
-                        <td className="px-3 py-3 align-top">
-                          <Chip
-                            bg={inv.isIssued ? 'var(--sky-soft)' : 'var(--ink-50)'}
-                            fg={inv.isIssued ? 'var(--sky)' : 'var(--ink-700)'}
+                        {visibleColSet.has('origen') && (
+                          <td className="px-3 py-3 align-top">
+                            <Chip
+                              bg={inv.isIssued ? 'var(--sky-soft)' : 'var(--ink-50)'}
+                              fg={inv.isIssued ? 'var(--sky)' : 'var(--ink-700)'}
+                            >
+                              {inv.isIssued ? 'Emitida' : 'Recibida'}
+                            </Chip>
+                            <div className="text-[11px] mt-1" style={{ color: 'var(--ink-500)' }}>
+                              {inv.typeId}
+                            </div>
+                            {/* Factura global (Público en General): el periodo que
+                                declara puede no ser el de la declaración. */}
+                            {inv.period && (
+                              <div className="mt-1">
+                                <Chip bg="var(--violet-soft)" fg="var(--violet-ink)">
+                                  Global · {inv.period}
+                                </Chip>
+                              </div>
+                            )}
+                          </td>
+                        )}
+                        {visibleColSet.has('contraparte') && (
+                          <td className="px-3 py-3 align-top min-w-[160px]">
+                            <div style={{ color: 'var(--ink-900)' }}>{contraparte?.name ?? '—'}</div>
+                            <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-500)' }}>
+                              {contraparte?.rfc ?? ''}
+                            </code>
+                          </td>
+                        )}
+                        {visibleColSet.has('total') && (
+                          <td
+                            className="px-3 py-3 whitespace-nowrap align-top font-semibold"
+                            style={{ ...MONO, color: 'var(--ink-900)' }}
                           >
-                            {inv.isIssued ? 'Emitida' : 'Recibida'}
-                          </Chip>
-                          <div className="text-[11px] mt-1" style={{ color: 'var(--ink-500)' }}>
-                            {inv.typeId}
-                          </div>
-                          {/* Factura global (Público en General): el periodo que
-                              declara puede no ser el de la declaración. */}
-                          {inv.period && (
-                            <div className="mt-1">
-                              <Chip bg="var(--violet-soft)" fg="var(--violet-ink)">
-                                Global · {inv.period}
-                              </Chip>
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-3 py-3 align-top min-w-[160px]">
-                          <div style={{ color: 'var(--ink-900)' }}>{contraparte?.name ?? '—'}</div>
-                          <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-500)' }}>
-                            {contraparte?.rfc ?? ''}
-                          </code>
-                        </td>
-                        <td
-                          className="px-3 py-3 whitespace-nowrap align-top font-semibold"
-                          style={{ ...MONO, color: 'var(--ink-900)' }}
-                        >
-                          {amount(inv.total)}
-                          {inv.withheldAmount != null && (
-                            <div className="text-[11px] font-normal mt-0.5" style={{ color: 'var(--ink-500)' }}>
-                              Retenido {amount(inv.withheldAmount)}
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-3 py-3 align-top min-w-[120px]">
-                          {inv.productServiceKeys.length === 0 ? (
-                            <span style={{ color: 'var(--ink-500)' }}>—</span>
-                          ) : (
-                            <div className="flex flex-wrap gap-1">
-                              {inv.productServiceKeys.map((k) => (
-                                <code
-                                  key={k}
-                                  className="px-1.5 py-0.5 rounded"
-                                  style={{
-                                    ...MONO,
-                                    fontSize: '10.5px',
-                                    background: 'var(--muted)',
-                                    color: 'var(--ink-700)',
-                                  }}
-                                >
-                                  {k}
-                                </code>
-                              ))}
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-3 py-3 align-top min-w-[170px]">
-                          <ClasificacionActual inv={inv} />
-                        </td>
+                            {amount(inv.total)}
+                            {inv.withheldAmount != null && (
+                              <div className="text-[11px] font-normal mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                                Retenido {amount(inv.withheldAmount)}
+                              </div>
+                            )}
+                          </td>
+                        )}
+                        {visibleColSet.has('claves') && (
+                          <td className="px-3 py-3 align-top min-w-[120px]">
+                            {inv.productServiceKeys.length === 0 ? (
+                              <span style={{ color: 'var(--ink-500)' }}>—</span>
+                            ) : (
+                              <div className="flex flex-wrap gap-1">
+                                {inv.productServiceKeys.map((k) => (
+                                  <code
+                                    key={k}
+                                    className="px-1.5 py-0.5 rounded"
+                                    style={{
+                                      ...MONO,
+                                      fontSize: '10.5px',
+                                      background: 'var(--muted)',
+                                      color: 'var(--ink-700)',
+                                    }}
+                                  >
+                                    {k}
+                                  </code>
+                                ))}
+                              </div>
+                            )}
+                          </td>
+                        )}
+                        {visibleColSet.has('clasificacion') && (
+                          <td className="px-3 py-3 align-top min-w-[170px]">
+                            <ClasificacionActual inv={inv} />
+                          </td>
+                        )}
                         <td className="px-3 py-3 align-top min-w-[230px]">
                           {readOnly ? (
                             <span style={{ ...MONO, color: 'var(--ink-900)' }}>
@@ -579,6 +703,15 @@ export function RecalculoTab({
           )}
         </div>
       </Card>
+
+      <ColumnsModal
+        open={columnsModalOpen}
+        onOpenChange={setColumnsModalOpen}
+        defs={RECALC_COLUMN_DEFS}
+        selected={selectedCols}
+        onChange={setSelectedCols}
+        fixedColumnsHint="Fecha, Folio / UUID y la columna de corrección siempre se muestran."
+      />
     </div>
   )
 }

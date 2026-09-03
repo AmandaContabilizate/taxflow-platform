@@ -212,14 +212,6 @@ export function TimbrameSSOCard({ go }: Props) {
             </p>
           </div>
         )}
-
-        {/* Footer informativo sobre expiración */}
-        <div className="border-t border-border pt-4 text-[11px] text-muted-foreground flex flex-wrap gap-3 justify-between">
-          <span>PAC certificado por el SAT</span>
-          <span>
-            * Por motivos de seguridad, el enlace SSO expira en 2 minutos.
-          </span>
-        </div>
       </div>
     </Card>
   )
