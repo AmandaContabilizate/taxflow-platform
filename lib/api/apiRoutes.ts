@@ -355,6 +355,8 @@ export const API_ROUTES = {
   SALES: {
     PAYMENTS: (rfc: string, page = 1, pageSize = 20) =>
       `/payments?rfc=${encodeURIComponent(rfc)}&page=${page}&pageSize=${pageSize}`,
+    // GET sales_procedures — instrucciones de pago (SPEI/OXXO) de una venta Open.
+    PAYMENT_INSTRUCTIONS: (saleId: number) => `/payments/${saleId}/payment-instructions`,
   },
   // Diagnóstico fiscal bajo demanda (apiType "diagnostico", Identity, sin /SQLServer).
   // Cliente: rfc del propio JWT, máx 1 corrida/día. Vendedor: por taxpayerId, cooldown 6h.
@@ -406,6 +408,10 @@ export const API_ROUTES = {
     REPORT: (token: string) => `/report?t=${encodeURIComponent(token)}`,
     AUTHORIZE: "/authorize",
     COMMENT: "/comment",
+  },
+  // apiType "payment_link" (Procedures). REDEEM es [AllowAnonymous] · GET.
+  PAYMENT_LINK: {
+    REDEEM: (token: string) => `/redeem?t=${encodeURIComponent(token)}`,
   },
   VAULT: {
     ISSUED_COUNT: (rfc: string, email: string) =>

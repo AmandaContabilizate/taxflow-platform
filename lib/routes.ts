@@ -20,6 +20,8 @@ export const PUBLIC_ROUTES = {
   COMPLETE_PROFILE: "/auth/complete-profile",
   /** Reporte de la declaración: /reporte?t={token cifrado del correo}. */
   DECLARATION_REPORT: "/reporte",
+  /** Pago por transferencia desde el WebView de la app: /pago?t={token corto de canje}. */
+  PAYMENT: "/pago",
   /** Baja de cuenta sin sesión: valida correo + contraseña contra Identity. */
   DELETE_ACCOUNT: "/eliminar-cuenta",
 } as const;
@@ -46,6 +48,7 @@ export const PUBLIC_NONAUTH_ROUTES: string[] = [
   PUBLIC_ROUTES.RESET_PASSWORD,
   PUBLIC_ROUTES.DECLARATION_REPORT,
   PUBLIC_ROUTES.DELETE_ACCOUNT,
+  PUBLIC_ROUTES.PAYMENT,
 ];
 
 export const PUBLIC_NO_AUTH_PATTERNS: RegExp[] = [

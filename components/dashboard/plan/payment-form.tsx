@@ -10,13 +10,17 @@ interface PaymentFormProps {
   payLabel: string
   onSuccess: () => void
   onCancel: () => void
+  /** Destino tras `confirmPayment`. Por defecto el dashboard; la ruta pública /pago la sobreescribe. */
+  returnUrl?: string
+  /** Texto del botón secundario. Por defecto "Volver al carrito"; /pago no tiene carrito. */
+  cancelLabel?: string
 }
 
 /**
  * Formulario de pago embebido (equivalente web del PaymentSheet móvil).
  * Debe renderizarse dentro de <Elements> con el clientSecret ya cargado.
  */
-export function PaymentForm({ payLabel, onSuccess, onCancel }: PaymentFormProps) {
+export function PaymentForm({ payLabel, onSuccess, onCancel, returnUrl, cancelLabel }: PaymentFormProps) {
   const stripe = useStripe()
   const elements = useElements()
   const [submitting, setSubmitting] = useState(false)
@@ -32,7 +36,7 @@ export function PaymentForm({ payLabel, onSuccess, onCancel }: PaymentFormProps)
     const { error: confirmError, paymentIntent } = await stripe.confirmPayment({
       elements,
       confirmParams: {
-        return_url: `${window.location.origin}/dashboard?plan_status=ok`,
+        return_url: returnUrl ?? `${window.location.origin}/dashboard?plan_status=ok`,
       },
       redirect: 'if_required',
     })
@@ -145,7 +149,7 @@ export function PaymentForm({ payLabel, onSuccess, onCancel }: PaymentFormProps)
           onClick={onCancel}
           disabled={submitting}
         >
-          Volver al carrito
+          {cancelLabel ?? 'Volver al carrito'}
         </Btn>
       </div>
 

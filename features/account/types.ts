@@ -129,6 +129,8 @@ export interface SalePayment {
   paymentIntentId: string | null;
   checkoutId: string | null;
   stripeSubscriptionId: string | null;
+  /** "paid" = cobrada · "open" = pendiente (SPEI/OXXO), accionable en el listado. */
+  status: "paid" | "open" | string;
 }
 
 export interface SalePaymentsPage {
@@ -136,6 +138,34 @@ export interface SalePaymentsPage {
   pageSize: number;
   total: number;
   items: SalePayment[];
+}
+
+/** Instrucciones de pago de una venta pendiente (GET /api/sales/payments/{saleId}/payment-instructions). */
+export interface SpeiPaymentInstructions {
+  clabe: string | null;
+  bankName: string | null;
+  bankCode: string | null;
+  accountHolderName: string | null;
+  reference: string | null;
+  hostedInstructionsUrl: string | null;
+}
+
+export interface OxxoPaymentInstructions {
+  number: string | null;
+  hostedVoucherUrl: string | null;
+  expiresAfter: string | null;
+}
+
+export interface SalePaymentInstructions {
+  saleId: number;
+  paymentIntentId: string;
+  paymentIntentStatus: string | null;
+  /** Define qué bloque de instrucciones pintar. */
+  paymentMethod: "spei" | "oxxo" | "card" | "unknown" | string;
+  amount: number;
+  currency: string | null;
+  spei: SpeiPaymentInstructions | null;
+  oxxo: OxxoPaymentInstructions | null;
 }
 
 export interface RegisterSaleItem {

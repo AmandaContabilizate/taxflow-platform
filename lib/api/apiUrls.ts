@@ -24,6 +24,7 @@ export const API_BASE_URLS = {
   finances: `${BASE_PROCEDURES}/finances${DbOrigin}`,
   accountant_assignments: `${BASE_PROCEDURES}/accountant-assignments`,
   stripe: `${BASE_PROCEDURES}/stripe`,
+  payment_link: `${BASE_PROCEDURES}/payment-link`,
   george: BASE_GEORGE,
   partnership: `${BASE_PROCEDURES}/partnership`,
   timbrame: `${BASE_PROCEDURES}/timbrame${DbOrigin}`,
