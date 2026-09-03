@@ -16,7 +16,7 @@ node_modules
 .next/
 .DS_Store
 
-# Deploy zips (scripts/build-deploy-zip.mjs)
+# Deploy zips (scripts/build-deploy-zip.ps1)
 deploy/
 
 # TypeScript incremental build cache

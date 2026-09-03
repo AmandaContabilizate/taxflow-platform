@@ -10,7 +10,8 @@
     conveniencia (nunca deben ir en el zip - los secretos viven en
     Application Settings de Azure), y empaqueta el resultado.
 
-    Equivalente en Node: scripts/build-deploy-zip.mjs (usa npm run deploy:zip).
+    Unico packager (el equivalente Node scripts/build-deploy-zip.mjs se elimino;
+    habia divergido). Lo invoca scripts/deploy-zip-az-prod.ps1.
 
 .PARAMETER AllowBranch
     Permite construir desde una rama distinta de 'dev' (la rama de release).
