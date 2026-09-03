@@ -30,6 +30,7 @@ const DISPLAY_FONT = { fontFamily: "var(--font-display)" } as const;
 // (npm run dev / next build normal no las setean, así que la leyenda no aparece).
 const BUILD_DATE = process.env.NEXT_PUBLIC_BUILD_DATE;
 const BUILD_BRANCH = process.env.NEXT_PUBLIC_BUILD_BRANCH;
+const BUILD_SHA = process.env.NEXT_PUBLIC_BUILD_SHA;
 
 const BENEFITS = [
   { symbol: "✓", label: "Conexión segura con el SAT" },
@@ -287,6 +288,7 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
             <p className="mt-1 text-[10px]" style={{ color: "rgba(255,255,255,0.25)" }}>
               {BUILD_DATE}
               {BUILD_BRANCH && ` · ${BUILD_BRANCH}`}
+              {BUILD_SHA && ` · ${BUILD_SHA}`}
             </p>
           )}
         </aside>
