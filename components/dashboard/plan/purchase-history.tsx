@@ -114,7 +114,10 @@ interface Props {
 }
 
 export function PurchaseHistory({ compras }: Props) {
-  const total = compras.reduce((sum, c) => sum + priceForMode(c.amount, modeOf(c.type)), 0)
+  const paidCompras = compras.filter(
+    (c) => c.statusId === PAID_STATUS_ID || c.status?.toLowerCase() === 'pagada'
+  )
+  const total = paidCompras.reduce((sum, c) => sum + priceForMode(c.amount, modeOf(c.type)), 0)
 
   return (
     <div>
@@ -122,23 +125,23 @@ export function PurchaseHistory({ compras }: Props) {
         <div className="text-[18px] font-bold" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
           Tus compras
         </div>
-        {compras.length > 0 && <Badge kind="default">{formatMXN(total)} en total</Badge>}
+        {paidCompras.length > 0 && <Badge kind="default">{formatMXN(total)} en total</Badge>}
       </div>
       <div className="text-[13.5px] mb-4" style={{ color: 'var(--ink-500)' }}>
         Todo lo que has pagado con este RFC. Toca una compra para ver qué incluyó.
       </div>
 
       <Card>
-        {compras.length === 0 ? (
+        {paidCompras.length === 0 ? (
           <div className="py-8 text-center text-[13px]" style={{ color: 'var(--ink-500)' }}>
             Aún no tienes compras registradas.
           </div>
         ) : (
           <div>
-            {compras.map((purchase, i) => (
+            {paidCompras.map((purchase, i) => (
               <div key={purchase.saleId}>
                 <PurchaseRow purchase={purchase} />
-                {i < compras.length - 1 && <Divider />}
+                {i < paidCompras.length - 1 && <Divider />}
               </div>
             ))}
           </div>
