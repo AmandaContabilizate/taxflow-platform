@@ -57,6 +57,21 @@ export interface RunDeclarationDownloadResult {
   proximaVentanaUtc: string | null
 }
 
+/**
+ * GET download-files/estatus-periodo: los 4 combos de descarga SAT del periodo
+ * mensual. 1 = completo (existe una corrida Completed), 0 = pendiente. Lee la
+ * copia sincronizada, así que puede ir unos minutos atrás de la descarga real.
+ */
+export interface PeriodDownloadStatus {
+  rfc: string
+  fiscalYear: number
+  period: number
+  issuedInvoices: number
+  receivedInvoices: number
+  issuedRetentions: number
+  receivedRetentions: number
+}
+
 /** Mensajes en español por errorCode del 400 (el título del ProblemDetails no se parsea). */
 export function declarationDownloadErrorMessage(
   code: string | undefined,
