@@ -390,6 +390,10 @@ export const API_ROUTES = {
       `/download-files/puede-ejecutar?declarationId=${declarationId}`,
     DOWNLOAD_FILES_RUN: (declarationId: number) =>
       `/download-files?declarationId=${declarationId}`,
+    // Estatus de los 4 combos de descarga SAT del periodo mensual (solo lectura,
+    // ver backend PeriodDownloadStatus.md). 1 = completo, 0 = pendiente.
+    DOWNLOAD_FILES_PERIOD_STATUS: (rfc: string, fiscalYear: number, period: number) =>
+      `/download-files/estatus-periodo?rfc=${encodeURIComponent(rfc)}&fiscalYear=${fiscalYear}&period=${period}`,
     DECLARATION_TAXPAYERS: (p: TaxpayerGroupsQuery = {}) =>
       `/declaration-taxpayers${taxpayerGroupsQuery(p)}`,
     REGULARIZATION_TAXPAYERS: (p: TaxpayerGroupsQuery = {}) =>

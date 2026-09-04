@@ -458,7 +458,7 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthoriz
               { key: 'once', label: 'Pago único' },
             ] as const).map((t) => {
               const seleccionados = (lookups?.plans ?? []).filter(
-                (p) => (t.key === 'sub' ? p.isSubscription : !p.isSubscription) && planIds.includes(p.id),
+                (p) => (t.key === 'sub' ? p.isSubscription : p.isOneTime) && planIds.includes(p.id),
               ).length
               return (
                 <button
@@ -486,7 +486,7 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthoriz
             {/* Activos siempre; desactivados solo si el código los trae palomeados
                 (ligas viejas): visibles para desmarcarlos, pero bloquean el guardado. */}
             {(lookups?.plans ?? [])
-              .filter((p) => (planTab === 'sub' ? p.isSubscription : !p.isSubscription))
+              .filter((p) => (planTab === 'sub' ? p.isSubscription : p.isOneTime))
               .filter((p) => p.isActive || planIds.includes(p.id))
               .map((p) => (
                 <label key={p.id} className="flex items-center gap-2.5 cursor-pointer select-none">
@@ -503,7 +503,7 @@ export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthoriz
                   </span>
                 </label>
               ))}
-            {(lookups?.plans ?? []).filter((p) => (planTab === 'sub' ? p.isSubscription : !p.isSubscription) && (p.isActive || planIds.includes(p.id))).length === 0 && (
+            {(lookups?.plans ?? []).filter((p) => (planTab === 'sub' ? p.isSubscription : p.isOneTime) && (p.isActive || planIds.includes(p.id))).length === 0 && (
               <span className="text-[12.5px]" style={{ color: 'var(--ink-400)' }}>
                 {planTab === 'sub' ? 'Sin planes de suscripción activos' : 'Sin planes de pago único activos'}
               </span>

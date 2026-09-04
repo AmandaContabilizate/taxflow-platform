@@ -33,6 +33,7 @@ import { getSatPassword } from '@/features/taxpayers/actions/getSatPassword.acti
 import { num, toNumber } from './calc-read'
 import { CalculosTab } from './calculos-tab'
 import { DescargarArchivosSatBtn } from './descargar-archivos-sat-btn'
+import { DescargasSatStatus } from './descargas-sat-status'
 import { ComprobantesTab } from './comprobantes-tab'
 import { DeclarationDocumentsModal } from './declaration-documents-modal'
 import { RecalculoTab } from './recalculo-tab'
@@ -412,7 +413,10 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        {/* items-start: la columna de Descargar trae leyendas debajo (última descarga +
+            estatus); centrar la fila empujaba ese botón hacia arriba. Los botones miden
+            igual, así que alineados por arriba quedan en la misma línea. */}
+        <div className="flex items-start gap-2 flex-wrap">
           <HeaderBtn
             icon={
               recalc.running ? <Loader2 size={15} className="animate-spin" /> : <RotateCcw size={15} />
@@ -438,7 +442,16 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
             onClick={() => setDocumentsOpen(true)}
           />
           <HeaderBtn icon={<Download size={15} />} label="Exportar PDF" kind="ghost" />
-          {general && <DescargarArchivosSatBtn declarationId={d.declarationId} />}
+          {general && (
+            <div className="flex flex-col gap-1">
+              <DescargarArchivosSatBtn declarationId={d.declarationId} />
+              <DescargasSatStatus
+                rfc={rfc}
+                fiscalYear={ejercicio}
+                periodValueId={general?.periodValueId ?? null}
+              />
+            </div>
+          )}
           <HeaderBtn
             icon={<Send size={15} />}
             label="Enviar Predeclaración"

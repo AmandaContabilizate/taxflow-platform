@@ -10,11 +10,20 @@
     conveniencia (nunca deben ir en el zip - los secretos viven en
     Application Settings de Azure), y empaqueta el resultado.
 
-    Equivalente en Node: scripts/build-deploy-zip.mjs (usa npm run deploy:zip).
+    Unico packager (el equivalente Node scripts/build-deploy-zip.mjs se elimino;
+    habia divergido). Lo invoca scripts/deploy-zip-az-prod.ps1.
+
+.PARAMETER AllowBranch
+    Permite construir desde una rama distinta de 'dev' (la rama de release).
+    Sin este switch, el script aborta si HEAD no esta en 'dev'.
 
 .EXAMPLE
     .\scripts\build-deploy-zip.ps1
 #>
+
+param(
+    [switch]$AllowBranch
+)
 
 # OJO: no usar $ErrorActionPreference = "Stop" a nivel de script — en
 # PowerShell 5.1 eso hace que CUALQUIER línea que un proceso nativo (npm/
@@ -33,6 +42,7 @@ function Write-Step([string]$Message) {
 
 Push-Location $Root
 try {
+    $NextDir       = Join-Path $Root ".next"
     $StandaloneDir = Join-Path $Root ".next\standalone"
     $StaticSrc     = Join-Path $Root ".next\static"
     $StaticDest    = Join-Path $StandaloneDir ".next\static"
@@ -43,18 +53,46 @@ try {
     $Timestamp  = Get-Date -Format "yyyy-MM-ddTHH-mm-ss"
     $OutputZip  = Join-Path $OutputDir "taxflow-platform-$Timestamp.zip"
 
-    $BuildDate = Get-Date -Format "yyyy-MM-dd HH:mm"
-    $Branch = ""
-    try {
-        $Branch = (git rev-parse --abbrev-ref HEAD 2>$null | Out-String).Trim()
-    } catch {
-        $Branch = ""
+    $ReleaseBranch = "dev"
+
+    # --- Guard: version de Node = la del runtime de Azure (.nvmrc) ---
+    $NvmrcPath = Join-Path $Root ".nvmrc"
+    if (Test-Path $NvmrcPath) {
+        $WantMajor = ((Get-Content $NvmrcPath -Raw).Trim() -replace '^v', '').Split('.')[0]
+        $HaveMajor = ((node -v) -replace '^v', '').Split('.')[0]
+        if ($HaveMajor -ne $WantMajor) {
+            throw "Node activo v$HaveMajor; se requiere v$WantMajor (igual que el runtime NODE|$WantMajor-lts de Azure). Ejecuta 'nvm use $WantMajor'."
+        }
     }
-    if ($Branch -eq "main" -or $Branch -eq "HEAD") { $Branch = "" }
+
+    # --- Guard: rama y arbol de trabajo ---
+    $Branch = (git rev-parse --abbrev-ref HEAD 2>$null | Out-String).Trim()
+    if (-not $AllowBranch -and $Branch -ne $ReleaseBranch) {
+        throw "HEAD esta en '$Branch', no en '$ReleaseBranch'. Cambia de rama o pasa -AllowBranch."
+    }
+    $Dirty = (git status --porcelain | Out-String).Trim()
+    if ($Dirty) {
+        throw "Working tree sucio. Commit o stash antes de publicar:`n$Dirty"
+    }
+    $HeadSha   = (git rev-parse HEAD 2>$null | Out-String).Trim()
+    $OriginSha = (git rev-parse "origin/$ReleaseBranch" 2>$null | Out-String).Trim()
+    if ($OriginSha -and $HeadSha -ne $OriginSha) {
+        Write-Host "AVISO: HEAD != origin/$ReleaseBranch (commits sin push, o estas atras)." -ForegroundColor Yellow
+        if ((Read-Host "Escribe SI para continuar igual") -ne "SI") { throw "Cancelado por el usuario." }
+    }
+
+    $BuildDate = Get-Date -Format "yyyy-MM-dd HH:mm"
+    if ($Branch -eq "HEAD") { $Branch = "" }
+    $ShortSha = (git rev-parse --short HEAD 2>$null | Out-String).Trim()
+    $BuildSha = if ($Dirty) { "$ShortSha-dirty" } else { $ShortSha }
+
+    Write-Step "0/5 - Limpiando .next (build determinista)..."
+    if (Test-Path $NextDir) { Remove-Item $NextDir -Recurse -Force -ErrorAction Stop }
 
     Write-Step "1/5 - Compilando el proyecto (next build)..."
     $env:NEXT_PUBLIC_BUILD_DATE = $BuildDate
     $env:NEXT_PUBLIC_BUILD_BRANCH = $Branch
+    $env:NEXT_PUBLIC_BUILD_SHA = $BuildSha
     try {
         npm run build
         if ($LASTEXITCODE -ne 0) {
@@ -64,6 +102,7 @@ try {
     finally {
         Remove-Item Env:\NEXT_PUBLIC_BUILD_DATE -ErrorAction SilentlyContinue
         Remove-Item Env:\NEXT_PUBLIC_BUILD_BRANCH -ErrorAction SilentlyContinue
+        Remove-Item Env:\NEXT_PUBLIC_BUILD_SHA -ErrorAction SilentlyContinue
     }
 
     if (-not (Test-Path $StandaloneDir)) {
@@ -124,14 +163,19 @@ try {
         $zipStream.Dispose()
     }
 
+    # SHA construido -> lo lee deploy-zip-az-prod.ps1 para el smoke check post-deploy.
+    # ascii (no BOM): el SHA es ascii puro y deploy-zip-az-prod.ps1 lo compara crudo.
+    Set-Content -Path (Join-Path $OutputDir "last-build-sha.txt") -Value $BuildSha -Encoding ascii -NoNewline
+
+    $BuildId = ""
+    $BuildIdPath = Join-Path $StandaloneDir ".next\BUILD_ID"
+    if (Test-Path $BuildIdPath) { $BuildId = (Get-Content $BuildIdPath -Raw).Trim() }
+
     $sizeMB = [Math]::Round((Get-Item $OutputZip -ErrorAction Stop).Length / 1MB, 1)
     Write-Host ""
     Write-Host "OK Listo: $relZip ($sizeMB MB)" -ForegroundColor Green
-    if ($Branch) {
-        Write-Host "  Build: $BuildDate - rama $Branch"
-    } else {
-        Write-Host "  Build: $BuildDate (main)"
-    }
+    Write-Host "  Build: $BuildDate - rama $(if ($Branch) { $Branch } else { 'main' }) - sha $BuildSha"
+    Write-Host "  BUILD_ID: $BuildId  (comparar contra /api/vfs/site/wwwroot/.next/BUILD_ID en Kudu)"
     Write-Host ""
     Write-Host "En Azure App Service, el Startup Command para este paquete es:"
     Write-Host "  node server.js"

@@ -2,7 +2,7 @@
 const nextConfig = {
   // Empaqueta un server Node autocontenido en .next/standalone (solo las
   // dependencias realmente usadas) — así el mismo build sirve para STG y
-  // Producción vía Azure App Service sin Docker. Ver scripts/build-deploy-zip.mjs.
+  // Producción vía Azure App Service sin Docker. Ver scripts/build-deploy-zip.ps1.
   output: "standalone",
   typescript: {
     ignoreBuildErrors: true,

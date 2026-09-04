@@ -4,19 +4,23 @@
     via zip deploy con Azure CLI, sin Docker.
 
 .DESCRIPTION
-    El App Service de produccion hoy esta configurado como Web App for Containers
-    (imagen Docker de contaboxpro-frontend-next). El portal de Azure no deja subir
-    un zip mientras siga en modo contenedor, asi que este script:
+    El App Service de produccion ya vive en modo codigo (NODE|24-lts, startup
+    "node server.js"). El cambio unico contenedor -> codigo lo hace
+    scripts/migrate-prod-off-container.ps1 (se corre UNA sola vez). Este script
+    de deploy solo:
 
       1. Genera el zip (scripts/build-deploy-zip.ps1 -> npm run build + empaqueta
-         .next/standalone).
+         .next/standalone). Ese script aborta si el arbol esta sucio, el branch
+         no es 'dev', o Node no coincide con .nvmrc.
       2. Pide confirmacion explicita (va a tocar produccion).
-      3. Cambia el App Service de modo contenedor a modo codigo (NODE|20-lts,
-         startup command "node server.js").
-      4. Sube el zip con `az webapp deploy`.
-      5. Reinicia y muestra logs en vivo.
+      3. Verifica (assert, no toggle) que prod sigue en modo codigo.
+      4. Sube el zip con `az webapp deploy --clean true --track-status true`
+         (espera a que la extraccion termine antes de reiniciar).
+      5. Smoke check: espera a que el SHA construido aparezca en /auth/login.
+      6. Muestra logs en vivo.
 
-    Requiere Azure CLI instalado y permisos sobre el resource group contabilizate-prod.
+    Requiere Azure CLI >= 2.62 (por --track-status) y permisos sobre el resource
+    group contabilizate-prod.
 
 .EXAMPLE
     .\scripts\deploy-zip-az-prod.ps1
@@ -51,11 +55,10 @@ try {
     }
     Write-Host "  Zip a publicar: $($Zip.Name) ($([Math]::Round($Zip.Length / 1MB, 1)) MB)"
 
-    Write-Step "2/6 - Confirmacion"
+    Write-Step "2/7 - Confirmacion"
     Write-Host "Esto va a:" -ForegroundColor Yellow
-    Write-Host "  - Quitar la configuracion de contenedor Docker de '$SITENAME' (RG '$RESOURCEGROUP')." -ForegroundColor Yellow
-    Write-Host "  - Cambiarlo a runtime de codigo ($RUNTIME) con startup 'node server.js'." -ForegroundColor Yellow
-    Write-Host "  - Publicar $($Zip.Name) y reiniciar el sitio de PRODUCCION." -ForegroundColor Yellow
+    Write-Host "  - Publicar $($Zip.Name) en '$SITENAME' (RG '$RESOURCEGROUP') con --clean." -ForegroundColor Yellow
+    Write-Host "  - Reiniciar el sitio de PRODUCCION al terminar la extraccion." -ForegroundColor Yellow
     $confirm = Read-Host "Escribe SI para continuar"
     if ($confirm -ne "SI") {
         Write-Host "Cancelado por el usuario." -ForegroundColor Yellow
@@ -63,46 +66,58 @@ try {
         exit 0
     }
 
-    Write-Step "3/6 - Autenticando con Azure CLI..."
+    Write-Step "3/7 - Autenticando con Azure CLI..."
     az login --tenant $TENANTID
     if ($LASTEXITCODE -ne 0) { throw "az login fallo (exit code $LASTEXITCODE)." }
     az account set --subscription $SUBSCRIPTION
     if ($LASTEXITCODE -ne 0) { throw "az account set fallo (exit code $LASTEXITCODE)." }
 
-    Write-Step "4/6 - Cambiando App Service de contenedor a codigo ($RUNTIME)..."
-    az webapp config container delete --name $SITENAME --resource-group $RESOURCEGROUP
-    if ($LASTEXITCODE -ne 0) { throw "az webapp config container delete fallo (exit code $LASTEXITCODE)." }
-
-    # az.cmd (el shim que expone "az" en PATH) es un batch de una linea:
-    #   python.exe -IBm azure.cli %*
-    # cmd.exe sustituye %* como TEXTO dentro de esa linea y la vuelve a
-    # parsear para ejecutarla — en esa segunda pasada el "|" de
-    # "NODE|20-lts" queda "pelado" (el caret ya se consumio en la primera
-    # pasada al tokenizar nuestro propio comando) y cmd lo trata como pipe
-    # real, partiendo el comando en dos. Ningun escape en nuestra linea
-    # sobrevive esa doble pasada — es un bug estructural del forwarding de
-    # az.cmd, no un problema de comillas/caret de nuestro lado.
-    #
-    # Solucion: saltarse az.cmd por completo y llamar directo al python.exe
-    # que trae embebido el CLI. Al ser un .exe real (no un .bat), PowerShell
-    # le pasa el argv tal cual via CreateProcess, sin que cmd.exe reparse
-    # nada — el "|" llega intacto sin necesitar ningun escape.
-    $AzCmdPath = (Get-Command az -CommandType Application -ErrorAction Stop | Select-Object -First 1 -ExpandProperty Source)
-    $AzPython = Join-Path (Split-Path $AzCmdPath -Parent) "..\python.exe"
-    if (-not (Test-Path $AzPython)) {
-        throw "No se encontro el python.exe embebido de Azure CLI junto a $AzCmdPath."
+    Write-Step "4/7 - Verificando que prod sigue en modo codigo (assert, no toggle)..."
+    $fx = az webapp config show -g $RESOURCEGROUP -n $SITENAME --query linuxFxVersion -o tsv
+    if ($LASTEXITCODE -ne 0) { throw "az webapp config show fallo (exit code $LASTEXITCODE)." }
+    if ($fx -notlike "NODE|*") {
+        throw "prod esta en '$fx', no en modo codigo. Ejecuta scripts/migrate-prod-off-container.ps1 UNA vez y vuelve a correr este script."
     }
-    & $AzPython -IBm azure.cli webapp config set --name $SITENAME --resource-group $RESOURCEGROUP --linux-fx-version $RUNTIME --startup-file "node server.js"
-    if ($LASTEXITCODE -ne 0) { throw "az webapp config set fallo (exit code $LASTEXITCODE)." }
+    Write-Host "  linuxFxVersion = $fx" -ForegroundColor DarkGray
+    $cmd = az webapp config show -g $RESOURCEGROUP -n $SITENAME --query appCommandLine -o tsv
+    if ($cmd -ne "node server.js") {
+        Write-Host "  AVISO: startup actual = '$cmd'. Corrigiendo a 'node server.js'..." -ForegroundColor Yellow
+        az webapp config set -g $RESOURCEGROUP -n $SITENAME --startup-file "node server.js"
+        if ($LASTEXITCODE -ne 0) { throw "az webapp config set (startup) fallo (exit code $LASTEXITCODE)." }
+    }
 
-    Write-Step "5/6 - Publicando zip..."
-    az webapp deploy --resource-group $RESOURCEGROUP --name $SITENAME --src-path $Zip.FullName --type zip
-    if ($LASTEXITCODE -ne 0) { throw "az webapp deploy fallo (exit code $LASTEXITCODE)." }
+    Write-Step "5/7 - Publicando zip (--clean, esperando fin de extraccion)..."
+    # --track-status hace que az espere a que la extraccion termine ANTES de
+    # devolver el control; --restart true reinicia una sola vez al final. Asi
+    # se elimina la carrera "restart a media extraccion" que dejaba archivos
+    # viejos en .next/server/**. Requiere Azure CLI >= 2.62.
+    az webapp deploy --resource-group $RESOURCEGROUP --name $SITENAME `
+        --src-path $Zip.FullName --type zip `
+        --clean true --restart true --track-status true
+    if ($LASTEXITCODE -ne 0) {
+        throw "az webapp deploy fallo (exit code $LASTEXITCODE). Si dice 'unrecognized arguments: --track-status', tu Azure CLI es < 2.62: corre 'az upgrade' y reintenta."
+    }
 
-    az webapp restart --name $SITENAME --resource-group $RESOURCEGROUP
-    if ($LASTEXITCODE -ne 0) { throw "az webapp restart fallo (exit code $LASTEXITCODE)." }
+    Write-Step "6/7 - Smoke check: esperando el SHA construido en /auth/login..."
+    $ShaFile = Join-Path $Root "deploy\last-build-sha.txt"
+    if (-not (Test-Path $ShaFile)) { throw "Falta deploy/last-build-sha.txt (lo genera build-deploy-zip.ps1)." }
+    $ExpectedSha = (Get-Content $ShaFile -Raw).Trim()
+    $Live = $false
+    foreach ($i in 1..30) {
+        Start-Sleep -Seconds 5
+        try {
+            $html = (Invoke-WebRequest "$SITENAME_URL/auth/login" -UseBasicParsing -TimeoutSec 15 `
+                -Headers @{ "Cache-Control" = "no-cache" }).Content
+            if ($html -match [regex]::Escape($ExpectedSha)) { $Live = $true; break }
+        } catch { }
+        Write-Host "  intento $i/30 - '$ExpectedSha' aun no visible..." -ForegroundColor DarkGray
+    }
+    if (-not $Live) {
+        throw "Tras 150s el sitio no muestra el SHA '$ExpectedSha'. Revisa 'az webapp log deployment show -g $RESOURCEGROUP -n $SITENAME' y Kudu /api/vfs/site/wwwroot/.next/BUILD_ID."
+    }
+    Write-Host "  OK - SHA '$ExpectedSha' visible en produccion." -ForegroundColor Green
 
-    Write-Step "6/6 - Listo. Siguiendo logs (Ctrl+C para salir)..."
+    Write-Step "7/7 - Listo. Siguiendo logs (Ctrl+C para salir)..."
     Start-Process "$SITENAME_URL"
     az webapp log tail --name $SITENAME --resource-group $RESOURCEGROUP
 }
