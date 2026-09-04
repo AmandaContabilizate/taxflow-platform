@@ -493,6 +493,10 @@ export function PlanPickerModal({
                       const q = qty[addon.id] ?? 0
                       const inCart = q > 0
                       const free = isFreeAddon(addon, freeAddons)
+                      // allowsQuantity undefined = columna aún no desplegada en back;
+                      // se trata como instancia única (checkbox) por ser el default
+                      // seguro acordado en el contrato.
+                      const allowsQuantity = addon.allowsQuantity === true
                       return (
                         <div
                           key={addon.id}
@@ -523,29 +527,49 @@ export function PlanPickerModal({
                               )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-1.5 flex-shrink-0">
-                            <button
-                              type="button"
-                              disabled={!enabled || q === 0}
-                              onClick={() => setQty((p) => ({ ...p, [addon.id]: Math.max(0, (p[addon.id] ?? 0) - 1) }))}
-                              className="w-8 h-8 rounded-full flex items-center justify-center disabled:opacity-40"
-                              style={{ border: '1px solid var(--border-strong)', color: 'var(--ink-700)' }}
-                            >
-                              <Minus size={15} />
-                            </button>
-                            <span className="w-5 text-center font-bold text-[14px]" style={{ color: 'var(--ink-900)' }}>
-                              {q}
-                            </span>
+                          {allowsQuantity ? (
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              <button
+                                type="button"
+                                disabled={!enabled || q === 0}
+                                onClick={() => setQty((p) => ({ ...p, [addon.id]: Math.max(0, (p[addon.id] ?? 0) - 1) }))}
+                                className="w-8 h-8 rounded-full flex items-center justify-center disabled:opacity-40"
+                                style={{ border: '1px solid var(--border-strong)', color: 'var(--ink-700)' }}
+                              >
+                                <Minus size={15} />
+                              </button>
+                              <span className="w-5 text-center font-bold text-[14px]" style={{ color: 'var(--ink-900)' }}>
+                                {q}
+                              </span>
+                              <button
+                                type="button"
+                                disabled={!enabled}
+                                onClick={() => setQty((p) => ({ ...p, [addon.id]: (p[addon.id] ?? 0) + 1 }))}
+                                className="w-8 h-8 rounded-full flex items-center justify-center disabled:opacity-40"
+                                style={{ border: '1px solid var(--border-strong)', color: 'var(--ink-700)' }}
+                              >
+                                <Plus size={15} />
+                              </button>
+                            </div>
+                          ) : (
+                            // Trámite de instancia única: checkbox fija cantidad 1.
+                            // Mismo patrón visual que las regularizaciones (cuadro con Check).
                             <button
                               type="button"
                               disabled={!enabled}
-                              onClick={() => setQty((p) => ({ ...p, [addon.id]: (p[addon.id] ?? 0) + 1 }))}
-                              className="w-8 h-8 rounded-full flex items-center justify-center disabled:opacity-40"
-                              style={{ border: '1px solid var(--border-strong)', color: 'var(--ink-700)' }}
+                              onClick={() =>
+                                setQty((p) => ({ ...p, [addon.id]: (p[addon.id] ?? 0) > 0 ? 0 : 1 }))
+                              }
+                              className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 disabled:opacity-40"
+                              style={{
+                                background: inCart ? 'var(--brand-500)' : 'transparent',
+                                border: `1.5px solid ${inCart ? 'var(--brand-500)' : 'var(--border-strong)'}`,
+                                color: '#fff',
+                              }}
                             >
-                              <Plus size={15} />
+                              {inCart && <Check size={14} />}
                             </button>
-                          </div>
+                          )}
                         </div>
                       )
                     })}

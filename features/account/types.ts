@@ -19,6 +19,12 @@ export interface Plan {
   productType: number; // 0 = Plan, 1 = Trámite / Add-on
   grantsFreeAddOns: boolean; // si true, los add-ons van gratis con el plan
   canBeGrantedFree: boolean; // inverso: este trámite puede volverse gratis si el carrito lo otorga
+  /**
+   * true = admite cantidad (contador); false/undefined = instancia única (checkbox).
+   * undefined es el estado transitorio mientras la columna no está desplegada en back;
+   * se trata como instancia única por ser el default seguro acordado en el contrato.
+   */
+  allowsQuantity?: boolean;
   shortDescription: string | null;
   featuresJson: string | null;
   features: string[] | null;
