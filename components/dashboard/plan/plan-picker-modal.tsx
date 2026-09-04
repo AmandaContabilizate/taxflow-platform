@@ -169,6 +169,9 @@ export function PlanPickerModal({
     return ids
   }, [selectedPlan, procedures, qty, regularizations, selectedDecls])
 
+  // El plan es opcional: hay algo que cobrar con solo trámites o regularizaciones.
+  const hasSomethingToPay = cartProductIds.size > 0
+
   const isGiftCode = appliedDiscount?.discountTypeId === 2
   const discountApplies = useMemo(() => {
     if (!appliedDiscount) return false
@@ -201,10 +204,10 @@ export function PlanPickerModal({
   }
 
   function buildItems(): RegisterSaleItem[] {
-    if (!selectedPlan) return []
-    const items: RegisterSaleItem[] = [
-      { subscriptionId: selectedPlan.id, quantity: 1, paymentMode },
-    ]
+    // El plan es opcional: se puede comprar solo trámites o solo
+    // regularizaciones sin cambiar de plan.
+    const items: RegisterSaleItem[] = []
+    if (selectedPlan) items.push({ subscriptionId: selectedPlan.id, quantity: 1, paymentMode })
 
     // Trámites adicionales — se mandan tal cual, por cantidad.
     for (const addon of procedures) {
@@ -234,7 +237,7 @@ export function PlanPickerModal({
   }
 
   async function handlePay() {
-    if (!selectedPlan) return
+    if (!hasSomethingToPay) return
     setProcessing(true)
     setError(null)
 
@@ -722,15 +725,15 @@ export function PlanPickerModal({
                   )}
                 </div>
               </div>
-              <Btn kind="brand" block disabled={!selectedPlan || processing} onClick={handlePay}>
+              <Btn kind="brand" block disabled={!hasSomethingToPay || processing} onClick={handlePay}>
                 {processing ? (
                   <>
                     <Loader2 size={16} className="animate-spin" /> Preparando pago…
                   </>
-                ) : selectedPlan ? (
+                ) : hasSomethingToPay ? (
                   'Continuar al pago'
                 ) : (
-                  'Elige un plan para continuar'
+                  'Agrega algo a tu carrito para continuar'
                 )}
               </Btn>
               <p className="text-[11px] text-center leading-snug" style={{ color: 'var(--ink-500)' }}>
