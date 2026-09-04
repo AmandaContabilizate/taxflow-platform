@@ -200,7 +200,17 @@ export interface ClassificationAdjustment {
   isExpense?: boolean
   activityId?: number
   reason?: string
+  /**
+   * E2: hasta dónde llega el ajuste. Default "declaration" (no escribe regla,
+   * solo afecta este recálculo). "client"/"global" además memorizan una regla
+   * 625 por cada clave de `productKeys`, con `rfc` del contribuyente o NULL.
+   */
+  scope?: ClassificationAdjustmentScope
+  /** Claves prod/serv a las que aplica la regla cuando `scope` no es "declaration". */
+  productKeys?: string[]
 }
+
+export type ClassificationAdjustmentScope = 'declaration' | 'client' | 'global'
 
 /** Categoría de `classification.clasificacion` (GET catalogs/classifications). */
 export interface ClassificationCategory {
@@ -324,6 +334,29 @@ export interface DeclarationPeriodInvoice {
    * "Enero-Febrero 2025". null cuando el CFDI no es global.
    */
   period: string | null
+  subTotal: number | null
+  ivaAmount: number | null
+  paymentMethodCode: string | null
+  paymentMethodName: string | null
+  wayOfPaymentCode: string | null
+  wayOfPaymentName: string | null
+  concepts: DeclarationPeriodInvoiceConcept[]
+  conceptsSummary: string | null
+  conceptsCount: number
+  receiverRegimeId: number | null
+  receiverRegimeCode: string | null
+  receiverRegimeName: string | null
+  /** E3: factura de otro régimen del contribuyente, visible pero no computable. */
+  isOtherRegime: boolean
+}
+
+export interface DeclarationPeriodInvoiceConcept {
+  productCode: string | null
+  description: string | null
+  quantity: number
+  unitPrice: number
+  subtotal: number
+  discount: number
 }
 
 /**

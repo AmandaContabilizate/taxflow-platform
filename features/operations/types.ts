@@ -132,6 +132,13 @@ export interface DeclarationInvoice {
   /** Solo si es nómina; es la fecha que define el periodo. */
   fechaPagoNomina: string | null;
   cfdiUsageId: number | null;
+  cfdiUsageCode: string | null;
+  cfdiUsageName: string | null;
+  receiverRegimeId: number | null;
+  receiverRegimeCode: string | null;
+  receiverRegimeName: string | null;
+  /** E3: factura de otro régimen del contribuyente, visible pero no computable. */
+  esOtroRegimen: boolean;
   wayOfPaymentId: number | null;
   paymentMethodId: number | null;
   /** `Catalogs.PaymentMethod.Code` (PUE/PPD). */

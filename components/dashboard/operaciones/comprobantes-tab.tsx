@@ -27,6 +27,7 @@ import { Pagination } from '../clientes/parts'
 import { MONO } from '../constants'
 import { Card } from '../ui'
 import { useUrlState } from '../url-state'
+import { type ColumnKey, COLUMN_DEFS } from './column-defs'
 import { ColumnsModal, FilterSelect } from './filter-columns'
 
 const TAKE = 100
@@ -40,34 +41,6 @@ const INVOICE_TYPES: [InvoiceTypeId, string][] = [
   [3, 'Traslado'],
   [4, 'Pago'],
   [5, 'Nómina'],
-]
-
-/** Columnas seleccionables (Fecha y Folio/UUID son fijas, no van aquí). */
-type ColumnKey =
-  | 'tipo'
-  | 'comprobante'
-  | 'emisor'
-  | 'receptor'
-  | 'subtotal'
-  | 'iva'
-  | 'total'
-  | 'metodoPago'
-  | 'formaPago'
-  | 'conceptos'
-  | 'clasificacion'
-
-const COLUMN_DEFS: { key: ColumnKey; label: string }[] = [
-  { key: 'tipo', label: 'Tipo' },
-  { key: 'comprobante', label: 'Comprobante' },
-  { key: 'emisor', label: 'Emisor' },
-  { key: 'receptor', label: 'Receptor' },
-  { key: 'subtotal', label: 'Subtotal' },
-  { key: 'iva', label: 'IVA' },
-  { key: 'total', label: 'Total' },
-  { key: 'metodoPago', label: 'Método de pago' },
-  { key: 'formaPago', label: 'Forma de pago' },
-  { key: 'conceptos', label: 'Conceptos' },
-  { key: 'clasificacion', label: 'Clasificación' },
 ]
 
 /** Columnas que la tabla ya mostraba, más IVA (nueva). */
@@ -189,6 +162,10 @@ function FolioCell({ inv }: { inv: DeclarationInvoice }) {
 
 /** `clasificada` es la bandera; no se infiere por nulls. */
 function ClasificacionCell({ inv }: { inv: DeclarationInvoice }) {
+  if (inv.esOtroRegimen) {
+    return <OtroRegimenChip motivo={inv.motivo} />
+  }
+
   if (!inv.clasificada) {
     return (
       <Chip bg="var(--muted)" fg="var(--ink-500)">
@@ -242,8 +219,17 @@ function ClasificacionCell({ inv }: { inv: DeclarationInvoice }) {
   )
 }
 
+/** E3: la fila no pertenece al régimen de la declaración, es visible pero no computable. */
+export function OtroRegimenChip({ motivo }: { motivo: string | null }) {
+  return (
+    <Chip bg="var(--ink-50)" fg="var(--ink-500)" title={motivo ?? undefined}>
+      Otro régimen
+    </Chip>
+  )
+}
+
 /** Nombre resuelto por el backend; el id crudo solo se ve si el catálogo no vino. */
-function CatalogCell({ name, id }: { name: string | null; id: number | string | null }) {
+export function CatalogCell({ name, id }: { name: string | null; id: number | string | null }) {
   if (name) return <span style={{ color: 'var(--ink-700)' }}>{name}</span>
   if (id != null) {
     return (
@@ -255,25 +241,40 @@ function CatalogCell({ name, id }: { name: string | null; id: number | string | 
   return <span style={{ color: 'var(--ink-500)' }}>—</span>
 }
 
-/** Conceptos: resumen siempre visible; con más de uno, popover con el detalle completo. */
-function ConceptosCell({
-  inv,
+interface ConceptoLike {
+  productCode: string | null
+  description: string | null
+  quantity: string | number | null
+  unitPrice: string | number | null
+  subtotal: string | number | null
+  discount: string | number | null
+}
+
+/**
+ * Conceptos: resumen siempre visible; con más de uno, popover con el detalle
+ * completo. Compartida por Comprobantes (carga bajo demanda) y Recálculo (ya
+ * trae `concepts` completo, así que `loading`/`error` siempre van en falso).
+ */
+export function ConceptosCell({
+  resumen,
+  count,
   concepts,
   loading,
   error,
   onOpen,
 }: {
-  inv: DeclarationInvoice
-  concepts: DeclarationInvoiceConcepto[] | undefined
+  resumen: string | null
+  count: number
+  concepts: ConceptoLike[] | undefined
   loading: boolean
   error: string | null
   onOpen: () => void
 }) {
-  if (!inv.conceptosResumen && inv.conceptosCount === 0) {
+  if (!resumen && count === 0) {
     return <span style={{ color: 'var(--ink-500)' }}>—</span>
   }
-  if (inv.conceptosCount <= 1) {
-    return <span style={{ color: 'var(--ink-700)' }}>{inv.conceptosResumen ?? '—'}</span>
+  if (count <= 1) {
+    return <span style={{ color: 'var(--ink-700)' }}>{resumen ?? '—'}</span>
   }
 
   return (
@@ -284,12 +285,12 @@ function ConceptosCell({
           className="text-left underline decoration-dotted underline-offset-2"
           style={{ color: 'var(--brand-700)' }}
         >
-          {inv.conceptosResumen}
+          {resumen}
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-80 max-h-72 overflow-y-auto">
         <div className="text-[12px] font-bold mb-2" style={{ color: 'var(--foreground)' }}>
-          {inv.conceptosCount} conceptos
+          {count} conceptos
         </div>
         {loading ? (
           <div className="flex items-center gap-2 text-[12px]" style={{ color: 'var(--ink-500)' }}>
@@ -853,7 +854,13 @@ export function ComprobantesTab({
                   {visibles.map((inv) => {
                     const desfasada = inv.esNomina && inv.fechaPagoNomina
                     return (
-                      <tr key={inv.invoiceId} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <tr
+                        key={inv.invoiceId}
+                        style={{
+                          borderBottom: '1px solid var(--border)',
+                          background: inv.esOtroRegimen ? 'var(--muted)' : undefined,
+                        }}
+                      >
                         <td className="px-3 py-3 whitespace-nowrap align-top">
                           <div style={{ color: 'var(--ink-900)' }}>{fmtDate(periodDate(inv))}</div>
                           {desfasada && (
@@ -936,7 +943,8 @@ export function ComprobantesTab({
                             )}
                             {col.key === 'conceptos' && (
                               <ConceptosCell
-                                inv={inv}
+                                resumen={inv.conceptosResumen}
+                                count={inv.conceptosCount}
                                 concepts={conceptsCache[inv.invoiceId]}
                                 loading={conceptsLoadingId === inv.invoiceId}
                                 error={conceptsError}
@@ -944,6 +952,12 @@ export function ComprobantesTab({
                               />
                             )}
                             {col.key === 'clasificacion' && <ClasificacionCell inv={inv} />}
+                            {col.key === 'regimenReceptor' && (
+                              <CatalogCell name={inv.receiverRegimeName} id={inv.receiverRegimeCode} />
+                            )}
+                            {col.key === 'usoCfdi' && (
+                              <CatalogCell name={inv.cfdiUsageName} id={inv.cfdiUsageCode ?? inv.cfdiUsageId} />
+                            )}
                           </td>
                         ))}
                       </tr>
