@@ -27,6 +27,7 @@ import {
   RotateCcw,
   ScanLine,
   Settings,
+  ShieldAlert,
   ShieldCheck,
   ShoppingCart,
   Sparkles,
@@ -95,6 +96,10 @@ export const TITLES: Record<Screen, [string, string]> = {
   ventas: ['Ventas', 'Resumen de ventas registradas por cuenta'],
   roles: ['Roles y permisos', 'Administra roles, sus permisos y los roles de cada usuario'],
   partnership: ['Partnership', 'Administra CORS, llaves SSO y bitácora de logins'],
+  'reglas-deducibilidad': [
+    'Deducibilidad forzada',
+    'Overrides de deducibilidad por clave producto/servicio: quién los puso, para quién y por qué',
+  ],
   marketing: ['Marketing & Difusión', 'Envío masivo de notificaciones Push'],
 }
 
@@ -295,6 +300,12 @@ const PARTNERSHIP_ITEM: NavDef = {
   Icon: KeyRound,
   hint: 'CORS, llaves SSO y logins',
 }
+const REGLAS_DEDUCIBILIDAD_ITEM: NavDef = {
+  id: 'reglas-deducibilidad',
+  label: 'Deducibilidad forzada',
+  Icon: ShieldAlert,
+  hint: 'Overrides por clave producto/servicio',
+}
 const MARKETING_ITEM: NavDef = NOTIFICACIONES_ITEM
 
 export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
@@ -465,7 +476,7 @@ export const MASTER_NAV_SECTIONS: NavSection[] = [
   },
   {
     section: 'SISTEMA',
-    items: [ROLES_ITEM, CATALOGOS_ITEM, CONFIGURACION_ITEM, PARTNERSHIP_ITEM],
+    items: [ROLES_ITEM, CATALOGOS_ITEM, CONFIGURACION_ITEM, PARTNERSHIP_ITEM, REGLAS_DEDUCIBILIDAD_ITEM],
   },
 ]
 
@@ -522,6 +533,9 @@ export const MODULE_CLAIMS: Record<string, string[]> = {
   roles: ['AssignRole', 'CreateRole', 'EditRole', 'DeleteRole', 'RemoveRole'],
   // Catálogos aún no tiene permisos propios (los de actividades por régimen se
   // movieron a Mis clientes, donde vive la función): oculto hasta que los tenga.
+  // El endpoint solo exige rol Admin (sin claim propio, ver E10 back): igual que
+  // Catálogos, el módulo queda oculto hasta que se seedee este claim para Admin.
+  'reglas-deducibilidad': ['Admin.ReadDeductibilityOverrides'],
   // Carga y avance por contador; solo gerencia de contabilidad (y superusuarios).
   'equipo-operaciones': ['GerenciaContable.ReadEquipoOperaciones'],
   // Hub de configuración: el menú abre con cualquiera; cada card/tab exige el suyo.

@@ -49,6 +49,7 @@ import {
   PlaceholderScreen,
   PlanScreen,
   ProximamenteScreen,
+  ReglasDeducibilidadScreen,
   RegularizacionesScreen,
   RenovacionesScreen,
   RolesScreen,
@@ -77,6 +78,7 @@ const WIDE_SCREENS = new Set<Screen>([
   'renovaciones',
   'ventas',
   'roles',
+  'reglas-deducibilidad',
   'plan',
   'home',
   'vista-fiscal',
@@ -410,6 +412,9 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
     }
     if (screen === 'partnership') {
       return <PartnershipScreen />;
+    }
+    if (screen === 'reglas-deducibilidad') {
+      return <ReglasDeducibilidadScreen />;
     }
     if (screen === 'marketing' || screen === 'notificaciones') {
       return <NotificacionesScreen />;

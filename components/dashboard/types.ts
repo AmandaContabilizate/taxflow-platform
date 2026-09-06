@@ -54,6 +54,7 @@ export type Screen =
   | 'ventas'
   | 'roles'
   | 'partnership'
+  | 'reglas-deducibilidad'
 
 export type RoleKey =
   | 'guest'

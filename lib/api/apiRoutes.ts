@@ -358,6 +358,11 @@ export const API_ROUTES = {
     // GET sales_procedures — instrucciones de pago (SPEI/OXXO) de una venta Open.
     PAYMENT_INSTRUCTIONS: (saleId: number) => `/payments/${saleId}/payment-instructions`,
   },
+  // GET classification_rules_admin — overrides de deducibilidad forzada (solo lectura, rol Admin).
+  CLASSIFICATION_RULES_ADMIN: {
+    DEDUCTIBILITY_OVERRIDES: (activityId?: number, rfc?: string, page = 1, pageSize = 20) =>
+      `/deductibility-overrides?page=${page}&pageSize=${pageSize}${activityId ? `&activityId=${activityId}` : ""}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}`,
+  },
   // Diagnóstico fiscal bajo demanda (apiType "diagnostico", Identity, sin /SQLServer).
   // Cliente: rfc del propio JWT, máx 1 corrida/día. Vendedor: por taxpayerId, cooldown 6h.
   DIAGNOSTICO: {

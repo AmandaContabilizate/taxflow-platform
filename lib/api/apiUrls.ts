@@ -27,6 +27,7 @@ export const API_BASE_URLS = {
   payment_link: `${BASE_PROCEDURES}/payment-link`,
   george: BASE_GEORGE,
   partnership: `${BASE_PROCEDURES}/partnership`,
+  classification_rules_admin: `${BASE_PROCEDURES}/classification-rules-admin`,
   timbrame: `${BASE_PROCEDURES}/timbrame${DbOrigin}`,
   // Reports
   sales_procedures: `${BASE_PROCEDURES}/sales`,
