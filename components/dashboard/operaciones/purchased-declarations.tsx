@@ -16,7 +16,7 @@ import type { DeclarationSubject } from '@/features/operations/types'
 import { declarationStatusBadge } from '../declaraciones/parts'
 import { Pagination } from '../clientes/parts'
 import { DISPLAY, MONO } from '../constants'
-import { Badge, Btn, Card, ErrorState, HelpBox } from '../ui'
+import { Badge, type BadgeKind, Btn, Card, ErrorState, HelpBox } from '../ui'
 import { buildUrl, numParam, useUrlState } from '../url-state'
 import type { MouseEvent as ReactMouseEvent } from 'react'
 import { DeclarationDetail } from './declaration-detail'
@@ -31,6 +31,16 @@ const BIMESTRES = [
   'Enero-Febrero', 'Marzo-Abril', 'Mayo-Junio',
   'Julio-Agosto', 'Septiembre-Octubre', 'Noviembre-Diciembre',
 ]
+
+/**
+ * CiecState del back (0 sin verificar, 1 válida, 2 inválida). Se pintan los tres por
+ * separado: el [Description] del enum colapsa 0 y 2 en "Ciec Inválida" y no son lo mismo.
+ */
+const CIEC_BADGE: Record<number, { label: string; kind: BadgeKind }> = {
+  0: { label: 'Sin verificar', kind: 'amber' },
+  1: { label: 'Válida', kind: 'brand' },
+  2: { label: 'Inválida', kind: 'danger' },
+}
 
 /** 101-112 mensual · 201-206 bimestral · 501 anual. */
 function periodLabel(periodValueId: number | null | undefined): string {
@@ -291,7 +301,7 @@ function TaxpayerGroups({
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Contribuyente', 'RFC', 'Correo', 'Compradas', 'Último ejercicio', 'Régimen', ''].map((h) => (
+                    {['Contribuyente', 'RFC', 'CIEC', 'Correo', 'Compradas', 'Último ejercicio', 'Régimen', ''].map((h) => (
                       <th
                         key={h}
                         className="px-5 py-3 text-left font-extrabold whitespace-nowrap"
@@ -317,6 +327,14 @@ function TaxpayerGroups({
                       </td>
                       <td className="px-5 py-4">
                         <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-700)' }}>{g.rfc}</code>
+                      </td>
+                      <td className="px-5 py-4">
+                        {(() => {
+                          const ciec = g.ciecState != null ? CIEC_BADGE[g.ciecState] : undefined
+                          return ciec
+                            ? <Badge kind={ciec.kind}>{ciec.label}</Badge>
+                            : <span className="text-[12.5px]" style={{ color: 'var(--ink-500)' }}>—</span>
+                        })()}
                       </td>
                       <td className="px-5 py-4">
                         <span className="text-sm" style={{ color: 'var(--ink-700)' }}>{g.email || '—'}</span>

@@ -452,6 +452,11 @@ export interface TaxpayerGroup {
   declarationCount: number
   lastFiscalYear: number | null
   /**
+   * Estado de la CIEC del RFC (Users.Taxpayers.PasswordState): 0 sin verificar,
+   * 1 válida, 2 inválida. Los tres se muestran por separado.
+   */
+  ciecState?: number
+  /**
    * Regímenes distintos de sus declaraciones bajo los filtros aplicados. Nunca
    * null desde el backend, pero puede venir `[]` (declaraciones sin régimen).
    */
