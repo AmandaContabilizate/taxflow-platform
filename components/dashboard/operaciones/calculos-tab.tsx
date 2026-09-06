@@ -56,6 +56,49 @@ const TOTALS_ROWS: RowSpec[] = [
   { id: 'cargo', label: 'ISR a cargo', keys: ['totalIsr'] },
 ]
 
+/** Filas por servicio del IVA definitivo (625, pago definitivo): sin acreditamiento. */
+const IVA_DEFINITIVA_TOTAL_ROWS: RowSpec[] = [
+  { id: 'def-usr', label: 'Ingresos totales del servicio', keys: ['totalForUsers'] },
+  { id: 'def-tasa', label: 'Tasa', keys: ['optionIva.porcentage'], kind: 'percent' },
+  { id: 'def-serv', label: 'Total del servicio', keys: ['totalService'] },
+  { id: 'def-iva', label: 'IVA a cargo', keys: ['totalIva'] },
+]
+
+// Mismos tres servicios y mismo orden que ISR_TABS, para que el índice de
+// pestaña (isrTab) sirva igual en ambas tarjetas.
+const IVA_DEFINITIVA_TABS: IsrTab[] = [
+  {
+    label: 'Servicio terrestre',
+    section: ['serviceGround'],
+    rows: [
+      { id: 'def-ter-pas', label: 'Ingresos servicio de pasajeros', keys: ['totalPassengersForUsers'] },
+      { id: 'def-ter-bie', label: 'Ingresos entrega de bienes', keys: ['totalDealerForUsers'] },
+      ...IVA_DEFINITIVA_TOTAL_ROWS.map((r) => ({ ...r, id: `ter-${r.id}` })),
+    ],
+  },
+  {
+    label: 'Servicio hospedaje',
+    section: ['serviceLodging'],
+    rows: IVA_DEFINITIVA_TOTAL_ROWS.map((r) => ({ ...r, id: `hos-${r.id}` })),
+  },
+  {
+    label: 'Enajenación y prestación servicios',
+    section: ['serviceAlienation'],
+    rows: [
+      { id: 'def-ena-ena', label: 'Ingresos por enajenación', keys: ['totalAlienationForUsers'] },
+      { id: 'def-ena-ser', label: 'Ingresos por prestación de servicios', keys: ['totalLendingForUsers'] },
+      ...IVA_DEFINITIVA_TOTAL_ROWS.map((r) => ({ ...r, id: `ena-${r.id}` })),
+    ],
+  },
+]
+
+// Ingresos totales del IVA definitivo a nivel raíz (suma de los tres servicios).
+const IVA_DEFINITIVA_GRAND_TOTAL_ROWS: RowSpec[] = [
+  { id: 'def-tot-usr', label: 'Ingresos totales del periodo', keys: ['totalForUsers'] },
+  { id: 'def-tot-serv', label: 'Total de servicios', keys: ['totalService'] },
+  { id: 'def-tot-iva', label: 'IVA definitivo a cargo', keys: ['totalIva'], total: true },
+]
+
 const ISR_TABS: IsrTab[] = [
   {
     label: 'Servicio terrestre',
@@ -229,6 +272,42 @@ function ValueRow({
   )
 }
 
+/** Selector de servicio (terrestre/hospedaje/enajenación), reusado por ISR y por IVA definitivo. */
+function ServiceTabBar({
+  tabs,
+  active,
+  onChange,
+}: {
+  tabs: { label: string }[]
+  active: number
+  onChange: (i: number) => void
+}) {
+  return (
+    <div className="flex gap-1 px-3 pt-3 pb-0 overflow-x-auto" style={{ borderBottom: '1px solid var(--border)' }}>
+      {tabs.map((t, i) => (
+        <button
+          key={t.label}
+          onClick={() => onChange(i)}
+          className="whitespace-nowrap px-3.5 py-2 rounded-t-lg text-[12.5px] font-bold transition"
+          style={
+            i === active
+              ? {
+                  background: 'var(--card)',
+                  color: 'var(--ink-900)',
+                  border: '1px solid var(--border)',
+                  borderBottom: '1px solid var(--card)',
+                  marginBottom: '-1px',
+                }
+              : { background: 'transparent', color: 'var(--sky)' }
+          }
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 function RowList({
   rows,
   data,
@@ -313,6 +392,19 @@ export function CalculosTab({
   const activeIsr = ISR_TABS[isrTab]
   const isrSection = subObject(isr, activeIsr.section)
 
+  // El back guarda `ivaModality`/`ivaDefinitiva` DENTRO de `iva`. Cualquier valor
+  // distinto de "definitiva" (incluida su ausencia, declaraciones ya guardadas)
+  // cae al provisional de siempre: es el default seguro.
+  const ivaModality = pick(iva, ['ivaModality'])
+  const isIvaDefinitiva = typeof ivaModality === 'string' && ivaModality.trim().toLowerCase() === 'definitiva'
+  const ivaDefinitivaRaw = pick(iva, ['ivaDefinitiva'])
+  const ivaDefinitiva =
+    ivaDefinitivaRaw && typeof ivaDefinitivaRaw === 'object' && !Array.isArray(ivaDefinitivaRaw)
+      ? (ivaDefinitivaRaw as Json)
+      : null
+  const activeIvaDefinitiva = IVA_DEFINITIVA_TABS[isrTab]
+  const ivaDefinitivaSection = subObject(ivaDefinitiva, activeIvaDefinitiva.section)
+
   // El objeto `iva` no trae los ingresos del periodo; viven en la raíz de `isr`
   // (totalIncomes / totalForIntermediaries / totalForUsers). Se fusionan para
   // que la tarjeta de IVA pueda pintar sus tres primeras filas.
@@ -381,40 +473,27 @@ export function CalculosTab({
         </div>
       ) : (
       <div className="grid gap-4 lg:grid-cols-2 items-start">
-        {/* IVA */}
-        <Card>
-          <PanelHeader title="IVA" />
-          <RowList rows={IVA_ROWS} data={ivaData} drafts={drafts} setDraft={setDraft} readOnly={readOnly} />
-        </Card>
+        {/* IVA: definitivo si `ivaModality === "definitiva"`, si no el provisional de siempre. */}
+        {isIvaDefinitiva ? (
+          <Card>
+            <PanelHeader title="IVA" subtitle="Pago definitivo" />
+            <ServiceTabBar tabs={IVA_DEFINITIVA_TABS} active={isrTab} onChange={setIsrTab} />
+            <RowList rows={activeIvaDefinitiva.rows} data={ivaDefinitivaSection} drafts={drafts} setDraft={setDraft} readOnly />
+            <div style={{ borderTop: '1px solid var(--border)' }}>
+              <RowList rows={IVA_DEFINITIVA_GRAND_TOTAL_ROWS} data={ivaDefinitiva} drafts={drafts} setDraft={setDraft} readOnly />
+            </div>
+          </Card>
+        ) : (
+          <Card>
+            <PanelHeader title="IVA" />
+            <RowList rows={IVA_ROWS} data={ivaData} drafts={drafts} setDraft={setDraft} readOnly={readOnly} />
+          </Card>
+        )}
 
         {/* ISR con pestañas por régimen */}
         <Card>
           <PanelHeader title="ISR" />
-          <div
-            className="flex gap-1 px-3 pt-3 pb-0 overflow-x-auto"
-            style={{ borderBottom: '1px solid var(--border)' }}
-          >
-            {ISR_TABS.map((t, i) => (
-              <button
-                key={t.label}
-                onClick={() => setIsrTab(i)}
-                className="whitespace-nowrap px-3.5 py-2 rounded-t-lg text-[12.5px] font-bold transition"
-                style={
-                  i === isrTab
-                    ? {
-                        background: 'var(--card)',
-                        color: 'var(--ink-900)',
-                        border: '1px solid var(--border)',
-                        borderBottom: '1px solid var(--card)',
-                        marginBottom: '-1px',
-                      }
-                    : { background: 'transparent', color: 'var(--sky)' }
-                }
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+          <ServiceTabBar tabs={ISR_TABS} active={isrTab} onChange={setIsrTab} />
           <RowList rows={activeIsr.rows} data={isrSection} drafts={drafts} setDraft={setDraft} readOnly={readOnly} />
         </Card>
       </div>
