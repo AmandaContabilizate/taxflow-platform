@@ -26,6 +26,8 @@ const filters = {
 export const taxpayerGroupsSchema = z.object({
   search: z.string().trim().min(1).optional(),
   kind,
+  /** Solo gerencia (AssignAccountant); sin el claim el back lo ignora en silencio. */
+  accountantUserId: z.string().trim().min(1).optional(),
   ...filters,
   ...paging,
 })

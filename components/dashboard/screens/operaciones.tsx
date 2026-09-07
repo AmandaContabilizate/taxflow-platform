@@ -7,6 +7,12 @@ interface CurrentUser {
   fullName: string
 }
 
-export function OperacionesScreen({ currentUser }: { currentUser: CurrentUser }) {
-  return <PurchasedDeclarations mode="all" currentUser={currentUser} />
+export function OperacionesScreen({
+  currentUser,
+  permissions = [],
+}: {
+  currentUser: CurrentUser
+  permissions?: string[]
+}) {
+  return <PurchasedDeclarations mode="all" currentUser={currentUser} permissions={permissions} />
 }

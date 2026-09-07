@@ -125,6 +125,8 @@ export interface DeclarationInvoice {
   isIssued: boolean;
   subTotal: Money;
   total: Money;
+  /** Suma de PaymentComplements.PaidAmount. Solo tipo Pago (invoiceTypeId 4); null en los demás y en Pago sin complemento. subTotal/total siguen en 0 por regla del SAT. */
+  paidAmount: Money;
   /** 1 I, 2 E, 3 T, 4 P, 5 N. */
   invoiceTypeId: number;
   tipoComprobante: string;

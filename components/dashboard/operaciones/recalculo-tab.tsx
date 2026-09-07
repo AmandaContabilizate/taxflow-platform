@@ -689,7 +689,18 @@ export function RecalculoTab({
                             className="px-3 py-3 whitespace-nowrap align-top font-semibold"
                             style={{ ...MONO, color: 'var(--ink-900)' }}
                           >
-                            {amount(inv.total)}
+                            {amount(inv.paidAmount ?? inv.total)}
+                            {inv.paidAmount != null && (
+                              <div className="mt-0.5">
+                                <Chip
+                                  bg="var(--violet-soft)"
+                                  fg="var(--violet)"
+                                  title="Importe del complemento de pago; el total del comprobante es 0 por regla del SAT"
+                                >
+                                  Pago
+                                </Chip>
+                              </div>
+                            )}
                             {inv.withheldAmount != null && (
                               <div className="text-[11px] font-normal mt-0.5" style={{ color: 'var(--ink-500)' }}>
                                 Retenido {amount(inv.withheldAmount)}
@@ -1174,9 +1185,20 @@ function ScopeSelector({
   )
 }
 
-function Chip({ children, bg, fg }: { children: React.ReactNode; bg: string; fg: string }) {
+function Chip({
+  children,
+  bg,
+  fg,
+  title,
+}: {
+  children: React.ReactNode
+  bg: string
+  fg: string
+  title?: string
+}) {
   return (
     <span
+      title={title}
       className="inline-flex px-2 py-0.5 rounded-md text-[11px] font-bold whitespace-nowrap"
       style={{ background: bg, color: fg }}
     >

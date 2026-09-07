@@ -335,6 +335,8 @@ export interface DeclarationPeriodInvoice {
    */
   period: string | null
   subTotal: number | null
+  /** Suma de PaymentComplements.PaidAmount. Solo tipoComprobante Pago; null en los demás y en Pago sin complemento. */
+  paidAmount: number | null
   ivaAmount: number | null
   paymentMethodCode: string | null
   paymentMethodName: string | null

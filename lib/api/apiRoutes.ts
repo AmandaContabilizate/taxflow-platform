@@ -35,6 +35,8 @@ interface TaxpayerListQuery {
 
 export interface TaxpayerGroupsQuery extends TaxpayerListQuery {
   search?: string
+  /** Solo gerencia (claim AssignAccountant); el back lo ignora en silencio si no aplica. */
+  accountantUserId?: string
 }
 
 export interface TaxpayerPurchasesQuery extends TaxpayerListQuery {
@@ -56,6 +58,7 @@ function taxpayerListQuery(p: TaxpayerListQuery): URLSearchParams {
 function taxpayerGroupsQuery(p: TaxpayerGroupsQuery): string {
   const qs = taxpayerListQuery(p)
   if (p.search) qs.set("search", p.search)
+  if (p.accountantUserId) qs.set("accountantUserId", p.accountantUserId)
   return `?${qs.toString()}`
 }
 

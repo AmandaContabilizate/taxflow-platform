@@ -6,6 +6,7 @@ import { getDeclarationTaxpayers } from '@/features/declarations/actions/getDecl
 import { getDeclarationsByTaxpayer } from '@/features/declarations/actions/getDeclarationsByTaxpayer.action'
 import { getRegularizationTaxpayers } from '@/features/declarations/actions/getRegularizationTaxpayers.action'
 import { getRegularizationsByTaxpayer } from '@/features/declarations/actions/getRegularizationsByTaxpayer.action'
+import { getEquipoOperaciones } from '@/features/operations/actions/getEquipoOperaciones.action'
 import type {
   PagedDeclarations,
   TaxpayerDeclarationItem,
@@ -122,6 +123,9 @@ const KIND_BY_MODE: Record<Mode, 1 | 2 | undefined> = {
 
 const TIPO_LABEL: Record<number, string> = { 1: 'Regularización', 2: 'A futuro' }
 
+/** Filtro por contador, gerencia (E1): mismo claim y patrón que Mis clientes. */
+const ASSIGN_PERMISSION = 'AssignAccountant'
+
 /** `DeclarationStatus.InProcess` — E5: Regularizaciones entra filtrada a este estatus. */
 const IN_PROCESS_STATUS_ID = 15
 
@@ -143,14 +147,23 @@ export const selectStyle = {
 
 function TaxpayerGroups({
   mode,
+  permissions,
+  currentUserId,
   onOpen,
 }: {
   mode: Mode
+  permissions: string[]
+  currentUserId?: string | null
   onOpen: (g: TaxpayerGroup, taxRegimeId: number | null) => void
 }) {
   const copy = COPY[mode]
   const kind = KIND_BY_MODE[mode]
   const { params, setParams, pathname } = useUrlState()
+  const isManager = permissions.includes(ASSIGN_PERMISSION)
+  // '' = todas las carteras; un userId = cartera de ese contador.
+  const [contadorFiltro, setContadorFiltro] = useState('')
+  // Roster del área (misma fuente que el modal de exportación): no viene en TaxpayerGroup.
+  const [contadores, setContadores] = useState<{ id: string; name: string }[]>([])
   // Solo "futuras" ofrece el filtro de periodo próximo; el back de
   // regularizaciones ni siquiera acepta el param.
   const upcomingAvailable = mode === 'future'
@@ -182,6 +195,15 @@ function TaxpayerGroups({
   }, [search])
 
   useEffect(() => {
+    if (!isManager || contadores.length) return
+    const now = new Date()
+    void (async () => {
+      const res = await getEquipoOperaciones(now.getFullYear(), now.getMonth() + 1)
+      if (res.success) setContadores(res.value.miembros.map((m) => ({ id: m.userId, name: m.nombre })))
+    })()
+  }, [isManager, contadores.length])
+
+  useEffect(() => {
     let cancelled = false
     setLoading(true)
     setError(null)
@@ -195,6 +217,7 @@ function TaxpayerGroups({
         kind,
         onlyUpcoming: onlyUpcoming || undefined,
         statusId,
+        accountantUserId: isManager ? contadorFiltro || undefined : undefined,
       })
       if (cancelled) return
       if (res.success) setPage(res.value)
@@ -207,7 +230,12 @@ function TaxpayerGroups({
     return () => {
       cancelled = true
     }
-  }, [mode, kind, query, skip, onlyUpcoming, statusId])
+  }, [mode, kind, query, skip, onlyUpcoming, statusId, isManager, contadorFiltro])
+
+  const changeContador = (value: string) => {
+    setSkip(0)
+    setContadorFiltro(value)
+  }
 
   const toggleUpcoming = (next: boolean) => {
     setSkip(0)
@@ -227,19 +255,39 @@ function TaxpayerGroups({
 
       <Card className="shrink-0">
         <div className="p-4 flex flex-col gap-3">
-          <div className="relative">
-            <Search
-              size={16}
-              style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-500)' }}
-            />
-            <input
-              type="text"
-              placeholder="Buscar por RFC o razón social…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-lg"
-              style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
-            />
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1 min-w-0">
+              <Search
+                size={16}
+                style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-500)' }}
+              />
+              <input
+                type="text"
+                placeholder="Buscar por RFC o razón social…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 rounded-lg"
+                style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+              />
+            </div>
+
+            {isManager && (
+              <select
+                value={contadorFiltro}
+                onChange={(e) => changeContador(e.target.value)}
+                aria-label="Filtrar por contador"
+                className="px-3 py-2.5 rounded-lg text-[13px] font-semibold sm:w-[230px] outline-none cursor-pointer"
+                style={selectStyle}
+              >
+                <option value="">Todos los contadores</option>
+                {currentUserId && <option value={currentUserId}>Mi cartera</option>}
+                {contadores
+                  .filter((c) => c.id !== currentUserId)
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+              </select>
+            )}
           </div>
 
           {upcomingAvailable && (
@@ -776,9 +824,11 @@ const stubSubject = (declarationId: number, rfc: string | null): DeclarationSubj
 export function PurchasedDeclarations({
   mode,
   currentUser,
+  permissions = [],
 }: {
   mode: Mode
   currentUser: CurrentUser
+  permissions?: string[]
 }) {
   const { params, setParams } = useUrlState()
   const rfcParam = params.get('rfc')
@@ -833,5 +883,12 @@ export function PurchasedDeclarations({
     )
   }
 
-  return <TaxpayerGroups mode={mode} onOpen={openGroup} />
+  return (
+    <TaxpayerGroups
+      mode={mode}
+      permissions={permissions}
+      currentUserId={currentUser.userId}
+      onOpen={openGroup}
+    />
+  )
 }

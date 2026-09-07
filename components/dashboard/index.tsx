@@ -340,16 +340,16 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
       );
     }
     if (screen === 'operaciones') {
-      return <OperacionesScreen currentUser={{ userId: userId ?? '', fullName }} />
+      return <OperacionesScreen currentUser={{ userId: userId ?? '', fullName }} permissions={permissions} />
     }
     if (screen === 'declaraciones-rechazadas') {
       return <DeclaracionesRechazadasScreen currentUser={{ userId: userId ?? '', fullName }} />
     }
     if (screen === 'declaraciones-futuras') {
-      return <DeclaracionesFuturasScreen currentUser={{ userId: userId ?? '', fullName }} />
+      return <DeclaracionesFuturasScreen currentUser={{ userId: userId ?? '', fullName }} permissions={permissions} />
     }
     if (screen === 'regularizaciones') {
-      return <RegularizacionesScreen currentUser={{ userId: userId ?? '', fullName }} />
+      return <RegularizacionesScreen currentUser={{ userId: userId ?? '', fullName }} permissions={permissions} />
     }
     if (screen === 'renovaciones') {
       return <RenovacionesScreen />

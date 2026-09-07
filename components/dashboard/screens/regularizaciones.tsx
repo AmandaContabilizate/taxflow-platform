@@ -7,6 +7,12 @@ interface CurrentUser {
   fullName: string
 }
 
-export function RegularizacionesScreen({ currentUser }: { currentUser: CurrentUser }) {
-  return <PurchasedDeclarations mode="regularization" currentUser={currentUser} />
+export function RegularizacionesScreen({
+  currentUser,
+  permissions = [],
+}: {
+  currentUser: CurrentUser
+  permissions?: string[]
+}) {
+  return <PurchasedDeclarations mode="regularization" currentUser={currentUser} permissions={permissions} />
 }

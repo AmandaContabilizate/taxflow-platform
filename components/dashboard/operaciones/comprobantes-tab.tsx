@@ -931,9 +931,20 @@ export function ComprobantesTab({
                               </span>
                             )}
                             {col.key === 'total' && (
-                              <span className="whitespace-nowrap font-semibold" style={{ ...MONO, color: 'var(--ink-900)' }}>
-                                {money(inv.total)}
-                              </span>
+                              <div className="flex flex-col gap-1 items-start">
+                                <span className="whitespace-nowrap font-semibold" style={{ ...MONO, color: 'var(--ink-900)' }}>
+                                  {money(inv.paidAmount ?? inv.total)}
+                                </span>
+                                {inv.paidAmount != null && (
+                                  <Chip
+                                    bg="var(--violet-soft)"
+                                    fg="var(--violet)"
+                                    title="Importe del complemento de pago; el total del comprobante es 0 por regla del SAT"
+                                  >
+                                    Pago
+                                  </Chip>
+                                )}
+                              </div>
                             )}
                             {col.key === 'metodoPago' && (
                               <CatalogCell name={inv.paymentMethodName} id={inv.paymentMethodId} />
