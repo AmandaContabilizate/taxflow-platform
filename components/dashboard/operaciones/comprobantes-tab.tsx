@@ -166,6 +166,10 @@ function ClasificacionCell({ inv }: { inv: DeclarationInvoice }) {
     return <OtroRegimenChip motivo={inv.motivo} />
   }
 
+  if (inv.esPpdSinComplemento) {
+    return <PpdSinComplementoChip motivo={inv.motivo} />
+  }
+
   if (!inv.clasificada) {
     return (
       <Chip bg="var(--muted)" fg="var(--ink-500)">
@@ -224,6 +228,21 @@ export function OtroRegimenChip({ motivo }: { motivo: string | null }) {
   return (
     <Chip bg="var(--ink-50)" fg="var(--ink-500)" title={motivo ?? undefined}>
       Otro régimen
+    </Chip>
+  )
+}
+
+/**
+ * PPD sin complemento: no es un error ni falta nada, es el flujo normal de una
+ * factura en parcialidades mientras el proveedor no paga y timbra el complemento.
+ * Se usa el violeta de "pendientes" del theming (no el rojo/coral de error) y
+ * "En espera de pago" en vez de "sin complemento"/"incompleta" para que el
+ * contador lea un estado esperado, no algo roto que perseguir.
+ */
+export function PpdSinComplementoChip({ motivo }: { motivo: string | null }) {
+  return (
+    <Chip bg="var(--violet-soft)" fg="var(--violet)" title={motivo ?? undefined}>
+      En espera de pago
     </Chip>
   )
 }
@@ -858,7 +877,7 @@ export function ComprobantesTab({
                         key={inv.invoiceId}
                         style={{
                           borderBottom: '1px solid var(--border)',
-                          background: inv.esOtroRegimen ? 'var(--muted)' : undefined,
+                          background: inv.esOtroRegimen || inv.esPpdSinComplemento ? 'var(--muted)' : undefined,
                         }}
                       >
                         <td className="px-3 py-3 whitespace-nowrap align-top">

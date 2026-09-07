@@ -13,7 +13,7 @@ import type {
   DeclarationPeriodInvoice,
 } from '@/features/declarations/types'
 import { money } from './calc-read'
-import { CatalogCell, ConceptosCell, OtroRegimenChip } from './comprobantes-tab'
+import { CatalogCell, ConceptosCell, OtroRegimenChip, PpdSinComplementoChip } from './comprobantes-tab'
 import { type ColumnKey, COLUMN_DEFS } from './column-defs'
 import { ColumnsModal, FilterSelect } from './filter-columns'
 import { MONO } from '../constants'
@@ -278,7 +278,7 @@ export function RecalculoTab({
       iva: list.reduce((acc, i) => acc + (i.ivaAmount ?? 0), 0),
       total: list.reduce((acc, i) => acc + (Number.isFinite(i.total) ? i.total : 0), 0),
     })
-    const computables = invoices.filter((i) => !i.isOtherRegime)
+    const computables = invoices.filter((i) => !i.isOtherRegime && !i.isPpdWithoutComplement)
     return {
       clasificadas: sum(computables.filter((i) => i.isDeductible != null)),
       sinClasificar: sum(computables.filter((i) => i.isDeductible == null)),
@@ -604,14 +604,14 @@ export function RecalculoTab({
                 <tbody>
                   {rows.map((inv) => {
                     const adj = adjustments[inv.uuid]
-                    // Otro régimen (E3): visible, no computable, sin ajustes.
-                    const rowDisabled = disabled || inv.isOtherRegime
+                    // Otro régimen (E3) y PPD sin complemento: visibles, no computables, sin ajustes.
+                    const rowDisabled = disabled || inv.isOtherRegime || inv.isPpdWithoutComplement
                     return (
                       <tr
                         key={inv.id}
                         style={{
                           borderBottom: '1px solid var(--border)',
-                          background: inv.isOtherRegime ? 'var(--muted)' : undefined,
+                          background: inv.isOtherRegime || inv.isPpdWithoutComplement ? 'var(--muted)' : undefined,
                         }}
                       >
                         <td className="px-3 py-3 whitespace-nowrap align-top" style={{ color: 'var(--ink-900)' }}>
@@ -752,11 +752,15 @@ export function RecalculoTab({
                             </span>
                           ) : (
                             <div className="flex flex-col gap-1.5">
-                              {inv.isOtherRegime && (
+                              {inv.isOtherRegime ? (
                                 <span className="text-[11.5px]" style={{ color: 'var(--ink-500)' }}>
                                   No pertenece a esta declaración: no se puede ajustar.
                                 </span>
-                              )}
+                              ) : inv.isPpdWithoutComplement ? (
+                                <span className="text-[11.5px]" style={{ color: 'var(--ink-500)' }}>
+                                  En espera del complemento de pago: no se puede ajustar.
+                                </span>
+                              ) : null}
                               <select
                                 value={adj?.classification ?? ''}
                                 onChange={(e) =>
@@ -1055,6 +1059,9 @@ function TotalesRecalculo({
 function ClasificacionActual({ inv }: { inv: DeclarationPeriodInvoice }) {
   if (inv.isOtherRegime) {
     return <OtroRegimenChip motivo={inv.reason} />
+  }
+  if (inv.isPpdWithoutComplement) {
+    return <PpdSinComplementoChip motivo={inv.reason} />
   }
   if (inv.isDeductible == null) {
     return (

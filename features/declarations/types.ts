@@ -350,6 +350,8 @@ export interface DeclarationPeriodInvoice {
   receiverRegimeName: string | null
   /** E3: factura de otro régimen del contribuyente, visible pero no computable. */
   isOtherRegime: boolean
+  /** PPD sin complemento: descargada, visible, pero no computable hasta que se pague. Independiente de isOtherRegime. */
+  isPpdWithoutComplement: boolean
 }
 
 export interface DeclarationPeriodInvoiceConcept {

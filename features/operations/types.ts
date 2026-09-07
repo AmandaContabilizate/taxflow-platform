@@ -141,6 +141,8 @@ export interface DeclarationInvoice {
   receiverRegimeName: string | null;
   /** E3: factura de otro régimen del contribuyente, visible pero no computable. */
   esOtroRegimen: boolean;
+  /** PPD sin complemento: descargada, visible, pero no computable hasta que se pague. Independiente de esOtroRegimen. */
+  esPpdSinComplemento: boolean;
   wayOfPaymentId: number | null;
   paymentMethodId: number | null;
   /** `Catalogs.PaymentMethod.Code` (PUE/PPD). */
