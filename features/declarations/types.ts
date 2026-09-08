@@ -467,6 +467,12 @@ export interface TaxpayerGroup {
   regimes?: TaxpayerRegime[]
 }
 
+/** Fila de `Catalogs.StatusDeclaration` (GET catalogs/declaration-statuses). */
+export interface DeclarationStatusCatalogItem {
+  id: number
+  description: string
+}
+
 /**
  * Nivel 2. Desde E5.1 tanto `declarations-by-taxpayer` como
  * `regularizations-by-taxpayer` exponen `declarationKind` (1 regularización,

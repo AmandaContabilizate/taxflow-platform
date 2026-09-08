@@ -2,12 +2,14 @@
 
 import { ArrowLeft, ArrowRight, Download, Loader2, Search } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { getDeclarationStatuses } from '@/features/declarations/actions/getDeclarationStatuses.action'
 import { getDeclarationTaxpayers } from '@/features/declarations/actions/getDeclarationTaxpayers.action'
 import { getDeclarationsByTaxpayer } from '@/features/declarations/actions/getDeclarationsByTaxpayer.action'
 import { getRegularizationTaxpayers } from '@/features/declarations/actions/getRegularizationTaxpayers.action'
 import { getRegularizationsByTaxpayer } from '@/features/declarations/actions/getRegularizationsByTaxpayer.action'
 import { getEquipoOperaciones } from '@/features/operations/actions/getEquipoOperaciones.action'
 import type {
+  DeclarationStatusCatalogItem,
   PagedDeclarations,
   TaxpayerDeclarationItem,
   TaxpayerGroup,
@@ -126,10 +128,94 @@ const TIPO_LABEL: Record<number, string> = { 1: 'Regularización', 2: 'A futuro'
 /** Filtro por contador, gerencia (E1): mismo claim y patrón que Mis clientes. */
 const ASSIGN_PERMISSION = 'AssignAccountant'
 
-/** `DeclarationStatus.InProcess` — E5: Regularizaciones entra filtrada a este estatus. */
+/** `DeclarationStatus.InProcess` — Regularizaciones arranca con este estatus preseleccionado (D4). */
 const IN_PROCESS_STATUS_ID = 15
 
 const emptyPage = <T,>(take: number): PagedDeclarations<T> => ({ items: [], total: 0, skip: 0, take })
+
+/* -------------------------------------------------------------------------- */
+/*  Filtro de periodo (upcomingExact / onlyUpcoming / mes específico)          */
+/* -------------------------------------------------------------------------- */
+
+type PeriodMode = 'todos' | 'exact' | 'upcoming' | 'month'
+
+/**
+ * D1: ninguna pantalla arrancaba hoy con el `>=` marcado, así que las tres siguen
+ * abriendo sin filtro de periodo. "future" no puede arrancar en "exacto": acotar
+ * al mes que vence esconde justo las declaraciones futuras que esa pantalla existe
+ * para mostrar.
+ */
+const DEFAULT_PERIOD_MODE: Record<Mode, PeriodMode> = { all: 'todos', future: 'todos', regularization: 'todos' }
+
+/** `onlyUpcoming` (`>=`) no lo acepta regularization-taxpayers; el back lo ignora, así que no se ofrece. */
+const UPCOMING_AVAILABLE: Record<Mode, boolean> = { all: true, future: true, regularization: false }
+
+/** Rango razonable para el `<select>` de ejercicio: 6 años atrás, 1 adelante. */
+function periodYearOptions(): number[] {
+  const y = new Date().getFullYear()
+  return Array.from({ length: 8 }, (_, i) => y + 1 - i)
+}
+
+interface PeriodFilter {
+  periodMode: PeriodMode
+  periodYear?: number
+  periodMonth?: number
+}
+
+/**
+ * Único punto donde se lee el filtro de periodo de la URL, para que nivel 1 y
+ * nivel 2 (mismo contribuyente expandido) manden siempre el mismo filtro al
+ * back. Un año/mes incompleto en modo "month" se trata como si no hubiera
+ * modo elegido: nunca se manda el par a medias.
+ */
+function periodFilterFromParams(mode: Mode, params: URLSearchParams): PeriodFilter {
+  const raw = params.get('pmode')
+  const periodMode: PeriodMode =
+    raw === 'exact' || raw === 'month' || raw === 'todos' || (raw === 'upcoming' && UPCOMING_AVAILABLE[mode])
+      ? raw
+      : DEFAULT_PERIOD_MODE[mode]
+  if (periodMode !== 'month') return { periodMode }
+  const periodYear = numParam(params, 'pyear') ?? undefined
+  const periodMonth = numParam(params, 'pmonth') ?? undefined
+  return periodYear != null && periodMonth != null ? { periodMode, periodYear, periodMonth } : { periodMode }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Filtro de estatus (D2-D4)                                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * D3: subconjunto operativo, en el orden de trabajo del contador. 12 y 13
+ * quedan fuera por ser estados del sistema (sembrado/migrado), no del contador.
+ */
+export const STATUS_ID_WHITELIST = [15, 11, 9, 10, 3, 14, 4, 7, 8] as const
+
+/** D4: Regularizaciones arranca con "En proceso" preseleccionado; las otras dos en "Todos". */
+const DEFAULT_STATUS_ID: Record<Mode, number | undefined> = {
+  all: undefined,
+  future: undefined,
+  regularization: IN_PROCESS_STATUS_ID,
+}
+
+/** Texto antes de ":" para el `<select>`; la descripción completa si no hay ":". El título lleva la completa. */
+function statusOptionLabel(description: string): string {
+  const i = description.indexOf(':')
+  return i === -1 ? description : description.slice(0, i).trim()
+}
+
+interface StatusFilter {
+  statusId?: number
+  /** Valor del `<select>`: 'todos' o el id como string. */
+  selectValue: string
+}
+
+function statusFilterFromParams(mode: Mode, params: URLSearchParams): StatusFilter {
+  const raw = params.get('estatus')
+  if (raw === 'todos') return { statusId: undefined, selectValue: 'todos' }
+  if (raw) return { statusId: Number(raw), selectValue: raw }
+  const def = DEFAULT_STATUS_ID[mode]
+  return { statusId: def, selectValue: def != null ? String(def) : 'todos' }
+}
 
 /** Etiqueta del régimen para los selects: "625 · Plataformas Tecnológicas". */
 export const regimeLabel = (r: TaxpayerRegime) =>
@@ -164,15 +250,13 @@ function TaxpayerGroups({
   const [contadorFiltro, setContadorFiltro] = useState('')
   // Roster del área (misma fuente que el modal de exportación): no viene en TaxpayerGroup.
   const [contadores, setContadores] = useState<{ id: string; name: string }[]>([])
-  // Solo "futuras" ofrece el filtro de periodo próximo; el back de
-  // regularizaciones ni siquiera acepta el param.
-  const upcomingAvailable = mode === 'future'
-  const onlyUpcoming = upcomingAvailable && params.get('proximas') === '1'
-  // Solo "regularization" entra filtrado a "En proceso" (statusId=15); ausente
-  // en la URL = ese default, "todos" = sin filtro de estatus.
-  const statusFilterAvailable = mode === 'regularization'
-  const showAllStatuses = statusFilterAvailable && params.get('estatus') === 'todos'
-  const statusId = statusFilterAvailable && !showAllStatuses ? IN_PROCESS_STATUS_ID : undefined
+  const { periodMode, periodYear, periodMonth } = periodFilterFromParams(mode, params)
+  const upcomingExact = periodMode === 'exact' ? true : undefined
+  const onlyUpcoming = periodMode === 'upcoming' ? true : undefined
+  // Valores en bruto del selector mes/año: se muestran aunque el par esté incompleto.
+  const periodYearRaw = params.get('pyear') ?? ''
+  const periodMonthRaw = params.get('pmonth') ?? ''
+  const { statusId, selectValue: statusSelectValue } = statusFilterFromParams(mode, params)
 
   const [page, setPage] = useState<PagedDeclarations<TaxpayerGroup>>(emptyPage(TAKE))
   const [skip, setSkip] = useState(0)
@@ -185,6 +269,7 @@ function TaxpayerGroups({
   // la selección solo vive hasta que se entra al nivel 2.
   const [regimeByTaxpayer, setRegimeByTaxpayer] = useState<Record<number, number>>({})
   const [exportOpen, setExportOpen] = useState(false)
+  const [statusCatalog, setStatusCatalog] = useState<DeclarationStatusCatalogItem[]>([])
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -204,6 +289,14 @@ function TaxpayerGroups({
   }, [isManager, contadores.length])
 
   useEffect(() => {
+    if (statusCatalog.length) return
+    void (async () => {
+      const res = await getDeclarationStatuses()
+      if (res.success) setStatusCatalog(res.value)
+    })()
+  }, [statusCatalog.length])
+
+  useEffect(() => {
     let cancelled = false
     setLoading(true)
     setError(null)
@@ -215,7 +308,10 @@ function TaxpayerGroups({
         skip,
         take: TAKE,
         kind,
-        onlyUpcoming: onlyUpcoming || undefined,
+        onlyUpcoming,
+        upcomingExact,
+        periodYear,
+        periodMonth,
         statusId,
         accountantUserId: isManager ? contadorFiltro || undefined : undefined,
       })
@@ -230,22 +326,37 @@ function TaxpayerGroups({
     return () => {
       cancelled = true
     }
-  }, [mode, kind, query, skip, onlyUpcoming, statusId, isManager, contadorFiltro])
+  }, [mode, kind, query, skip, onlyUpcoming, upcomingExact, periodYear, periodMonth, statusId, isManager, contadorFiltro])
 
   const changeContador = (value: string) => {
     setSkip(0)
     setContadorFiltro(value)
   }
 
-  const toggleUpcoming = (next: boolean) => {
+  const changePeriodMode = (next: PeriodMode) => {
     setSkip(0)
-    setParams({ proximas: next ? '1' : null }, { replace: true })
+    setParams(next === 'month' ? { pmode: 'month' } : { pmode: next, pyear: null, pmonth: null }, { replace: true })
   }
 
-  const toggleShowAllStatuses = (next: boolean) => {
+  const changePeriodYear = (value: string) => {
     setSkip(0)
-    setParams({ estatus: next ? 'todos' : null }, { replace: true })
+    setParams({ pyear: value || null }, { replace: true })
   }
+
+  const changePeriodMonth = (value: string) => {
+    setSkip(0)
+    setParams({ pmonth: value || null }, { replace: true })
+  }
+
+  const changeStatus = (value: string) => {
+    setSkip(0)
+    setParams({ estatus: value }, { replace: true })
+  }
+
+  const statusOptions = useMemo(() => {
+    const byId = new Map(statusCatalog.map((s) => [s.id, s.description]))
+    return STATUS_ID_WHITELIST.map((id) => ({ id, description: byId.get(id) ?? `Estatus ${id}` }))
+  }, [statusCatalog])
 
   const totalPages = Math.max(1, Math.ceil(page.total / TAKE))
 
@@ -290,35 +401,71 @@ function TaxpayerGroups({
             )}
           </div>
 
-          {upcomingAvailable && (
-            <label className="inline-flex items-center gap-2 cursor-pointer select-none self-start">
-              <input
-                type="checkbox"
-                checked={onlyUpcoming}
-                onChange={(e) => toggleUpcoming(e.target.checked)}
-                className="w-4 h-4 rounded"
-                style={{ accentColor: 'var(--brand-600)' }}
-              />
-              <span className="text-[12.5px] font-semibold" style={{ color: 'var(--ink-700)' }}>
-                Solo periodo próximo a trabajar
-              </span>
-            </label>
-          )}
+          <div className="flex flex-wrap items-center gap-3">
+            <select
+              value={periodMode}
+              onChange={(e) => changePeriodMode(e.target.value as PeriodMode)}
+              aria-label="Filtrar por periodo"
+              className="px-3 py-2.5 rounded-lg text-[12.5px] font-semibold outline-none cursor-pointer"
+              style={selectStyle}
+            >
+              <option value="todos">Todos los periodos</option>
+              <option value="exact" title="Solo el periodo que vence este mes">
+                Próximo a trabajar
+              </option>
+              {UPCOMING_AVAILABLE[mode] && (
+                <option value="upcoming" title="El próximo a trabajar y todo lo comprado a futuro">
+                  Próximo a trabajar en adelante
+                </option>
+              )}
+              <option value="month">Mes específico</option>
+            </select>
 
-          {statusFilterAvailable && (
-            <label className="inline-flex items-center gap-2 cursor-pointer select-none self-start">
-              <input
-                type="checkbox"
-                checked={showAllStatuses}
-                onChange={(e) => toggleShowAllStatuses(e.target.checked)}
-                className="w-4 h-4 rounded"
-                style={{ accentColor: 'var(--brand-600)' }}
-              />
-              <span className="text-[12.5px] font-semibold" style={{ color: 'var(--ink-700)' }}>
-                Mostrar todas (incluye terminadas)
-              </span>
-            </label>
-          )}
+            {periodMode === 'month' && (
+              <>
+                <select
+                  value={periodMonthRaw}
+                  onChange={(e) => changePeriodMonth(e.target.value)}
+                  aria-label="Mes del periodo"
+                  className="px-3 py-2.5 rounded-lg text-[12.5px] font-semibold outline-none cursor-pointer"
+                  style={selectStyle}
+                >
+                  <option value="">Mes…</option>
+                  {MESES.map((m, i) => (
+                    <option key={m} value={i + 1}>{m}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={periodYearRaw}
+                  onChange={(e) => changePeriodYear(e.target.value)}
+                  aria-label="Ejercicio del periodo"
+                  className="px-3 py-2.5 rounded-lg text-[12.5px] font-semibold outline-none cursor-pointer"
+                  style={selectStyle}
+                >
+                  <option value="">Año…</option>
+                  {periodYearOptions().map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </>
+            )}
+
+            <select
+              value={statusSelectValue}
+              onChange={(e) => changeStatus(e.target.value)}
+              aria-label="Filtrar por estatus"
+              className="px-3 py-2.5 rounded-lg text-[12.5px] font-semibold outline-none cursor-pointer"
+              style={selectStyle}
+            >
+              <option value="todos">Todos los estatus</option>
+              {statusOptions.map((s) => (
+                <option key={s.id} value={s.id} title={s.description}>
+                  {statusOptionLabel(s.description)}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </Card>
 
@@ -511,9 +658,10 @@ function PurchasedTable({
   const periodValueId = numParam(params, 'period') ?? ''
   const year = numParam(params, 'year') ?? ''
   const regimeId = numParam(params, 'regimen') ?? ''
-  const onlyUpcoming = mode === 'future' && params.get('proximas') === '1'
-  const showAllStatuses = mode === 'regularization' && params.get('estatus') === 'todos'
-  const statusId = mode === 'regularization' && !showAllStatuses ? IN_PROCESS_STATUS_ID : undefined
+  // Mismo filtro de periodo/estatus que nivel 1: si no, el conteo del grupo no
+  // cuadra con la lista expandida (E1). regularization ignora periodo por completo.
+  const { periodMode, periodYear, periodMonth } = periodFilterFromParams(mode, params)
+  const { statusId } = statusFilterFromParams(mode, params)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -524,7 +672,10 @@ function PurchasedTable({
       take: TAKE,
       kind,
       taxRegimeId: regimeId || undefined,
-      onlyUpcoming: onlyUpcoming || undefined,
+      onlyUpcoming: periodMode === 'upcoming' ? true : undefined,
+      upcomingExact: periodMode === 'exact' ? true : undefined,
+      periodYear,
+      periodMonth,
       statusId,
     })
     if (res.success) setPage(res.value)
@@ -533,7 +684,7 @@ function PurchasedTable({
       setPage(emptyPage(TAKE))
     }
     setLoading(false)
-  }, [mode, kind, rfc, skip, regimeId, onlyUpcoming, statusId])
+  }, [mode, kind, rfc, skip, regimeId, periodMode, periodYear, periodMonth, statusId])
 
   useEffect(() => {
     void load()

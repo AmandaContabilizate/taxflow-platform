@@ -19,8 +19,9 @@ export async function getRegularizationTaxpayers(
     })
   }
 
-  // `onlyUpcoming` no se manda: el backend de regularizaciones no lo acepta.
-  const { search, skip, take, kind, taxRegimeId, statusId, accountantUserId } = parsed.data
+  // `onlyUpcoming` no se manda: el backend de regularizaciones no lo acepta (upcomingExact/periodYear/periodMonth sí).
+  const { search, skip, take, kind, taxRegimeId, upcomingExact, periodYear, periodMonth, statusId, accountantUserId } =
+    parsed.data
 
   try {
     const data = await fetchGet<PagedDeclarations<TaxpayerGroup>>(
@@ -30,6 +31,9 @@ export async function getRegularizationTaxpayers(
         take,
         kind,
         taxRegimeId,
+        upcomingExact,
+        periodYear,
+        periodMonth,
         statusId,
         accountantUserId,
       }),

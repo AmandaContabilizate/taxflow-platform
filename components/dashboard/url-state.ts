@@ -15,10 +15,14 @@ import { useCallback, useMemo, useSyncExternalStore } from 'react'
  *   rfc      contribuyente seleccionado en Operaciones
  *   regimen  id interno del régimen (Users.TaxRegimes)
  *   decl     id de la declaración abierta
- *   proximas "1" = solo periodos aún no vencidos (onlyUpcoming), solo en futuras
- *   year / period / status  filtros del listado de declaraciones
- *   estatus  filtro de estatus en Regularizaciones: ausente = "En proceso"
- *            (statusId=15, el default de la pantalla), "todos" = sin filtro
+ *   year / period / status  filtros client-side del listado ya cargado (nivel 2)
+ *   pmode    modo del filtro de periodo servidor (nivel 1, heredado por nivel 2):
+ *            "exact" (upcomingExact), "upcoming" (onlyUpcoming, `>=`), "month"
+ *            (periodYear+periodMonth) o ausente/"todos" = sin filtro de periodo
+ *   pyear / pmonth  año y mes cuando pmode="month"
+ *   estatus  filtro de estatus (statusId) de la lista del contador: ausente =
+ *            default por pantalla (15 en Regularizaciones, "todos" en las demás),
+ *            "todos" = sin filtro, cualquier otro valor = ese id de la whitelist
  */
 
 const URL_EVENT = 'dashboard:urlchange'

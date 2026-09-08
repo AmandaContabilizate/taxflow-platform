@@ -19,7 +19,19 @@ export async function getDeclarationTaxpayers(
     })
   }
 
-  const { search, skip, take, kind, taxRegimeId, onlyUpcoming, statusId, accountantUserId } = parsed.data
+  const {
+    search,
+    skip,
+    take,
+    kind,
+    taxRegimeId,
+    onlyUpcoming,
+    upcomingExact,
+    periodYear,
+    periodMonth,
+    statusId,
+    accountantUserId,
+  } = parsed.data
 
   try {
     const data = await fetchGet<PagedDeclarations<TaxpayerGroup>>(
@@ -30,6 +42,9 @@ export async function getDeclarationTaxpayers(
         kind,
         taxRegimeId,
         onlyUpcoming,
+        upcomingExact,
+        periodYear,
+        periodMonth,
         statusId,
         accountantUserId,
       }),

@@ -27,8 +27,14 @@ interface TaxpayerListQuery {
   kind?: 1 | 2
   /** Id interno de Users.TaxRegimes, NO el código SAT. */
   taxRegimeId?: number
-  /** Solo periodos de calendario aún no vencidos. No lo aceptan las rutas de regularización. */
+  /** Solo periodos de calendario aún no vencidos (`>=` ancla). No lo acepta regularization-taxpayers. */
   onlyUpcoming?: boolean
+  /** Mismo periodo próximo a trabajar, pero `==` ancla en vez de `>=`. */
+  upcomingExact?: boolean
+  /** Ejercicio pedido; va junto con `periodMonth` o ninguno de los dos. */
+  periodYear?: number
+  /** Mes de cierre 1-12 pedido; va junto con `periodYear` o ninguno de los dos. */
+  periodMonth?: number
   /** Id de `DeclarationStatus` (`Declarations.Declaration.IdStatusDeclaration`). "En proceso" = 15. */
   statusId?: number
 }
@@ -51,6 +57,9 @@ function taxpayerListQuery(p: TaxpayerListQuery): URLSearchParams {
   if (p.kind) qs.set("kind", String(p.kind))
   if (p.taxRegimeId) qs.set("taxRegimeId", String(p.taxRegimeId))
   if (p.onlyUpcoming) qs.set("onlyUpcoming", "true")
+  if (p.upcomingExact) qs.set("upcomingExact", "true")
+  if (p.periodYear != null) qs.set("periodYear", String(p.periodYear))
+  if (p.periodMonth != null) qs.set("periodMonth", String(p.periodMonth))
   if (p.statusId) qs.set("statusId", String(p.statusId))
   return qs
 }
@@ -408,8 +417,15 @@ export const API_ROUTES = {
       `/regularization-taxpayers${taxpayerGroupsQuery({ ...p, onlyUpcoming: undefined })}`,
     DECLARATIONS_BY_TAXPAYER: (p: TaxpayerPurchasesQuery = {}) =>
       `/declarations-by-taxpayer${taxpayerPurchasesQuery(p)}`,
+    // Nivel 2 de regularizaciones: nunca aceptó filtros de periodo (ni el `>=` viejo ni los nuevos).
     REGULARIZATIONS_BY_TAXPAYER: (p: TaxpayerPurchasesQuery = {}) =>
-      `/regularizations-by-taxpayer${taxpayerPurchasesQuery({ ...p, onlyUpcoming: undefined })}`,
+      `/regularizations-by-taxpayer${taxpayerPurchasesQuery({
+        ...p,
+        onlyUpcoming: undefined,
+        upcomingExact: undefined,
+        periodYear: undefined,
+        periodMonth: undefined,
+      })}`,
     UPLOAD_DOCUMENT: (declarationId: number) => `/${declarationId}/upload-document`,
     DOCUMENTS: (declarationId: number) => `/${declarationId}/documents`,
     // GET declaration (Procedures). Policy Contador.ReadDeclaraciones. Responde el
@@ -451,6 +467,8 @@ export const API_ROUTES = {
     TAX_REGIMES: "/taxregimes",
     CLASSIFICATIONS: (isExpense?: boolean) =>
       `/classifications${isExpense == null ? "" : `?isExpense=${isExpense}`}`,
+    // GET catalogs_procedures. Sin filtros ni paginación: las 15 filas de Catalogs.StatusDeclaration.
+    DECLARATION_STATUSES: "/declaration-statuses",
   },
   FINANCES: {
     REGISTER_SALE_NEW: "/register-sale/new",

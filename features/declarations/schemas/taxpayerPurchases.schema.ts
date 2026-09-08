@@ -12,12 +12,17 @@ const kind = z.union([z.literal(1), z.literal(2)]).optional()
 /**
  * Filtros server-side compartidos por nivel 1 y nivel 2.
  * `taxRegimeId` es el Id interno de `Users.TaxRegimes`, NO el código SAT.
- * `onlyUpcoming` deja pasar solo periodos aún no vencidos; los endpoints de
- * regularización no lo aceptan (la ruta lo descarta).
+ * `onlyUpcoming`/`upcomingExact`/`periodYear`+`periodMonth` son mutuamente excluyentes
+ * (el back responde 400 si llega más de uno); el control del front lo hace imposible.
+ * Ninguno lo aceptan `regularizations-by-taxpayer` (la ruta los descarta).
  */
 const filters = {
   taxRegimeId: z.number().int().positive().optional(),
   onlyUpcoming: z.boolean().optional(),
+  /** Igual que `onlyUpcoming` pero con `==` en vez de `>=` contra el ancla del back. */
+  upcomingExact: z.boolean().optional(),
+  periodYear: z.number().int().min(2000).max(2100).optional(),
+  periodMonth: z.number().int().min(1).max(12).optional(),
   /** Id de `DeclarationStatus` (Declarations.Declaration.IdStatusDeclaration). "En proceso" = 15. */
   statusId: z.number().int().positive().optional(),
 }

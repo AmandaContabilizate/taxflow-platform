@@ -130,7 +130,20 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
   // Cambiar de pantalla limpia el estado profundo de la anterior (contribuyente,
   // declaración abierta, filtros); si no, quedan parámetros huérfanos en la URL.
   const go = (s: Screen) => {
-    setParams({ s, rfc: null, regimen: null, decl: null, year: null, period: null, status: null, skip: null, proximas: null })
+    setParams({
+      s,
+      rfc: null,
+      regimen: null,
+      decl: null,
+      year: null,
+      period: null,
+      status: null,
+      skip: null,
+      pmode: null,
+      pyear: null,
+      pmonth: null,
+      estatus: null,
+    })
     setMobileOpen(false)
     window.scrollTo(0, 0)
   }
