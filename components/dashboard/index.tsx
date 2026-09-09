@@ -378,7 +378,7 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
       return <ClientesScreen permissions={permissions} />;
     }
     if (screen === 'contribuyentes') {
-      return <ContribuyentesScreen />;
+      return <ContribuyentesScreen permissions={permissions} />;
     }
     if (screen === 'usuarios') {
       // Alcance de vendedor: solo su embudo (referidos y códigos de descuento propios).

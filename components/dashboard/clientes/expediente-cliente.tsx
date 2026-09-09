@@ -554,7 +554,8 @@ function base64ToPdfUrl(base64: string): string {
   return url
 }
 
-function TabDocumentos({ rfc, permissions }: { rfc: string; permissions: string[] }) {
+// Exportado: lo reusa el modal de diagnóstico de Contribuyentes (misma vista de documentos).
+export function TabDocumentos({ rfc, permissions }: { rfc: string; permissions: string[] }) {
   const canCsf = permissions.includes('Contador.GetTaxCertificate')
   const canOpinion = permissions.includes('Contador.GetComplianceOpinion')
   return (

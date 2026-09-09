@@ -1,9 +1,12 @@
 'use client'
 
-import { Info, Loader2 } from 'lucide-react'
+import { useState } from 'react'
+import { Info, Loader2, Stethoscope } from 'lucide-react'
 import { getTaxpayers } from '@/features/taxpayers/actions/getTaxpayers.action'
+import type { TaxpayerListItem } from '@/features/taxpayers/types'
 import { MONO } from '../constants'
 import { Card, ErrorState, HelpBox } from '../ui'
+import { DiagnosticoHistorialModal } from '../clientes/diagnostico-historial-modal'
 import {
   Pagination,
   RegimenesCell,
@@ -14,10 +17,14 @@ import {
 } from '../clientes/parts'
 
 const DEFAULT_MIN_SALES: number | '' = ''
+/** Mismo claim que protege el historial de diagnósticos en el backend. */
+const DIAGNOSTICO_PERMISSION = 'GerenciaComercial.RunDiagnosticoCliente'
 
-export function ContribuyentesScreen() {
+export function ContribuyentesScreen({ permissions = [] }: { permissions?: string[] }) {
   const list = usePagedList(getTaxpayers, 50, DEFAULT_MIN_SALES)
   const regimenOptions = useRegimenOptions(list.items)
+  const canDiagnostico = permissions.includes(DIAGNOSTICO_PERMISSION)
+  const [diagTarget, setDiagTarget] = useState<TaxpayerListItem | null>(null)
 
   return (
     <div className="flex flex-col gap-5 max-w-full h-[calc(100dvh-8.5rem)] min-h-[600px]">
@@ -66,7 +73,7 @@ export function ContribuyentesScreen() {
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Contribuyente', 'RFC', 'Correo', 'Regímenes', 'Venta de Planes'].map((h) => (
+                    {['Contribuyente', 'RFC', 'Correo', 'Regímenes', 'Venta de Planes', ...(canDiagnostico ? ['Diagnóstico'] : [])].map((h) => (
                       <th
                         key={h}
                         className="px-5 py-3 text-left font-extrabold"
@@ -118,6 +125,24 @@ export function ContribuyentesScreen() {
                       <td className="px-5 py-4">
                         <VentasPagadasCell ventas={t.ventasPagadas} />
                       </td>
+                      {canDiagnostico && (
+                        <td className="px-5 py-4">
+                          <button
+                            type="button"
+                            onClick={() => setDiagTarget(t)}
+                            title="Ver diagnósticos: si corre uno ahora y el histórico"
+                            aria-label={`Diagnósticos de ${t.legalName || t.rfc}`}
+                            className="inline-flex items-center justify-center h-8 w-8 rounded-lg cursor-pointer active:scale-[0.94] hover:bg-[var(--ink-50)]"
+                            style={{
+                              color: 'var(--ink-500)',
+                              border: '1px solid var(--border)',
+                              transition: 'transform 140ms cubic-bezier(0.23, 1, 0.32, 1), background-color 150ms ease',
+                            }}
+                          >
+                            <Stethoscope size={15} />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -143,6 +168,17 @@ export function ContribuyentesScreen() {
           </>
         )}
       </Card>
+
+      {canDiagnostico && (
+        <DiagnosticoHistorialModal
+          open={diagTarget !== null}
+          onOpenChange={(o) => !o && setDiagTarget(null)}
+          taxpayerId={diagTarget?.taxpayerId ?? null}
+          legalName={diagTarget?.legalName}
+          rfc={diagTarget?.rfc}
+          permissions={permissions}
+        />
+      )}
     </div>
   )
 }
