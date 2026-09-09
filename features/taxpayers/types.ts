@@ -37,15 +37,22 @@ export interface TaxpayerListItem {
  */
 /** Producto (venta pagada) dentro del expediente del cliente. */
 export interface ExpedienteProducto {
+  /** Id de la partida (SaleItem): enlaza el producto con los periodos que cubre. */
+  saleItemId: number
   plan: string
   monto: number
   fecha: string
   regularizaciones: number
   futuras: number
+  /** Régimen de la venta, derivado de sus declaraciones (confiable en migrados). */
+  regimenSatCode?: string | null
+  regimenName?: string | null
 }
 
 /** Periodo (declaración) del expediente con su estatus agrupado. */
 export interface ExpedientePeriodo {
+  /** Id de la declaración: abre su reporte de predeclaración. */
+  declarationId: number
   fiscalYear: number
   periodValueId: number
   estatus: string
@@ -53,6 +60,8 @@ export interface ExpedientePeriodo {
   taxRegimeId?: number | null
   taxRegimeSatCode?: string | null
   taxRegimeName?: string | null
+  /** Ventas (SaleItem) que cubren este periodo: enlaza con "Productos comprados". */
+  saleItemIds: number[]
 }
 
 /**

@@ -33,6 +33,7 @@ import type { ExpedienteCliente, ExpedientePeriodo } from '@/features/taxpayers/
 import { DISPLAY, MONO } from '../constants'
 import { Badge, Card, ErrorState, NoAccessState, Tabs, isForbiddenError } from '../ui'
 import { TabDiagnostico } from './tab-diagnostico'
+import { PredeclaracionModal } from './predeclaracion-modal'
 
 const MESES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -226,7 +227,7 @@ export function ExpedienteCliente({ taxpayerId, permissions, onBack }: Props) {
       {activeTab === TAB_CREDENCIALES && canCredentials && (
         <TabCredenciales rfc={data.rfc} ciecOk={ciecOk} data={data} />
       )}
-      {activeTab === TAB_PRODUCTOS && <TabProductos data={data} />}
+      {activeTab === TAB_PRODUCTOS && <TabProductos data={data} permissions={permissions} />}
       {activeTab === TAB_DOCUMENTOS && canDocs && <TabDocumentos rfc={data.rfc} permissions={permissions} />}
       {activeTab === TAB_DIAGNOSTICO && canDiagnostico && (
         <TabDiagnostico
@@ -724,15 +725,20 @@ function CredencialEfirmas({ efirmas }: { efirmas: ExpedienteCliente['efirmas'] 
   )
 }
 
-function TabProductos({ data }: { data: ExpedienteCliente }) {
+function TabProductos({ data, permissions }: { data: ExpedienteCliente; permissions: string[] }) {
   const [selectedRegime, setSelectedRegime] = useState<string>('ALL')
+  // Ver el reporte de predeclaración de un periodo (SAC/Renovaciones y superusuarios).
+  const canPredeclaracion = permissions.includes('Comercial.ReadPredeclaracion')
+  const [reportDeclId, setReportDeclId] = useState<number | null>(null)
+  // Producto seleccionado: resalta los periodos que cubre esa venta.
+  const [selectedSaleItemId, setSelectedSaleItemId] = useState<number | null>(null)
 
   // Las anuales (501) no se muestran aquí: el servicio se sigue por periodos mensuales.
   const periodos = data.periodos.filter((p) => p.periodValueId !== 501)
 
   // Opciones de regímenes presentes en las declaraciones del cliente
   const regimeOptions = useMemo(() => {
-    const map = new Map<string, { key: string; label: string; count: number }>()
+    const map = new Map<string, { key: string; label: string; count: number; satCode: string | null }>()
     for (const p of periodos) {
       const key = p.taxRegimeId ? String(p.taxRegimeId) : (p.taxRegimeSatCode || 'SIN_REGIMEN')
       const label = formatRegimeBadge(p.taxRegimeSatCode, p.taxRegimeName) || (p.taxRegimeName ?? 'Sin régimen')
@@ -740,11 +746,22 @@ function TabProductos({ data }: { data: ExpedienteCliente }) {
       if (existing) {
         existing.count++
       } else {
-        map.set(key, { key, label, count: 1 })
+        map.set(key, { key, label, count: 1, satCode: p.taxRegimeSatCode ?? null })
       }
     }
     return Array.from(map.values())
   }, [periodos])
+
+  // Al seleccionar un producto, el combo de Régimen salta al régimen de esa venta
+  // (asi sus periodos se ven y se resaltan sin cambiar el filtro a mano).
+  function seleccionarProducto(saleItemId: number, regimenSatCode: string | null | undefined) {
+    const yaSeleccionado = selectedSaleItemId === saleItemId
+    setSelectedSaleItemId(yaSeleccionado ? null : saleItemId)
+    if (!yaSeleccionado && regimenSatCode) {
+      const opt = regimeOptions.find((o) => o.satCode && o.satCode === regimenSatCode)
+      if (opt) setSelectedRegime(opt.key)
+    }
+  }
 
   // Tarjetas agrupadas por periodo en vista general, o individuales en vista filtrada
   const displayCards = useMemo(() => {
@@ -775,12 +792,14 @@ function TabProductos({ data }: { data: ExpedienteCliente }) {
                     fullName: p.taxRegimeName,
                     presentada: p.presentada,
                     estatus: p.estatus,
+                    declarationId: p.declarationId,
                   },
                 ]
               : [],
             presentada: p.presentada,
             isMixed: false,
             estatus: p.estatus,
+            saleItemIds: p.saleItemIds,
           }
         })
     }
@@ -799,6 +818,7 @@ function TabProductos({ data }: { data: ExpedienteCliente }) {
           fullName?: string | null
           presentada: boolean
           estatus: string
+          declarationId: number
         }[]
         items: ExpedientePeriodo[]
       }
@@ -817,6 +837,7 @@ function TabProductos({ data }: { data: ExpedienteCliente }) {
             fullName: p.taxRegimeName,
             presentada: p.presentada,
             estatus: p.estatus,
+            declarationId: p.declarationId,
           })
         }
       } else {
@@ -833,6 +854,7 @@ function TabProductos({ data }: { data: ExpedienteCliente }) {
                   fullName: p.taxRegimeName,
                   presentada: p.presentada,
                   estatus: p.estatus,
+                  declarationId: p.declarationId,
                 },
               ]
             : [],
@@ -872,9 +894,18 @@ function TabProductos({ data }: { data: ExpedienteCliente }) {
           presentada: allPresentada,
           isMixed,
           estatus: estatusText || (allPresentada ? 'Presentación procesada exitosamente' : 'En proceso'),
+          saleItemIds: Array.from(new Set(g.items.flatMap((i) => i.saleItemIds))),
         }
       })
   }, [periodos, selectedRegime])
+
+  // Cuántos periodos visibles cubre la venta seleccionada. Si 0 (complementarias,
+  // tramites, o venta de otro regimen no mostrado), no atenuamos: mostramos aviso.
+  const coberturaVisible =
+    selectedSaleItemId === null
+      ? null
+      : displayCards.filter((c) => c.saleItemIds.includes(selectedSaleItemId)).length
+  const resaltadoActivo = coberturaVisible !== null && coberturaVisible > 0
 
   return (
     <div className="flex flex-col gap-4">
@@ -891,11 +922,35 @@ function TabProductos({ data }: { data: ExpedienteCliente }) {
           </div>
         ) : (
           <div className="p-3 grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
-            {data.productos.map((p, i) => (
-              <div key={i} className="rounded-xl px-4 py-3.5" style={{ border: '1px solid var(--border)' }}>
+            {data.productos.map((p, i) => {
+              const selected = selectedSaleItemId === p.saleItemId
+              return (
+              <div
+                key={i}
+                role="button"
+                tabIndex={0}
+                onClick={() => seleccionarProducto(p.saleItemId, p.regimenSatCode)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    seleccionarProducto(p.saleItemId, p.regimenSatCode)
+                  }
+                }}
+                title={selected ? 'Quitar el resaltado de sus periodos' : 'Resaltar los periodos que cubre esta venta'}
+                className="rounded-xl px-4 py-3.5 cursor-pointer transition active:scale-[0.99]"
+                style={{
+                  border: `1.5px solid ${selected ? 'var(--brand-500)' : 'var(--border)'}`,
+                  background: selected ? 'var(--hero-brand-soft, var(--brand-100))' : 'var(--card)',
+                }}
+              >
                 <div className="flex items-start justify-between gap-2">
                   <div className="text-[13.5px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
                     {p.plan || 'Plan'}
+                    {p.regimenSatCode && (
+                      <span className="ml-1.5 text-[11px] font-bold" style={{ color: 'var(--ink-500)' }}>
+                        · {p.regimenSatCode}
+                      </span>
+                    )}
                   </div>
                   <span className="text-[13.5px] font-extrabold" style={{ color: 'var(--brand-700)' }}>
                     {fmtMoney(p.monto)}
@@ -909,7 +964,8 @@ function TabProductos({ data }: { data: ExpedienteCliente }) {
                   <span>Regularizaciones: <b>{p.regularizaciones}</b></span>
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </Card>
@@ -921,6 +977,42 @@ function TabProductos({ data }: { data: ExpedienteCliente }) {
             <div className="text-[12px]" style={{ color: 'var(--ink-500)' }}>
               Periodos fiscales del contribuyente ({displayCards.length} {displayCards.length === 1 ? 'periodo registrado' : 'periodos registrados'}): Verde = Presentada, Violeta = En proceso.
             </div>
+            {selectedSaleItemId !== null && (
+              <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setSelectedSaleItemId(null)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-bold cursor-pointer hover:opacity-85"
+                  style={{ background: 'var(--brand-100)', color: 'var(--brand-900)', border: '1px solid var(--brand-500)' }}
+                  title="Quitar el resaltado"
+                >
+                  {data.productos.find((p) => p.saleItemId === selectedSaleItemId)?.plan ?? 'venta'} · quitar ✕
+                </button>
+                {(() => {
+                  const prod = data.productos.find((p) => p.saleItemId === selectedSaleItemId)
+                  const cupo = prod ? prod.futuras + prod.regularizaciones : 0
+                  if (resaltadoActivo) {
+                    return (
+                      <span
+                        className="text-[11.5px]"
+                        style={{ color: 'var(--ink-500)' }}
+                        title="Meses que esta venta ya cubre (con declaración asignada). El resto del cupo sigue sin aplicarse a un mes."
+                      >
+                        {coberturaVisible} {cupo > 0 ? `de ${cupo} ` : ''}aplicad{coberturaVisible === 1 ? 'a' : 'as'}
+                        {cupo > coberturaVisible && (
+                          <span style={{ color: 'var(--violet-ink)' }}> · {cupo - coberturaVisible} de cupo sin usar</span>
+                        )}
+                      </span>
+                    )
+                  }
+                  return (
+                    <span className="text-[11.5px]" style={{ color: 'var(--violet-ink)' }}>
+                      Esta venta no cubre un periodo mensual visible (complementaria/trámite, o cupo sin aplicar aún).
+                    </span>
+                  )
+                })()}
+              </div>
+            )}
           </div>
           {regimeOptions.length > 1 && (
             <div className="flex items-center gap-2">
@@ -963,11 +1055,17 @@ function TabProductos({ data }: { data: ExpedienteCliente }) {
 
               const cardBorder = card.isMixed ? '1px solid var(--border-strong)' : '1px solid var(--border)'
 
+              // Producto seleccionado: los periodos que NO cubre esa venta se atenúan
+              // (solo si la venta cubre al menos un periodo visible).
+              const dimmed = resaltadoActivo && !card.saleItemIds.includes(selectedSaleItemId as number)
+
               return (
                 <div
                   key={card.key}
                   className="rounded-xl px-3.5 py-3 flex flex-col justify-between gap-1.5"
                   style={{
+                    opacity: dimmed ? 0.35 : 1,
+                    transition: 'opacity 150ms ease',
                     background: cardBg,
                     border: cardBorder,
                   }}
@@ -997,16 +1095,37 @@ function TabProductos({ data }: { data: ExpedienteCliente }) {
                               : '1px solid rgba(124, 58, 237, 0.35)'
                             : '1px solid var(--border)'
 
+                          // Presentada + permiso → la píldora abre el reporte de predeclaración.
+                          const clickable = canPredeclaracion && r.presentada && r.declarationId > 0
                           return (
                             <span
                               key={idx}
-                              className="px-2 py-0.5 rounded-md text-[10.5px] font-bold whitespace-nowrap shadow-sm"
+                              role={clickable ? 'button' : undefined}
+                              tabIndex={clickable ? 0 : undefined}
+                              onClick={clickable ? () => setReportDeclId(r.declarationId) : undefined}
+                              onKeyDown={
+                                clickable
+                                  ? (e) => {
+                                      if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault()
+                                        setReportDeclId(r.declarationId)
+                                      }
+                                    }
+                                  : undefined
+                              }
+                              className={`px-2 py-0.5 rounded-md text-[10.5px] font-bold whitespace-nowrap shadow-sm ${clickable ? 'cursor-pointer hover:opacity-80 underline underline-offset-2 active:scale-[0.97] transition' : ''}`}
                               style={{
                                 background: pillBg,
                                 color: pillColor,
                                 border: pillBorder,
                               }}
-                              title={r.fullName ? `${r.fullName} (${r.presentada ? 'Presentada' : 'En proceso'})` : r.badge}
+                              title={
+                                clickable
+                                  ? `Ver reporte de predeclaración · ${r.fullName ?? r.badge} (Presentada)`
+                                  : r.fullName
+                                    ? `${r.fullName} (${r.presentada ? 'Presentada' : 'En proceso'})`
+                                    : r.badge
+                              }
                             >
                               {r.badge}
                             </span>
@@ -1034,6 +1153,14 @@ function TabProductos({ data }: { data: ExpedienteCliente }) {
           </div>
         )}
       </Card>
+
+      {canPredeclaracion && (
+        <PredeclaracionModal
+          open={reportDeclId !== null}
+          onOpenChange={(o) => !o && setReportDeclId(null)}
+          declarationId={reportDeclId}
+        />
+      )}
     </div>
   )
 }

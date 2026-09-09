@@ -295,6 +295,9 @@ export const API_ROUTES = {
       return `/${params.declarationId}/invoices?${qs.toString()}`
     },
     GENERAL: (declarationId: number) => `/${declarationId}/general`,
+    // Igual que GENERAL pero bajo el claim Comercial.ReadPredeclaracion (SAC /
+    // Renovaciones): reporte de predeclaracion en solo lectura. Misma respuesta.
+    PREDECLARACION: (declarationId: number) => `/${declarationId}/predeclaracion`,
     // apiType "declarations_reports" · GET. Bitácora de cambios de estatus
     // (`DeclarationLog`). Devuelve un ARRAY plano (NO PagedResult), changedAt DESC.
     LOGS: (declarationId: number, skip = 0, take = 100) =>
