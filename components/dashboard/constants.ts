@@ -515,7 +515,10 @@ export const MODULE_CLAIMS: Record<string, string[]> = {
     'Admin.RunCommissionClose',
   ],
   renovaciones: ['Comercial.ReadRenovaciones'],
-  operaciones: ['Contador.ReadDeclaraciones'],
+  // ConsultaDeclaraciones (SAC/atención a cliente) abre el MISMO módulo en modo
+  // solo consulta: pestañas Comprobantes y Cálculos, sin acciones ni CIEC. El
+  // claim completo siempre gana — con ReadDeclaraciones la pantalla es idéntica a hoy.
+  operaciones: ['Contador.ReadDeclaraciones', 'Contador.ConsultaDeclaraciones'],
   // Claim propio (departamento 'Declaraciones rechazadas'): se administra desde
   // Roles y permisos, independiente del Centro de operaciones. El endpoint de la
   // lista sigue bajo Contador.ReadDeclaraciones (mismo patrón que Decl. futuras).

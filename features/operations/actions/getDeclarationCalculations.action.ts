@@ -11,15 +11,17 @@ interface OpsError {
   message: string;
 }
 
-// Cálculos fiscales (IVA/ISR) de una declaración. Solo contadores.
+// Cálculos fiscales (IVA/ISR) de una declaración. Contadores; `consulta` usa la
+// ruta espejo de solo lectura (claim Contador.ConsultaDeclaraciones).
 export async function getDeclarationCalculations(
   declarationId: number,
+  consulta = false,
 ): Promise<Result<DeclarationCalculations, OpsError>> {
   if (!declarationId || declarationId <= 0) {
     return err({ statusCode: 400, message: "Declaración inválida." });
   }
 
-  const endpoint = API_ROUTES.DECLARATIONS_OPS.CALCULATIONS(declarationId);
+  const endpoint = API_ROUTES.DECLARATIONS_OPS.CALCULATIONS(declarationId, consulta);
   // fetchClient arma la URL igual: getBaseUrl(apiType) + endpoint.
   const url = `${getBaseUrl("declarations_reports")}${endpoint}`;
   console.log("[getDeclarationCalculations] GET", url);

@@ -55,6 +55,8 @@ export async function getDeclarationInvoices(params: {
   sortDir?: InvoiceSortDir;
   /** true = trae el detalle completo de conceptos por factura. */
   includeConcepts?: boolean;
+  /** true = ruta espejo de solo consulta (claim Contador.ConsultaDeclaraciones). */
+  consulta?: boolean;
 }): Promise<Result<Paged<DeclarationInvoice>, OpsError>> {
   const {
     declarationId,
@@ -66,6 +68,7 @@ export async function getDeclarationInvoices(params: {
     sortBy,
     sortDir,
     includeConcepts,
+    consulta,
   } = params;
   if (!declarationId || declarationId <= 0) {
     return err({ statusCode: 400, message: "Declaración inválida." });
@@ -90,6 +93,7 @@ export async function getDeclarationInvoices(params: {
         sortBy,
         sortDir,
         includeConcepts,
+        consulta,
       }),
       "declarations_reports",
     );

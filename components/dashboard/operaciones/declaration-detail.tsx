@@ -213,8 +213,17 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
   const [generalError, setGeneralError] = useState<string | null>(null)
   const [logs, setLogs] = useState<DeclarationLog[]>([])
 
+  // Modo solo consulta (SAC / atención a cliente): con ConsultaDeclaraciones y
+  // SIN el claim completo, la pantalla queda en Comprobantes + Cálculos sin
+  // acciones, contra las rutas espejo `/consulta/*`. El claim completo siempre
+  // gana: con ReadDeclaraciones todo lo de abajo es inerte y la pantalla es
+  // idéntica a la del contador.
+  const canFull = useHasPermission('Contador.ReadDeclaraciones')
+  const canConsulta = useHasPermission('Contador.ConsultaDeclaraciones')
+  const soloConsulta = canConsulta && !canFull
+
   const loadGeneral = useCallback(async () => {
-    const res = await getDeclarationGeneral(d.declarationId)
+    const res = await getDeclarationGeneral(d.declarationId, soloConsulta)
     if (res.success) {
       setGeneral(res.value)
       setGeneralError(null)
@@ -222,7 +231,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
     }
     setGeneralError(res.error.message)
     return null
-  }, [d.declarationId])
+  }, [d.declarationId, soloConsulta])
 
   useEffect(() => {
     let cancelled = false
@@ -232,8 +241,9 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
     void (async () => {
       const value = await loadGeneral()
       if (cancelled || !value) return
-      // La bitácora solo se necesita para el banner de rechazo (estatus 10).
-      if (value.statusId === DECLARATION_STATUS.CLIENT_REJECTED) {
+      // La bitácora solo se necesita para el banner de rechazo (estatus 10);
+      // su claim (ReadDeclaracionLogs) no lo tiene el perfil de consulta.
+      if (!soloConsulta && value.statusId === DECLARATION_STATUS.CLIENT_REJECTED) {
         const logsRes = await getDeclarationLogs(d.declarationId)
         if (!cancelled && logsRes.success) setLogs(logsRes.value)
       }
@@ -241,7 +251,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
     return () => {
       cancelled = true
     }
-  }, [d.declarationId, loadGeneral])
+  }, [d.declarationId, loadGeneral, soloConsulta])
 
   // Fila más reciente con NewStatusId = 10: es el rechazo vigente del cliente.
   const rejection = logs
@@ -407,7 +417,17 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               <MetaChip label="Ejercicio" value={String(ejercicio)} />
               <MetaChip label="Régimen" value={regimen ?? 'Sin régimen asignado'} muted={!regimen} />
-              <CiecInline rfc={rfc} />
+              {soloConsulta ? (
+                <span
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11.5px] font-bold"
+                  style={{ border: '1px solid var(--border-strong, var(--border))', color: 'var(--ink-500)' }}
+                  title="Tu rol puede consultar comprobantes y cálculos, sin acciones sobre la declaración"
+                >
+                  <Eye size={12} /> Solo consulta
+                </span>
+              ) : (
+                <CiecInline rfc={rfc} />
+              )}
             </div>
             {actividades.length > 0 && <ActivityChips activities={actividades} />}
           </div>
@@ -416,33 +436,39 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
         {/* items-start: la columna de Descargar trae leyendas debajo (última descarga +
             estatus); centrar la fila empujaba ese botón hacia arriba. Los botones miden
             igual, así que alineados por arriba quedan en la misma línea. */}
+        {/* En modo consulta las acciones no se pintan (ausencia, no disabled):
+            la pantalla del perfil de consulta se ve completa para su rol. */}
         <div className="flex items-start gap-2 flex-wrap">
-          <HeaderBtn
-            icon={
-              recalc.running ? <Loader2 size={15} className="animate-spin" /> : <RotateCcw size={15} />
-            }
-            label={recalc.running ? `Calculando… ${recalc.seconds}s` : 'Recalcular'}
-            kind="ghost"
-            disabled={recalc.running || !recalc.ready}
-            title={
-              recalc.ready
-                ? 'Vuelve a calcular ISR/IVA con los comprobantes del período'
-                : 'La declaración no tiene período o régimen asignado'
-            }
-            onClick={() => {
-              setTab(RECALCULO_TAB_INDEX)
-              void recalc.run()
-            }}
-          />
-          <HeaderBtn
-            icon={<FileCheck2 size={15} />}
-            label="Comprobantes SAT"
-            kind="ghost"
-            title="Subir o consultar Acuse de Declaración y Línea de Captura en PDF"
-            onClick={() => setDocumentsOpen(true)}
-          />
+          {!soloConsulta && (
+            <HeaderBtn
+              icon={
+                recalc.running ? <Loader2 size={15} className="animate-spin" /> : <RotateCcw size={15} />
+              }
+              label={recalc.running ? `Calculando… ${recalc.seconds}s` : 'Recalcular'}
+              kind="ghost"
+              disabled={recalc.running || !recalc.ready}
+              title={
+                recalc.ready
+                  ? 'Vuelve a calcular ISR/IVA con los comprobantes del período'
+                  : 'La declaración no tiene período o régimen asignado'
+              }
+              onClick={() => {
+                setTab(RECALCULO_TAB_INDEX)
+                void recalc.run()
+              }}
+            />
+          )}
+          {!soloConsulta && (
+            <HeaderBtn
+              icon={<FileCheck2 size={15} />}
+              label="Comprobantes SAT"
+              kind="ghost"
+              title="Subir o consultar Acuse de Declaración y Línea de Captura en PDF"
+              onClick={() => setDocumentsOpen(true)}
+            />
+          )}
           <HeaderBtn icon={<Download size={15} />} label="Exportar PDF" kind="ghost" />
-          {general && (
+          {!soloConsulta && general && (
             <div className="flex flex-col gap-1">
               <DescargarArchivosSatBtn declarationId={d.declarationId} />
               <DescargasSatStatus
@@ -452,21 +478,23 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
               />
             </div>
           )}
-          <HeaderBtn
-            icon={<Send size={15} />}
-            label="Enviar Predeclaración"
-            kind="info"
-            disabled={!resendEnabled}
-            title={
-              resendEnabled
-                ? 'Reenvía la declaración corregida a revisión del cliente'
-                : 'Solo disponible cuando la declaración está rechazada, en proceso o en revisión del cliente'
-            }
-            onClick={() => {
-              setResendMessage(null)
-              setResendOpen(true)
-            }}
-          />
+          {!soloConsulta && (
+            <HeaderBtn
+              icon={<Send size={15} />}
+              label="Enviar Predeclaración"
+              kind="info"
+              disabled={!resendEnabled}
+              title={
+                resendEnabled
+                  ? 'Reenvía la declaración corregida a revisión del cliente'
+                  : 'Solo disponible cuando la declaración está rechazada, en proceso o en revisión del cliente'
+              }
+              onClick={() => {
+                setResendMessage(null)
+                setResendOpen(true)
+              }}
+            />
+          )}
         </div>
       </div>
 
@@ -521,7 +549,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
         className="flex p-1 rounded-2xl overflow-x-auto"
         style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}
       >
-        {TAB_ITEMS.map((t, i) => (
+        {(soloConsulta ? TAB_ITEMS.slice(0, 2) : TAB_ITEMS).map((t, i) => (
           <button
             key={t}
             onClick={() => setTab(i)}
@@ -543,11 +571,17 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
           declarationId={d.declarationId}
           periodo={`${periodo} ${ejercicio}`}
           regimeSatCode={general?.regimeSatCode ?? null}
+          consulta={soloConsulta}
         />
       )}
       {tab === 1 &&
         conPantallasDeCalculo(
-          <CalculosTab declarationId={d.declarationId} regimeSatCode={general?.regimeSatCode ?? null} />,
+          <CalculosTab
+            declarationId={d.declarationId}
+            regimeSatCode={general?.regimeSatCode ?? null}
+            readOnly={soloConsulta}
+            consulta={soloConsulta}
+          />,
         )}
       {tab === RECALCULO_TAB_INDEX && (
         <RecalculoTab

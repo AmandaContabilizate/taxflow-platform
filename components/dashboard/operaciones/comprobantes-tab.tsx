@@ -426,10 +426,13 @@ export function ComprobantesTab({
   declarationId,
   periodo,
   regimeSatCode,
+  consulta = false,
 }: {
   declarationId: number
   periodo: string
   regimeSatCode?: string | null
+  /** true = perfil de solo consulta: usa la ruta espejo bajo Contador.ConsultaDeclaraciones. */
+  consulta?: boolean
 }) {
   const { params, setParams } = useUrlState()
 
@@ -500,6 +503,7 @@ export function ComprobantesTab({
       sortBy,
       sortDir,
       includeConcepts: true,
+      consulta,
     })
     if (res.success) {
       setConceptsCache((prev) => {
@@ -527,6 +531,7 @@ export function ComprobantesTab({
         take: TAKE,
         sortBy,
         sortDir,
+        consulta,
       })
       if (cancelled) return
       if (res.success) setPage(res.value)
@@ -539,7 +544,7 @@ export function ComprobantesTab({
     return () => {
       cancelled = true
     }
-  }, [declarationId, skip, origen, tipo, clasificada, sortBy, sortDir])
+  }, [declarationId, skip, origen, tipo, clasificada, sortBy, sortDir, consulta])
 
   // Cambiar un filtro reinicia la paginación: el `total` del backend cambia.
   const onFilter = <T,>(setter: (v: T) => void) => (v: T) => {

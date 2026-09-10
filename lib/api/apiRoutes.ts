@@ -263,7 +263,8 @@ export const API_ROUTES = {
     // GET declarations_reports — panel de gerencia contable (área + desglose).
     GERENCIA_CONTABLE_DASHBOARD: (year: number, month: number, accountantUserId?: string) =>
       `/gerencia-contable-dashboard?year=${year}&month=${month}${accountantUserId ? `&accountantUserId=${encodeURIComponent(accountantUserId)}` : ""}`,
-    CALCULATIONS: (declarationId: number) => `/${declarationId}/calculations`,
+    CALCULATIONS: (declarationId: number, consulta = false) =>
+      `/${declarationId}${consulta ? "/consulta" : ""}/calculations`,
     // Facturas del periodo + su clasificación. Devuelve PagedResult.
     // Filtros opcionales y combinables; omitirlos = "todos". El backend filtra
     // dentro del IQueryable, así que `total` ya viene filtrado.
@@ -282,6 +283,7 @@ export const API_ROUTES = {
       sortBy?: "invoiceDate" | "total"
       sortDir?: "asc" | "desc"
       includeConcepts?: boolean
+      consulta?: boolean
     }) => {
       const qs = new URLSearchParams()
       if (params.isIssued != null) qs.set("isIssued", String(params.isIssued))
@@ -292,9 +294,10 @@ export const API_ROUTES = {
       if (params.sortBy) qs.set("sortBy", params.sortBy)
       if (params.sortDir) qs.set("sortDir", params.sortDir)
       if (params.includeConcepts) qs.set("includeConcepts", "true")
-      return `/${params.declarationId}/invoices?${qs.toString()}`
+      return `/${params.declarationId}${params.consulta ? "/consulta" : ""}/invoices?${qs.toString()}`
     },
-    GENERAL: (declarationId: number) => `/${declarationId}/general`,
+    GENERAL: (declarationId: number, consulta = false) =>
+      `/${declarationId}${consulta ? "/consulta" : ""}/general`,
     // Igual que GENERAL pero bajo el claim Comercial.ReadPredeclaracion (SAC /
     // Renovaciones): reporte de predeclaracion en solo lectura. Misma respuesta.
     PREDECLARACION: (declarationId: number) => `/${declarationId}/predeclaracion`,

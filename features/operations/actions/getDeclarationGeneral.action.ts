@@ -10,9 +10,11 @@ interface OpsError {
   message: string;
 }
 
-// Datos generales de una declaración. Solo contadores.
+// Datos generales de una declaración. Contadores; `consulta` usa la ruta espejo
+// de solo lectura (claim Contador.ConsultaDeclaraciones — SAC/atención a cliente).
 export async function getDeclarationGeneral(
   declarationId: number,
+  consulta = false,
 ): Promise<Result<DeclarationGeneral, OpsError>> {
   if (!declarationId || declarationId <= 0) {
     return err({ statusCode: 400, message: "Declaración inválida." });
@@ -20,7 +22,7 @@ export async function getDeclarationGeneral(
 
   try {
     const data = await fetchGet<DeclarationGeneral>(
-      API_ROUTES.DECLARATIONS_OPS.GENERAL(declarationId),
+      API_ROUTES.DECLARATIONS_OPS.GENERAL(declarationId, consulta),
       "declarations_reports",
     );
     return ok(data);

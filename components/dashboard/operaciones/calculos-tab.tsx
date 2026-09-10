@@ -351,11 +351,14 @@ export function CalculosTab({
   declarationId,
   readOnly,
   regimeSatCode,
+  consulta = false,
 }: {
   declarationId: number
   readOnly?: boolean
   /** Fallback de `/general` mientras `/calculations` no responde. */
   regimeSatCode?: string | null
+  /** true = perfil de solo consulta: usa la ruta espejo bajo Contador.ConsultaDeclaraciones. */
+  consulta?: boolean
 }) {
   const [calc, setCalc] = useState<DeclarationCalculations | null>(null)
   const [loading, setLoading] = useState(true)
@@ -368,7 +371,7 @@ export function CalculosTab({
     setLoading(true)
     setError(null)
     void (async () => {
-      const res = await getDeclarationCalculations(declarationId)
+      const res = await getDeclarationCalculations(declarationId, consulta)
       if (cancelled) return
       if (res.success) setCalc(res.value)
       else setError(res.error.message)
@@ -377,7 +380,7 @@ export function CalculosTab({
     return () => {
       cancelled = true
     }
-  }, [declarationId])
+  }, [declarationId, consulta])
 
   const setDraft = (id: string, v: string) => setDrafts((prev) => ({ ...prev, [id]: v }))
 
