@@ -96,12 +96,16 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
   const [error, setError] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // Login rechazado por EMAIL_NOT_CONFIRMED: reusa el paso "verify" del
+  // registro con el email/password ya tecleados en el login.
+  const [confirmingLogin, setConfirmingLogin] = useState(false);
 
   function switchMode(next: Mode) {
     setMode(next);
     setError(null);
     setErrorCode(null);
     setRegisterStep("form");
+    setConfirmingLogin(false);
     setCode("");
   }
 
@@ -118,6 +122,12 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
     const formData = new FormData(e.currentTarget);
     const emailValue = (formData.get("email") as string) || email;
     const passwordValue = (formData.get("password") as string) || password;
+    // Mantiene el state sincronizado con lo que el usuario tecleó (el
+    // autofill puede llenar el input sin disparar onChange). El reenvío de
+    // código de EMAIL_NOT_CONFIRMED depende de que este state sea exacto:
+    // SendCode resetea la contraseña a lo que se le mande.
+    setEmail(emailValue);
+    setPassword(passwordValue);
 
     const redirectTo = params.get("from") || "/dashboard";
     const res = await signIn({ email: emailValue, password: passwordValue, rememberMe }, redirectTo);
@@ -179,9 +189,13 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
     setError(null);
     setLoading(true);
 
-    // Un usuario recién verificado siempre es nuevo — nunca tiene RFC
-    // todavía, así que va a onboarding en vez del dashboard.
-    const res = await verifyEmailCode({ email, code }, PROTECTED_ROUTES.ONBOARDING);
+    // ValidateConfirmationCode ya regresa token/refreshToken (LoginResponse):
+    // verifyEmailCode deja la sesión establecida, así que confirmar desde el
+    // login entra directo al dashboard sin reintentar signIn.
+    const redirectTarget = confirmingLogin
+      ? params.get("from") || PROTECTED_ROUTES.DASHBOARD
+      : PROTECTED_ROUTES.ONBOARDING;
+    const res = await verifyEmailCode({ email, code }, redirectTarget);
 
     if (!res.success) {
       setLoading(false);
@@ -191,8 +205,9 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
     }
 
     // La sesión ya quedó establecida por verifyEmailCode; ahora completamos
-    // el perfil con los datos capturados en el formulario de registro.
-    if (fullName.trim()) {
+    // el perfil con los datos capturados en el formulario de registro. No
+    // aplica al login: ahí no se captura fullName.
+    if (!confirmingLogin && fullName.trim()) {
       await completeUserProfile({
         fullName: fullName.trim(),
         phone: phone.trim(),
@@ -204,15 +219,21 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
     router.push(res.value);
   }
 
-  async function handleResendCode() {
+  // Reusa SendCode (mismo endpoint que el registro) para reenviar el código.
+  // Manda el email/password ya capturado, sin pedirlos de nuevo: SendCode
+  // resetea la contraseña del usuario existente a lo que reciba, así que
+  // debe ser exactamente la que el usuario ya tecleó.
+  async function handleSendConfirmationCode() {
     setError(null);
     setLoading(true);
     const res = await signUp({ email, password });
     setLoading(false);
     if (!res.success) {
       const flat = Object.values(res.error.fieldErrors).flat();
-      setError(flat[0] ?? "No se pudo reenviar el código");
+      setError(flat[0] ?? "No se pudo enviar el código");
+      return;
     }
+    setConfirmingLogin(true);
   }
 
   return (
@@ -366,10 +387,93 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                 style={{ background: "#FCDCDC", color: "#E84D4D" }}
               >
                 {error}
+                {mode === "login" && errorCode === "EMAIL_NOT_CONFIRMED" && !confirmingLogin && (
+                  <button
+                    type="button"
+                    onClick={handleSendConfirmationCode}
+                    disabled={loading}
+                    className="mt-2 block text-sm font-black underline disabled:opacity-60"
+                    style={{ color: "#E84D4D" }}
+                  >
+                    {loading ? "Enviando..." : "Reenviar código de confirmación"}
+                  </button>
+                )}
               </div>
             )}
 
-            {mode === "login" ? (
+            {mode === "login" && confirmingLogin ? (
+              <form onSubmit={handleVerifyCode} className="mt-6 space-y-4">
+                <div className="text-center">
+                  <p className="text-sm font-semibold" style={{ color: "#221158" }}>
+                    Te enviamos un código a
+                  </p>
+                  <p className="text-sm font-black break-all" style={{ color: "#00AD87" }}>
+                    {email}
+                  </p>
+                  <p className="mt-2 text-xs font-semibold" style={{ color: "#857AC0" }}>
+                    Ingresa el código de 6 dígitos para confirmar tu cuenta.
+                  </p>
+                </div>
+
+                <div>
+                  <label htmlFor="login-code" className="mb-2 block text-sm font-bold" style={{ color: "#221158" }}>
+                    Código de verificación
+                  </label>
+                  <input
+                    id="login-code"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="\d{6}"
+                    maxLength={6}
+                    autoComplete="one-time-code"
+                    required
+                    placeholder="123456"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                    className="h-12 w-full rounded-xl px-4 text-center text-lg font-black tracking-[0.5em] outline-none transition"
+                    style={{
+                      background: "#F3F1FA",
+                      border: "1px solid rgba(34,17,88,0.08)",
+                      color: "#221158",
+                    }}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading || code.length !== 6}
+                  className="h-11 w-full rounded-xl text-sm font-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
+                  style={{ background: "#00AD87", color: "#FFFFFF" }}
+                >
+                  {loading ? "Verificando..." : "Confirmar y entrar"}
+                </button>
+
+                <div className="flex items-center justify-between text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmingLogin(false);
+                      setCode("");
+                      setError(null);
+                      setErrorCode(null);
+                    }}
+                    style={{ color: "#857AC0" }}
+                    className="hover:underline"
+                  >
+                    ← Volver
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSendConfirmationCode}
+                    disabled={loading}
+                    style={{ color: "#00AD87" }}
+                    className="hover:underline disabled:opacity-50"
+                  >
+                    Reenviar código
+                  </button>
+                </div>
+              </form>
+            ) : mode === "login" ? (
               <form onSubmit={handleLogin} className="mt-6 space-y-4">
                 <div>
                   <label
@@ -722,7 +826,7 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                   </button>
                   <button
                     type="button"
-                    onClick={handleResendCode}
+                    onClick={handleSendConfirmationCode}
                     disabled={loading}
                     style={{ color: "#00AD87" }}
                     className="hover:underline disabled:opacity-50"

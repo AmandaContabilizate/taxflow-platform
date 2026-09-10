@@ -211,6 +211,10 @@
     "es": "Tu contraseña ya no es segura. Debes recuperarla para poder ingresar.",
     "en": "Your password is no longer secure. You must recover it to sign in."
   },
+  "EMAIL_NOT_CONFIRMED": {
+    "es": "Debes confirmar tu correo antes de iniciar sesión. Solicita un código nuevo.",
+    "en": "You must confirm your email before signing in. Request a new code."
+  },
   "TAXPAYER_NOT_FOUND": {
     "es": "No se encontro al contribuyente.",
     "en": "Taxpayer not found."

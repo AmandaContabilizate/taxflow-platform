@@ -1,7 +1,7 @@
 "use server";
 
 import { decodeJwt } from "jose";
-import { ApiError, fetchPostPublic } from "@/lib/api";
+import { ApiError, fetchPostPublic, getErrorMessage, hasErrorCode } from "@/lib/api";
 import { API_ROUTES } from "@/lib/api/apiRoutes";
 import { type Result, err, ok } from "@/lib/common";
 import { PROTECTED_ROUTES } from "@/lib/routes";
@@ -58,21 +58,14 @@ export async function signIn(
     );
   } catch (e) {
     if (e instanceof ApiError && e.status === 401) {
-      // Cuenta dada de baja (AspNetUsers.IsActive = 0): mensaje distinto a credenciales malas.
-      if (e.errorCode === "USER_INACTIVE") {
+      // USER_INACTIVE (IsActive=0), PASSWORD_RESET_REQUIRED (migración insegura) y
+      // EMAIL_NOT_CONFIRMED (correo sin confirmar) llegan después de validar la
+      // contraseña — nunca se mezclan con INVALID_CREDENTIALS.
+      if (hasErrorCode(e.errorCode)) {
         return err({
           statusCode: 401,
           errorCode: e.errorCode,
-          fieldErrors: { email: ["Tu cuenta está desactivada. Contacta a soporte para reactivarla."] },
-        });
-      }
-      // Password migrada insegura/blacklisteada (UserMigrator.RequiresPasswordReset):
-      // el login ya disparó el correo de forgot-password, aquí solo se avisa al usuario.
-      if (e.errorCode === "PASSWORD_RESET_REQUIRED") {
-        return err({
-          statusCode: 401,
-          errorCode: e.errorCode,
-          fieldErrors: { email: ["Tu contraseña ya no es segura. Debes recuperarla para poder ingresar."] },
+          fieldErrors: { email: [getErrorMessage(e.errorCode)] },
         });
       }
       return err({
