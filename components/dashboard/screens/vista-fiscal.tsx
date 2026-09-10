@@ -3,15 +3,16 @@
 import { useEffect, useState } from 'react'
 import { Stethoscope, FileText, FilePlus, FolderLock, FilePlus2, Gem, ArrowRight, Loader2 } from 'lucide-react'
 import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
-import { hasSatCredential } from '@/features/taxpayers/satCredential'
 import { useFiscalScore } from '@/features/declarations/hooks/useFiscalScore'
 import { getTaxRegimes, type TaxRegime } from '@/features/taxpayers/actions/getTaxRegimes.action'
 import { getTaxpayerByRfc } from '@/features/taxpayers/actions/getTaxpayerByRfc.action'
 import { MONO } from '../constants'
 import type { GoFn } from '../types'
-import { Card, HelpBox } from '../ui'
+import { Card, CiecWarningBanner, HelpBox } from '../ui'
 import { NeedsSatConnect } from './needs-sat-connect'
 import { scoreLabel } from '../fiscal-score.utils'
+import { getCiecBlockStatus, isConnectedByEfirmaOnly, isSatConnected } from '../sat-connection.utils'
+import { CiecBlockedScreen } from './ciec-blocked'
 import { Card3D } from '../card-3d'
 
 interface Props {
@@ -67,10 +68,14 @@ export function VistaFiscalScreen({ go, firstName }: Props) {
 
   if (loading) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="acceder a tu vista fiscal" />
-  if (!hasSatCredential(selectedRfcInfo)) return <NeedsSatConnect go={go} feature="acceder a tu vista fiscal" />
+  const ciecBlock = getCiecBlockStatus(selectedRfcInfo)
+  if (!isSatConnected(selectedRfcInfo) && !ciecBlock) return <NeedsSatConnect go={go} feature="acceder a tu vista fiscal" />
+  if (ciecBlock === 'invalid') return <CiecBlockedScreen go={go} state="invalid" />
 
   return (
     <div className="flex flex-col gap-6">
+      {ciecBlock === 'unverified' && <CiecWarningBanner go={go} variant="unverified" />}
+      {isConnectedByEfirmaOnly(selectedRfcInfo) && <CiecWarningBanner go={go} variant="efirma" />}
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Columna izquierda */}
         <div className="flex-1 flex flex-col gap-6">

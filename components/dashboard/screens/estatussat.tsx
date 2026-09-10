@@ -3,12 +3,13 @@
 import { AlertCircle, CheckCircle2, RefreshCw, Shield } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
-import { hasSatCredential } from '@/features/taxpayers/satCredential'
 import { useFiscalScore } from '@/features/declarations/hooks/useFiscalScore'
 import { DISPLAY } from '../constants'
 import type { GoFn } from '../types'
-import { Badge, Btn, Card } from '../ui'
+import { Badge, Btn, Card, CiecWarningBanner } from '../ui'
 import { useFiscalDocuments } from '../fiscal-credibility/use-fiscal-documents'
+import { getCiecBlockStatus, isConnectedByEfirmaOnly, isSatConnected } from '../sat-connection.utils'
+import { CiecBlockedScreen } from './ciec-blocked'
 import { NeedsSatConnect } from './needs-sat-connect'
 
 interface Props {
@@ -42,7 +43,9 @@ export function EstatusSatScreen({ go }: Props) {
 
   if (loadingRfc) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tu estatus ante el SAT" />
-  if (!hasSatCredential(selectedRfcInfo)) return <NeedsSatConnect go={go} feature="ver tu estatus ante el SAT" />
+  const ciecBlock = getCiecBlockStatus(selectedRfcInfo)
+  if (!isSatConnected(selectedRfcInfo) && !ciecBlock) return <NeedsSatConnect go={go} feature="ver tu estatus ante el SAT" />
+  if (ciecBlock === 'invalid') return <CiecBlockedScreen go={go} state="invalid" />
 
   const isClean = blacklist.state === 'available' && (blacklist.statusText ?? '').trim() === ''
   const veredictoText = isClean ? 'Estatus limpio' : 'Requiere revisión'
@@ -91,7 +94,10 @@ export function EstatusSatScreen({ go }: Props) {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="flex flex-col gap-6">
+      {ciecBlock === 'unverified' && <CiecWarningBanner go={go} variant="unverified" />}
+      {isConnectedByEfirmaOnly(selectedRfcInfo) && <CiecWarningBanner go={go} variant="efirma" />}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* COLUMNA IZQUIERDA */}
       <div className="lg:col-span-2 flex flex-col gap-5">
         {/* Veredicto */}
@@ -225,6 +231,7 @@ export function EstatusSatScreen({ go }: Props) {
             </div>
           </div>
         </Card>
+      </div>
       </div>
     </div>
   )

@@ -11,12 +11,13 @@ import { runDiagnosticoCliente } from '@/features/diagnostico/actions/runDiagnos
 import type { CanRunDiagnostico } from '@/features/diagnostico/types'
 import type { Regularizations } from '@/features/declarations/types'
 import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
-import { hasSatCredential } from '@/features/taxpayers/satCredential'
 import { monthYear } from '../declaraciones/parts'
 import { DISPLAY } from '../constants'
 import { fiscalStatus } from '../fiscal-score.utils'
 import type { GoFn } from '../types'
-import { Badge, Btn, Card, Divider, HelpBox, Pill, SummaryStat, VideoSlot } from '../ui'
+import { Badge, Btn, Card, CiecWarningBanner, Divider, HelpBox, Pill, SummaryStat, VideoSlot } from '../ui'
+import { getCiecBlockStatus, isConnectedByEfirmaOnly, isSatConnected } from '../sat-connection.utils'
+import { CiecBlockedScreen } from './ciec-blocked'
 import { NeedsSatConnect } from './needs-sat-connect'
 
 interface Props {
@@ -109,7 +110,9 @@ export function DiagnosticoScreen({ go }: Props) {
 
   if (loadingRfc) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tu diagnóstico fiscal" />
-  if (!hasSatCredential(selectedRfcInfo)) return <NeedsSatConnect go={go} feature="ver tu diagnóstico fiscal" />
+  const ciecBlock = getCiecBlockStatus(selectedRfcInfo)
+  if (!isSatConnected(selectedRfcInfo) && !ciecBlock) return <NeedsSatConnect go={go} feature="ver tu diagnóstico fiscal" />
+  if (ciecBlock === 'invalid') return <CiecBlockedScreen go={go} state="invalid" />
 
   const status = score ? fiscalStatus(score.score) : null
   // Sin declaraciones el score llega en 100 "por vacuidad": el hero no debe
@@ -174,6 +177,8 @@ export function DiagnosticoScreen({ go }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
+      {ciecBlock === 'unverified' && <CiecWarningBanner go={go} variant="unverified" />}
+      {isConnectedByEfirmaOnly(selectedRfcInfo) && <CiecWarningBanner go={go} variant="efirma" />}
       <HelpBox>
         <strong>¿Qué es un diagnóstico fiscal?</strong> Es un análisis de tu situación con el SAT. Te decimos qué está
         bien, qué hay que arreglar y dónde puedes ahorrar.

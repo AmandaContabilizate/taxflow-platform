@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
-import { hasSatCredential } from '@/features/taxpayers/satCredential'
 import type { ClientDeclarationSubject } from '@/features/declarations/types'
 import { AnualesTab } from '../declaraciones/anuales-tab'
 import { ClientDeclarationDetail } from '../declaraciones/client-declaration-detail'
@@ -10,7 +9,9 @@ import { FuturoTab } from '../declaraciones/futuro-tab'
 import { RegularizacionesTab } from '../declaraciones/regularizaciones-tab'
 import { TodasTab } from '../declaraciones/todas-tab'
 import type { GoFn } from '../types'
-import { HelpBox, Tabs, VideoSlot } from '../ui'
+import { CiecWarningBanner, HelpBox, Tabs, VideoSlot } from '../ui'
+import { getCiecBlockStatus, isConnectedByEfirmaOnly, isSatConnected } from '../sat-connection.utils'
+import { CiecBlockedScreen } from './ciec-blocked'
 import { NeedsSatConnect } from './needs-sat-connect'
 
 interface CurrentUser {
@@ -59,7 +60,9 @@ export function DeclaracionesScreen({ go, currentUser }: Props) {
 
   if (loading) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tus declaraciones" />
-  if (!hasSatCredential(selectedRfcInfo)) return <NeedsSatConnect go={go} feature="ver tus declaraciones" />
+  const ciecBlock = getCiecBlockStatus(selectedRfcInfo)
+  if (!isSatConnected(selectedRfcInfo) && !ciecBlock) return <NeedsSatConnect go={go} feature="ver tus declaraciones" />
+  if (ciecBlock === 'invalid') return <CiecBlockedScreen go={go} state="invalid" />
 
   if (detail) {
     return (
@@ -73,6 +76,8 @@ export function DeclaracionesScreen({ go, currentUser }: Props) {
 
   return (
     <div className="flex flex-col gap-5">
+      {ciecBlock === 'unverified' && <CiecWarningBanner go={go} variant="unverified" />}
+      {isConnectedByEfirmaOnly(selectedRfcInfo) && <CiecWarningBanner go={go} variant="efirma" />}
       <HelpBox>
         <strong>Tus declaraciones, organizadas por momento.</strong> Resuelve el pasado, ten claridad del futuro y no
         olvides la anual. Todo lo prepara tu contador, tú solo autorizas.

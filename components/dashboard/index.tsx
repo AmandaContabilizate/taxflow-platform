@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect } from 'react'
 import { Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { signOut } from '@/features/auth/actions'
-import { RfcProvider, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
+import { RfcProvider } from '@/features/taxpayers/stores/rfcStore'
 import SatConnectScreen from '@/components/sat-connect-screen'
 import { DashboardHeader } from './header'
 import NotificationCenterPage from '@/app/dashboard/notificaciones/page'
@@ -288,18 +288,15 @@ interface RouterProps {
 function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, onLogout, signingOut, role, permissions, userId, phoneNumber, autoOpenPlanPicker, onPlanPickerHandled, goToPlanPicker }: RouterProps) {
   const roleKey = normalizeRole(role);
   const isGuest = roleKey === 'guest';
-  const { rfcs, selectedRfc } = useRfcStore();
 
   // Pantallas compartidas por todos los roles
   if (screen === 'cuenta') {
-    const ciecState = rfcs.find((r) => r.rfc === selectedRfc)?.ciecState;
     return (
       <CuentaScreen
         fullName={fullName}
         email={email}
         rfc={rfc}
         phoneNumber={phoneNumber ?? undefined}
-        ciecState={ciecState}
         initials={initials}
         onLogout={onLogout}
         signingOut={signingOut}

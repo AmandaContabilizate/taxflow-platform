@@ -3,14 +3,15 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
-import { hasSatCredential } from '@/features/taxpayers/satCredential'
 import { DISPLAY } from '../constants'
 import { FiscalCredibility } from '../fiscal-credibility'
 import { FiscalScore } from '../fiscal-score'
 import { FinancialSummary } from '../financial-summary'
 import type { GoFn } from '../types'
-import { Btn, VideoSlot } from '../ui'
+import { Btn, CiecWarningBanner, VideoSlot } from '../ui'
 import { UpcomingDates } from '../upcoming-dates'
+import { getCiecBlockStatus, isConnectedByEfirmaOnly, isSatConnected } from '../sat-connection.utils'
+import { CiecBlockedScreen } from './ciec-blocked'
 import { NeedsSatConnect } from './needs-sat-connect'
 
 interface Props {
@@ -28,12 +29,16 @@ export function HomeScreen({ go }: Props) {
     return <NeedsSatConnect go={go} feature="empezar a gestionar tus impuestos" />
   }
 
-  if (!hasSatCredential(selectedRfcInfo)) {
+  const ciecBlock = getCiecBlockStatus(selectedRfcInfo)
+  if (!isSatConnected(selectedRfcInfo) && !ciecBlock) {
     return <NeedsSatConnect go={go} feature="empezar a gestionar tus impuestos" />
   }
+  if (ciecBlock === 'invalid') return <CiecBlockedScreen go={go} state="invalid" />
 
   return (
     <div className="flex flex-col gap-6">
+      {ciecBlock === 'unverified' && <CiecWarningBanner go={go} variant="unverified" />}
+      {isConnectedByEfirmaOnly(selectedRfcInfo) && <CiecWarningBanner go={go} variant="efirma" />}
       <FiscalScore go={go} />
 
       <FiscalCredibility go={go} />

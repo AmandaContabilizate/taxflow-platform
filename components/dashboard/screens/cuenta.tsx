@@ -15,7 +15,8 @@ import { SecurityForm } from '../cuenta/security-form';
 import { DeleteAccountForm } from '../cuenta/delete-account-form';
 import { DISPLAY, MONO } from '../constants';
 import type { GoFn } from '../types';
-import { Btn, Card, Divider } from '../ui';
+import { Btn, Card, CiecUpdateModal, Divider } from '../ui';
+import { getCiecBlockStatus, isConnectedByEfirmaOnly } from '../sat-connection.utils';
 
 type ActionKey = 'seguridad' | 'pagos' | 'datos-fiscales';
 
@@ -35,16 +36,39 @@ interface Props {
   role: string | null;
   initials: string;
   phoneNumber?: string;
-  ciecState?: number;
   isClient?: boolean;
   go: GoFn;
   onLogout: () => void;
   signingOut: boolean;
 }
 
-export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber, ciecState, isClient = true, go, onLogout, signingOut }: Props) {
+/**
+ * Mismos cinco casos y mismos textos que `connectionLabel` de FiscalDataScreen en la app móvil:
+ * las dos pantallas tienen que decir lo mismo del mismo estado. El quinto —sin contraseña
+ * guardada— existe porque 336 contribuyentes nunca capturaron una CIEC y decirles "Validando"
+ * es mentirles (D3 del requerimiento de bloqueo por estado de CIEC).
+ */
+function ciecEstadoTexto(
+  rfcInfo: Parameters<typeof getCiecBlockStatus>[0],
+  efirmaOnly: boolean,
+): { titulo: string; detalle: string } {
+  if (rfcInfo?.ciecState === 1)
+    return { titulo: 'Válida', detalle: 'Tu contraseña CIEC es válida' };
+  if (efirmaOnly)
+    return {
+      titulo: 'Conectado por e.firma',
+      detalle: 'Tu e.firma cubre tu acceso; tu CIEC no bloquea nada mientras esté activa',
+    };
+  if (rfcInfo?.ciecState === 2)
+    return { titulo: 'Inválida', detalle: 'El SAT rechazó tu contraseña CIEC' };
+  if (getCiecBlockStatus(rfcInfo) === 'unverified')
+    return { titulo: 'Validando', detalle: 'Estamos validando tu CIEC, espera' };
+  return { titulo: 'Sin CIEC capturada', detalle: 'Conecta tu SAT para activar tu información fiscal' };
+}
+
+export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber, isClient = true, go, onLogout, signingOut }: Props) {
   const { theme, setTheme } = useTheme();
-  const { selectedRfc } = useRfcStore();
+  const { selectedRfc, selectedRfcInfo } = useRfcStore();
   const [plan, setPlan] = useState<ActivePlan | null>(null);
   const [accountant, setAccountant] = useState<{ loading: boolean; name: string | null }>({
     loading: true,
@@ -55,8 +79,13 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
   const [showFiscalModal, setShowFiscalModal] = useState(false);
   const [showSecurityModal, setShowSecurityModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showCiecModal, setShowCiecModal] = useState(false);
 
   const activeRfc = selectedRfc ?? rfc;
+  // Con e.firma activa está conectado sin importar la CIEC (mismo bug ya corregido en la móvil).
+  const ciecState = selectedRfcInfo?.ciecState;
+  const efirmaOnly = isConnectedByEfirmaOnly(selectedRfcInfo);
+  const ciecEstado = ciecEstadoTexto(selectedRfcInfo, efirmaOnly);
   const [pushPermission, setPushPermission] = useState<string>('default');
 
   useEffect(() => {
@@ -203,28 +232,35 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
               style={{ color: 'var(--ink-500)' }}>
               Estado de CIEC
             </div>
-            <div className='flex items-center justify-between'>
+            <div className='flex items-center justify-between gap-3'>
               <div>
                 <div
                   className='text-[15px] font-bold'
                   style={{ color: 'var(--ink-900)' }}>
-                  {ciecState === 1 ? 'Válida' : ciecState === 2 ? 'Inválida' : 'No validado'}
+                  {ciecEstado.titulo}
                 </div>
                 <div
                   className='text-[12px] mt-1'
                   style={{ color: 'var(--ink-500)' }}>
-                  {ciecState === 1 ? 'Tu contraseña CIEC es válida' : ciecState === 2 ? 'Tu contraseña CIEC es inválida' : 'Aún no has validado tu CIEC'}
+                  {ciecEstado.detalle}
                 </div>
               </div>
               <div
-                className='w-12 h-12 rounded-full flex items-center justify-center text-[20px]'
+                className='w-12 h-12 rounded-full flex items-center justify-center text-[20px] flex-shrink-0'
                 style={{
-                  background: ciecState === 1 ? 'var(--brand-50)' : ciecState === 2 ? 'var(--coral-soft)' : 'var(--amber-soft)',
-                  color: ciecState === 1 ? 'var(--brand-700)' : ciecState === 2 ? 'var(--violet-ink)' : 'var(--violet-ink)',
+                  background: ciecState === 1 ? 'var(--brand-50)' : ciecState === 2 && !efirmaOnly ? 'var(--coral-soft)' : 'var(--amber-soft)',
+                  color: ciecState === 1 ? 'var(--brand-700)' : 'var(--violet-ink)',
                 }}>
-                {ciecState === 1 ? '✓' : ciecState === 2 ? '✕' : '!'}
+                {ciecState === 1 ? '✓' : ciecState === 2 && !efirmaOnly ? '✕' : '!'}
               </div>
             </div>
+            {ciecState !== 1 && activeRfc && (
+              <div className='mt-4'>
+                <Btn size='sm' kind='ghost' onClick={() => setShowCiecModal(true)}>
+                  Actualizar CIEC
+                </Btn>
+              </div>
+            )}
           </div>
         </Card>
         )}
@@ -413,6 +449,11 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
         title='Datos fiscales'>
         <SatConnectScreen rfc={activeRfc} />
       </Modal>
+
+      {/* Modal de actualizar CIEC (E2) */}
+      {activeRfc && (
+        <CiecUpdateModal isOpen={showCiecModal} onClose={() => setShowCiecModal(false)} rfc={activeRfc} />
+      )}
 
       {/* Modal de Seguridad */}
       <Modal

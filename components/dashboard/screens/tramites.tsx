@@ -12,10 +12,11 @@ import {
   type Plan,
 } from '@/features/account/types'
 import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
-import { hasSatCredential } from '@/features/taxpayers/satCredential'
 import { DISPLAY, MONO } from '../constants'
 import type { GoFn } from '../types'
-import { Btn, Card, Divider, HelpBox } from '../ui'
+import { Btn, Card, CiecWarningBanner, Divider, HelpBox } from '../ui'
+import { getCiecBlockStatus, isConnectedByEfirmaOnly, isSatConnected } from '../sat-connection.utils'
+import { CiecBlockedScreen } from './ciec-blocked'
 import { NeedsSatConnect } from './needs-sat-connect'
 
 const KEY_ICONS: Array<[RegExp, LucideIcon]> = [
@@ -75,13 +76,17 @@ export function TramitesScreen({ onContratar, go }: TramitesScreenProps) {
 
   if (loadingRfc) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver trámites adicionales" />
-  if (!hasSatCredential(selectedRfcInfo)) return <NeedsSatConnect go={go} feature="ver trámites adicionales" />
+  // D1: trámites también es compra, bloquea en estado 0 (sin verificar).
+  const ciecBlock = getCiecBlockStatus(selectedRfcInfo)
+  if (!isSatConnected(selectedRfcInfo) && !ciecBlock) return <NeedsSatConnect go={go} feature="ver trámites adicionales" />
+  if (ciecBlock) return <CiecBlockedScreen go={go} state={ciecBlock} />
 
   const { satProcedures, extraDeclarations } = catalog
   const isEmpty = !loading && satProcedures.length === 0 && extraDeclarations.length === 0
 
   return (
     <div className="flex flex-col gap-6">
+      {isConnectedByEfirmaOnly(selectedRfcInfo) && <CiecWarningBanner go={go} variant="efirma" />}
       <HelpBox>
         Aquí están los trámites <strong>extra</strong> que puedes contratar cuando los necesites. Ninguno viene incluido
         en tu plan: se contratan y pagan por separado.

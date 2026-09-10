@@ -14,12 +14,13 @@ import {
   type PlansCatalog,
 } from '@/features/account/types'
 import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
-import { hasSatCredential } from '@/features/taxpayers/satCredential'
 import { OtherRfcs } from '../plan/other-rfcs'
 import { PlanPickerModal } from '../plan/plan-picker-modal'
 import { PurchaseHistory } from '../plan/purchase-history'
 import { DISPLAY, MONO } from '../constants'
-import { Badge, Btn, Card, Divider, HelpBox, Pill, VideoSlot } from '../ui'
+import { Badge, Btn, Card, CiecWarningBanner, Divider, HelpBox, Pill, VideoSlot } from '../ui'
+import { getCiecBlockStatus, isConnectedByEfirmaOnly, isSatConnected } from '../sat-connection.utils'
+import { CiecBlockedScreen } from './ciec-blocked'
 import { NeedsSatConnect } from './needs-sat-connect'
 import type { GoFn } from '../types'
 
@@ -102,10 +103,14 @@ export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled, go }: Pl
 
   if (loading) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tus planes" />
-  if (!hasSatCredential(selectedRfcInfo)) return <NeedsSatConnect go={go} feature="ver tus planes" />
+  // D1: comprar/cambiar plan bloquea también en estado 0 (sin verificar).
+  const ciecBlock = getCiecBlockStatus(selectedRfcInfo)
+  if (!isSatConnected(selectedRfcInfo) && !ciecBlock) return <NeedsSatConnect go={go} feature="ver tus planes" />
+  if (ciecBlock) return <CiecBlockedScreen go={go} state={ciecBlock} />
 
   return (
     <div className="flex flex-col gap-6">
+      {isConnectedByEfirmaOnly(selectedRfcInfo) && <CiecWarningBanner go={go} variant="efirma" />}
       <HelpBox>
         Aquí ves tu suscripción, qué tienes incluido y cómo cambiar de plan. Si quieres cancelar o pausar, también lo
         haces desde aquí.

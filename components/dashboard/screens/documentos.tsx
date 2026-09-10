@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { AlertTriangle, Download, FileDown, Search, Sliders, ChevronDown } from 'lucide-react'
 import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
-import { hasSatCredential } from '@/features/taxpayers/satCredential'
 import {
   getIssuedInvoices,
   getReceivedInvoices,
@@ -12,8 +11,10 @@ import {
 import { CFDI_STATUS_VIGENTE, type VaultInvoice, type VaultStats } from '@/features/vault/types'
 import { MONO } from '../constants'
 import type { GoFn } from '../types'
-import { Badge, Btn, Card, Divider, SummaryStat, Tabs } from '../ui'
+import { Badge, Btn, Card, CiecWarningBanner, Divider, SummaryStat, Tabs } from '../ui'
 import { DatePicker } from '../date-picker'
+import { getCiecBlockStatus, isConnectedByEfirmaOnly, isSatConnected } from '../sat-connection.utils'
+import { CiecBlockedScreen } from './ciec-blocked'
 import { NeedsSatConnect } from './needs-sat-connect'
 
 interface Filters {
@@ -292,7 +293,9 @@ export function DocumentosScreen({ go }: Props) {
 
   if (loading) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tu bóveda" />
-  if (!hasSatCredential(selectedRfcInfo)) return <NeedsSatConnect go={go} feature="ver tu bóveda" />
+  const ciecBlock = getCiecBlockStatus(selectedRfcInfo)
+  if (!isSatConnected(selectedRfcInfo) && !ciecBlock) return <NeedsSatConnect go={go} feature="ver tu bóveda" />
+  if (ciecBlock === 'invalid') return <CiecBlockedScreen go={go} state="invalid" />
 
   const rows = rowsByTab[tab]
 
@@ -300,6 +303,8 @@ export function DocumentosScreen({ go }: Props) {
 
   return (
     <div className="flex flex-col gap-5">
+      {ciecBlock === 'unverified' && <CiecWarningBanner go={go} variant="unverified" />}
+      {isConnectedByEfirmaOnly(selectedRfcInfo) && <CiecWarningBanner go={go} variant="efirma" />}
       <div>
 
         {error && (
