@@ -516,7 +516,10 @@ export const MODULE_CLAIMS: Record<string, string[]> = {
   ],
   renovaciones: ['Comercial.ReadRenovaciones'],
   operaciones: ['Contador.ReadDeclaraciones'],
-  'declaraciones-rechazadas': ['Contador.ReadDeclaraciones'],
+  // Claim propio (departamento 'Declaraciones rechazadas'): se administra desde
+  // Roles y permisos, independiente del Centro de operaciones. El endpoint de la
+  // lista sigue bajo Contador.ReadDeclaraciones (mismo patrón que Decl. futuras).
+  'declaraciones-rechazadas': ['Contador.ReadDeclaracionesRechazadas'],
   'declaraciones-futuras': ['Contador.ReadDeclaracionesFuturas'],
   // Cartera propia (contador) o todas las carteras (gerencia con AssignAccountant)
   'mis-clientes': ['Contador.ReadMisClientes', 'AssignAccountant'],
