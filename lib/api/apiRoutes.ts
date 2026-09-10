@@ -413,10 +413,12 @@ export const API_ROUTES = {
       `/download-files/puede-ejecutar?declarationId=${declarationId}`,
     DOWNLOAD_FILES_RUN: (declarationId: number) =>
       `/download-files?declarationId=${declarationId}`,
-    // Estatus de los 4 combos de descarga SAT del periodo mensual (solo lectura,
-    // ver backend PeriodDownloadStatus.md). 1 = completo, 0 = pendiente.
-    DOWNLOAD_FILES_PERIOD_STATUS: (rfc: string, fiscalYear: number, period: number) =>
-      `/download-files/estatus-periodo?rfc=${encodeURIComponent(rfc)}&fiscalYear=${fiscalYear}&period=${period}`,
+    // Estatus de los 4 combos de descarga SAT del periodo de la declaración. 1 = completo,
+    // 0 = pendiente. "Completo" NO es "existe una descarga": es cobertura por unión de rangos
+    // hasta el día 6 del mes siguiente. Ver, en el repo backend,
+    // ContaboxPro.Backend.Procedures/Features/Declarations/DownloadFiles/PeriodDownloadStatus.md
+    DOWNLOAD_FILES_PERIOD_STATUS: (declarationId: number) =>
+      `/download-files/estatus-periodo?declarationId=${declarationId}`,
     DECLARATION_TAXPAYERS: (p: TaxpayerGroupsQuery = {}) =>
       `/declaration-taxpayers${taxpayerGroupsQuery(p)}`,
     REGULARIZATION_TAXPAYERS: (p: TaxpayerGroupsQuery = {}) =>

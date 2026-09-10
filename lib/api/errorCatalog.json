@@ -334,5 +334,9 @@
   "REPORT_LINK_NOT_AVAILABLE": {
     "es": "Falta el periodo o régimen de la declaración para generar el enlace del reporte.",
     "en": "The declaration is missing the period or regime needed to generate the report link."
+  },
+  "DOWNLOAD_TAIL_NOT_READY": {
+    "es": "Todavía no. La descarga se habilita el día 7 del mes siguiente al periodo, cuando el SAT ya tiene todos los CFDIs.",
+    "en": "Not yet. The download opens on the 7th of the month after the period, once the SAT has every CFDI."
   }
 }

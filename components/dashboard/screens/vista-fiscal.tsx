@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Stethoscope, FileText, FilePlus, FolderLock, FilePlus2, Gem, ArrowRight, Loader2 } from 'lucide-react'
 import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
+import { hasSatCredential } from '@/features/taxpayers/satCredential'
 import { useFiscalScore } from '@/features/declarations/hooks/useFiscalScore'
 import { getTaxRegimes, type TaxRegime } from '@/features/taxpayers/actions/getTaxRegimes.action'
 import { getTaxpayerByRfc } from '@/features/taxpayers/actions/getTaxpayerByRfc.action'
@@ -66,7 +67,7 @@ export function VistaFiscalScreen({ go, firstName }: Props) {
 
   if (loading) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="acceder a tu vista fiscal" />
-  if (selectedRfcInfo?.ciecState !== 1) return <NeedsSatConnect go={go} feature="acceder a tu vista fiscal" />
+  if (!hasSatCredential(selectedRfcInfo)) return <NeedsSatConnect go={go} feature="acceder a tu vista fiscal" />
 
   return (
     <div className="flex flex-col gap-6">

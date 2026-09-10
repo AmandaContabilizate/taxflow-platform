@@ -3,6 +3,7 @@
 import { AlertCircle, CheckCircle2, RefreshCw, Shield } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
+import { hasSatCredential } from '@/features/taxpayers/satCredential'
 import { useFiscalScore } from '@/features/declarations/hooks/useFiscalScore'
 import { DISPLAY } from '../constants'
 import type { GoFn } from '../types'
@@ -41,7 +42,7 @@ export function EstatusSatScreen({ go }: Props) {
 
   if (loadingRfc) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tu estatus ante el SAT" />
-  if (selectedRfcInfo?.ciecState !== 1) return <NeedsSatConnect go={go} feature="ver tu estatus ante el SAT" />
+  if (!hasSatCredential(selectedRfcInfo)) return <NeedsSatConnect go={go} feature="ver tu estatus ante el SAT" />
 
   const isClean = blacklist.state === 'available' && (blacklist.statusText ?? '').trim() === ''
   const veredictoText = isClean ? 'Estatus limpio' : 'Requiere revisión'

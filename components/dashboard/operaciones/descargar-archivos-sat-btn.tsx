@@ -9,6 +9,8 @@ import { useHasPermission } from '../permissions'
 
 interface Props {
   declarationId: number
+  /** Se llama cuando el POST encoló: el chip de estatus del periodo se re-consulta. */
+  onEncolada?: () => void
 }
 
 /** "30 ago 2026, 8:56 a.m." en hora local del contador. */
@@ -20,6 +22,23 @@ function fechaLocal(iso: string): string {
     hour: 'numeric',
     minute: '2-digit',
   })
+}
+
+const MESES = [
+  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+]
+
+/**
+ * "La descarga estará habilitada a partir del 7 de septiembre del año 2026".
+ * `disponibleDesde` viene como `YYYY-MM-DD` sin huso, así que se parte a mano:
+ * `new Date('2026-09-07')` se interpreta como UTC y en México pintaría el día 6.
+ */
+function disponibleDesdeLabel(fecha: string): string {
+  const [, mes, dia] = fecha.split('-').map(Number)
+  const anio = fecha.slice(0, 4)
+  const nombreMes = MESES[mes - 1] ?? fecha
+  return `La descarga estará habilitada a partir del ${dia} de ${nombreMes} del año ${anio}`
 }
 
 /** "Disponible mañana a las 12:00 a.m." — mismo helper que tab-diagnostico. */
@@ -36,7 +55,7 @@ function ventanaLabel(iso: string): string {
  * declaración mensual, periodo ya cerrado, CIEC válida, máximo 1 corrida por día calendario (MX).
  * Sin el claim `Contador.RunDeclarationDownload` no se pinta nada.
  */
-export function DescargarArchivosSatBtn({ declarationId }: Props) {
+export function DescargarArchivosSatBtn({ declarationId, onEncolada }: Props) {
   const puede = useHasPermission('Contador.RunDeclarationDownload')
   const [canRun, setCanRun] = useState<CanRunDeclarationDownload | null>(null)
   const [loading, setLoading] = useState(true)
@@ -73,16 +92,22 @@ export function DescargarArchivosSatBtn({ declarationId }: Props) {
       return
     }
     setNotice('Descarga encolada — los archivos llegan en unos minutos.')
+    onEncolada?.()
     await check()
   }
 
-  // Precedencia del motivo de bloqueo (espejo de tab-diagnostico.razon).
+  // Precedencia del motivo de bloqueo (espejo de tab-diagnostico.razon). La ventana del día 7
+  // va DESPUÉS de periodoPasado, igual que en el backend: un periodo del mes en curso recibe su
+  // mensaje propio y no el del día 7.
   const razon = (() => {
     if (!canRun || canRun.puedeDescargar) return null
     if (!canRun.credencialValida) return 'Actualiza la CIEC del contribuyente para descargar.'
     if (canRun.proximaVentanaUtc) return ventanaLabel(canRun.proximaVentanaUtc)
     if (!canRun.esMensual) return 'Solo declaraciones mensuales.'
     if (!canRun.periodoPasado) return 'El periodo aún no cierra.'
+    if (!canRun.ventanaAbierta && canRun.disponibleDesde) {
+      return disponibleDesdeLabel(canRun.disponibleDesde)
+    }
     return null
   })()
 

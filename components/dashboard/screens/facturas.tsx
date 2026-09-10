@@ -1,4 +1,5 @@
 import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
+import { hasSatCredential } from '@/features/taxpayers/satCredential'
 import type { GoFn } from '../types'
 import { HelpBox } from '../ui'
 import { NeedsSatConnect } from './needs-sat-connect'
@@ -13,7 +14,7 @@ export function FacturasScreen({ go }: Props) {
   const { selectedRfcInfo } = useRfcStore()
   if (loading) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="emitir facturas" />
-  if (selectedRfcInfo?.ciecState !== 1) return <NeedsSatConnect go={go} feature="emitir facturas" />
+  if (!hasSatCredential(selectedRfcInfo)) return <NeedsSatConnect go={go} feature="emitir facturas" />
 
   return (
     <div className="flex flex-col gap-5">

@@ -14,6 +14,7 @@ import {
   type PlansCatalog,
 } from '@/features/account/types'
 import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
+import { hasSatCredential } from '@/features/taxpayers/satCredential'
 import { OtherRfcs } from '../plan/other-rfcs'
 import { PlanPickerModal } from '../plan/plan-picker-modal'
 import { PurchaseHistory } from '../plan/purchase-history'
@@ -101,7 +102,7 @@ export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled, go }: Pl
 
   if (loading) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tus planes" />
-  if (selectedRfcInfo?.ciecState !== 1) return <NeedsSatConnect go={go} feature="ver tus planes" />
+  if (!hasSatCredential(selectedRfcInfo)) return <NeedsSatConnect go={go} feature="ver tus planes" />
 
   return (
     <div className="flex flex-col gap-6">

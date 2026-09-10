@@ -3,6 +3,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
+import { hasSatCredential } from '@/features/taxpayers/satCredential'
 import { DISPLAY } from '../constants'
 import { FiscalCredibility } from '../fiscal-credibility'
 import { FiscalScore } from '../fiscal-score'
@@ -27,7 +28,7 @@ export function HomeScreen({ go }: Props) {
     return <NeedsSatConnect go={go} feature="empezar a gestionar tus impuestos" />
   }
 
-  if (selectedRfcInfo?.ciecState !== 1) {
+  if (!hasSatCredential(selectedRfcInfo)) {
     return <NeedsSatConnect go={go} feature="empezar a gestionar tus impuestos" />
   }
 

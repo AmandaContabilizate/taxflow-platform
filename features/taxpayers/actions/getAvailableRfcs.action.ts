@@ -10,6 +10,9 @@ export interface AvailableRfc {
   status69B: string | null;
   /** Estado de la CIEC: 1 = válida, 2 = inválida. Ausente si no se ha validado. */
   ciecState?: number;
+  /** e.firma (FIEL) vigente. Junto con ciecState decide si el contribuyente ya está
+   *  conectado al SAT — ver hasSatCredential en features/taxpayers/satCredential. */
+  hasValidEfirma?: boolean;
   taxRegimes?: Array<{ regimeId: number; idActivities?: number[] }>;
 }
 

@@ -212,6 +212,8 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
   const [general, setGeneral] = useState<DeclarationGeneral | null>(null)
   const [generalError, setGeneralError] = useState<string | null>(null)
   const [logs, setLogs] = useState<DeclarationLog[]>([])
+  // Sube cuando el botón encola una descarga: obliga al chip de estatus a re-consultar.
+  const [descargasRefreshKey, setDescargasRefreshKey] = useState(0)
 
   // Modo solo consulta (SAC / atención a cliente): con ConsultaDeclaraciones y
   // SIN el claim completo, la pantalla queda en Comprobantes + Cálculos sin
@@ -470,11 +472,14 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
           <HeaderBtn icon={<Download size={15} />} label="Exportar PDF" kind="ghost" />
           {!soloConsulta && general && (
             <div className="flex flex-col gap-1">
-              <DescargarArchivosSatBtn declarationId={d.declarationId} />
+              <DescargarArchivosSatBtn
+                declarationId={d.declarationId}
+                onEncolada={() => setDescargasRefreshKey((k) => k + 1)}
+              />
               <DescargasSatStatus
-                rfc={rfc}
-                fiscalYear={ejercicio}
+                declarationId={d.declarationId}
                 periodValueId={general?.periodValueId ?? null}
+                refreshKey={descargasRefreshKey}
               />
             </div>
           )}

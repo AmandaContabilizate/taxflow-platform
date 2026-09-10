@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
+import { hasSatCredential } from '@/features/taxpayers/satCredential'
 import type { ClientDeclarationSubject } from '@/features/declarations/types'
 import { AnualesTab } from '../declaraciones/anuales-tab'
 import { ClientDeclarationDetail } from '../declaraciones/client-declaration-detail'
@@ -58,7 +59,7 @@ export function DeclaracionesScreen({ go, currentUser }: Props) {
 
   if (loading) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tus declaraciones" />
-  if (selectedRfcInfo?.ciecState !== 1) return <NeedsSatConnect go={go} feature="ver tus declaraciones" />
+  if (!hasSatCredential(selectedRfcInfo)) return <NeedsSatConnect go={go} feature="ver tus declaraciones" />
 
   if (detail) {
     return (

@@ -48,6 +48,14 @@ export interface CanRunDeclarationDownload {
   ultimaDescargaUtc: string | null
   /** ISO 8601: próxima medianoche MX (en UTC) si yaCorrioHoy. */
   proximaVentanaUtc: string | null
+  /**
+   * Ya pasó el día 7 del mes siguiente al periodo. Antes de esa fecha el SAT todavía no
+   * tiene los CFDIs de los primeros días, y una descarga prematura queda registrada como
+   * cobertura completa sin serlo — el periodo nunca se vuelve a pedir.
+   */
+  ventanaAbierta: boolean
+  /** `YYYY-MM-DD` (sin huso): fecha desde la que el botón se habilita. null si no es mensual. */
+  disponibleDesde: string | null
 }
 
 /** POST download-files: encolada=false = un click concurrente ganó la carrera (idempotente). */
@@ -58,11 +66,16 @@ export interface RunDeclarationDownloadResult {
 }
 
 /**
- * GET download-files/estatus-periodo: los 4 combos de descarga SAT del periodo
- * mensual. 1 = completo (existe una corrida Completed), 0 = pendiente. Lee la
- * copia sincronizada, así que puede ir unos minutos atrás de la descarga real.
+ * GET download-files/estatus-periodo: los 4 combos de descarga SAT del periodo de la
+ * declaración. 1 = completo, 0 = pendiente. "Completo" NO es "existe una corrida
+ * Completed": es que las corridas completadas CUBRAN por unión de rangos la ventana
+ * del periodo (día 1 del mes .. día 6 del mes siguiente) — varias descargas parciales
+ * suman, y una sola de 6 días no cubre un mes. Lee la copia sincronizada, así que
+ * puede ir unos minutos atrás de la descarga real.
  */
 export interface PeriodDownloadStatus {
+  declarationId: number
+  /** Resueltos desde la declaración; informativos, la UI no los necesita. */
   rfc: string
   fiscalYear: number
   period: number
@@ -86,6 +99,8 @@ export function declarationDownloadErrorMessage(
       return 'Solo las declaraciones mensuales pueden re-descargarse.'
     case 'DOWNLOAD_PERIOD_NOT_PAST':
       return 'El periodo aún no cierra: solo se re-descargan periodos pasados.'
+    case 'DOWNLOAD_TAIL_NOT_READY':
+      return 'Todavía no. La descarga se habilita el día 7 del mes siguiente al periodo, cuando el SAT ya tiene todos los CFDIs.'
     case 'DECLARATION_NOT_FOUND':
       return 'No encontramos la declaración.'
     default:

@@ -6,9 +6,12 @@ import { getPeriodDownloadStatus } from '@/features/declarations/actions/getPeri
 import type { PeriodDownloadStatus } from '@/features/declarations/types'
 
 interface Props {
-  rfc: string
-  fiscalYear: number
-  /** PeriodValueId del catálogo Period; el chip solo se pinta si es mensual (101..112). */
+  declarationId: number
+  /**
+   * PeriodValueId del catálogo Period. Solo se usa como gate de render: el chip no se pinta si
+   * no es mensual (101..112), y así se evita pedir para luego desaparecer. El backend también
+   * lo valida (DOWNLOAD_NOT_MONTHLY).
+   */
   periodValueId: number | null
   /** Cambia cuando el contador encola una descarga: fuerza re-consulta. */
   refreshKey?: number
@@ -27,19 +30,19 @@ const COMBOS: { key: keyof PeriodDownloadStatus; label: string }[] = [
  * detalle de cuál falta en el tooltip. Lee la copia sincronizada: tras encolar
  * una descarga puede tardar unos minutos en reflejarse.
  */
-export function DescargasSatStatus({ rfc, fiscalYear, periodValueId, refreshKey = 0 }: Props) {
+export function DescargasSatStatus({ declarationId, periodValueId, refreshKey = 0 }: Props) {
   const [status, setStatus] = useState<PeriodDownloadStatus | null>(null)
   const [loading, setLoading] = useState(false)
 
   const esMensual = periodValueId !== null && periodValueId >= 101 && periodValueId <= 112
 
   const consultar = useCallback(async () => {
-    if (!esMensual || !rfc) return
+    if (!esMensual || !declarationId) return
     setLoading(true)
-    const res = await getPeriodDownloadStatus(rfc, fiscalYear, periodValueId as number)
+    const res = await getPeriodDownloadStatus(declarationId)
     setStatus(res.success ? res.value : null)
     setLoading(false)
-  }, [esMensual, rfc, fiscalYear, periodValueId])
+  }, [esMensual, declarationId])
 
   useEffect(() => {
     void consultar()

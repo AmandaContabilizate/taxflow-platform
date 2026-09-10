@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { AlertTriangle, Download, FileDown, Search, Sliders, ChevronDown } from 'lucide-react'
 import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
+import { hasSatCredential } from '@/features/taxpayers/satCredential'
 import {
   getIssuedInvoices,
   getReceivedInvoices,
@@ -291,7 +292,7 @@ export function DocumentosScreen({ go }: Props) {
 
   if (loading) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tu bóveda" />
-  if (selectedRfcInfo?.ciecState !== 1) return <NeedsSatConnect go={go} feature="ver tu bóveda" />
+  if (!hasSatCredential(selectedRfcInfo)) return <NeedsSatConnect go={go} feature="ver tu bóveda" />
 
   const rows = rowsByTab[tab]
 

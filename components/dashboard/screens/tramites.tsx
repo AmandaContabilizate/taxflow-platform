@@ -12,6 +12,7 @@ import {
   type Plan,
 } from '@/features/account/types'
 import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
+import { hasSatCredential } from '@/features/taxpayers/satCredential'
 import { DISPLAY, MONO } from '../constants'
 import type { GoFn } from '../types'
 import { Btn, Card, Divider, HelpBox } from '../ui'
@@ -74,7 +75,7 @@ export function TramitesScreen({ onContratar, go }: TramitesScreenProps) {
 
   if (loadingRfc) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver trámites adicionales" />
-  if (selectedRfcInfo?.ciecState !== 1) return <NeedsSatConnect go={go} feature="ver trámites adicionales" />
+  if (!hasSatCredential(selectedRfcInfo)) return <NeedsSatConnect go={go} feature="ver trámites adicionales" />
 
   const { satProcedures, extraDeclarations } = catalog
   const isEmpty = !loading && satProcedures.length === 0 && extraDeclarations.length === 0

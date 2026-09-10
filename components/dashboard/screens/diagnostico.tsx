@@ -11,6 +11,7 @@ import { runDiagnosticoCliente } from '@/features/diagnostico/actions/runDiagnos
 import type { CanRunDiagnostico } from '@/features/diagnostico/types'
 import type { Regularizations } from '@/features/declarations/types'
 import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
+import { hasSatCredential } from '@/features/taxpayers/satCredential'
 import { monthYear } from '../declaraciones/parts'
 import { DISPLAY } from '../constants'
 import { fiscalStatus } from '../fiscal-score.utils'
@@ -108,7 +109,7 @@ export function DiagnosticoScreen({ go }: Props) {
 
   if (loadingRfc) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tu diagnóstico fiscal" />
-  if (selectedRfcInfo?.ciecState !== 1) return <NeedsSatConnect go={go} feature="ver tu diagnóstico fiscal" />
+  if (!hasSatCredential(selectedRfcInfo)) return <NeedsSatConnect go={go} feature="ver tu diagnóstico fiscal" />
 
   const status = score ? fiscalStatus(score.score) : null
   // Sin declaraciones el score llega en 100 "por vacuidad": el hero no debe
