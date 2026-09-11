@@ -43,21 +43,6 @@ type RequestOptions = Omit<RequestInit, "method" | "body" | "headers"> & {
 };
 
 /**
- * ValidationProblemDetails de ASP.NET Core: el mensaje útil vive en `errors`
- * ({campo: [mensajes]}). Ese body NO trae `detail`, y su `title` es siempre
- * "One or more validation errors occurred.", que es lo que se veía en pantalla.
- * Las llaves que empiezan con `$` son errores de deserialización del JSON y su
- * nombre no le dice nada a nadie: se muestra solo el mensaje.
- */
-function validationMessage(errors?: Record<string, string[]>): string | undefined {
-  if (!errors) return undefined;
-  const parts = Object.entries(errors).flatMap(([field, messages]) =>
-    (messages ?? []).map((m) => (field && !field.startsWith("$") ? `${field}: ${m}` : m)),
-  );
-  return parts.length > 0 ? parts.join(" ") : undefined;
-}
-
-/**
  * Cuando el backend responde con la Developer Exception Page de ASP.NET, el body
  * es texto plano con el stack trace COMPLETO y el volcado de headers — incluido
  * `Authorization: Bearer <jwt>`. Ese texto terminaba pintado tal cual en pantalla.
@@ -154,7 +139,6 @@ async function request<T>(
           error?: string;
           detail?: string;
           title?: string;
-          errors?: Record<string, string[]>;
           errorCode?: string;
           extensions?: { errorCode?: string };
         })
@@ -174,7 +158,6 @@ async function request<T>(
       (typeof data === "string" ? safeRawMessage(data) : undefined) ??
       parsed?.message ??
       parsed?.error ??
-      validationMessage(parsed?.errors) ??
       parsed?.detail ??
       parsed?.title ??
       response.statusText;
@@ -273,14 +256,12 @@ export async function fetchGetBlob(
       const parsed = JSON.parse(errorText) as {
         detail?: string;
         title?: string;
-        errors?: Record<string, string[]>;
         errorCode?: string;
         extensions?: { errorCode?: string };
       };
       errorCode = parsed.errorCode ?? parsed.extensions?.errorCode;
       message =
         (hasErrorCode(errorCode) ? getErrorMessage(errorCode) : undefined) ??
-        validationMessage(parsed.errors) ??
         parsed.detail ??
         parsed.title ??
         errorText;
