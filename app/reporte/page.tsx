@@ -16,10 +16,13 @@ export const dynamic = 'force-dynamic'
 export default async function ReportePage({
   searchParams,
 }: {
-  searchParams: Promise<{ t?: string | string[] }>
+  searchParams: Promise<{ t?: string | string[]; preview?: string | string[] }>
 }) {
-  const { t } = await searchParams
+  const { t, preview } = await searchParams
   const token = Array.isArray(t) ? (t[0] ?? '') : (t ?? '')
+  // `preview=1`: el contador ve la misma pantalla que el cliente pero sin poder
+  // autorizar ni comentar en su nombre.
+  const isPreview = (Array.isArray(preview) ? preview[0] : preview) === '1'
 
   const result = token
     ? await getDeclarationReport(token)
@@ -34,7 +37,7 @@ export default async function ReportePage({
       style={{ background: 'var(--background)' }}
     >
       {result.success ? (
-        <ReportView report={result.value} token={token} />
+        <ReportView report={result.value} token={token} readOnly={isPreview} />
       ) : (
         <InvalidLink
           notFound={result.error.code === 'DECLARATION_NOT_FOUND'}

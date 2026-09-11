@@ -8,18 +8,20 @@ interface ModalProps {
   onClose: () => void
   title: string
   children: ReactNode
+  /** Ancho máximo del panel. Por defecto 550px. */
+  maxWidth?: number
 }
 
-export function Modal({ isOpen, onClose, title, children }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, maxWidth = 550 }: ModalProps) {
   if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="fixed inset-0 bg-black/50" />
       <div
-        className="relative bg-white dark:bg-slate-950 rounded-2xl shadow-2xl max-w-[550px] w-full max-h-[90vh] overflow-y-auto"
+        className="relative bg-white dark:bg-slate-950 rounded-2xl shadow-2xl w-full max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
-        style={{ background: 'var(--background)' }}
+        style={{ background: 'var(--background)', maxWidth }}
       >
         <div className="flex items-center justify-between p-5 border-b sticky top-0 z-10" style={{ borderColor: 'var(--border)' }}>
           <h2 className="text-xl font-bold" style={{ color: 'var(--foreground)' }}>

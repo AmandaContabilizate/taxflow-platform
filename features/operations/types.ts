@@ -521,3 +521,10 @@ export interface VentaDetalleStripe {
   stripeSubscriptionId: string | null;
   stripeCustomerId: string | null;
 }
+
+/** Respuesta de `/declarations/{id}/report-link`. `url` apunta al FrontendUrl
+ *  del back y no lleva `&preview=1`: para la vista previa se arma con `token`. */
+export interface DeclarationReportLink {
+  url: string;
+  token: string;
+}

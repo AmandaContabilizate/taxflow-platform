@@ -64,9 +64,12 @@ function toneColor(tone: ReportDetailRow['tone']): string {
 export function ReportView({
   report,
   token,
+  readOnly = false,
 }: {
   report: DeclarationReport
   token: string
+  /** Vista previa del contador: se ocultan las acciones del cliente. */
+  readOnly?: boolean
 }) {
   const [view, setView] = useState<View>(() => initialView(report))
   const [comment, setComment] = useState('')
@@ -144,6 +147,14 @@ export function ReportView({
             Preparada por tu contador en Contabilízate
           </p>
         </div>
+        {readOnly && (
+          <span
+            className="rounded-full px-2.5 py-1 text-[11px] font-bold"
+            style={{ background: 'var(--card-muted)', border: '1px solid var(--border)', color: 'var(--ink-500)' }}
+          >
+            Vista previa
+          </span>
+        )}
         <StatusBadge report={report} />
       </header>
 
@@ -269,7 +280,7 @@ export function ReportView({
           {error && <ErrorNote className="mx-6 mt-4">{error}</ErrorNote>}
 
           <div className="grid gap-2.5 px-6 pb-2 pt-5 sm:grid-cols-[1.35fr_1fr]">
-            {view === 'main' && (
+            {view === 'main' && !readOnly && (
               <>
                 <button
                   type="button"

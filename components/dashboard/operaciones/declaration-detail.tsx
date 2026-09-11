@@ -27,6 +27,7 @@ import { DECLARATION_STATUS } from '@/features/declaration-report/types'
 import { useRecalculation } from '@/features/declarations/hooks/useRecalculation'
 import { getDeclarationGeneral } from '@/features/operations/actions/getDeclarationGeneral.action'
 import { getDeclarationLogs } from '@/features/operations/actions/getDeclarationLogs.action'
+import { getDeclarationReportLink } from '@/features/operations/actions/getDeclarationReportLink.action'
 import { resendDeclarationToClient } from '@/features/operations/actions/resendDeclarationToClient.action'
 import type { DeclarationActivity, DeclarationGeneral, DeclarationLog, DeclarationSubject } from '@/features/operations/types'
 import { getSatPassword } from '@/features/taxpayers/actions/getSatPassword.action'
@@ -275,7 +276,34 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
     { kind: 'success' | 'warning' | 'error'; text: string } | null
   >(null)
 
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewFailed, setPreviewFailed] = useState(false)
+
   const resendEnabled = general != null && RESENDABLE_STATUSES.has(general.statusId)
+
+  // La vista previa es el mismo `/reporte` del cliente en modo solo lectura. El
+  // `url` que devuelve el back apunta al FrontendUrl configurado y no trae
+  // `preview`, por eso se arma local con el token.
+  useEffect(() => {
+    if (!resendOpen) return
+    let cancelled = false
+    setPreviewLoading(true)
+    setPreviewFailed(false)
+    void getDeclarationReportLink(d.declarationId).then((res) => {
+      if (cancelled) return
+      setPreviewLoading(false)
+      if (res.success && res.value.token) {
+        setPreviewUrl(`/reporte?t=${encodeURIComponent(res.value.token)}&preview=1`)
+      } else {
+        setPreviewUrl(null)
+        setPreviewFailed(true)
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [resendOpen, d.declarationId])
 
   const handleResendConfirm = async () => {
     setResendLoading(true)
@@ -622,48 +650,89 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
         <DeclarationComments declarationId={d.declarationId} currentUser={currentUser} />
       )}
 
-      <Modal isOpen={resendOpen} onClose={() => !resendLoading && setResendOpen(false)} title="Enviar Predeclaración">
-        <div className="flex flex-col gap-4">
-          <p className="text-[13.5px]" style={{ color: 'var(--foreground)' }}>
-            Se reenviará la declaración corregida a <strong>{legalName}</strong> para que la vuelva
-            a revisar. No presenta nada ante el SAT.
-          </p>
-          <div>
-            <label className="text-[12px] font-bold" style={{ color: 'var(--ink-500)' }}>
-              Nota interna (opcional)
-            </label>
-            <textarea
-              value={resendNote}
-              onChange={(e) => setResendNote(e.target.value.slice(0, 500))}
-              rows={3}
-              placeholder="Motivo de la corrección, visible solo en la bitácora…"
-              className="w-full mt-1.5 px-3 py-2 rounded-lg text-[13px]"
-              style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
-            />
-            <div className="text-[11px] text-right mt-1" style={{ color: 'var(--ink-500)' }}>
-              {resendNote.length}/500
+      <Modal
+        isOpen={resendOpen}
+        onClose={() => !resendLoading && setResendOpen(false)}
+        title="Enviar Predeclaración"
+        maxWidth={980}
+      >
+        <div className="grid gap-5 md:grid-cols-2">
+          <div className="flex flex-col gap-4">
+            <p className="text-[13.5px]" style={{ color: 'var(--foreground)' }}>
+              Se reenviará la declaración corregida a <strong>{legalName}</strong> para que la vuelva
+              a revisar. No presenta nada ante el SAT.
+            </p>
+            <div>
+              <label className="text-[12px] font-bold" style={{ color: 'var(--ink-500)' }}>
+                Nota interna (opcional)
+              </label>
+              <textarea
+                value={resendNote}
+                onChange={(e) => setResendNote(e.target.value.slice(0, 500))}
+                rows={3}
+                placeholder="Motivo de la corrección, visible solo en la bitácora…"
+                className="w-full mt-1.5 px-3 py-2 rounded-lg text-[13px]"
+                style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+              />
+              <div className="text-[11px] text-right mt-1" style={{ color: 'var(--ink-500)' }}>
+                {resendNote.length}/500
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setResendOpen(false)}
+                disabled={resendLoading}
+                className="px-4 py-2.5 rounded-xl text-[13px] font-bold disabled:opacity-60"
+                style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => void handleResendConfirm()}
+                disabled={resendLoading}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold disabled:opacity-60"
+                style={{ background: 'linear-gradient(135deg,#00D3A1 0%,#00AD87 100%)', color: '#fff' }}
+              >
+                {resendLoading && <Loader2 size={14} className="animate-spin" />}
+                Confirmar envío
+              </button>
             </div>
           </div>
-          <div className="flex justify-end gap-2">
-            <button
-              onClick={() => setResendOpen(false)}
-              disabled={resendLoading}
-              className="px-4 py-2.5 rounded-xl text-[13px] font-bold disabled:opacity-60"
-              style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+
+          <div className="flex flex-col gap-2">
+            <div className="text-[12px] font-bold" style={{ color: 'var(--ink-500)' }}>
+              Lo que verá el cliente
+            </div>
+            <div
+              className="rounded-xl overflow-hidden h-[460px]"
+              style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
             >
-              Cancelar
-            </button>
-            <button
-              onClick={() => void handleResendConfirm()}
-              disabled={resendLoading}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold disabled:opacity-60"
-              style={{ background: 'linear-gradient(135deg,#00D3A1 0%,#00AD87 100%)', color: '#fff' }}
-            >
-              {resendLoading && <Loader2 size={14} className="animate-spin" />}
-              Confirmar envío
-            </button>
+              {previewLoading && (
+                <div
+                  className="h-full flex items-center justify-center gap-2 text-[13px]"
+                  style={{ color: 'var(--ink-500)' }}
+                >
+                  <Loader2 size={16} className="animate-spin" /> Cargando vista previa…
+                </div>
+              )}
+              {!previewLoading && previewFailed && (
+                <div
+                  className="h-full flex items-center justify-center px-5 text-center text-[13px]"
+                  style={{ color: 'var(--ink-500)' }}
+                >
+                  No pudimos cargar la vista previa. Puedes enviar la predeclaración de todos modos.
+                </div>
+              )}
+              {!previewLoading && previewUrl && (
+                <iframe
+                  src={previewUrl}
+                  title="Vista previa del reporte del cliente"
+                  className="w-full h-full border-0"
+                />
+              )}
+            </div>
           </div>
-        </div>
+          </div>
       </Modal>
 
       {/* Modal de Carga y Descarga de Documentos SAT (Acuse y Línea de Captura) */}

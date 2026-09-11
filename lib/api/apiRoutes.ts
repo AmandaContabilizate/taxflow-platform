@@ -311,6 +311,8 @@ export const API_ROUTES = {
   DECLARATIONS_PROCEDURES: {
     // POST · body opcional `{ note?: string }`. 10|15 -> 9 + correo (best-effort).
     RESEND_TO_CLIENT: (declarationId: number) => `/${declarationId}/resend-to-client`,
+    // GET · solo lectura. Devuelve `{ url, token }` del reporte del cliente.
+    REPORT_LINK: (declarationId: number) => `/${declarationId}/report-link`,
   },
   SALES_OPS: {
     PROCEDURES: (skip = 0, take = 500) =>
