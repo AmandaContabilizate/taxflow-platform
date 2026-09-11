@@ -8,6 +8,7 @@ import { DISPLAY } from '../constants'
 import type { GoFn } from '../types'
 import { Badge, Btn, Card, CiecWarningBanner } from '../ui'
 import { useFiscalDocuments } from '../fiscal-credibility/use-fiscal-documents'
+import type { DocInfo } from '../fiscal-credibility/types'
 import { getCiecBlockStatus, isConnectedByEfirmaOnly, isSatConnected } from '../sat-connection.utils'
 import { CiecBlockedScreen } from './ciec-blocked'
 import { NeedsSatConnect } from './needs-sat-connect'
@@ -23,12 +24,48 @@ interface StatusItem {
   description?: string
 }
 
+/** Fecha ISO a "Hoy, 9:32 a.m." o "14 abr 26, 9:32 a.m."; null si no hay dato utilizable. */
+function formatConsultedDate(dateStr?: string | null): string | null {
+  if (!dateStr) return null
+  const date = new Date(dateStr)
+  if (Number.isNaN(date.getTime())) return null
+  const time = date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true })
+  if (date.toDateString() === new Date().toDateString()) return `Hoy, ${time}`
+  const day = date.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: '2-digit' })
+  return `${day}, ${time}`
+}
+
+function opinionItem(opinion: DocInfo): StatusItem {
+  const base = { id: 'opinion', label: 'Opinión de cumplimiento' }
+  if (opinion.state === 'loading') return { ...base, status: 'neutral', description: 'Consultando…' }
+  if (opinion.state === 'available' && opinion.hasFile === true) {
+    return opinion.isStale
+      ? { ...base, status: 'warning', description: 'Desactualizada' }
+      : { ...base, status: 'positive', description: 'Vigente' }
+  }
+  if (opinion.state === 'missing' || (opinion.state === 'available' && opinion.hasFile === false)) {
+    return { ...base, status: 'warning', description: 'Pendiente de descargar' }
+  }
+  return { ...base, status: 'neutral', description: 'No pudimos consultarla' }
+}
+
+function blacklistItem(id: string, label: string, description: string, blacklist: DocInfo): StatusItem {
+  if (blacklist.state === 'loading') return { id, label, status: 'neutral', description: 'Consultando…' }
+  const flag = blacklist.state === 'available' ? blacklist.inBlacklist : null
+  if (flag === false) return { id, label, status: 'positive', description }
+  if (flag === true) {
+    const detail = (blacklist.statusText ?? '').trim()
+    return { id, label, status: 'alert', description: detail ? `Aparece con estatus "${detail}"` : 'Tu RFC aparece en la lista' }
+  }
+  return { id, label, status: 'neutral', description: 'No pudimos consultarla' }
+}
+
 export function EstatusSatScreen({ go }: Props) {
   const { hasRfc, loading: loadingRfc } = useHasRfc()
   const { selectedRfc, selectedRfcInfo } = useRfcStore()
   const { step } = useFiscalScore()
   const isSyncingWithSat = step === 'connecting'
-  const { blacklist } = useFiscalDocuments(selectedRfc, isSyncingWithSat)
+  const { csf, opinion, blacklist } = useFiscalDocuments(selectedRfc, isSyncingWithSat)
   const containerRef = useRef<HTMLDivElement>(null)
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
 
@@ -47,37 +84,47 @@ export function EstatusSatScreen({ go }: Props) {
   if (!isSatConnected(selectedRfcInfo) && !ciecBlock) return <NeedsSatConnect go={go} feature="ver tu estatus ante el SAT" />
   if (ciecBlock === 'invalid') return <CiecBlockedScreen go={go} state="invalid" />
 
-  const isClean = blacklist.state === 'available' && (blacklist.statusText ?? '').trim() === ''
-  const veredictoText = isClean ? 'Estatus limpio' : 'Requiere revisión'
+  const blacklistFlag = blacklist.state === 'available' ? blacklist.inBlacklist : null
+  const isClean = blacklistFlag === false
+  const isFlagged = blacklistFlag === true
+  const isChecking = blacklist.state === 'loading'
 
-  const formatLastConsultedDate = (dateStr?: string | null) => {
-    if (!dateStr) return 'Hoy, 9:32 am'
-    try {
-      const date = new Date(dateStr)
-      if (Number.isNaN(date.getTime())) return 'Hoy, 9:32 am'
+  const veredictoText = isChecking
+    ? 'Consultando…'
+    : isClean
+      ? 'Estatus limpio'
+      : isFlagged
+        ? 'Requiere revisión'
+        : 'Sin verificar'
 
-      const now = new Date()
-      const isToday = date.toDateString() === now.toDateString()
-      const time = date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true })
+  const veredictoDesc = isChecking
+    ? 'Estamos consultando tu estatus ante el SAT.'
+    : isClean
+      ? 'Tu RFC no aparece en las listas del artículo 69-B del SAT.'
+      : isFlagged
+        ? 'Tu RFC aparece en las listas del artículo 69-B del SAT. Revisa tu situación.'
+        : 'No pudimos consultar tu estatus en las listas del artículo 69-B del SAT.'
 
-      if (isToday) {
-        return `Hoy, ${time}`
-      }
+  const VeredictoIcon = isClean ? CheckCircle2 : isFlagged ? AlertCircle : Shield
 
-      const dateFormatted = date.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: '2-digit' })
-      return `${dateFormatted}, ${time}`
-    } catch {
-      return 'Hoy, 9:32 am'
-    }
-  }
-
-  const lastConsultedDate = formatLastConsultedDate(blacklist.downloadDate)
+  // Unica fecha real disponible: cuando bajamos la opinion o la constancia.
+  const lastConsultedDate = formatConsultedDate(opinion.downloadDate ?? csf.downloadDate)
 
   const statusItems: StatusItem[] = [
-    { id: 'opinion', label: 'Opinión de cumplimiento', status: 'positive', description: 'Vigente hasta 22-may-2026' },
-    { id: 'efos', label: 'Art. 69-B - EFOS', status: 'positive', description: 'Operaciones simuladas' },
-    { id: 'bis', label: 'Art. 69-B Bis', status: 'positive', description: 'Transmisión indebida de pérdidas' },
-    { id: 'rfc', label: 'RFC', status: 'positive', description: 'Estatus del registro' },
+    opinionItem(opinion),
+    blacklistItem('efos', 'Art. 69-B - EFOS', 'Operaciones simuladas', blacklist),
+    blacklistItem('bis', 'Art. 69-B Bis', 'Transmisión indebida de pérdidas', blacklist),
+    {
+      id: 'rfc',
+      label: 'RFC',
+      status: blacklist.state === 'available' ? 'positive' : 'neutral',
+      description:
+        blacklist.state === 'available'
+          ? 'Estatus del registro'
+          : blacklist.state === 'loading'
+            ? 'Consultando…'
+            : 'No pudimos consultarlo',
+    },
   ]
 
   const getStatusColor = (status: StatusItem['status']) => {
@@ -122,9 +169,13 @@ export function EstatusSatScreen({ go }: Props) {
           <div className="flex items-start gap-4">
             <div
               className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
-              style={{ background: 'rgba(0,211,161, 0.2)', color: '#00D3A1' }}
+              style={
+                isClean
+                  ? { background: 'rgba(0,211,161, 0.2)', color: '#00D3A1' }
+                  : { background: 'rgba(255,255,255, 0.12)', color: 'rgba(255,255,255,0.85)' }
+              }
             >
-              <CheckCircle2 size={28} />
+              <VeredictoIcon size={28} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-[11px] font-extrabold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.6)' }}>
@@ -134,7 +185,7 @@ export function EstatusSatScreen({ go }: Props) {
                 {veredictoText}
               </div>
               <div className="text-[13.5px] mt-2 leading-relaxed text-white" style={{ opacity: 0.85 }}>
-                No apareces en ninguna lista negra del SAT. Tu cumplimiento de obligaciones es <strong>positivo</strong> y tu RFC está activo.
+                {veredictoDesc}
               </div>
 
               {/* Última consulta */}
@@ -147,7 +198,7 @@ export function EstatusSatScreen({ go }: Props) {
                 </div>
                 <div className="flex items-end justify-between gap-3 flex-wrap">
                   <div className="text-white">
-                    <div className="text-[15px] font-bold">{lastConsultedDate}</div>
+                    <div className="text-[15px] font-bold">{lastConsultedDate ?? 'Sin consultas recientes'}</div>
                   </div>
                   <Btn size="sm" kind="ghost" style={{ color: 'white', borderColor: 'rgba(255,255,255,0.3)' }}>
                     <RefreshCw size={14} /> Revalidar ahora
@@ -194,13 +245,13 @@ export function EstatusSatScreen({ go }: Props) {
                           <Badge kind="brand">Positiva</Badge>
                         )}
                         {item.status === 'warning' && (
-                          <Badge kind="amber">Monitor.</Badge>
+                          <Badge kind="amber">Revisar</Badge>
                         )}
                         {item.status === 'alert' && (
                           <Badge kind="coral">Alerta</Badge>
                         )}
                         {item.status === 'neutral' && (
-                          <Badge kind="default">No sparce</Badge>
+                          <Badge kind="default">Sin dato</Badge>
                         )}
                       </div>
                     </div>

@@ -7,6 +7,10 @@ export interface DocInfo {
   errorMessage?: string
   downloadDate?: string | null
   statusText?: string | null
+  hasFile?: boolean
+  isStale?: boolean
+  // null = el backend no mando datos suficientes para decidir.
+  inBlacklist?: boolean | null
 }
 
 export interface Viewer {

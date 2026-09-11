@@ -7,17 +7,18 @@ import type { DocState } from './types'
 interface BlacklistCardProps {
   state: DocState
   statusText?: string | null
+  inBlacklist?: boolean | null
   blocked: boolean
   onConnect: () => void
 }
 
-export function BlacklistCard({ state, statusText, blocked, onConnect }: BlacklistCardProps) {
+export function BlacklistCard({ state, statusText, inBlacklist, blocked, onConnect }: BlacklistCardProps) {
   const available = state === 'available' && !blocked
   const errored = state === 'error' && !blocked
   const notFound = state === 'rfc-not-found' && !blocked
   const forbidden = state === 'forbidden' && !blocked
-  const clean = available && (statusText ?? '').trim() === ''
-  const flagged = available && (statusText ?? '').trim() !== ''
+  const clean = available && inBlacklist === false
+  const flagged = available && inBlacklist === true
 
   return (
     <DocCardShell
@@ -49,7 +50,7 @@ export function BlacklistCard({ state, statusText, blocked, onConnect }: Blackli
           : clean
             ? 'Tu RFC no aparece en las listas del artículo 69-B del SAT. Estás al corriente.'
             : flagged
-              ? `Tu RFC aparece con estatus "${statusText}" en las listas del artículo 69-B del SAT. Revisa tu situación.`
+              ? `Tu RFC aparece${statusText ? ` con estatus "${statusText}"` : ''} en las listas del artículo 69-B del SAT. Revisa tu situación.`
               : notFound
                 ? 'Este RFC no está registrado en tu cuenta. Verifica que sea el correcto o regístralo primero.'
                 : forbidden

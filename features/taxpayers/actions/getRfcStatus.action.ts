@@ -6,7 +6,9 @@ import { type Result, err, ok } from "@/lib/common";
 
 export interface RfcStatus {
   rfc: string;
-  status69B: string | null;
+  // `status` es el campo historico del endpoint; `status69B` es el alias aditivo.
+  status?: string | null;
+  status69B?: string | null;
   legalName?: string | null;
   isInBlacklist?: boolean;
   [key: string]: unknown;

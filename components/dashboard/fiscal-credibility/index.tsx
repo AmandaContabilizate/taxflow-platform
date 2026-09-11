@@ -66,6 +66,7 @@ export function FiscalCredibility({ go }: Props) {
         <BlacklistCard
           state={blacklist.state}
           statusText={blacklist.statusText}
+          inBlacklist={blacklist.inBlacklist}
           blocked={allBlocked}
           onConnect={goToSat}
         />

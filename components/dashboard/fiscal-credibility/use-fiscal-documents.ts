@@ -12,8 +12,12 @@ import {
   classifyError,
   downloadPdf,
   pdfToBlobUrl,
+  read69BFlag,
+  read69BStatus,
   readComplianceStatus,
   readDownloadDate,
+  readHasFile,
+  readIsStale,
 } from './helpers'
 import type { DocAction, DocInfo, DocKind, Viewer } from './types'
 
@@ -48,7 +52,12 @@ export function useFiscalDocuments(selectedRfc: string | null, isSyncingWithSat:
 
       setCsf(
         csfRes.success
-          ? { state: 'available', downloadDate: readDownloadDate(csfRes.value) }
+          ? {
+            state: 'available',
+            downloadDate: readDownloadDate(csfRes.value),
+            hasFile: readHasFile(csfRes.value),
+            isStale: readIsStale(csfRes.value),
+          }
           : { state: classifyError(csfRes.error.statusCode, csfRes.error.message), errorMessage: csfRes.error.message },
       )
       setOpinion(
@@ -57,21 +66,17 @@ export function useFiscalDocuments(selectedRfc: string | null, isSyncingWithSat:
             state: 'available',
             downloadDate: readDownloadDate(opRes.value),
             statusText: readComplianceStatus(opRes.value),
+            hasFile: readHasFile(opRes.value),
+            isStale: readIsStale(opRes.value),
           }
           : { state: classifyError(opRes.error.statusCode, opRes.error.message), errorMessage: opRes.error.message },
       )
-      const lastConsulted = statusRes.success
-        ? ((statusRes.value as { lastConsultedAt?: string }).lastConsultedAt ||
-           (statusRes.value as { consultedAt?: string }).consultedAt ||
-           (statusRes.value as { checkedAt?: string }).checkedAt)
-        : undefined
-
       setBlacklist(
         statusRes.success
           ? {
               state: 'available',
-              statusText: statusRes.value.status69B ?? '',
-              downloadDate: lastConsulted
+              statusText: read69BStatus(statusRes.value),
+              inBlacklist: read69BFlag(statusRes.value),
             }
           : { state: classifyError(statusRes.error.statusCode, statusRes.error.message), errorMessage: statusRes.error.message },
       )
