@@ -24,7 +24,7 @@ import {
   toNumber,
 } from '@/features/declaration-report/lib/reportDetail'
 import {
-  CLIENT_REVIEW_BUSINESS_DAYS,
+  CLIENT_REVIEW_CALENDAR_DAYS,
   DECLARATION_STATUS,
   REPORT_COMMENT_MAX_LENGTH,
   type DeclarationReport,
@@ -338,7 +338,7 @@ export function ReportView({
           </p>
 
           <p className="mx-auto mt-2 max-w-[34em] text-[13px] leading-[19px]" style={{ color: 'var(--ink-500)' }}>
-            Tienes {CLIENT_REVIEW_BUSINESS_DAYS} días hábiles desde que te avisamos para
+            Tienes {CLIENT_REVIEW_CALENDAR_DAYS} días naturales desde que te avisamos para
             enviarla. Si el plazo se cumple sin respuesta tuya, la declaración queda lista para
             presentar.
           </p>
@@ -452,7 +452,7 @@ function DeadlineNote() {
       <Clock size={18} className="mt-px shrink-0" style={{ color: 'var(--amber)' }} />
       <p className="text-[13px] leading-[19px]" style={{ color: 'var(--ink-900)' }}>
         <strong>
-          Tienes {CLIENT_REVIEW_BUSINESS_DAYS} días hábiles para autorizarla o mandarnos tu duda
+          Tienes {CLIENT_REVIEW_CALENDAR_DAYS} días naturales para autorizarla o mandarnos tu duda
           con un comentario.
         </strong>{' '}
         Si no haces nada en ese plazo, la dejamos lista para presentar ante el SAT

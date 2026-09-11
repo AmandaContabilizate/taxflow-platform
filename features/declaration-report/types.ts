@@ -18,7 +18,7 @@ export const REPORT_COMMENT_MAX_LENGTH = 500
  * `UpdateExpiredClientReviewDeclarationsCommand` la pase sola a PorPresentar (11).
  * Espejo de `DeclarationClientReview:DaysToWaitForAction` del backend.
  */
-export const CLIENT_REVIEW_BUSINESS_DAYS = 2
+export const CLIENT_REVIEW_CALENDAR_DAYS = 2
 
 /** Estatus de `Declarations.StatusDeclaration` relevantes para este flujo. */
 export const DECLARATION_STATUS = {
