@@ -13,7 +13,13 @@ import type {
   DeclarationPeriodInvoice,
 } from '@/features/declarations/types'
 import { money } from './calc-read'
-import { CatalogCell, ConceptosCell, OtroRegimenChip, PpdSinComplementoChip } from './comprobantes-tab'
+import {
+  CatalogCell,
+  ConceptosCell,
+  FacturasPadre,
+  OtroRegimenChip,
+  PpdSinComplementoChip,
+} from './comprobantes-tab'
 import { type ColumnKey, COLUMN_DEFS } from './column-defs'
 import { ColumnsModal, FilterSelect } from './filter-columns'
 import { MONO } from '../constants'
@@ -699,6 +705,11 @@ export function RecalculoTab({
                                 >
                                   Pago
                                 </Chip>
+                              </div>
+                            )}
+                            {inv.tipoComprobante === 5 && (
+                              <div className="mt-0.5 font-normal whitespace-normal">
+                                <FacturasPadre uuids={inv.parentInvoiceUuids} />
                               </div>
                             )}
                             {inv.withheldAmount != null && (

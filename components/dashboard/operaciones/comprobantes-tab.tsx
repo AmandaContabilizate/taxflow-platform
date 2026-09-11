@@ -103,9 +103,8 @@ function Chip({
 }
 
 /** El UUID va completo (es el dato con el que se busca en el SAT) y se copia al hacer click. */
-function FolioCell({ inv }: { inv: DeclarationInvoice }) {
+function UuidCopy({ uuid }: { uuid: string }) {
   const [copied, setCopied] = useState(false)
-  const folio = [inv.serie, inv.folio].filter(Boolean).join('-')
 
   useEffect(() => {
     if (!copied) return
@@ -114,9 +113,8 @@ function FolioCell({ inv }: { inv: DeclarationInvoice }) {
   }, [copied])
 
   const copy = async () => {
-    if (!inv.uuid) return
     try {
-      await navigator.clipboard.writeText(inv.uuid)
+      await navigator.clipboard.writeText(uuid)
       setCopied(true)
     } catch {
       /* clipboard bloqueado (http o permisos): el UUID igual se ve completo */
@@ -124,37 +122,68 @@ function FolioCell({ inv }: { inv: DeclarationInvoice }) {
   }
 
   return (
+    <button
+      type="button"
+      onClick={copy}
+      title={copied ? 'UUID copiado' : 'Copiar UUID'}
+      className="group flex items-start gap-1 -mx-1 px-1 py-0.5 rounded text-left transition-colors hover:bg-[var(--ink-50)]"
+    >
+      <code
+        className="text-[10.5px] leading-[1.45] break-all uppercase"
+        style={{ ...MONO, color: 'var(--ink-500)' }}
+      >
+        {uuid}
+      </code>
+      {copied ? (
+        <Check size={11} className="shrink-0 mt-[2px]" style={{ color: 'var(--brand-700)' }} />
+      ) : (
+        <Copy
+          size={11}
+          className="shrink-0 mt-[2px] opacity-0 transition-opacity group-hover:opacity-100"
+          style={{ color: 'var(--ink-500)' }}
+        />
+      )}
+    </button>
+  )
+}
+
+function FolioCell({ inv }: { inv: DeclarationInvoice }) {
+  const folio = [inv.serie, inv.folio].filter(Boolean).join('-')
+
+  return (
     <div className="flex flex-col gap-1 min-w-[176px]">
       <span className="font-semibold" style={{ color: 'var(--ink-900)' }}>
         {folio || 'Sin folio'}
       </span>
       {inv.uuid ? (
-        <button
-          type="button"
-          onClick={copy}
-          title={copied ? 'UUID copiado' : 'Copiar UUID'}
-          className="group flex items-start gap-1 -mx-1 px-1 py-0.5 rounded text-left transition-colors hover:bg-[var(--ink-50)]"
-        >
-          <code
-            className="text-[10.5px] leading-[1.45] break-all uppercase"
-            style={{ ...MONO, color: 'var(--ink-500)' }}
-          >
-            {inv.uuid}
-          </code>
-          {copied ? (
-            <Check size={11} className="shrink-0 mt-[2px]" style={{ color: 'var(--brand-700)' }} />
-          ) : (
-            <Copy
-              size={11}
-              className="shrink-0 mt-[2px] opacity-0 transition-opacity group-hover:opacity-100"
-              style={{ color: 'var(--ink-500)' }}
-            />
-          )}
-        </button>
+        <UuidCopy uuid={inv.uuid} />
       ) : (
         <span className="text-[10.5px]" style={{ color: 'var(--ink-500)' }}>
           Sin UUID
         </span>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Facturas que liquida un complemento de pago. Un CFDI de pago puede liquidar
+ * varias; lista vacía significa que no existe factura padre, no que falte el dato.
+ */
+export function FacturasPadre({ uuids }: { uuids?: string[] | null }) {
+  const list = uuids ?? []
+
+  return (
+    <div className="flex flex-col gap-0.5 items-start min-w-[176px]">
+      <span className="text-[10.5px] font-semibold" style={{ color: 'var(--ink-700)' }}>
+        {list.length > 1 ? 'Facturas padre' : 'Factura padre'}
+      </span>
+      {list.length === 0 ? (
+        <span className="text-[10.5px] leading-snug" style={{ color: 'var(--ink-500)' }}>
+          Este complemento no tiene factura padre
+        </span>
+      ) : (
+        list.map((uuid) => <UuidCopy key={uuid} uuid={uuid} />)
       )}
     </div>
   )
@@ -967,6 +996,9 @@ export function ComprobantesTab({
                                   >
                                     Pago
                                   </Chip>
+                                )}
+                                {inv.invoiceTypeId === 4 && (
+                                  <FacturasPadre uuids={inv.parentInvoiceUuids} />
                                 )}
                               </div>
                             )}

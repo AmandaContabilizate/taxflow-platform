@@ -352,6 +352,11 @@ export interface DeclarationPeriodInvoice {
   subTotal: number | null
   /** Suma de PaymentComplements.PaidAmount. Solo tipoComprobante Pago; null en los demás y en Pago sin complemento. */
   paidAmount: number | null
+  /**
+   * UUID de las facturas que liquida el complemento (un CFDI de pago puede liquidar
+   * varias). Solo tipoComprobante Pago; vacío o ausente = no hay factura padre en el sistema.
+   */
+  parentInvoiceUuids?: string[] | null
   ivaAmount: number | null
   paymentMethodCode: string | null
   paymentMethodName: string | null
