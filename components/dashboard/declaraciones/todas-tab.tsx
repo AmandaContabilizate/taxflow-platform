@@ -1,7 +1,7 @@
 'use client'
 
 import { CheckCircle2, Download, FileText, MessageSquare } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { getAllDeclarations } from '@/features/declarations/actions/getAllDeclarations.action'
 import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import type { ClientDeclarationSubject } from '@/features/declarations/types'
@@ -9,13 +9,16 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Badge, Card, Divider } from '../ui'
 import { DeclarationComments } from './declaration-comments'
 import {
+  DeclarationFilters,
   TabEmpty,
   TabError,
   TabLoading,
   declarationStatusBadge,
   monthYear,
   resolvePdfUrl,
+  useDeclarationFilters,
   useRfcResource,
+  withoutUnknownStatus,
 } from './parts'
 
 interface CurrentUser {
@@ -28,9 +31,6 @@ const PRESENTED_CODES = new Set(['Presentada', 'PresentadaManual', 'PresentadaPr
 /** 1 = Regularizacion, 2 = Plan a futuro (Sales.SaleDeclaration.DeclarationKind). */
 const KIND_REGULARIZATION = 1
 const KIND_FUTURE_PLAN = 2
-
-/** DeclarationStatus.Unknown: registros basura migrados de MySQL con estatus na/null. */
-const STATUS_UNKNOWN = 12
 
 /**
  * Una regularizacion esta comprada cuando tiene venta activa (kind 1) y ya se
@@ -50,9 +50,6 @@ function regularizationBadge(
   return null
 }
 
-const ALL_YEARS = 'todos'
-const ALL_REGIMES = 'todos'
-
 interface Props {
   onViewDetail: (subject: ClientDeclarationSubject) => void
   currentUser: CurrentUser
@@ -61,34 +58,10 @@ interface Props {
 export function TodasTab({ onViewDetail, currentUser }: Props) {
   const state = useRfcResource(getAllDeclarations)
   const { selectedRfcInfo } = useRfcStore()
-  const [yearFilter, setYearFilter] = useState(ALL_YEARS)
-  const [regimeFilter, setRegimeFilter] = useState(ALL_REGIMES)
   const [commentFor, setCommentFor] = useState<number | null>(null)
 
-  const items = state.status === 'ready' ? state.data.items.filter((i) => i.statusId !== STATUS_UNKNOWN) : []
-
-  const years = useMemo(
-    () => Array.from(new Set(items.map((i) => i.fiscalYear))).sort((a, b) => b - a),
-    [items],
-  )
-
-  const regimes = useMemo(
-    () =>
-      Array.from(new Set(items.map((i) => i.regimeName).filter((r): r is string => Boolean(r)))).sort(
-        (a, b) => a.localeCompare(b),
-      ),
-    [items],
-  )
-
-  const filtered = useMemo(
-    () =>
-      items.filter(
-        (i) =>
-          (yearFilter === ALL_YEARS || String(i.fiscalYear) === yearFilter) &&
-          (regimeFilter === ALL_REGIMES || i.regimeName === regimeFilter),
-      ),
-    [items, yearFilter, regimeFilter],
-  )
+  const items = state.status === 'ready' ? withoutUnknownStatus(state.data.items) : []
+  const { filtered, filters } = useDeclarationFilters(items)
 
   if (state.status === 'loading') return <TabLoading label="Cargando tus declaraciones…" />
   if (state.status === 'error') return <TabError message={state.message} />
@@ -99,47 +72,7 @@ export function TodasTab({ onViewDetail, currentUser }: Props) {
 
   return (
     <>
-      <Card>
-        <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
-              Año fiscal
-            </label>
-            <select
-              value={yearFilter}
-              onChange={(e) => setYearFilter(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-lg border text-[13px]"
-              style={{ borderColor: 'var(--border)', background: 'var(--input)', color: 'var(--foreground)' }}
-            >
-              <option value={ALL_YEARS}>Todos</option>
-              {years.map((y) => (
-                <option key={y} value={String(y)}>
-                  {y}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
-              Régimen
-            </label>
-            <select
-              value={regimeFilter}
-              onChange={(e) => setRegimeFilter(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-lg border text-[13px]"
-              style={{ borderColor: 'var(--border)', background: 'var(--input)', color: 'var(--foreground)' }}
-            >
-              <option value={ALL_REGIMES}>Todos</option>
-              {regimes.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </Card>
+      <DeclarationFilters {...filters} />
 
       <Card>
         <div className="px-5 py-4">

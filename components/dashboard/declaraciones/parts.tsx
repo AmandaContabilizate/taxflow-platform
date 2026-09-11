@@ -1,7 +1,7 @@
 'use client'
 
 import { Loader2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import type { Result } from '@/lib/common'
 import { DISPLAY } from '../constants'
@@ -85,6 +85,115 @@ export function useRfcResource<T>(fetcher: Fetcher<T>): Async<T> {
   }, [selectedRfc, fetcher])
 
   return state
+}
+
+/**
+ * DeclarationStatus.Unknown. El enum del back lo documenta como basura de migración, pero hoy
+ * la mayoría son anuales sembradas al leer la CSF que nadie resuelve (no hay scraper del portal
+ * anual). En ambos casos no se sabe si el contribuyente las presentó y su `statusLabel` es una
+ * nota interna: no se muestran.
+ */
+const STATUS_UNKNOWN = 12
+
+export function withoutUnknownStatus<T extends { statusId: number }>(items: T[]): T[] {
+  return items.filter((i) => i.statusId !== STATUS_UNKNOWN)
+}
+
+const ALL = 'todos'
+
+export interface DeclarationFilterState {
+  year: string
+  setYear: (v: string) => void
+  regime: string
+  setRegime: (v: string) => void
+  years: number[]
+  regimes: string[]
+}
+
+/**
+ * Filtros de año y régimen de las pestañas de declaraciones. El régimen solo se
+ * ofrece si los datos lo traen: `FuturePlanItem`/`RegularizationMonth` no tienen
+ * `regimeName` y ahí el selector se omite en vez de quedar vacío.
+ */
+export function useDeclarationFilters<T extends { fiscalYear: number; regimeName?: string | null }>(
+  items: T[],
+): { filtered: T[]; filters: DeclarationFilterState } {
+  const [year, setYear] = useState(ALL)
+  const [regime, setRegime] = useState(ALL)
+
+  const years = useMemo(
+    () => Array.from(new Set(items.map((i) => i.fiscalYear))).sort((a, b) => b - a),
+    [items],
+  )
+
+  const regimes = useMemo(
+    () =>
+      Array.from(new Set(items.map((i) => i.regimeName).filter((r): r is string => Boolean(r)))).sort(
+        (a, b) => a.localeCompare(b),
+      ),
+    [items],
+  )
+
+  const filtered = useMemo(
+    () =>
+      items.filter(
+        (i) =>
+          (year === ALL || String(i.fiscalYear) === year) &&
+          (regime === ALL || i.regimeName === regime),
+      ),
+    [items, year, regime],
+  )
+
+  return { filtered, filters: { year, setYear, regime, setRegime, years, regimes } }
+}
+
+export function DeclarationFilters({ year, setYear, regime, setRegime, years, regimes }: DeclarationFilterState) {
+  const hasRegimes = regimes.length > 0
+  return (
+    <Card>
+      <div className={`p-5 grid grid-cols-1 gap-4 ${hasRegimes ? 'sm:grid-cols-2' : ''}`}>
+        <div className="space-y-2">
+          <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+            Año fiscal
+          </label>
+          <select
+            value={year}
+            onChange={(e) => setYear(e.target.value)}
+            className="w-full px-4 py-2.5 rounded-lg border text-[13px]"
+            style={{ borderColor: 'var(--border)', background: 'var(--input)', color: 'var(--foreground)' }}
+          >
+            <option value={ALL}>Todos</option>
+            {years.map((y) => (
+              <option key={y} value={String(y)}>
+                {y}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {hasRegimes && (
+          <div className="space-y-2">
+            <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+              Régimen
+            </label>
+            <select
+              value={regime}
+              onChange={(e) => setRegime(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-lg border text-[13px]"
+              style={{ borderColor: 'var(--border)', background: 'var(--input)', color: 'var(--foreground)' }}
+            >
+              <option value={ALL}>Todos</option>
+              {regimes.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+    </Card>
+  )
 }
 
 export function TabLoading({ label }: { label: string }) {

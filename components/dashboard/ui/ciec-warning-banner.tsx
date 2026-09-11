@@ -12,8 +12,8 @@ const COPY: Record<NonNullable<Props['variant']>, { text: ReactNode; cta?: strin
   efirma: {
     text: (
       <>
-        <strong>Tu contraseña del SAT (CIEC) no está funcionando.</strong> Entraste con tu e.firma, pero
-        algunas cosas que dependen de la CIEC pueden fallar.
+        <strong>Tu contraseña del SAT (CIEC) dejó de funcionar.</strong> Lo que ves aquí puede estar
+        desactualizado; en cuanto la renueves volvemos a traer tus datos del SAT.
       </>
     ),
     cta: 'Actualiza tu CIEC',

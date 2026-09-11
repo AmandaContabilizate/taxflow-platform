@@ -5,7 +5,17 @@ import { getFuturePlan } from '@/features/declarations/actions/getFuturePlan.act
 import type { FuturePlanBadge } from '@/features/declarations/types'
 import { DISPLAY } from '../constants'
 import { Badge, Card, Divider, Pill } from '../ui'
-import { HeroTile, TabEmpty, TabError, TabLoading, monthYear, useRfcResource } from './parts'
+import {
+  DeclarationFilters,
+  HeroTile,
+  TabEmpty,
+  TabError,
+  TabLoading,
+  monthYear,
+  useDeclarationFilters,
+  useRfcResource,
+  withoutUnknownStatus,
+} from './parts'
 
 const BADGE: Record<FuturePlanBadge, { kind: 'brand' | 'default'; label: string }> = {
   Siguiente: { kind: 'brand', label: 'Siguiente' },
@@ -14,11 +24,13 @@ const BADGE: Record<FuturePlanBadge, { kind: 'brand' | 'default'; label: string 
 
 export function FuturoTab() {
   const state = useRfcResource(getFuturePlan)
+  const upcoming = state.status === 'ready' ? withoutUnknownStatus(state.data.upcoming) : []
+  const { filtered, filters } = useDeclarationFilters(upcoming)
 
   if (state.status === 'loading') return <TabLoading label="Cargando tu plan a futuro…" />
   if (state.status === 'error') return <TabError message={state.message} />
 
-  const { presentedThisYear, remainingInPlan, upcoming } = state.data
+  const { presentedThisYear, remainingInPlan } = state.data
 
   if (remainingInPlan === 0 && upcoming.length === 0) {
     return <TabEmpty message="No tienes un plan a futuro activo." />
@@ -42,6 +54,8 @@ export function FuturoTab() {
         </div>
       </div>
 
+      <DeclarationFilters {...filters} />
+
       <Card>
         <div className="px-5 py-4 flex items-center justify-between flex-wrap gap-2">
           <div>
@@ -57,13 +71,13 @@ export function FuturoTab() {
           </Pill>
         </div>
         <Divider />
-        {upcoming.length === 0 ? (
+        {filtered.length === 0 ? (
           <div className="text-center py-8">
             <div style={{ color: 'var(--ink-500)' }}>Sin próximas declaraciones programadas</div>
           </div>
         ) : (
           <div>
-            {upcoming.map((f, i) => {
+            {filtered.map((f, i) => {
               const badge = BADGE[f.badge]
               const isNext = f.badge === 'Siguiente'
               return (
@@ -95,7 +109,7 @@ export function FuturoTab() {
                       </span>
                     )}
                   </div>
-                  {i < upcoming.length - 1 && <Divider />}
+                  {i < filtered.length - 1 && <Divider />}
                 </div>
               )
             })}

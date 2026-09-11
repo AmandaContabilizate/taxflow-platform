@@ -5,7 +5,16 @@ import { getRegularizations } from '@/features/declarations/actions/getRegulariz
 import type { RegularizationBadge } from '@/features/declarations/types'
 import { DISPLAY } from '../constants'
 import { Badge, Card, Divider, Pill } from '../ui'
-import { TabEmpty, TabError, TabLoading, monthYear, useRfcResource } from './parts'
+import {
+  DeclarationFilters,
+  TabEmpty,
+  TabError,
+  TabLoading,
+  monthYear,
+  useDeclarationFilters,
+  useRfcResource,
+  withoutUnknownStatus,
+} from './parts'
 
 const BADGE: Record<RegularizationBadge, { kind: 'brand' | 'amber' | 'coral'; label: string }> = {
   EnProceso: { kind: 'brand', label: 'En proceso' },
@@ -15,11 +24,13 @@ const BADGE: Record<RegularizationBadge, { kind: 'brand' | 'amber' | 'coral'; la
 
 export function RegularizacionesTab() {
   const state = useRfcResource(getRegularizations)
+  const months = state.status === 'ready' ? withoutUnknownStatus(state.data.months) : []
+  const { filtered, filters } = useDeclarationFilters(months)
 
   if (state.status === 'loading') return <TabLoading label="Cargando regularizaciones…" />
   if (state.status === 'error') return <TabError message={state.message} />
 
-  const { totalMonths, contractedCount, toContractCount, advancePercent, months } = state.data
+  const { totalMonths, contractedCount, toContractCount, advancePercent } = state.data
 
   if (totalMonths === 0) {
     return <TabEmpty message="No tienes meses por regularizar. Estás al día." />
@@ -71,6 +82,8 @@ export function RegularizacionesTab() {
         </div>
       </div>
 
+      <DeclarationFilters {...filters} />
+
       <Card>
         <div className="px-5 py-4 flex items-center justify-between flex-wrap gap-2">
           <div>
@@ -86,39 +99,45 @@ export function RegularizacionesTab() {
           </Pill>
         </div>
         <Divider />
-        <div>
-          {months.map((m, i) => {
-            const badge = BADGE[m.badge]
-            const toContract = m.badge === 'NoPresentada'
-            return (
-              <div key={m.declarationId}>
-                <div className="flex items-center gap-3 px-5 py-4">
-                  <div
-                    className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
-                    style={{
-                      background: toContract ? 'var(--coral-soft)' : 'var(--amber-soft)',
-                      color: toContract ? 'var(--violet-ink)' : 'var(--violet-ink)',
-                    }}
-                  >
-                    {toContract ? <ShoppingCart size={18} /> : <FileText size={18} />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <div className="font-bold text-[14.5px]" style={{ color: 'var(--ink-900)' }}>
-                        {monthYear(m.fiscalYear, m.month)}
+        {filtered.length === 0 ? (
+          <div className="text-center py-8">
+            <div style={{ color: 'var(--ink-500)' }}>No hay meses con esos filtros.</div>
+          </div>
+        ) : (
+          <div>
+            {filtered.map((m, i) => {
+              const badge = BADGE[m.badge]
+              const toContract = m.badge === 'NoPresentada'
+              return (
+                <div key={m.declarationId}>
+                  <div className="flex items-center gap-3 px-5 py-4">
+                    <div
+                      className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+                      style={{
+                        background: toContract ? 'var(--coral-soft)' : 'var(--amber-soft)',
+                        color: toContract ? 'var(--violet-ink)' : 'var(--violet-ink)',
+                      }}
+                    >
+                      {toContract ? <ShoppingCart size={18} /> : <FileText size={18} />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="font-bold text-[14.5px]" style={{ color: 'var(--ink-900)' }}>
+                          {monthYear(m.fiscalYear, m.month)}
+                        </div>
+                        <Badge kind={badge.kind}>{badge.label}</Badge>
                       </div>
-                      <Badge kind={badge.kind}>{badge.label}</Badge>
-                    </div>
-                    <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
-                      {m.statusLabel}
+                      <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                        {m.statusLabel}
+                      </div>
                     </div>
                   </div>
+                  {i < filtered.length - 1 && <Divider />}
                 </div>
-                {i < months.length - 1 && <Divider />}
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        )}
       </Card>
     </>
   )
