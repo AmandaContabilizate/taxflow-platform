@@ -7,6 +7,7 @@ import { getDiagnosticoHistorial } from '@/features/diagnostico/actions/getDiagn
 import { getDiagnosticoResultado } from '@/features/diagnostico/actions/getDiagnosticoResultado.action'
 import { runDiagnosticoVendedor } from '@/features/diagnostico/actions/runDiagnostico.action'
 import type { CanRunDiagnostico, DiagnosticoHistorial, DiagnosticoResultado } from '@/features/diagnostico/types'
+import { ActividadRobots } from './actividad-robots'
 import { Badge, Btn, Card } from '../ui'
 
 interface Props {
@@ -44,6 +45,7 @@ export function TabDiagnostico({ taxpayerId, onGoCredenciales }: Props) {
   const [running, setRunning] = useState(false)
   const [runError, setRunError] = useState<string | null>(null)
   const [runNotice, setRunNotice] = useState<string | null>(null)
+  const [actividadCount, setActividadCount] = useState(0)
 
   const load = useCallback(async () => {
     const [canRes, resRes, histRes] = await Promise.all([
@@ -297,10 +299,15 @@ export function TabDiagnostico({ taxpayerId, onGoCredenciales }: Props) {
           </ul>
         ) : (
           <div className="text-[12.5px] py-1" style={{ color: 'var(--ink-500)' }}>
-            Aún no se ha corrido ningún diagnóstico para este contribuyente.
+            {actividadCount > 0
+              ? 'Sin corridas del módulo de diagnóstico — la actividad de sus robots se ve abajo.'
+              : 'Aún no se ha corrido ningún diagnóstico para este contribuyente.'}
           </div>
         )}
       </div>
+
+      {/* ===== Actividad de robots SAT (incluye el trabajo del onboarding) ===== */}
+      <ActividadRobots taxpayerId={taxpayerId} corriendo={corriendo} onCount={setActividadCount} />
 
       <div className="px-5 py-3 text-[11.5px]" style={{ color: 'var(--ink-400)', borderTop: '1px solid var(--border)' }}>
         "Por revisar" = encontrada por el diagnóstico, aún sin confirmar con el SAT · "No presentada" = adeudo

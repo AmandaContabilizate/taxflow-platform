@@ -63,6 +63,26 @@ export interface DiagnosticoHistorial {
   corridas: DiagnosticoCorrida[];
 }
 
+/** Intento de robot SAT (Task.TaskAttempt) — GET vendedor/actividad. */
+export interface DiagnosticoRobotIntento {
+  id: number;
+  /** Etiqueta lista: "Constancia (CSF)" | "Evaluación de declaraciones" | "Declaraciones · {portal} · {año}". */
+  robot: string;
+  /** Nombre crudo del scraper (para tooltip/debug). */
+  scraperName: string;
+  /** 1 Completado · 2 Fallido · 3 Corriendo · 4 Abortado · 5 En espera · 6 Encolado. */
+  estatusId: number;
+  estatus: string;
+  startDate: string;
+  lastAttemptDate: string;
+  attemptCount: number;
+  observations: string | null;
+}
+
+export interface DiagnosticoActividad {
+  intentos: DiagnosticoRobotIntento[];
+}
+
 /** Códigos estables de los 400 del POST. */
 export type DiagnosticoErrorCode =
   | "NO_VALID_CREDENTIAL"

@@ -16,6 +16,7 @@ import { runDiagnosticoVendedor } from '@/features/diagnostico/actions/runDiagno
 import type { CanRunDiagnostico, DiagnosticoCorrida, DiagnosticoResultado } from '@/features/diagnostico/types'
 import { Badge, Btn } from '../ui'
 import { DISPLAY, MONO } from '../constants'
+import { ActividadRobots } from './actividad-robots'
 import { TabDocumentos } from './expediente-cliente'
 
 interface Props {
@@ -358,9 +359,14 @@ export function DiagnosticoHistorialModal({ open, onOpenChange, taxpayerId, lega
                   ))}
                 </div>
               ) : (
-                <div className="text-[12px] py-1" style={{ color: 'var(--ink-500)' }}>Sin corridas registradas.</div>
+                <div className="text-[12px] py-1" style={{ color: 'var(--ink-500)' }}>
+                  Sin corridas del módulo de diagnóstico.
+                </div>
               )}
             </div>
+
+            {/* ===== Actividad de robots SAT (incluye el trabajo del onboarding) ===== */}
+            {taxpayerId != null && <ActividadRobots taxpayerId={taxpayerId} corriendo={corriendo} />}
           </div>
         )}
       </DialogContent>

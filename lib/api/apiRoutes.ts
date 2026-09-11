@@ -392,6 +392,9 @@ export const API_ROUTES = {
     RESULTADO_VENDEDOR: (taxpayerId: number) => `/vendedor/resultado/${taxpayerId}`,
     // Historial de corridas (quién, cuándo, cómo terminó) — backoffice.
     HISTORIAL_VENDEDOR: (taxpayerId: number) => `/vendedor/historial/${taxpayerId}`,
+    // Actividad de robots SAT (constancia/evaluación/decl-*): qué se ejecutó y en qué
+    // paso va — incluye el trabajo del onboarding, que el historial no registra.
+    ACTIVIDAD_VENDEDOR: (taxpayerId: number) => `/vendedor/actividad/${taxpayerId}`,
   },
   DECLARATION: {
     FISCAL_SCORE: (rfc: string) => `/fiscal-score?rfc=${encodeURIComponent(rfc)}`,
