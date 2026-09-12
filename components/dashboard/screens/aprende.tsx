@@ -95,8 +95,8 @@ export function AprendeScreen({ go }: Props) {
           🎬 También en video
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <VideoSlot title="¿Qué impuestos pago si trabajo por mi cuenta?" duration="4 min" />
-          <VideoSlot title="Cómo separar tus finanzas personales del negocio" duration="3 min" />
+          <VideoSlot title="¿Qué impuestos pago si trabajo por mi cuenta?" />
+          <VideoSlot title="Cómo separar tus finanzas personales del negocio" />
         </div>
       </div>
     </div>

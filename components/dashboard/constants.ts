@@ -132,7 +132,7 @@ export const GUEST_NAV_GROUPED: NavSection[] = [
       { id: 'estatussat', label: 'Estatus SAT', Icon: Activity, hint: 'Monitoreo SAT' },
       { id: 'declaraciones', label: 'Declaraciones', Icon: FileText, hint: 'Tus impuestos del mes' },
       { id: 'facturas', label: 'Facturación', Icon: FilePlus, hint: 'Emite y revisa facturas' },
-      { id: 'george', label: 'Foto → Facturas', Icon: ScanLine, hint: 'Convierte fotos de recibos en facturas', badge: 'Nuevo' },
+      { id: 'george', label: 'Foto → Facturas', Icon: ScanLine, hint: 'Convierte fotos de recibos en facturas', badge: 'Pronto' },
       { id: 'documentos', label: 'Bóveda', Icon: FolderLock, hint: 'Tu bóveda digital de CFDI y constancias' },
     ]
   },

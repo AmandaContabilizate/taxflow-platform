@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, type ReactNode, type ComponentType } from 'react'
+import { VideoSlot } from '@/components/dashboard/ui'
 import { useRouter } from 'next/navigation'
 import { AlertCircle, ArrowRight, ChevronRight, Eye, FileDown, Lightbulb, Lock, PlayCircle } from 'lucide-react'
 import { createTaxpayerByCiec } from '@/features/taxpayers/actions/createTaxpayerByCiec.action'
@@ -59,21 +60,6 @@ function HelpBox({ children }: { children: ReactNode }) {
   )
 }
 
-function VideoSlot({ title, duration }: { title: string; duration: string }) {
-  return (
-    <button className="rounded-2xl p-4 flex items-center gap-3 w-full text-left transition hover:translate-y-[-1px]" style={{ background: 'var(--card)', border: '1px solid var(--border)', boxShadow: 'var(--sh-1)' }}>
-      <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}>
-        <PlayCircle size={24} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="font-bold text-[14px] leading-tight">{title}</div>
-        <div className="text-[12px] mt-0.5" style={{ color: 'var(--ink-400)' }}>Video · {duration}</div>
-      </div>
-      <ChevronRight size={18} style={{ color: 'var(--ink-300)' }} />
-    </button>
-  )
-}
-
 // ── SatConnectScreen ──────────────────────────────────────────────────────────
 
 interface SatConnectScreenProps {
@@ -129,7 +115,7 @@ export default function SatConnectScreen({
             })
       if (!res.success) {
         setError(
-          res.error.errorCode === 'INVALID_CIEC'
+          res.error.errorCode === 'CIEC_INVALID'
             ? 'La contraseña CIEC es incorrecta. Vuelve a ingresarla.'
             : res.error.message || 'No pudimos conectar con el SAT. Revisa tus datos e inténtalo otra vez.',
         )
@@ -266,8 +252,8 @@ export default function SatConnectScreen({
         </div>
       </Card>
 
-      <VideoSlot title="¿Dónde encuentro mi contraseña del SAT?" duration="2 min" />
-      <VideoSlot title="¿Qué pasa después de conectarme?" duration="1 min" />
+      <VideoSlot title="¿Dónde encuentro mi contraseña del SAT?" />
+      <VideoSlot title="¿Qué pasa después de conectarme?" />
     </div>
   )
 }

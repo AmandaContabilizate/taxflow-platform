@@ -21,10 +21,9 @@ type CardState<T> =
 const idle = { status: 'idle' } as const
 const loading = { status: 'loading' } as const
 
-const INGRESOS_SPARK = [42, 51, 47, 58, 62, 71]
-const GASTOS_SPARK = [28, 24, 31, 26, 33, 30]
-const FACTURAS_SPARK = [6, 9, 8, 11, 14, 18]
-const CLIENTES_SPARK = [3, 4, 5, 6, 8, 9]
+// Las mini-graficas iban con series fijas ([42,51,47,...]) debajo de cifras reales y
+// con el pie "Comparado con tu actividad reciente". No hay endpoint de historico, asi
+// que se quitan en vez de dibujar una tendencia inventada.
 
 export function FinancialSummary() {
   const { selectedRfc } = useRfcStore()
@@ -91,14 +90,6 @@ export function FinancialSummary() {
           iconColor="var(--brand-700)"
           state={income}
           format={formatMoney}
-          sparkline={
-            <Sparkline
-              data={INGRESOS_SPARK}
-              stroke="var(--brand-500)"
-              fillFrom="rgba(0,211,161,0.20)"
-              fillTo="rgba(0,211,161,0.00)"
-            />
-          }
         />
         <MetricCard
           eyebrow="Gastos del mes"
@@ -107,14 +98,6 @@ export function FinancialSummary() {
           iconColor="var(--violet-ink)"
           state={bills}
           format={formatMoney}
-          sparkline={
-            <Sparkline
-              data={GASTOS_SPARK}
-              stroke="var(--violet-ink)"
-              fillFrom="rgba(115,57,253,0.20)"
-              fillTo="rgba(115,57,253,0.00)"
-            />
-          }
         />
         <MetricCard
           eyebrow="Facturas emitidas"
@@ -124,14 +107,6 @@ export function FinancialSummary() {
           state={invoices}
           format={formatNumber}
           valueSuffix=" facturas"
-          sparkline={
-            <Sparkline
-              data={FACTURAS_SPARK}
-              stroke="#7339FD"
-              fillFrom="rgba(115,57,253,0.20)"
-              fillTo="rgba(115,57,253,0.00)"
-            />
-          }
         />
         <MetricCard
           eyebrow="Clientes facturados"
@@ -141,14 +116,6 @@ export function FinancialSummary() {
           state={clients}
           format={formatNumber}
           valueSuffix=" clientes"
-          sparkline={
-            <Sparkline
-              data={CLIENTES_SPARK}
-              stroke="#7339FD"
-              fillFrom="rgba(115,57,253,0.22)"
-              fillTo="rgba(115,57,253,0.00)"
-            />
-          }
         />
       </div>
     </div>
@@ -163,7 +130,7 @@ interface MetricCardProps {
   state: CardState<number>
   format: (value: number) => string
   valueSuffix?: string
-  sparkline: ReactNode
+  sparkline?: ReactNode
 }
 
 function MetricCard({
@@ -245,73 +212,11 @@ function MetricCard({
         </div>
 
         <div className="text-[12.5px] mt-2 leading-relaxed" style={{ color: 'var(--ink-500)' }}>
-          {errored ? state.message : 'Comparado con tu actividad reciente'}
+          {errored ? state.message : 'Del periodo en curso'}
         </div>
       </div>
 
-      <div className="h-14 -mx-1">{sparkline}</div>
+      {sparkline ? <div className="h-14 -mx-1">{sparkline}</div> : null}
     </div>
-  )
-}
-
-interface SparklineProps {
-  data: number[]
-  stroke: string
-  fillFrom: string
-  fillTo: string
-}
-
-function Sparkline({ data, stroke, fillFrom, fillTo }: SparklineProps) {
-  const width = 240
-  const height = 56
-  const padding = 4
-  const min = Math.min(...data)
-  const max = Math.max(...data)
-  const range = max - min || 1
-  const stepX = (width - padding * 2) / (data.length - 1)
-
-  const points = data.map((v, i) => {
-    const x = padding + i * stepX
-    const y = padding + (1 - (v - min) / range) * (height - padding * 2)
-    return [x, y] as const
-  })
-
-  const path = points
-    .map(([x, y], i) => `${i === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`)
-    .join(' ')
-
-  const area = `${path} L ${points[points.length - 1][0].toFixed(2)} ${height} L ${points[0][0].toFixed(2)} ${height} Z`
-
-  const gradientId = `spark-${stroke.replace(/[^a-z0-9]/gi, '')}`
-
-  return (
-    <svg
-      viewBox={`0 0 ${width} ${height}`}
-      preserveAspectRatio="none"
-      className="w-full h-full"
-      aria-hidden
-    >
-      <defs>
-        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={fillFrom} />
-          <stop offset="100%" stopColor={fillTo} />
-        </linearGradient>
-      </defs>
-      <path d={area} fill={`url(#${gradientId})`} />
-      <path
-        d={path}
-        fill="none"
-        stroke={stroke}
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle
-        cx={points[points.length - 1][0]}
-        cy={points[points.length - 1][1]}
-        r={3}
-        fill={stroke}
-      />
-    </svg>
   )
 }

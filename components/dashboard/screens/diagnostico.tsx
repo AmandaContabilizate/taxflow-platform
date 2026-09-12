@@ -397,7 +397,7 @@ export function DiagnosticoScreen({ go }: Props) {
         )}
       </div>
 
-      <VideoSlot title="¿Cómo se calcula mi diagnóstico fiscal?" duration="3 min" />
+      <VideoSlot title="¿Cómo se calcula mi diagnóstico fiscal?" />
     </div>
   )
 }

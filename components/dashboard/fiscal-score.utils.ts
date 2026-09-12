@@ -39,3 +39,22 @@ export function scoreColor(score: number): string {
   if (s.pill === 'amber') return '#7339FD'
   return 'var(--violet-ink)'
 }
+
+/**
+ * Texto del estado de sincronización con el SAT — ÚNICA fuente para web y app.
+ * Había cinco redacciones distintas para los mismos cuatro pasos (hero, header,
+ * Vista fiscal, y dos en la móvil), así que el mismo estado se leía diferente
+ * según la pantalla. Espejo de `declarations/tools/fiscalScore.ts` en la móvil.
+ */
+export function satSyncLabel(step: 'loading' | 'connecting' | 'checking' | 'ready'): string {
+  switch (step) {
+    case 'ready':
+      return 'SAT sincronizado'
+    case 'connecting':
+      return 'Conectando con el SAT'
+    case 'checking':
+      return 'Revisando tus declaraciones'
+    default:
+      return 'Consultando al SAT'
+  }
+}

@@ -37,6 +37,21 @@ interface PlanScreenProps {
   go: GoFn
 }
 
+/** Estatus de la suscripcion de Stripe, en español: llegaba crudo ("past_due", "trialing"). */
+function subscriptionStatusLabel(status: string): string {
+  const map: Record<string, string> = {
+    active: 'Activa',
+    trialing: 'En periodo de prueba',
+    past_due: 'Pago vencido',
+    unpaid: 'Sin pagar',
+    canceled: 'Cancelada',
+    incomplete: 'Pago incompleto',
+    incomplete_expired: 'Pago no completado',
+    paused: 'En pausa',
+  }
+  return map[status] ?? status
+}
+
 export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled, go }: PlanScreenProps) {
   const { selectedRfc, setSelectedRfc, selectedRfcInfo } = useRfcStore()
   const { hasRfc, loading } = useHasRfc()
@@ -123,7 +138,7 @@ export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled, go }: Pl
       >
         <div className="flex items-center gap-2 flex-wrap">
           <Pill kind="coral">{hasSub ? 'Tu plan actual' : 'Sin plan activo'}</Pill>
-          {hasSub && activePlan?.status && <Pill kind="brand">{activePlan.status}</Pill>}
+          {hasSub && activePlan?.status && <Pill kind="brand">{subscriptionStatusLabel(activePlan.status)}</Pill>}
         </div>
 
         {account && (
@@ -275,7 +290,7 @@ export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled, go }: Pl
 
       {!loadingSub && account && <OtherRfcs cuentas={account.otrosRfc} onSelect={setSelectedRfc} />}
 
-      <VideoSlot title="¿Qué cubre cada plan?" duration="2 min" />
+      <VideoSlot title="¿Qué cubre cada plan?" />
 
       {selectedRfc && (
         <PlanPickerModal

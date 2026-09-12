@@ -1,6 +1,7 @@
 'use client'
 
 import { UserPlus, Loader2, Check, TrendingUp } from 'lucide-react'
+import { satSyncLabel } from './fiscal-score.utils'
 import { RFCSelector } from './rfc-selector'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { useFiscalScore } from '@/features/declarations/hooks/useFiscalScore'
@@ -22,7 +23,7 @@ export function DashboardHeader({ go }: DashboardHeaderProps) {
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(115,57,253, 0.1)', color: 'var(--violet-ink)' }}>
             <Loader2 size={16} className="animate-spin" />
             <span className="text-[12px] font-medium whitespace-nowrap">
-              {step === 'connecting' ? 'Conectando con el SAT…' : step === 'checking' ? 'Comprobando con el SAT…' : 'Diagnóstico en proceso…'}
+              {satSyncLabel(step)}…
             </span>
           </div>
         ) : null}

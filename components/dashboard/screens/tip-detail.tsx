@@ -33,7 +33,7 @@ export function TipDetailScreen({ go }: Props) {
         pagas de impuestos. Te lo explicamos paso a paso.
       </div>
 
-      <VideoSlot title="Mira esta lección en video" duration="4 min" />
+      <VideoSlot title="Mira esta lección en video" />
 
       <Card>
         <div className="p-5 lg:p-6">
@@ -101,9 +101,6 @@ export function TipDetailScreen({ go }: Props) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <Btn kind="ghost" size="lg" block>
-          <CheckCircle2 size={18} /> Me sirvió
-        </Btn>
         <Btn kind="primary" size="lg" block>
           <MessageCircle size={18} /> Tengo una duda
         </Btn>

@@ -97,7 +97,7 @@ export function DeclaracionesScreen({ go, currentUser }: Props) {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {TAB_VIDEOS[tab].map(([title, duration]) => (
-              <VideoSlot key={title} title={title} duration={duration} />
+              <VideoSlot key={title} title={title} />
             ))}
           </div>
         </div>

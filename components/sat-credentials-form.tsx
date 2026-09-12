@@ -49,7 +49,7 @@ export default function SatCredentialsForm({ existingRfc, onComplete }: Props) {
     setLoading(false)
     if (!res.success) {
       setError(
-        res.error.errorCode === 'INVALID_CIEC'
+        res.error.errorCode === 'CIEC_INVALID'
           ? 'La contraseña CIEC es incorrecta. Vuelve a ingresarla.'
           : res.error.message,
       )

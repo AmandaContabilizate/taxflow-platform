@@ -1,9 +1,9 @@
 'use client'
 
-import { MessageCircle, UserRound, X } from 'lucide-react'
+import { UserRound, X } from 'lucide-react'
 import { useState, lazy, Suspense } from 'react'
 import { DISPLAY } from '../constants'
-import { Btn, Card, Divider, HelpBox, VideoSlot } from '../ui'
+import { Card, Divider, HelpBox, VideoSlot } from '../ui'
 
 const RemotionPlayer = lazy(() => import('@/components/video/player').then(mod => ({ default: mod.RemotionPlayer })))
 
@@ -112,8 +112,8 @@ export function AyudaScreen() {
             </div>
             <span style={{ color: 'var(--ink-300)' }}>›</span>
           </button>
-          <VideoSlot title="Cómo conectarte al SAT" duration="2 min" />
-          <VideoSlot title="Cómo emitir tu primera factura" duration="4 min" />
+          <VideoSlot title="Cómo conectarte al SAT" />
+          <VideoSlot title="Cómo emitir tu primera factura" />
         </div>
       </div>
 
@@ -160,11 +160,6 @@ export function AyudaScreen() {
             </div>
             <div className="text-[14px] mt-1.5 leading-relaxed" style={{ color: 'var(--ink-700)' }}>
               Tu contador asignado puede ayudarte por chat. Te responde rápido y en palabras claras.
-            </div>
-            <div className="mt-4">
-              <Btn kind="primary">
-                <MessageCircle size={18} /> Escribirle a mi contador
-              </Btn>
             </div>
           </div>
         </div>

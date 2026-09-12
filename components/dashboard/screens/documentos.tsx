@@ -80,6 +80,9 @@ interface Row {
   stampNote?: string
   monto: string
   revisar: boolean
+  /** Para la búsqueda: el placeholder ofrece buscar por UUID y folio. */
+  uuid: string
+  folio: string
 }
 
 function toRow(inv: VaultInvoice, side: 'issued' | 'received'): Row {
@@ -101,6 +104,8 @@ function toRow(inv: VaultInvoice, side: 'issued' | 'received'): Row {
     stampNote,
     monto: moneyFull.format(inv.total ?? 0),
     revisar: inv.statusComprobante !== CFDI_STATUS_VIGENTE,
+    uuid: inv.uuid ?? '',
+    folio: inv.folio ?? '',
   }
 }
 
@@ -214,7 +219,9 @@ export function DocumentosScreen({ go }: Props) {
         const searchLower = filters.search.toLowerCase()
         const matches =
           row.name.toLowerCase().includes(searchLower) ||
-          row.rfc.toLowerCase().includes(searchLower)
+          row.rfc.toLowerCase().includes(searchLower) ||
+          row.uuid.toLowerCase().includes(searchLower) ||
+          row.folio.toLowerCase().includes(searchLower)
         if (!matches) return false
       }
       if (filters.rfc && row.rfc !== filters.rfc) return false
