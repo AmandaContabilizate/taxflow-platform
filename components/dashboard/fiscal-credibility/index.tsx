@@ -46,6 +46,8 @@ export function FiscalCredibility({ go }: Props) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
         <CsfCard
           state={csf.state}
+          hasFile={csf.hasFile}
+          isStale={csf.isStale}
           downloadDate={csf.downloadDate}
           busy={busy}
           onConnect={goToSat}
@@ -55,6 +57,8 @@ export function FiscalCredibility({ go }: Props) {
         />
         <ComplianceCard
           state={opinion.state}
+          hasFile={opinion.hasFile}
+          isStale={opinion.isStale}
           blocked={allBlocked}
           downloadDate={opinion.downloadDate}
           statusText={opinion.statusText}

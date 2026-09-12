@@ -6,6 +6,9 @@ import type { DocState } from './types'
 
 interface CsfCardProps {
   state: DocState
+  /** El back responde 200 aunque no haya archivo: sin esto "La tenemos lista" sale siempre. */
+  hasFile?: boolean
+  isStale?: boolean
   downloadDate?: string | null
   busy: string | null
   onConnect: () => void
@@ -14,8 +17,9 @@ interface CsfCardProps {
   onDownload: () => void
 }
 
-export function CsfCard({ state, downloadDate, busy, onConnect, onUpload, onView, onDownload }: CsfCardProps) {
-  const available = state === 'available'
+export function CsfCard({ state, hasFile, isStale, downloadDate, busy, onConnect, onUpload, onView, onDownload }: CsfCardProps) {
+  const available = state === 'available' && hasFile !== false
+  const stale = available && isStale === true
   const errored = state === 'error'
   const notFound = state === 'rfc-not-found'
   const forbidden = state === 'forbidden'
@@ -46,7 +50,7 @@ export function CsfCard({ state, downloadDate, busy, onConnect, onUpload, onView
           : isDownloading
             ? 'Cargando…'
             : available
-              ? 'La tenemos lista'
+              ? (stale ? 'La tenemos, pero desactualizada' : 'La tenemos lista')
               : notFound
                 ? 'No encontramos este RFC'
                 : forbidden

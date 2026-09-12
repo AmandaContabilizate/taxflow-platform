@@ -68,6 +68,10 @@ export function VistaFiscalScreen({ go, firstName }: Props) {
 
   if (loading) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="acceder a tu vista fiscal" />
+  // status69B trae valor SOLO cuando el RFC aparece en la lista del 69-B (null si no aparece,
+  // ver RfcList.cs). Estaba al reves: el pill verde solo lo veia quien si estaba en la lista.
+  const isIn69B = (selectedRfcInfo?.status69B ?? '').trim() !== ''
+
   const ciecBlock = getCiecBlockStatus(selectedRfcInfo)
   if (!isSatConnected(selectedRfcInfo) && !ciecBlock) return <NeedsSatConnect go={go} feature="acceder a tu vista fiscal" />
   if (ciecBlock === 'invalid') return <CiecBlockedScreen go={go} state="invalid" />
@@ -116,7 +120,11 @@ export function VistaFiscalScreen({ go, firstName }: Props) {
                   {selectedRfcInfo.rfc}
                 </div>
               </div>
-              {selectedRfcInfo.status69B && (
+              {isIn69B ? (
+                <div className="text-[12px] font-semibold px-3 py-1.5 rounded-full" style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}>
+                  Requiere revisión
+                </div>
+              ) : (
                 <div className="text-[12px] font-semibold px-3 py-1.5 rounded-full" style={{ background: 'var(--brand-50)', color: 'var(--brand-700)' }}>
                   ✓ Todo en orden
                 </div>
@@ -297,7 +305,7 @@ export function VistaFiscalScreen({ go, firstName }: Props) {
               className="rounded-3xl p-6 lg:p-7 text-white"
               style={{ background: 'linear-gradient(155deg,#2A1C64 0%,#221158 100%)', boxShadow: 'var(--sh-ink)' }}
             >
-              {selectedRfcInfo?.status69B && (
+              {!isIn69B && (
                 <div className="text-[12px] font-semibold px-3 py-1.5 rounded-full inline-flex items-center gap-1.5 mb-4" style={{ background: 'rgba(0,173,135, 0.2)', color: '#00AD87' }}>
                   <span className="w-2 h-2 rounded-full" style={{ background: '#00AD87' }} />
                   SAT sincronizado

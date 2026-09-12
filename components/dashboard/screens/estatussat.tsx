@@ -1,12 +1,12 @@
 'use client'
 
-import { AlertCircle, CheckCircle2, RefreshCw, Shield } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Shield } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import { useFiscalScore } from '@/features/declarations/hooks/useFiscalScore'
 import { DISPLAY } from '../constants'
 import type { GoFn } from '../types'
-import { Badge, Btn, Card, CiecWarningBanner } from '../ui'
+import { Badge, Card, CiecWarningBanner } from '../ui'
 import { useFiscalDocuments } from '../fiscal-credibility/use-fiscal-documents'
 import type { DocInfo } from '../fiscal-credibility/types'
 import { getCiecBlockStatus, isConnectedByEfirmaOnly, isSatConnected } from '../sat-connection.utils'
@@ -200,9 +200,6 @@ export function EstatusSatScreen({ go }: Props) {
                   <div className="text-white">
                     <div className="text-[15px] font-bold">{lastConsultedDate ?? 'Sin consultas recientes'}</div>
                   </div>
-                  <Btn size="sm" kind="ghost" style={{ color: 'white', borderColor: 'rgba(255,255,255,0.3)' }}>
-                    <RefreshCw size={14} /> Revalidar ahora
-                  </Btn>
                 </div>
               </div>
             </div>

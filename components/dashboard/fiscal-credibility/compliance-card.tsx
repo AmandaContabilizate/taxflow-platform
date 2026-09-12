@@ -6,6 +6,9 @@ import type { DocState } from './types'
 
 interface ComplianceCardProps {
   state: DocState
+  /** El back responde 200 aunque no haya archivo: sin esto la tarjeta la da por lista. */
+  hasFile?: boolean
+  isStale?: boolean
   blocked: boolean
   downloadDate?: string | null
   statusText?: string | null
@@ -18,6 +21,8 @@ interface ComplianceCardProps {
 export function ComplianceCard({
   state,
   blocked,
+  hasFile,
+  isStale,
   downloadDate,
   statusText,
   busy,
@@ -25,7 +30,8 @@ export function ComplianceCard({
   onDownload,
   onConnect,
 }: ComplianceCardProps) {
-  const available = state === 'available' && !blocked
+  const available = state === 'available' && !blocked && hasFile !== false
+  const stale = available && isStale === true
   const errored = state === 'error' && !blocked
   const notFound = state === 'rfc-not-found' && !blocked
   const forbidden = state === 'forbidden' && !blocked
@@ -46,7 +52,7 @@ export function ComplianceCard({
             : isDownloading
               ? 'Cargando…'
               : available
-                ? 'Lista para consultar'
+                ? (stale ? 'La tenemos, pero desactualizada' : 'Lista para consultar')
                 : notFound
                   ? 'No encontramos este RFC'
                   : forbidden
