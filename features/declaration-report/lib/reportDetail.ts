@@ -76,6 +76,14 @@ const HIDDEN = new Set([
 /** Objetos que no merecen bloque propio: sus escalares suben al bloque padre. */
 const INLINE_OBJECTS = new Set(['isr', 'optioniva'])
 
+// Objetos del JSON que NO van al reporte del cliente: `ivadefinitiva` es el
+// desglose interno del contador (CalculosTab lo pinta en el backoffice); sin
+// esta exclusión, buildDetailBlocks lo convertía en un bloque "Iva definitiva"
+// en el reporte del cliente y en la vista previa de Enviar Predeclaración.
+// OJO: no va en INLINE_OBJECTS — eso aplanaría sus filas dentro del bloque IVA
+// en vez de ocultarlas (collectEntries línea ~223).
+const EXCLUDED_OBJECTS = new Set(['ivadefinitiva'])
+
 const SERVICE_TITLES: Record<string, string> = {
   serviceground: 'Servicio terrestre y entrega de bienes',
   servicelodging: 'Prestación de servicios de hospedaje',
@@ -322,7 +330,7 @@ export function buildDetailBlocks(
 
   for (const [rawKey, value] of Object.entries(detail)) {
     const key = rawKey.toLowerCase()
-    if (!isPlainObject(value) || INLINE_OBJECTS.has(key)) continue
+    if (!isPlainObject(value) || INLINE_OBJECTS.has(key) || EXCLUDED_OBJECTS.has(key)) continue
 
     const rows = buildRows(value)
     // El clasificador manda siempre los tres servicios del 625; el que no tuvo
