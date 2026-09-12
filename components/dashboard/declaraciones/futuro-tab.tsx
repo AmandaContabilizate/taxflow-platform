@@ -67,7 +67,10 @@ export function FuturoTab() {
             </div>
           </div>
           <Pill kind="brand">
-            <CheckCircle2 size={12} /> Plan al corriente
+            <CheckCircle2 size={12} />{' '}
+            {remainingInPlan === 1
+              ? '1 declaración por venir'
+              : `${remainingInPlan} declaraciones por venir`}
           </Pill>
         </div>
         <Divider />
@@ -99,9 +102,7 @@ export function FuturoTab() {
                         </div>
                         <Badge kind={badge.kind}>{badge.label}</Badge>
                       </div>
-                      <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
-                        {f.statusLabel}
-                      </div>
+
                     </div>
                     {!isNext && (
                       <span className="text-[12px] flex items-center gap-1" style={{ color: 'var(--ink-500)' }}>

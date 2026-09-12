@@ -127,9 +127,7 @@ export function RegularizacionesTab() {
                         </div>
                         <Badge kind={badge.kind}>{badge.label}</Badge>
                       </div>
-                      <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
-                        {m.statusLabel}
-                      </div>
+
                     </div>
                   </div>
                   {i < filtered.length - 1 && <Divider />}

@@ -124,7 +124,7 @@ export function TodasTab({ onViewDetail, currentUser }: Props) {
                         )}
                       </div>
                       <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
-                        {[d.regimeName, d.statusLabel].filter(Boolean).join(' · ')}
+                        {d.regimeName}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
