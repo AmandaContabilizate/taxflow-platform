@@ -5,12 +5,10 @@ import { useState } from 'react'
 import {
   formatMXN,
   modeOf,
-  priceForMode,
   SUBSCRIPTION_DISCOUNT_PERCENT,
   typeLabel,
   type AccountPurchase,
   type AccountPurchaseItem,
-  type PaymentMode,
 } from '@/features/account/types'
 import { DISPLAY, MONO } from '../constants'
 import { Badge, Card, Divider } from '../ui'
@@ -23,7 +21,7 @@ function fmtDate(iso: string): string {
 
 const PAID_STATUS_ID = 2
 
-function PurchaseItem({ item, mode }: { item: AccountPurchaseItem; mode: PaymentMode }) {
+function PurchaseItem({ item }: { item: AccountPurchaseItem }) {
   return (
     <div className="rounded-2xl p-3.5" style={{ background: 'var(--ink-50)' }}>
       <div className="flex items-start justify-between gap-3">
@@ -32,11 +30,11 @@ function PurchaseItem({ item, mode }: { item: AccountPurchaseItem; mode: Payment
             {item.planName ?? 'Paquete'}
           </div>
           <div className="text-[11.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
-            {item.quantity} × {formatMXN(priceForMode(item.unitAmount, mode))}
+            {item.quantity} × {formatMXN(item.unitAmount)}
           </div>
         </div>
         <div className="text-[13.5px] font-extrabold whitespace-nowrap" style={{ ...MONO, color: 'var(--ink-900)' }}>
-          {formatMXN(priceForMode(item.amount, mode))}
+          {formatMXN(item.amount)}
         </div>
       </div>
 
@@ -56,7 +54,9 @@ function PurchaseRow({ purchase }: { purchase: AccountPurchase }) {
   const [open, setOpen] = useState(false)
   const isPaid = purchase.statusId === PAID_STATUS_ID
   const mode = modeOf(purchase.type)
-  const amount = priceForMode(purchase.amount, mode)
+  // Lo ya cobrado se muestra tal cual: Sale.Amount guarda el importe real, y el precio
+  // de suscripcion de Stripe ya trae su descuento. Recalcularlo aqui lo descontaba dos veces.
+  const amount = purchase.amount
 
   return (
     <div>
@@ -101,7 +101,7 @@ function PurchaseRow({ purchase }: { purchase: AccountPurchase }) {
       {open && (
         <div className="px-4 pb-4 flex flex-col gap-2.5">
           {purchase.items.map((item) => (
-            <PurchaseItem key={item.saleItemId} item={item} mode={mode} />
+            <PurchaseItem key={item.saleItemId} item={item} />
           ))}
         </div>
       )}
@@ -117,7 +117,7 @@ export function PurchaseHistory({ compras }: Props) {
   const paidCompras = compras.filter(
     (c) => c.statusId === PAID_STATUS_ID || c.status?.toLowerCase() === 'pagada'
   )
-  const total = paidCompras.reduce((sum, c) => sum + priceForMode(c.amount, modeOf(c.type)), 0)
+  const total = paidCompras.reduce((sum, c) => sum + c.amount, 0)
 
   return (
     <div>

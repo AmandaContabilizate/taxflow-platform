@@ -5,7 +5,6 @@ import { useState } from 'react'
 import {
   formatMXN,
   modeOf,
-  priceForMode,
   SUBSCRIPTION_DISCOUNT_PERCENT,
   typeLabel,
   type SalePayment,
@@ -77,7 +76,7 @@ export function PaymentsPanel({ loading, error, items, total }: Props) {
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <div className="text-[14px] font-extrabold whitespace-nowrap" style={{ ...MONO, color: 'var(--ink-900)' }}>
-                    {formatMXN(priceForMode(p.amount, mode))}
+                    {formatMXN(p.amount)}
                   </div>
                   {pending && <ChevronRight size={16} style={{ color: 'var(--ink-300)' }} />}
                 </div>
