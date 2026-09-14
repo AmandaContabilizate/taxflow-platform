@@ -48,6 +48,8 @@ export async function getDeclarations(params: {
   statusId?: number;
   skip?: number;
   take?: number;
+  /** true = ruta espejo de solo lectura (claim Contador.ConsultaDeclaraciones). */
+  consulta?: boolean;
 }): Promise<Result<Paged<DeclarationListItem>, OpsError>> {
   const { skip = 0, take = 100 } = params;
   try {

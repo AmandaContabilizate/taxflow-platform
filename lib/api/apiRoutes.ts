@@ -235,6 +235,8 @@ export const API_ROUTES = {
     // combinables. OJO: devuelve un array pelón, no PagedResult (sin total).
     // regimeId = Id de Users.TaxRegimes; periodValueId = Catalogs.Period
     // (101-112 mensual, 201-206 bimestral, 501 anual).
+    // `consulta`: ruta espejo de solo lectura (claim Contador.ConsultaDeclaraciones),
+    // para perfiles que ven el módulo sin tener Contador.ReadDeclaraciones.
     LIST: (params: {
       rfc?: string
       regimeId?: number
@@ -243,6 +245,7 @@ export const API_ROUTES = {
       statusId?: number
       skip?: number
       take?: number
+      consulta?: boolean
     }) => {
       const qs = new URLSearchParams()
       if (params.rfc) qs.set("rfc", params.rfc)
@@ -252,7 +255,7 @@ export const API_ROUTES = {
       if (params.statusId) qs.set("statusId", String(params.statusId))
       qs.set("skip", String(params.skip ?? 0))
       qs.set("take", String(params.take ?? 100))
-      return `?${qs.toString()}`
+      return `${params.consulta ? "/consulta" : ""}?${qs.toString()}`
     },
     // GET declarations_reports — panel del contador (cartera, periodo y CIEC).
     CONTADOR_DASHBOARD: (year: number, month: number) =>

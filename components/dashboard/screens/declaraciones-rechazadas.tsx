@@ -9,6 +9,7 @@ import { declarationStatusBadge } from '../declaraciones/parts'
 import { DeclarationDetail } from '../operaciones/declaration-detail'
 import { Pagination } from '../clientes/parts'
 import { MONO } from '../constants'
+import { useHasPermission } from '../permissions'
 import { numParam, useUrlState } from '../url-state'
 import { Badge, Card, ErrorState, HelpBox } from '../ui'
 
@@ -48,13 +49,25 @@ export function DeclaracionesRechazadasScreen({ currentUser }: { currentUser: Cu
   const [error, setError] = useState<string | null>(null)
   const [subject, setSubject] = useState<DeclarationSubject | null>(null)
 
+  // Perfiles de solo consulta (SAC, atención a cliente): tienen el claim que abre
+  // el módulo pero no el de los datos, así que la lista viaja por la ruta espejo.
+  // El claim completo siempre gana — con él, nada de esto cambia.
+  const canFull = useHasPermission('Contador.ReadDeclaraciones')
+  const canConsulta = useHasPermission('Contador.ConsultaDeclaraciones')
+  const soloConsulta = canConsulta && !canFull
+
   useEffect(() => {
     if (declarationId) return
     let cancelled = false
     setLoading(true)
     setError(null)
     void (async () => {
-      const res = await getDeclarations({ statusId: DECLARATION_STATUS.CLIENT_REJECTED, skip, take: TAKE })
+      const res = await getDeclarations({
+        statusId: DECLARATION_STATUS.CLIENT_REJECTED,
+        skip,
+        take: TAKE,
+        consulta: soloConsulta,
+      })
       if (cancelled) return
       if (res.success) setPage(res.value)
       else {
@@ -66,7 +79,7 @@ export function DeclaracionesRechazadasScreen({ currentUser }: { currentUser: Cu
     return () => {
       cancelled = true
     }
-  }, [declarationId, skip])
+  }, [declarationId, skip, soloConsulta])
 
   const openDeclaration = (item: DeclarationListItem) => {
     setSubject({
