@@ -51,6 +51,9 @@ export interface DeclarationReport {
   statusLabel: string | null
   /** true solo con statusId === 9: única situación en que los botones tienen efecto. */
   canAuthorize: boolean
+  /** ISR a cargo del periodo, ya neto de retenciones. */
+  isrCargo: Money
+  /** ISR a cargo + IVA a cargo. */
   totalDeclaration: Money
   income: Money
   ivaFavor: Money

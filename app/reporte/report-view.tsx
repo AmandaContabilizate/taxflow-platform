@@ -84,7 +84,11 @@ export function ReportView({
     [report.ivaDetail, report.isrDetail],
   )
 
-  const total = toNumber(report.totalDeclaration) ?? 0
+  // ISR e IVA se muestran por separado: son impuestos distintos y el contribuyente los
+  // paga aparte. El total es la suma; el IVA a FAVOR no se resta, va en su propio aviso.
+  const isrCargo = toNumber(report.isrCargo) ?? 0
+  const ivaCargo = toNumber(report.ivaCargo) ?? 0
+  const total = toNumber(report.totalDeclaration) ?? isrCargo + ivaCargo
   const ivaFavor = toNumber(report.ivaFavor) ?? 0
   const canReturn = report.canAuthorize
 
@@ -184,6 +188,36 @@ export function ReportView({
                 ? 'Impuesto a cargo del periodo'
                 : 'No hay impuesto a cargo en este periodo'}
             </p>
+
+            {total > 0 && (
+              <div
+                className="mt-4 grid grid-cols-2 gap-2.5"
+                style={{ color: 'rgba(255,255,255,0.86)' }}
+              >
+                <div
+                  className="rounded-2xl px-3.5 py-3"
+                  style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.14)' }}
+                >
+                  <p className="text-[11.5px] font-bold uppercase tracking-[0.06em]" style={{ color: 'rgba(255,255,255,0.58)' }}>
+                    ISR
+                  </p>
+                  <p className="mt-1 text-[19px] font-extrabold tabular-nums" style={{ color: '#FFFFFF' }}>
+                    {formatMoney(isrCargo)}
+                  </p>
+                </div>
+                <div
+                  className="rounded-2xl px-3.5 py-3"
+                  style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.14)' }}
+                >
+                  <p className="text-[11.5px] font-bold uppercase tracking-[0.06em]" style={{ color: 'rgba(255,255,255,0.58)' }}>
+                    IVA
+                  </p>
+                  <p className="mt-1 text-[19px] font-extrabold tabular-nums" style={{ color: '#FFFFFF' }}>
+                    {formatMoney(ivaCargo)}
+                  </p>
+                </div>
+              </div>
+            )}
 
             {ivaFavor > 0 && (
               <div
