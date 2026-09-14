@@ -35,10 +35,9 @@ function describeDaysLeft(days: number): string {
 }
 
 /**
- * Calcula las próximas fechas fiscales relevantes para la persona física:
- *  - Declaración mensual: vence el día 17 del mes siguiente al periodo declarado.
- *  - Declaración anual personas físicas: 30 de abril del año siguiente al ejercicio.
- *  - DIOT mensual: último día del mes siguiente al periodo.
+ * Próximas fechas fiscales de la persona física: la declaración mensual vence el
+ * día 17 del mes siguiente al periodo declarado. La anual no se lista: hoy no se
+ * puede comprar por ejercicio.
  */
 function computeUpcomingDates(today: Date): UpcomingDate[] {
   const result: UpcomingDate[] = []
@@ -70,22 +69,7 @@ function computeUpcomingDates(today: Date): UpcomingDate[] {
     daysLeft: monthlyDaysLeft,
   })
 
-  // 2) Declaración ANUAL personas físicas: 30 de abril.
-  //    Si ya pasó este año, salta al 30 de abril del año siguiente
-  //    (en ese caso, ya declara el ejercicio del año en curso).
-  const aprilEndThisYear = new Date(year, 3, 30) // mes 3 = abril
-  const anualDueDate = aprilEndThisYear >= startOfDay(today) ? aprilEndThisYear : new Date(year + 1, 3, 30)
-  const anualExercise = anualDueDate.getFullYear() - 1
-  const anualDaysLeft = daysBetween(today, anualDueDate)
-  result.push({
-    day: '30',
-    mo: MONTHS_SHORT[3],
-    title: `Declaración anual ${anualExercise}`,
-    sub: `${capitalize(describeDaysLeft(anualDaysLeft))} · ya estamos trabajando en ella`,
-    daysLeft: anualDaysLeft,
-  })
-
-  // 3) Siguiente mensual (la que sigue a la próxima), para dar visibilidad de mediano plazo.
+  // 2) Siguiente mensual (la que sigue a la próxima), para dar visibilidad de mediano plazo.
   let nextMonthlyDueMonth = monthlyDueMonth + 1
   let nextMonthlyDueYear = monthlyDueYear
   if (nextMonthlyDueMonth > 11) {

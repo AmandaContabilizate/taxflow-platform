@@ -18,7 +18,7 @@ import { createRole } from '@/features/roles/actions/createRole.action'
 import { updateRole } from '@/features/roles/actions/updateRole.action'
 import { getClaimsCatalog } from '@/features/roles/actions/getClaimsCatalog.action'
 import type { ClaimsDepartmentDto, RoleOverviewDto } from '@/features/roles/types'
-import { DISPLAY, MASTER_NAV_SECTIONS } from '../constants'
+import { DISPLAY, MASTER_NAV_SECTIONS, MODULE_CLAIMS } from '../constants'
 import { Btn, Card } from '../ui'
 
 /**
@@ -225,18 +225,25 @@ export function RoleEditor({ role, onSaved, onCancel }: RoleEditorProps) {
       }
     }
     // Módulos del sidebar sin permisos todavía: se muestran deshabilitados para
-    // que el administrador vea el mapa completo del backoffice.
+    // que el administrador vea el mapa completo del backoffice. Excepción: un
+    // módulo cuyos permisos YA existen en el catálogo (administrados desde otro
+    // departamento, p. ej. Deducibilidad forzada dentro de Centro de operaciones)
+    // no lleva cuadro vacío — decir "sin permisos aún" ahí sería falso.
     if (departments.length > 0) {
+      const claimsEnCatalogo = new Set(
+        Array.from(map.values()).flatMap((d) => d.claims.map((c) => c.claimValue)),
+      )
       for (const s of MASTER_NAV_SECTIONS) {
         for (const item of s.items) {
-          if (!map.has(item.label)) {
-            map.set(item.label, {
-              departmentId: -1,
-              departmentName: item.label,
-              departmentCode: '',
-              claims: [],
-            })
-          }
+          if (map.has(item.label)) continue
+          const suyos = MODULE_CLAIMS[item.id] ?? []
+          if (suyos.length > 0 && suyos.some((v) => claimsEnCatalogo.has(v))) continue
+          map.set(item.label, {
+            departmentId: -1,
+            departmentName: item.label,
+            departmentCode: '',
+            claims: [],
+          })
         }
       }
     }
