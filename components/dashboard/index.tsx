@@ -75,6 +75,7 @@ const WIDE_SCREENS = new Set<Screen>([
   'clientes',
   'contribuyentes',
   'usuarios',
+  'codigos-descuento',
   'renovaciones',
   'ventas',
   'roles',
