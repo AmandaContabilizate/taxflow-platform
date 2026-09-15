@@ -281,7 +281,7 @@ export interface DeclarationGeneral {
   ivaCargo: Money;
   /** `DeclarationSummary.IvaFavor`; `null` si no hay fila de summary. */
   ivaFavor: Money;
-  /** `Declaration.TotalDeclaration`; fallback `AnnualTax`. */
+  /** `Declaration.AnnualTax`: ISR a cargo, ya neto de retenciones. Nunca el total con IVA. */
   isrCalculado: Money;
 }
 

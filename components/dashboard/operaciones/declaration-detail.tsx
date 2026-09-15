@@ -390,8 +390,13 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
       num(r?.ivaDetail ?? null, ['totalExpenses', 'expenseTotal', 'subtotalExpenses']) ??
       toNumber(general?.gastosDeducibles),
     isrCalculado: r?.annualTax ?? toNumber(general?.isrCalculado),
-    ivaPorPagar: r?.ivaCargo ?? toNumber(general?.ivaCargo),
+    ivaCargo: r?.ivaCargo ?? toNumber(general?.ivaCargo),
+    ivaFavor: r?.ivaFavor ?? toNumber(general?.ivaFavor),
   }
+
+  // El IVA del periodo es a cargo o a favor, nunca los dos: la tarjeta cambia de titulo en vez de
+  // pintar un guion cuando el cargo es cero. Sin ninguno de los dos datos no se inventa nada.
+  const ivaEsFavor = (stats.ivaCargo ?? 0) === 0 && (stats.ivaFavor ?? 0) > 0
 
   const regimen = general?.regimeName
     ? `${general.regimeSatCode ?? ''} ${general.regimeName}`.trim()
@@ -574,7 +579,12 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
         <StatCard label="Ingresos Brutos" value={moneyOrDash(stats.ingresosBrutos)} color="var(--brand-700)" icon={<TrendingUp size={18} />} />
         <StatCard label="Gastos Deducibles" value={moneyOrDash(stats.gastosDeducibles)} color="var(--danger)" icon={<DollarSign size={18} />} />
         <StatCard label="ISR Calculado" value={moneyOrDash(stats.isrCalculado)} color="var(--sky)" icon={<Calculator size={18} />} />
-        <StatCard label="IVA Por Pagar" value={moneyOrDash(stats.ivaPorPagar)} color="var(--violet)" icon={<DollarSign size={18} />} />
+        <StatCard
+          label={ivaEsFavor ? 'IVA a Favor' : 'IVA Por Pagar'}
+          value={moneyOrDash(ivaEsFavor ? stats.ivaFavor : stats.ivaCargo)}
+          color="var(--violet)"
+          icon={<DollarSign size={18} />}
+        />
       </div>
 
       {/* Tabs */}
