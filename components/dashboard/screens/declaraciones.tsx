@@ -66,11 +66,7 @@ export function DeclaracionesScreen({ go, currentUser }: Props) {
 
   if (detail) {
     return (
-      <ClientDeclarationDetail
-        declaration={detail}
-        onBack={() => setDetail(null)}
-        currentUser={currentUser}
-      />
+      <ClientDeclarationDetail declaration={detail} onBack={() => setDetail(null)} />
     )
   }
 

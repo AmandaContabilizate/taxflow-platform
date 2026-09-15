@@ -1,23 +1,20 @@
 'use client'
 
-import { AlertCircle, ArrowLeft, Download, Loader2, Search } from 'lucide-react'
+import { AlertCircle, ArrowLeft, Download, FileText, Loader2, Search } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { getMyDeclarationReport } from '@/features/declaration-report/actions'
+import type { DeclarationReport } from '@/features/declaration-report/types'
 import { getClientDeclarationInvoices } from '@/features/declarations/actions/getClientDeclarationInvoices.action'
 import type { ClientDeclarationInvoice, ClientDeclarationSubject } from '@/features/declarations/types'
 import { DISPLAY, MONO } from '../constants'
+import { Modal } from '../modal'
+import { DeclarationReportPanel } from './declaration-report-panel'
 import { Badge, Card } from '../ui'
-import { DeclarationComments } from './declaration-comments'
 import { declarationStatusBadge, fmtDate, resolvePdfUrl } from './parts'
-
-interface CurrentUser {
-  userId: string
-  fullName: string
-}
 
 interface Props {
   declaration: ClientDeclarationSubject
   onBack: () => void
-  currentUser: CurrentUser
 }
 
 type Origen = '' | 'true' | 'false'
@@ -35,13 +32,29 @@ const money = (n: number | null | undefined) =>
  * de sus CFDI del periodo y si cada uno quedó deducible, nunca la clasificación ni
  * las herramientas de recálculo.
  */
-export function ClientDeclarationDetail({ declaration: d, onBack, currentUser }: Props) {
+export function ClientDeclarationDetail({ declaration: d, onBack }: Props) {
   const [invoices, setInvoices] = useState<ClientDeclarationInvoice[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [origen, setOrigen] = useState<Origen>('')
   const [deducible, setDeducible] = useState<Deducible>('')
+  // El mismo reporte del enlace del correo, pedido con la sesion. Si no carga, la pantalla
+  // sigue sirviendo para el listado de facturas: no se bloquea por esto.
+  const [report, setReport] = useState<DeclarationReport | null>(null)
+  const [reportOpen, setReportOpen] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const res = await getMyDeclarationReport(d.declarationId)
+      if (cancelled) return
+      setReport(res.success ? res.value : null)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [d.declarationId])
 
   useEffect(() => {
     let cancelled = false
@@ -120,6 +133,26 @@ export function ClientDeclarationDetail({ declaration: d, onBack, currentUser }:
           <Dato label="Periodicidad" value={d.periodicity ?? 'No definida'} />
           <Dato label="Presentada el" value={d.submittedAt ? fmtDate(d.submittedAt) : 'Aún no'} />
         </div>
+        {/* Accion principal de la pantalla: el calculo completo va en un modal, no apilado
+            encima del listado de facturas. */}
+        <div className="px-5 pb-5">
+          <button
+            type="button"
+            onClick={() => setReportOpen(true)}
+            disabled={!report}
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-[13.5px] font-extrabold transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: 'var(--brand-700)', color: '#fff' }}
+          >
+            <FileText size={16} />
+            {report ? 'Ver detalle de la declaración' : 'Cargando el detalle…'}
+          </button>
+          <p className="text-[12.5px] mt-2" style={{ color: 'var(--ink-500)' }}>
+            {report?.canAuthorize
+              ? 'Revisa el cálculo completo y autorízalo, o mándanos tu duda.'
+              : 'Revisa el cálculo completo de este periodo.'}
+          </p>
+        </div>
+
         {(d.acknowledgmentPdfUrl || d.paymentLinePdfUrl || d.paymentAcknowledgmentPdfUrl) && (
           <div className="px-5 pb-5 flex items-center gap-3 flex-wrap">
             {d.acknowledgmentPdfUrl && (
@@ -356,20 +389,14 @@ export function ClientDeclarationDetail({ declaration: d, onBack, currentUser }:
         </div>
       </Card>
 
-      <Card>
-        <div className="p-5 flex flex-col gap-4">
-          <div>
-            <h3 className="text-[17px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
-              Comentarios para tu contador
-            </h3>
-            <p className="text-[13px] mt-0.5 max-w-[62ch]" style={{ color: 'var(--ink-500)' }}>
-              Si algo no cuadra en esta declaración, escríbelo aquí: tu contador lo ve junto con el
-              periodo y te responde en este mismo hilo.
-            </p>
-          </div>
-          <DeclarationComments declarationId={d.declarationId} currentUser={currentUser} />
-        </div>
-      </Card>
+      <Modal
+        isOpen={reportOpen && report != null}
+        onClose={() => setReportOpen(false)}
+        title={`Declaración de ${d.periodo}`}
+        maxWidth={900}
+      >
+        {report && <DeclarationReportPanel report={report} />}
+      </Modal>
     </div>
   )
 }

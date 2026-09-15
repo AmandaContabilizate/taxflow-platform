@@ -69,7 +69,10 @@ export function PlanPickerModal({
   const [processing, setProcessing] = useState(false)
 
   const planList = catalog.futurePlans
-  const procedures = catalog.additionalProcedures
+  // Los tramites no se venden dentro de una suscripcion: son cargos de una sola vez y
+  // cobrarlos de forma recurrente le renovaria al cliente un tramite que ya se hizo.
+  // Se contratan en el modo de pago unico o desde la pantalla de Tramites.
+  const procedures = paymentMode === 0 ? [] : catalog.additionalProcedures
   const regularizations = catalog.regularizations
 
   const selectedPlan = useMemo(

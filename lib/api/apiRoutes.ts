@@ -452,6 +452,11 @@ export const API_ROUTES = {
     REPORT: (token: string) => `/report?t=${encodeURIComponent(token)}`,
     AUTHORIZE: "/authorize",
     COMMENT: "/comment",
+    // Mismo reporte para el cliente ya autenticado: la credencial es el JWT y el
+    // identificador la declaracion, no el token del correo.
+    MY: (declarationId: number) => `/my/${declarationId}`,
+    MY_AUTHORIZE: (declarationId: number) => `/my/${declarationId}/authorize`,
+    MY_COMMENT: (declarationId: number) => `/my/${declarationId}/comment`,
   },
   // apiType "payment_link" (Procedures). REDEEM es [AllowAnonymous] · GET.
   PAYMENT_LINK: {

@@ -14,7 +14,9 @@ import {
 } from 'lucide-react'
 import {
   authorizeDeclarationReport,
+  authorizeMyDeclarationReport,
   commentDeclarationReport,
+  commentMyDeclarationReport,
 } from '@/features/declaration-report/actions'
 import {
   buildDetailBlocks,
@@ -64,10 +66,17 @@ function toneColor(tone: ReportDetailRow['tone']): string {
 export function ReportView({
   report,
   token,
+  declarationId,
   readOnly = false,
 }: {
   report: DeclarationReport
-  token: string
+  /** Credencial del enlace del correo. Excluyente con `declarationId`. */
+  token?: string
+  /**
+   * Credencial del cliente ya autenticado, cuando el reporte se abre desde el detalle de la
+   * declaración en vez del correo. Manda sobre `token` y usa los endpoints con sesión.
+   */
+  declarationId?: number
   /** Vista previa del contador: se ocultan las acciones del cliente. */
   readOnly?: boolean
 }) {
@@ -95,7 +104,9 @@ export function ReportView({
   async function handleAuthorize() {
     setError(null)
     setLoading(true)
-    const res = await authorizeDeclarationReport(token)
+    const res = declarationId != null
+      ? await authorizeMyDeclarationReport(declarationId)
+      : await authorizeDeclarationReport(token ?? '')
     setLoading(false)
 
     if (!res.success) {
@@ -110,7 +121,9 @@ export function ReportView({
     e.preventDefault()
     setError(null)
     setLoading(true)
-    const res = await commentDeclarationReport(token, comment)
+    const res = declarationId != null
+      ? await commentMyDeclarationReport(declarationId, comment)
+      : await commentDeclarationReport(token ?? '', comment)
     setLoading(false)
 
     if (!res.success) {

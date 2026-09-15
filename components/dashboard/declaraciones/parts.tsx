@@ -20,7 +20,9 @@ const STATUS_BADGE: Record<string, { kind: BadgeKind; label: string }> = {
   EnRevisionCliente: { kind: 'amber', label: 'En tu revisión' },
   RebotadaCliente: { kind: 'coral', label: 'Rechazada' },
   PorPresentar: { kind: 'coral', label: 'Por presentar' },
-  PorRevisar: { kind: 'default', label: 'Por revisar' },
+  // El cliente no sabe que significa "Por revisar": es una obligacion que salio de su
+  // constancia y que todavia estamos confirmando contra el SAT.
+  PorRevisar: { kind: 'default', label: 'En revisión de declaración ante el SAT' },
   NoPresentada: { kind: 'coral', label: 'No presentada' },
 }
 
