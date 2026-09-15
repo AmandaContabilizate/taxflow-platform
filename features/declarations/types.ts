@@ -67,7 +67,9 @@ export interface RunDeclarationDownloadResult {
 
 /**
  * GET download-files/estatus-periodo: los 4 combos de descarga SAT del periodo de la
- * declaración. 1 = completo, 0 = pendiente. "Completo" NO es "existe una corrida
+ * declaración: 0 = gris, nunca se pidió; 1 = verde, completo; 2 = azul, hay algo en curso
+ * (DownloadRequest sin terminar, o todavía en la cola interna de scrapers); 3 = rojo, el
+ * intento más reciente terminó en Error/Expired. "Completo" NO es "existe una corrida
  * Completed": es que las corridas completadas CUBRAN por unión de rangos la ventana
  * del periodo (día 1 del mes .. día 6 del mes siguiente) — varias descargas parciales
  * suman, y una sola de 6 días no cubre un mes. Lee la copia sincronizada, así que

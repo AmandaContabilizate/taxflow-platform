@@ -244,8 +244,8 @@
     "en": "Certificate validation against SAT failed."
   },
   "CERT_VALIDATION_SAT_ERROR": {
-    "es": "Error al validar el certificado contra SAT.",
-    "en": "Error validating certificate against SAT."
+    "es": "Error al validar el certificado contra el SAT. SAT no disponible por el momento.",
+    "en": "Error validating the certificate against SAT. SAT is temporarily unavailable."
   },
   "CERT_THUMBPRINT_MISSING": {
     "es": "No se pudo determinar la huella digital del certificado.",

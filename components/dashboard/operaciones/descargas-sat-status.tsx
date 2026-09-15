@@ -17,12 +17,30 @@ interface Props {
   refreshKey?: number
 }
 
-const COMBOS: { key: keyof PeriodDownloadStatus; label: string }[] = [
+type ComboKey = 'issuedInvoices' | 'receivedInvoices' | 'issuedRetentions' | 'receivedRetentions'
+
+const COMBOS: { key: ComboKey; label: string }[] = [
   { key: 'issuedInvoices', label: 'Facturas emitidas' },
   { key: 'receivedInvoices', label: 'Facturas recibidas' },
   { key: 'issuedRetentions', label: 'Retenciones emitidas' },
   { key: 'receivedRetentions', label: 'Retenciones recibidas' },
 ]
+
+// Dominio del backend por combo: 0 gris (nunca pedido), 1 verde (completo), 2 azul (en curso:
+// DownloadRequest sin terminar o todavía en la cola interna de scrapers), 3 rojo (el intento más
+// reciente terminó en Error/Expired). Ver GetPeriodDownloadStatusQuery.cs.
+const COMBO_COLOR: Record<number, string> = {
+  0: 'var(--ink-200, var(--border))',
+  1: 'var(--accent-500, #10b981)',
+  2: 'var(--sky-500, #0ea5e9)',
+  3: 'var(--danger-500, #ef4444)',
+}
+const COMBO_LABEL: Record<number, string> = {
+  0: 'pendiente',
+  1: 'descargado',
+  2: 'en curso',
+  3: 'falló',
+}
 
 /**
  * Chip "Descargas del periodo: N/4" junto al botón Descargar archivos SAT.
@@ -79,10 +97,10 @@ export function DescargasSatStatus({ declarationId, periodValueId, refreshKey = 
         {COMBOS.map((c) => (
           <span
             key={c.key}
-            title={`${c.label}: ${status[c.key] === 1 ? 'descargado' : 'pendiente'}`}
+            title={`${c.label}: ${COMBO_LABEL[status[c.key]] ?? 'pendiente'}`}
             className="h-[5px] w-[13px] rounded-full"
             style={{
-              background: status[c.key] === 1 ? 'var(--accent-500, #10b981)' : 'var(--ink-200, var(--border))',
+              background: COMBO_COLOR[status[c.key]] ?? COMBO_COLOR[0],
               transition: 'background-color 150ms ease',
             }}
           />
