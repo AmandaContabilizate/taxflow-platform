@@ -25,6 +25,7 @@ import {
   SUBSCRIPTION_DISCOUNT_PERCENT,
   type DiscountCodePreview,
   type PaymentMode,
+  type Plan,
   type PlansCatalog,
   type RegisterSaleItem,
 } from '@/features/account/types'
@@ -34,6 +35,9 @@ import { Badge, Btn } from '../ui'
 import { PaymentForm } from './payment-form'
 
 type Step = 'cart' | 'paying' | 'success'
+
+/** Identidad estable para el caso "sin tramites": un `[]` nuevo por render reabre el bucle. */
+const EMPTY_PROCEDURES: Plan[] = []
 
 interface PlanPickerModalProps {
   open: boolean
@@ -72,7 +76,12 @@ export function PlanPickerModal({
   // Los tramites no se venden dentro de una suscripcion: son cargos de una sola vez y
   // cobrarlos de forma recurrente le renovaria al cliente un tramite que ya se hizo.
   // Se contratan en el modo de pago unico o desde la pantalla de Tramites.
-  const procedures = paymentMode === 0 ? [] : catalog.additionalProcedures
+  // VA MEMOIZADO A FUERZA: es dependencia del efecto de abajo, y un `[]` literal
+  // nuevo en cada render lo disparaba en bucle hasta tumbar la pestaña.
+  const procedures = useMemo(
+    () => (paymentMode === 0 ? EMPTY_PROCEDURES : catalog.additionalProcedures),
+    [paymentMode, catalog.additionalProcedures],
+  )
   const regularizations = catalog.regularizations
 
   const selectedPlan = useMemo(
@@ -115,7 +124,11 @@ export function PlanPickerModal({
   }, [open])
 
   // Al cambiar de modo, deseleccionar lo que ya no aplique.
+  // Los dos updaters devuelven `prev` cuando el resultado es igual: si construyen
+  // siempre un objeto/Set nuevo, React los ve distintos por identidad y vuelve a
+  // renderizar, lo que reejecuta este efecto y gira sin parar.
   useEffect(() => {
+    if (!open) return
     if (selectedPlan && !isAvailableForMode(selectedPlan, paymentMode)) {
       setSelectedPlanId(null)
     }
@@ -124,6 +137,9 @@ export function PlanPickerModal({
       for (const addon of procedures) {
         if (isAvailableForMode(addon, paymentMode)) next[addon.id] = prev[addon.id] ?? 0
       }
+      const prevKeys = Object.keys(prev)
+      const sameKeys = prevKeys.length === Object.keys(next).length
+      if (sameKeys && prevKeys.every((k) => prev[Number(k)] === next[Number(k)])) return prev
       return next
     })
     setSelectedDecls((prev) => {
@@ -133,9 +149,10 @@ export function PlanPickerModal({
           next.add(reg.declarationId)
         }
       }
+      if (prev.size === next.size && [...prev].every((id) => next.has(id))) return prev
       return next
     })
-  }, [paymentMode, selectedPlan, procedures, regularizations])
+  }, [open, paymentMode, selectedPlan, procedures, regularizations])
 
   // En suscripción el price recurrente de Stripe ya trae el 10% de descuento;
   // el catálogo solo expone el precio de lista, así que lo descontamos aquí.
