@@ -10,11 +10,14 @@ import { Badge, Card, Divider } from '../ui'
 import { DeclarationComments } from './declaration-comments'
 import {
   DeclarationFilters,
+  KIND_FUTURE_PLAN,
+  PRESENTED_CODES,
   TabEmpty,
   TabError,
   TabLoading,
   declarationStatusBadge,
   monthYear,
+  regularizationBadge,
   resolvePdfUrl,
   useDeclarationFilters,
   useRfcResource,
@@ -24,30 +27,6 @@ import {
 interface CurrentUser {
   userId: string
   fullName: string
-}
-
-const PRESENTED_CODES = new Set(['Presentada', 'PresentadaManual', 'PresentadaPrevio', 'PresentadaExterno'])
-
-/** 1 = Regularizacion, 2 = Plan a futuro (Sales.SaleDeclaration.DeclarationKind). */
-const KIND_REGULARIZATION = 1
-const KIND_FUTURE_PLAN = 2
-
-/**
- * Una regularizacion esta comprada cuando tiene venta activa (kind 1) y ya se
- * activo ("En proceso"). Sin venta el back manda `declarationKind: null` y el
- * SAT la reporta como no presentada: esa es la que todavia se puede comprar.
- */
-function regularizationBadge(
-  kind: number | null,
-  statusCode: string,
-): { kind: 'brand' | 'coral'; label: string } | null {
-  if (kind === KIND_REGULARIZATION && statusCode === 'EnProceso') {
-    return { kind: 'brand', label: 'Comprada' }
-  }
-  if (kind == null && statusCode === 'NoPresentada') {
-    return { kind: 'coral', label: 'Por comprar' }
-  }
-  return null
 }
 
 interface Props {

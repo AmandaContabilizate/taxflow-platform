@@ -33,6 +33,7 @@ import type { ExpedienteCliente, ExpedientePeriodo } from '@/features/taxpayers/
 import { DISPLAY, MONO } from '../constants'
 import { Badge, Card, ErrorState, NoAccessState, Tabs, isForbiddenError } from '../ui'
 import { TabDiagnostico } from './tab-diagnostico'
+import { TabVistaCliente } from './tab-vista-cliente'
 import { PredeclaracionModal } from './predeclaracion-modal'
 
 const MESES = [
@@ -109,6 +110,7 @@ const TAB_CREDENCIALES = 'Credenciales'
 const TAB_PRODUCTOS = 'Productos'
 const TAB_DOCUMENTOS = 'Documentos'
 const TAB_DIAGNOSTICO = 'Diagnóstico'
+const TAB_VISTA_CLIENTE = 'Vista del cliente'
 
 /**
  * Expediente del cliente (pantalla Clientes → clic en el nombre). Función de
@@ -122,14 +124,17 @@ export function ExpedienteCliente({ taxpayerId, permissions, onBack }: Props) {
     permissions.includes('Contador.GetTaxCertificate') ||
     permissions.includes('Contador.GetComplianceOpinion')
   const canDiagnostico = permissions.includes('GerenciaComercial.RunDiagnosticoCliente')
+  // Solo gerentes (decisión 2026-09-14): lo que el cliente ve en su app, en solo lectura.
+  const canVistaCliente = permissions.includes('Gerencia.VistaCliente')
   const tabs = useMemo(() => {
     const t = [TAB_RESUMEN]
     if (canCredentials) t.push(TAB_CREDENCIALES)
     t.push(TAB_PRODUCTOS)
     if (canDocs) t.push(TAB_DOCUMENTOS)
     if (canDiagnostico) t.push(TAB_DIAGNOSTICO)
+    if (canVistaCliente) t.push(TAB_VISTA_CLIENTE)
     return t
-  }, [canCredentials, canDocs, canDiagnostico])
+  }, [canCredentials, canDocs, canDiagnostico, canVistaCliente])
   const [tab, setTab] = useState(0)
 
   const [data, setData] = useState<ExpedienteCliente | null>(null)
@@ -237,6 +242,9 @@ export function ExpedienteCliente({ taxpayerId, permissions, onBack }: Props) {
             if (i >= 0) setTab(i)
           }}
         />
+      )}
+      {activeTab === TAB_VISTA_CLIENTE && canVistaCliente && (
+        <TabVistaCliente taxpayerId={taxpayerId} legalName={data.legalName} />
       )}
     </div>
   )
