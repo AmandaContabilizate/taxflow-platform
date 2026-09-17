@@ -33,11 +33,10 @@ export const PROTECTED_ROUTES = {
 } as const;
 
 // Si el usuario ya tiene sesión, NO debería ver estas páginas → redirige al dashboard.
-export const AUTH_REDIRECT_ROUTES: string[] = [PUBLIC_ROUTES.LOGIN];
+export const AUTH_REDIRECT_ROUTES: string[] = [PUBLIC_ROUTES.LOGIN, PUBLIC_ROUTES.HOME];
 
 // Rutas públicas adicionales que no requieren auth pero tampoco redirigen.
 export const PUBLIC_NONAUTH_ROUTES: string[] = [
-  PUBLIC_ROUTES.HOME,
   PUBLIC_ROUTES.LOGOUT,
   PUBLIC_ROUTES.PRIVACY,
   PUBLIC_ROUTES.PLANS,
