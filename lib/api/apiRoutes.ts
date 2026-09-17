@@ -407,6 +407,9 @@ export const API_ROUTES = {
     FUTURE_PLAN: (rfc: string) => `/future-plan?rfc=${encodeURIComponent(rfc)}`,
     ANNUALS: (rfc: string) => `/annuals?rfc=${encodeURIComponent(rfc)}`,
     ALL: (rfc: string) => `/all?rfc=${encodeURIComponent(rfc)}`,
+    // Vista del cliente (backoffice, claim Gerencia.VistaCliente): el mismo /all que ve el
+    // cliente, pedido por un gerente para un contribuyente ajeno. Solo lectura.
+    ALL_ESPEJO: (taxpayerId: number) => `/espejo/${taxpayerId}/all`,
     COMMENTS: (declarationId: number) => `/${declarationId}/comments`,
     RECALCULATE: "/recalculate",
     ISSUED_INVOICES_DECLARATION: (p: DeclarationPeriodInvoicesParams) =>
