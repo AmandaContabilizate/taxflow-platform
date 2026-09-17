@@ -15,6 +15,11 @@ import { declarationStatusBadge, fmtDate, resolvePdfUrl } from './parts'
 interface Props {
   declaration: ClientDeclarationSubject
   onBack: () => void
+  /**
+   * Vista del cliente (backoffice): misma pantalla, pero el cálculo completo (/my/{id})
+   * exige la sesión del dueño, así que en el espejo no se ofrece el botón ni sus acciones.
+   */
+  readOnly?: boolean
 }
 
 type Origen = '' | 'true' | 'false'
@@ -32,7 +37,7 @@ const money = (n: number | null | undefined) =>
  * de sus CFDI del periodo y si cada uno quedó deducible, nunca la clasificación ni
  * las herramientas de recálculo.
  */
-export function ClientDeclarationDetail({ declaration: d, onBack }: Props) {
+export function ClientDeclarationDetail({ declaration: d, onBack, readOnly = false }: Props) {
   const [invoices, setInvoices] = useState<ClientDeclarationInvoice[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -45,6 +50,9 @@ export function ClientDeclarationDetail({ declaration: d, onBack }: Props) {
   const [reportOpen, setReportOpen] = useState(false)
 
   useEffect(() => {
+    // En el espejo no se pide: /my/{id} valida la pertenencia con la sesión y el gerente
+    // no es el dueño; pedirlo solo produciría un 403 en el log por cada apertura.
+    if (readOnly) return
     let cancelled = false
     void (async () => {
       const res = await getMyDeclarationReport(d.declarationId)
@@ -54,7 +62,7 @@ export function ClientDeclarationDetail({ declaration: d, onBack }: Props) {
     return () => {
       cancelled = true
     }
-  }, [d.declarationId])
+  }, [d.declarationId, readOnly])
 
   useEffect(() => {
     let cancelled = false
@@ -135,6 +143,12 @@ export function ClientDeclarationDetail({ declaration: d, onBack }: Props) {
         </div>
         {/* Accion principal de la pantalla: el calculo completo va en un modal, no apilado
             encima del listado de facturas. */}
+        {readOnly ? (
+          <p className="px-5 pb-5 text-[12.5px]" style={{ color: 'var(--ink-500)' }}>
+            El cliente ve aquí el botón <b>Ver detalle de la declaración</b>, que abre su cálculo completo
+            {' '}(con autorizar y &quot;Tengo una duda&quot;). Solo él puede abrirlo desde su cuenta.
+          </p>
+        ) : (
         <div className="px-5 pb-5">
           <button
             type="button"
@@ -152,6 +166,7 @@ export function ClientDeclarationDetail({ declaration: d, onBack }: Props) {
               : 'Revisa el cálculo completo de este periodo.'}
           </p>
         </div>
+        )}
 
         {(d.acknowledgmentPdfUrl || d.paymentLinePdfUrl || d.paymentAcknowledgmentPdfUrl) && (
           <div className="px-5 pb-5 flex items-center gap-3 flex-wrap">

@@ -38,6 +38,33 @@ const MONTHS = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ]
 
+/** Códigos que el cliente ve como "presentada" (ícono verde en su lista "Todas"). */
+export const PRESENTED_CODES = new Set(['Presentada', 'PresentadaManual', 'PresentadaPrevio', 'PresentadaExterno'])
+
+/** 1 = Regularizacion, 2 = Plan a futuro (Sales.SaleDeclaration.DeclarationKind). */
+export const KIND_REGULARIZATION = 1
+export const KIND_FUTURE_PLAN = 2
+
+/**
+ * Una regularizacion esta comprada cuando tiene venta activa (kind 1) y ya se
+ * activo ("En proceso"). Sin venta el back manda `declarationKind: null` y el
+ * SAT la reporta como no presentada: esa es la que todavia se puede comprar.
+ * Vive aquí (y no en la tab) porque la "Vista del cliente" del backoffice debe
+ * pintar exactamente lo mismo que el cliente: una sola regla, dos pantallas.
+ */
+export function regularizationBadge(
+  kind: number | null,
+  statusCode: string,
+): { kind: 'brand' | 'coral'; label: string } | null {
+  if (kind === KIND_REGULARIZATION && statusCode === 'EnProceso') {
+    return { kind: 'brand', label: 'Comprada' }
+  }
+  if (kind == null && statusCode === 'NoPresentada') {
+    return { kind: 'coral', label: 'Por comprar' }
+  }
+  return null
+}
+
 export function monthYear(fiscalYear: number, month: number): string {
   return `${MONTHS[month - 1] ?? ''} ${fiscalYear}`.trim()
 }
