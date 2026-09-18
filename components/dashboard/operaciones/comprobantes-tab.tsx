@@ -12,13 +12,14 @@ import {
   Loader2,
   Search,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { getDeclarationInvoices } from '@/features/operations/actions/getDeclarationInvoices.action'
 import { getDeclarationWithholdings } from '@/features/operations/actions/getDeclarationWithholdings.action'
 import type {
   DeclarationInvoice,
   DeclarationInvoiceConcepto,
+  InvoiceCuadre,
   InvoiceSortBy,
   InvoiceSortDir,
   PagedConTotales,
@@ -692,6 +693,10 @@ export function ComprobantesTab({
         ? periodo.egresosSubTotal
         : visibles.filter(esEgreso).reduce((acc, i) => acc + toNumber(i.subTotal), 0),
       esDelPeriodo: periodo != null,
+      // El cuadre contra Ingresos Brutos solo lo puede resolver el backend, sobre el universo
+      // completo y sabiendo qué comprobantes entran al cálculo. Sin él la franja no se inventa
+      // nada: la línea simplemente no aparece.
+      cuadre: periodo?.cuadre,
       // Lo retenido y el IVA siguen siendo de la página: el backend solo los resuelve
       // para las facturas que devuelve, y se etiquetan como tales.
       retenido: visibles.reduce((acc, i) => acc + toNumber(i.totalRetenido), 0),
@@ -942,10 +947,11 @@ export function ComprobantesTab({
         ) : (
           <>
             <TotalesResumen
+              aviso={!totales.esDelPeriodo}
               caption={
                 totales.esDelPeriodo
                   ? `${page.total} comprobantes del período`
-                  : `${visibles.length} comprobantes en pantalla`
+                  : `Solo esta página: ${visibles.length} de ${page.total} comprobantes`
               }
               entries={[
                 ['Subtotal', money(totales.subTotal)],
@@ -956,10 +962,17 @@ export function ComprobantesTab({
                       `−${money(totales.egresosSubTotal)}`,
                     ]] as [string, string][])
                   : []),
+                ...(totales.cuadre
+                  ? ([[
+                      'Entra al cálculo (emitidas de ingreso)',
+                      money(totales.cuadre.subTotal),
+                    ]] as [string, string][])
+                  : []),
                 ...(effectiveColSet.has('iva')
                   ? ([['IVA (en esta página)', totales.ivaResuelto ? money(totales.iva) : '—']] as [string, string][])
                   : []),
               ]}
+              nota={<CuadreNota cuadre={totales.cuadre} />}
             />
 
             <div className="overflow-auto -mx-1 rounded-lg" style={{ maxHeight: TABLE_MAX_H }}>
@@ -1163,38 +1176,79 @@ export function ComprobantesTab({
 }
 
 /**
- * Suma de los comprobantes visibles. Es sobre la página cargada y con los filtros
- * puestos, no sobre el universo del periodo: el `caption` lo dice para que el
- * contador no lea el número como el total de la declaración.
+ * Por qué el Subtotal de la franja no iguala Ingresos Brutos del encabezado. El listado es más
+ * ancho que el cálculo A PROPÓSITO —trae las de otro régimen, las PPD en espera, las canceladas
+ * y las recibidas, para que el contador verifique que todo se descargó—, así que sin este
+ * renglón el descuadre no se puede explicar y termina en un Excel hecho a mano.
+ * No pinta nada cuando no hay nada fuera: ahí el cuadre se explica solo.
+ */
+function CuadreNota({ cuadre }: { cuadre?: InvoiceCuadre }) {
+  if (!cuadre || cuadre.excluidos.length === 0) return null
+
+  return (
+    <div
+      className="text-[11.5px] leading-relaxed pt-2"
+      style={{ color: 'var(--ink-500)', borderTop: '1px solid var(--border)' }}
+    >
+      <span className="font-semibold">
+        {cuadre.comprobantes} emitida{cuadre.comprobantes === 1 ? '' : 's'} de ingreso entra
+        {cuadre.comprobantes === 1 ? '' : 'n'} al cálculo
+      </span>
+      {cuadre.excluidos.map((e) => (
+        <span key={e.motivo} className="block">
+          · {e.comprobantes} fuera — {e.motivo} ({money(e.subTotal)})
+        </span>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * Suma del universo del periodo que devuelve el backend. `aviso` la pinta en ámbar para el caso
+ * en que esos totales NO llegaron y lo que se muestra es la página: el `caption` solo decía "en
+ * pantalla" y era demasiado discreto para lo que implica —un contador leyendo una cifra de
+ * página como si fuera la del periodo—, así que además cambia de color.
+ * `nota` es el desglose de lo que se quedó fuera del cálculo, que va en su propio renglón.
  */
 function TotalesResumen({
   caption,
   entries,
+  aviso = false,
+  nota,
 }: {
   caption: string
   entries: [string, string][]
+  aviso?: boolean
+  nota?: ReactNode
 }) {
   return (
     <div
-      className="rounded-2xl px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-2"
-      style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}
+      className="rounded-2xl px-4 py-3 flex flex-col gap-2"
+      style={{
+        background: aviso ? 'var(--amber-soft)' : 'var(--muted)',
+        border: '1px solid var(--border)',
+      }}
     >
-      <span
-        className="text-[11.5px] font-bold uppercase tracking-wider"
-        style={{ color: 'var(--ink-500)' }}
-      >
-        {caption}
-      </span>
-      {entries.map(([label, value]) => (
-        <span key={label} className="flex items-baseline gap-1.5">
-          <span className="text-[12px] font-semibold" style={{ color: 'var(--ink-500)' }}>
-            {label}
-          </span>
-          <span className="text-[15px] font-extrabold" style={{ ...MONO, color: 'var(--ink-900)' }}>
-            {value}
-          </span>
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+        <span
+          className="text-[11.5px] font-bold uppercase tracking-wider flex items-center gap-1.5"
+          style={{ color: aviso ? 'var(--violet-ink)' : 'var(--ink-500)' }}
+        >
+          {aviso && <AlertTriangle size={13} className="shrink-0" />}
+          {caption}
         </span>
-      ))}
+        {entries.map(([label, value]) => (
+          <span key={label} className="flex items-baseline gap-1.5">
+            <span className="text-[12px] font-semibold" style={{ color: 'var(--ink-500)' }}>
+              {label}
+            </span>
+            <span className="text-[15px] font-extrabold" style={{ ...MONO, color: 'var(--ink-900)' }}>
+              {value}
+            </span>
+          </span>
+        ))}
+      </div>
+      {nota}
     </div>
   )
 }

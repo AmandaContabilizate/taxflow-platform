@@ -75,6 +75,24 @@ function safeRawMessage(raw: string): string | undefined {
   return looksLikeDump ? undefined : text;
 }
 
+/**
+ * Último recurso cuando el backend no dijo nada útil. Antes aquí iba
+ * `response.statusText`, la frase del protocolo HTTP: en inglés y sin pistas de qué hacer. Un
+ * 404 sin cuerpo es ambiguo a propósito —puede ser un id que no existe o una ruta que no está
+ * desplegada— y el mensaje lo dice en vez de fingir precisión.
+ */
+function mensajePorEstado(status: number): string {
+  if (status === 401) return "Tu sesión expiró. Vuelve a iniciar sesión.";
+  if (status === 403) return "Tu cuenta no tiene permiso para esta consulta.";
+  if (status === 404)
+    return "No encontramos esta información. Puede que el dato no exista o que el servicio no esté disponible; si se repite, avísale al equipo técnico.";
+  if (status === 408 || status === 504) return "El servicio tardó demasiado en responder. Intenta de nuevo.";
+  if (status === 409) return "La información cambió mientras trabajabas. Recarga la pantalla.";
+  if (status === 429) return "Demasiadas consultas seguidas. Espera un momento e intenta de nuevo.";
+  if (status >= 500) return "El servicio no está respondiendo. Intenta de nuevo en unos minutos.";
+  return "No pudimos completar la consulta.";
+}
+
 // =============================================================
 // Headers helpers
 // =============================================================
@@ -169,6 +187,13 @@ async function request<T>(
     // de validación de ASP.NET Identity) — pero solo si el código está
     // catalogado, para no ocultar un `detail` específico con "Error
     // desconocido".
+    // `title` solo cuando dice algo: en un 404 de ruta que no existe, o en cualquier error que
+    // ASP.NET arma solo, ProblemDetails trae `title` = la frase del protocolo ("Not Found"), que
+    // es lo mismo que `statusText`. Pintarla dejaba al usuario con un "Not Found" en inglés en
+    // medio de la pantalla, sin forma de distinguir un dato que no existe de un servicio caído.
+    const tituloEspecifico =
+      parsed?.title && parsed.title !== response.statusText ? parsed.title : undefined;
+
     const message =
       (hasErrorCode(errorCode) ? getErrorMessage(errorCode) : null) ??
       (typeof data === "string" ? safeRawMessage(data) : undefined) ??
@@ -176,8 +201,8 @@ async function request<T>(
       parsed?.error ??
       validationMessage(parsed?.errors) ??
       parsed?.detail ??
-      parsed?.title ??
-      response.statusText;
+      tituloEspecifico ??
+      mensajePorEstado(response.status);
 
     throw new ApiError({
       message: message || `HTTP ${response.status}`,
@@ -268,7 +293,7 @@ export async function fetchGetBlob(
     // Los binarios también pueden fallar con ProblemDetails (400/403 antes de
     // generar el archivo): se intenta extraer errorCode igual que en `request`.
     let errorCode: string | undefined;
-    let message = errorText;
+    let message = safeRawMessage(errorText) ?? mensajePorEstado(response.status);
     try {
       const parsed = JSON.parse(errorText) as {
         detail?: string;
@@ -282,10 +307,12 @@ export async function fetchGetBlob(
         (hasErrorCode(errorCode) ? getErrorMessage(errorCode) : undefined) ??
         validationMessage(parsed.errors) ??
         parsed.detail ??
-        parsed.title ??
-        errorText;
+        // Igual que en `request`: el `title` genérico de ProblemDetails es la frase del
+        // protocolo y no se pinta.
+        (parsed.title && parsed.title !== response.statusText ? parsed.title : undefined) ??
+        mensajePorEstado(response.status);
     } catch {
-      // No era JSON: se deja el texto crudo como mensaje.
+      // No era JSON: se deja el texto crudo si es corto y no es un volcado.
     }
     throw new ApiError({
       message: message || `HTTP ${response.status}`,

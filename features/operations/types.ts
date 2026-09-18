@@ -299,6 +299,25 @@ export interface Paged<T> {
  * restados: sumarlos al derecho era lo que hacía que la franja de totales no
  * cuadrara contra Ingresos Brutos.
  */
+/** Un grupo de comprobantes del listado que no entra al cálculo, con el motivo ya redactado. */
+export interface InvoiceExcluido {
+  motivo: string;
+  comprobantes: number;
+  subTotal: number;
+}
+
+/**
+ * El cuadre contra Ingresos Brutos: `subTotal` son las emitidas de ingreso del régimen que sí
+ * entran al cálculo y `excluidos` explica el resto del listado. El listado es más ancho que el
+ * cálculo a propósito (incluye otro régimen, PPD sin complemento, inactivas y recibidas), así
+ * que sin esta línea el Subtotal de la franja no puede igualar el encabezado.
+ */
+export interface InvoiceCuadre {
+  subTotal: number;
+  comprobantes: number;
+  excluidos: InvoiceExcluido[];
+}
+
 export interface InvoiceTotales {
   subTotal: number;
   total: number;
@@ -306,6 +325,8 @@ export interface InvoiceTotales {
   /** Cuántas notas de crédito hay en el universo y cuánto restan, para poder explicarlo en pantalla. */
   egresos: number;
   egresosSubTotal: number;
+  /** Ausente cuando el back no puede calcularlo exacto (universo que puede traer constancias). */
+  cuadre?: InvoiceCuadre;
 }
 
 /** Página + totales del periodo. `totales` va opcional: si el back no lo manda, la pantalla cae a los de la página. */

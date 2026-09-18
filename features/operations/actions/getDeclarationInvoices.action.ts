@@ -3,12 +3,12 @@
 import { ApiError, fetchGet } from "@/lib/api";
 import { API_ROUTES } from "@/lib/api/apiRoutes";
 import { type Result, err, ok } from "@/lib/common";
+import { normalizeInvoicePage } from "../invoicePage";
 import { invoiceSortSchema } from "../schemas/declarationInvoices.schema";
 import type {
   DeclarationInvoice,
   InvoiceSortBy,
   InvoiceSortDir,
-  InvoiceTotales,
   Paged,
   PagedConTotales,
 } from "../types";
@@ -19,43 +19,6 @@ interface OpsError {
 }
 
 const EMPTY: PagedConTotales<DeclarationInvoice> = { items: [], total: 0, skip: 0, take: 0 };
-/** `totales` sólo si el back lo mandó completo; si no, undefined y la pantalla cae a la página. */
-function totales(raw: unknown): InvoiceTotales | undefined {
-  const t = (raw ?? {}) as Record<string, unknown>;
-  const n = (k: string) => (typeof t[k] === "number" ? (t[k] as number) : null);
-  const subTotal = n("subTotal");
-  const total = n("total");
-  if (subTotal == null || total == null) return undefined;
-  return {
-    subTotal,
-    total,
-    comprobantes: n("comprobantes") ?? 0,
-    egresos: n("egresos") ?? 0,
-    egresosSubTotal: n("egresosSubTotal") ?? 0,
-  };
-}
-
-
-/** Acepta `PagedResult`, array pelón o `items: null` sin reventar. */
-function normalize(
-  raw: unknown,
-  skip: number,
-  take: number,
-): PagedConTotales<DeclarationInvoice> {
-  if (Array.isArray(raw)) {
-    const items = raw as DeclarationInvoice[];
-    return { items, total: items.length, skip, take };
-  }
-  const obj = (raw ?? {}) as Partial<PagedConTotales<DeclarationInvoice>>;
-  const items = Array.isArray(obj.items) ? obj.items : [];
-  return {
-    items,
-    total: typeof obj.total === "number" ? obj.total : items.length,
-    skip: typeof obj.skip === "number" ? obj.skip : skip,
-    take: typeof obj.take === "number" ? obj.take : take,
-    totales: totales(obj.totales),
-  };
-}
 
 /**
  * Facturas del periodo de una declaración, con su clasificación cuando existe.
@@ -130,7 +93,7 @@ export async function getDeclarationInvoices(params: {
       }),
       "declarations_reports",
     );
-    return ok(data == null ? EMPTY : normalize(data, skip, take));
+    return ok(data == null ? EMPTY : normalizeInvoicePage(data, skip, take));
   } catch (e) {
     if (e instanceof ApiError) {
       return err({ statusCode: e.status, message: e.message });
