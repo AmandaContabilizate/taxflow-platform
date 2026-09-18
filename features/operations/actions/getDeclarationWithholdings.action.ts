@@ -58,55 +58,38 @@ function normalize(
 }
 
 /**
- * Facturas del periodo de una declaración, con su clasificación cuando existe.
- * Solo contadores (policy Contador.ReadDeclaraciones).
+ * SOLO las constancias de retención del periodo de una declaración, paginadas
+ * sobre su propio universo. Misma forma de respuesta que
+ * `getDeclarationInvoices`: los items ya traen `esRetencion`, `totalRetenido` y
+ * el bloque `retenciones`.
  *
- * `isIssued` / `invoiceTypeId` / `clasificada` son opcionales: omitirlos trae
- * todo. El filtrado ocurre en el backend, así que `total` respeta los filtros.
+ * Va por su propio endpoint y no por `getDeclarationInvoices` porque la
+ * sub-pestaña de retenciones partía en el cliente UNA página del universo
+ * combinado: con más comprobantes que el `take`, las constancias no llegaban a
+ * la primera página y la pantalla afirmaba que no había ninguna. En el 625 eso
+ * pasa siempre que el periodo rebasa el take — la constancia de un mes se timbra
+ * al inicio del siguiente, así que es la fecha más alta del periodo y queda al
+ * final del orden ascendente.
+ *
+ * No acepta `invoiceTypeId`: los CFDI de retención no tienen TipoDeComprobante.
  */
-export async function getDeclarationInvoices(params: {
+export async function getDeclarationWithholdings(params: {
   declarationId: number;
   /** true = emitidas, false = recibidas, omitir = todas. */
   isIssued?: boolean;
-  /** 1 Ingreso, 2 Egreso, 3 Traslado, 4 Pago, 5 Nómina. */
-  invoiceTypeId?: number;
   /** true = clasificados, false = sin clasificar, omitir = todos. */
   clasificada?: boolean;
   skip?: number;
   take?: number;
-  /** Lista blanca server-side (E2); default invoiceDate/asc reproduce el orden anterior. */
   sortBy?: InvoiceSortBy;
   sortDir?: InvoiceSortDir;
-  /** true = trae el detalle completo de conceptos por factura. */
-  includeConcepts?: boolean;
-  /**
-   * Omitir = todos; true = solo constancias de retención; false = solo CFDI
-   * normales. La pantalla del contador manda `false` porque las constancias
-   * tienen su propio endpoint (`getDeclarationWithholdings`) y así el `total` y
-   * las páginas de cada sub-pestaña son las de su propio universo.
-   */
-  esRetencion?: boolean;
   /** true = ruta espejo de solo consulta (claim Contador.ConsultaDeclaraciones). */
   consulta?: boolean;
 }): Promise<Result<PagedConTotales<DeclarationInvoice>, OpsError>> {
-  const {
-    declarationId,
-    isIssued,
-    invoiceTypeId,
-    clasificada,
-    skip = 0,
-    take = 100,
-    sortBy,
-    sortDir,
-    includeConcepts,
-    esRetencion,
-    consulta,
-  } = params;
+  const { declarationId, isIssued, clasificada, skip = 0, take = 100, sortBy, sortDir, consulta } =
+    params;
   if (!declarationId || declarationId <= 0) {
     return err({ statusCode: 400, message: "Declaración inválida." });
-  }
-  if (invoiceTypeId != null && (invoiceTypeId < 1 || invoiceTypeId > 5)) {
-    return err({ statusCode: 400, message: "Tipo de comprobante inválido." });
   }
   const sortParsed = invoiceSortSchema.safeParse({ sortBy, sortDir });
   if (!sortParsed.success) {
@@ -115,17 +98,14 @@ export async function getDeclarationInvoices(params: {
 
   try {
     const data = await fetchGet<unknown>(
-      API_ROUTES.DECLARATIONS_OPS.INVOICES({
+      API_ROUTES.DECLARATIONS_OPS.INVOICES_RETENCIONES({
         declarationId,
         isIssued,
-        invoiceTypeId,
         clasificada,
         skip,
         take,
         sortBy,
         sortDir,
-        includeConcepts,
-        esRetencion,
         consulta,
       }),
       "declarations_reports",
@@ -135,7 +115,10 @@ export async function getDeclarationInvoices(params: {
     if (e instanceof ApiError) {
       return err({ statusCode: e.status, message: e.message });
     }
-    console.error("[getDeclarationInvoices] Error:", e);
-    return err({ statusCode: 500, message: "No pudimos obtener las facturas del periodo." });
+    console.error("[getDeclarationWithholdings] Error:", e);
+    return err({
+      statusCode: 500,
+      message: "No pudimos obtener las constancias de retención del periodo.",
+    });
   }
 }

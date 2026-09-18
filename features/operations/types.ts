@@ -293,6 +293,26 @@ export interface Paged<T> {
   take: number;
 }
 
+/**
+ * Totales del universo FILTRADO COMPLETO que devuelve el endpoint de facturas,
+ * no de la página cargada. Los CFDI de Egreso (notas de crédito) ya vienen
+ * restados: sumarlos al derecho era lo que hacía que la franja de totales no
+ * cuadrara contra Ingresos Brutos.
+ */
+export interface InvoiceTotales {
+  subTotal: number;
+  total: number;
+  comprobantes: number;
+  /** Cuántas notas de crédito hay en el universo y cuánto restan, para poder explicarlo en pantalla. */
+  egresos: number;
+  egresosSubTotal: number;
+}
+
+/** Página + totales del periodo. `totales` va opcional: si el back no lo manda, la pantalla cae a los de la página. */
+export interface PagedConTotales<T> extends Paged<T> {
+  totales?: InvoiceTotales;
+}
+
 /** Tipo de declaración pendiente. 2 = plan a futuro, 1 = regularización. */
 export const DECLARATION_KIND = {
   REGULARIZATION: 1,

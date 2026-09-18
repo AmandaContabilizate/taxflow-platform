@@ -15,12 +15,13 @@ import {
 import { useEffect, useMemo, useState } from 'react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { getDeclarationInvoices } from '@/features/operations/actions/getDeclarationInvoices.action'
+import { getDeclarationWithholdings } from '@/features/operations/actions/getDeclarationWithholdings.action'
 import type {
   DeclarationInvoice,
   DeclarationInvoiceConcepto,
   InvoiceSortBy,
   InvoiceSortDir,
-  Paged,
+  PagedConTotales,
   Retencion,
 } from '@/features/operations/types'
 import { Pagination } from '../clientes/parts'
@@ -31,6 +32,13 @@ import { type ColumnKey, COLUMN_DEFS } from './column-defs'
 import { ColumnsModal, FilterSelect } from './filter-columns'
 
 const TAKE = 100
+
+/**
+ * Alto máximo del cuerpo de la tabla. El scroll vertical vive DENTRO de la
+ * tabla, no en la página: con 100 filas la paginación quedaba hasta el fondo y
+ * el contador no veía que hubiera una página siguiente.
+ */
+const TABLE_MAX_H = 'min(62vh, 620px)'
 
 /** Catálogo de `invoiceTypeId` del backend; fuera de 1-5 responde INVALID_REQUEST. */
 type InvoiceTypeId = 1 | 2 | 3 | 4 | 5
@@ -451,6 +459,15 @@ function RetencionBlock({ r }: { r: Retencion }) {
 /** Solo el 625 depende de las constancias de retención para sus ingresos. */
 const REGIMEN_PLATAFORMAS = '625'
 
+/**
+ * El CFDI de Egreso es la nota de crédito: cancela o reduce lo facturado, así que
+ * en cualquier total va en NEGATIVO. Sumarlo al derecho es lo que hacía que la
+ * franja de totales no cuadrara contra Ingresos Brutos — el cálculo sí lo resta.
+ * `tipoComprobante` es el nombre ya resuelto por el backend (TipoComprobanteName).
+ */
+const esEgreso = (inv: DeclarationInvoice) => inv.tipoComprobante === 'Egreso'
+const signo = (inv: DeclarationInvoice) => (esEgreso(inv) ? -1 : 1)
+
 export function ComprobantesTab({
   declarationId,
   periodo,
@@ -465,10 +482,20 @@ export function ComprobantesTab({
 }) {
   const { params, setParams } = useUrlState()
 
-  const [page, setPage] = useState<Paged<DeclarationInvoice>>({ items: [], total: 0, skip: 0, take: TAKE })
+  // Dos universos independientes, cada uno con su paginación y su `total`. Antes
+  // era una sola página partida en el cliente con `.filter(esRetencion)`: con más
+  // comprobantes que TAKE las constancias no llegaban a la primera página y la
+  // sub-pestaña decía "(0)". En el 625 pasaba siempre que el periodo rebasaba el
+  // take, porque la constancia de un mes se timbra al inicio del siguiente y es
+  // la fecha más alta del periodo.
+  const [page, setPage] = useState<PagedConTotales<DeclarationInvoice>>({ items: [], total: 0, skip: 0, take: TAKE })
   const [skip, setSkip] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [retPage, setRetPage] = useState<PagedConTotales<DeclarationInvoice>>({ items: [], total: 0, skip: 0, take: TAKE })
+  const [retSkip, setRetSkip] = useState(0)
+  const [retLoading, setRetLoading] = useState(true)
+  const [retError, setRetError] = useState<string | null>(null)
   const [subTab, setSubTab] = useState(0)
   const [query, setQuery] = useState('')
   // '' = sin filtro (el EP los trae todos cuando el query param se omite).
@@ -487,6 +514,7 @@ export function ComprobantesTab({
       { replace: true },
     )
     setSkip(0)
+    setRetSkip(0)
   }
 
   // Selección de columnas persistida en la URL. `cols=none` distingue "el
@@ -532,6 +560,7 @@ export function ComprobantesTab({
       sortBy,
       sortDir,
       includeConcepts: true,
+      esRetencion: false,
       consulta,
     })
     if (res.success) {
@@ -560,6 +589,7 @@ export function ComprobantesTab({
         take: TAKE,
         sortBy,
         sortDir,
+        esRetencion: false,
         consulta,
       })
       if (cancelled) return
@@ -575,53 +605,107 @@ export function ComprobantesTab({
     }
   }, [declarationId, skip, origen, tipo, clasificada, sortBy, sortDir, consulta])
 
-  // Cambiar un filtro reinicia la paginación: el `total` del backend cambia.
+  // Las constancias van por su propio endpoint. `tipo` NO entra en las
+  // dependencias: los CFDI de retención no tienen TipoDeComprobante, así que ese
+  // filtro no les aplica y volver a pedirlas al cambiarlo sería una llamada de más.
+  useEffect(() => {
+    let cancelled = false
+    setRetLoading(true)
+    setRetError(null)
+    void (async () => {
+      const res = await getDeclarationWithholdings({
+        declarationId,
+        isIssued: origen === '' ? undefined : origen === 'true',
+        clasificada: clasificada === '' ? undefined : clasificada === 'true',
+        skip: retSkip,
+        take: TAKE,
+        sortBy,
+        sortDir,
+        consulta,
+      })
+      if (cancelled) return
+      if (res.success) setRetPage(res.value)
+      else {
+        setRetError(res.error.message)
+        setRetPage({ items: [], total: 0, skip: 0, take: TAKE })
+      }
+      setRetLoading(false)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [declarationId, retSkip, origen, clasificada, sortBy, sortDir, consulta])
+
+  // Cambiar un filtro reinicia la paginación de los DOS universos: el `total` del
+  // backend cambia en ambos.
   const onFilter = <T,>(setter: (v: T) => void) => (v: T) => {
     setSkip(0)
+    setRetSkip(0)
     setter(v)
   }
 
   // El backend no filtra por texto: se busca sobre la página cargada. El
   // orden ya viene resuelto por el backend (E2) — no se reordena en cliente.
-  const rows = useMemo(() => {
+  const buscar = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return page.items
-    return page.items.filter((i) =>
-      [i.folio, i.serie, i.uuid, i.emitterRfc, i.emitterName, i.receivedRfc, i.receiverName, i.clasificacion]
-        .some((f) => f?.toLowerCase().includes(q)),
-    )
-  }, [page.items, query])
+    return (items: DeclarationInvoice[]) =>
+      q
+        ? items.filter((i) =>
+            [i.folio, i.serie, i.uuid, i.emitterRfc, i.emitterName, i.receivedRfc, i.receiverName, i.clasificacion]
+              .some((f) => f?.toLowerCase().includes(q)),
+          )
+        : items
+  }, [query])
 
-  // Los CFDI de retenciones no tienen TipoDeComprobante: el backend los marca con
-  // `esRetencion` y viven en su propia sub-pestaña. Selector y orden no les aplican.
-  const normales = useMemo(() => rows.filter((i) => !i.esRetencion), [rows])
-  const retenciones = useMemo(() => rows.filter((i) => i.esRetencion), [rows])
-  const visibles = subTab === 1 ? retenciones : normales
+  // Cada sub-pestaña pinta SU página, traída de su propio endpoint. Ya no se
+  // reparte una sola página con `.filter(esRetencion)`.
+  const normales = useMemo(() => buscar(page.items), [buscar, page.items])
+  const retenciones = useMemo(() => buscar(retPage.items), [buscar, retPage.items])
+  const enRetenciones = subTab === 1
+  const visibles = enRetenciones ? retenciones : normales
 
-  // Base para el aviso de "sin constancias": sobre `page.items` (sin el filtro
-  // de búsqueda de texto), para que el aviso no dependa de lo que el usuario
-  // haya escrito en el buscador.
-  const sinConstanciasDeRetencion = useMemo(
-    () => !loading && !error && page.items.every((i) => !i.esRetencion),
-    [loading, error, page.items],
-  )
+  // Todo lo que la vista activa necesita saber de "su" universo, en un solo lugar.
+  const vista = enRetenciones
+    ? { page: retPage, skip: retSkip, setSkip: setRetSkip, loading: retLoading, error: retError }
+    : { page, skip, setSkip, loading, error }
+
+  // El aviso sale del `total` que devuelve el endpoint de retenciones, NO de las
+  // filas cargadas: atado a una página afirmaba "no llegó la constancia" cuando
+  // simplemente estaba en la página 2, y encima con los ingresos ya calculados
+  // arriba en la misma pantalla.
+  const sinConstanciasDeRetencion = !retLoading && !retError && retPage.total === 0
   const esRegimenPlataformas = regimeSatCode === REGIMEN_PLATAFORMAS
 
   // Suma de lo que se está viendo: cambia con los filtros, la búsqueda y la
   // página, así que el encabezado dice explícitamente sobre qué se sumó.
   const totales = useMemo(() => {
     const ivaResueltos = visibles.filter((i) => i.ivaAmount != null)
+    // Subtotal y Total salen del universo del PERIODO que calcula el backend, no de
+    // la página: antes se sumaba `visibles` (≤ TAKE filas, y encima ya filtradas por
+    // el buscador), así que la franja no servía para cuadrar contra Ingresos Brutos.
+    const periodo = vista.page.totales
     return {
-      subTotal: visibles.reduce((acc, i) => acc + toNumber(i.subTotal), 0),
-      total: visibles.reduce((acc, i) => acc + toNumber(i.total), 0),
+      subTotal: periodo ? periodo.subTotal : visibles.reduce((acc, i) => acc + signo(i) * toNumber(i.subTotal), 0),
+      total: periodo ? periodo.total : visibles.reduce((acc, i) => acc + signo(i) * toNumber(i.total), 0),
+      egresos: periodo ? periodo.egresos : visibles.filter(esEgreso).length,
+      egresosSubTotal: periodo
+        ? periodo.egresosSubTotal
+        : visibles.filter(esEgreso).reduce((acc, i) => acc + toNumber(i.subTotal), 0),
+      esDelPeriodo: periodo != null,
+      // Lo retenido y el IVA siguen siendo de la página: el backend solo los resuelve
+      // para las facturas que devuelve, y se etiquetan como tales.
       retenido: visibles.reduce((acc, i) => acc + toNumber(i.totalRetenido), 0),
       iva: ivaResueltos.reduce((acc, i) => acc + toNumber(i.ivaAmount), 0),
       ivaResuelto: ivaResueltos.length > 0,
     }
-  }, [visibles])
+  }, [visibles, vista.page.totales])
 
-  const totalPages = Math.max(1, Math.ceil(page.total / TAKE))
-  const currentPage = Math.floor(skip / TAKE) + 1
+  const totalPages = Math.max(1, Math.ceil(vista.page.total / TAKE))
+  const currentPage = Math.floor(vista.skip / TAKE) + 1
+
+  // El encabezado cuenta el periodo COMPLETO: normales + constancias. Cada
+  // sub-pestaña lleva aparte el total de su propio universo.
+  const totalPeriodo = page.total + retPage.total
 
   return (
     <Card>
@@ -632,7 +716,9 @@ export function ComprobantesTab({
               CFDIs Emitidos y Recibidos
             </h3>
             <p className="text-[13px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
-              {loading ? 'Cargando comprobantes…' : `${page.total} comprobantes del período ${periodo}`}
+              {loading || retLoading
+                ? 'Cargando comprobantes…'
+                : `${totalPeriodo} comprobantes del período ${periodo}`}
             </p>
           </div>
           {subTab === 0 && (
@@ -722,8 +808,8 @@ export function ComprobantesTab({
 
         <div className="flex p-1 rounded-xl" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
           {[
-            ['CFDIs Normales', normales.length],
-            ['CFDIs de Retenciones', retenciones.length],
+            ['CFDIs Normales', page.total],
+            ['CFDIs de Retenciones', retPage.total],
           ].map(([t, n], i) => (
             <button
               key={t}
@@ -741,30 +827,24 @@ export function ComprobantesTab({
           ))}
         </div>
 
-        {error ? (
+        {vista.error ? (
           <div className="py-8 text-center flex flex-col items-center gap-2">
             <AlertCircle size={20} style={{ color: 'var(--violet-ink)' }} />
-            <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>{error}</div>
+            <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>{vista.error}</div>
           </div>
-        ) : loading ? (
+        ) : vista.loading ? (
           <div className="py-10 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
             <Loader2 size={18} className="animate-spin" /> Cargando comprobantes…
           </div>
         ) : visibles.length === 0 ? (
           <div className="text-center py-10 text-[13px]" style={{ color: 'var(--ink-500)' }}>
-            {rows.length > 0 && page.items.length > 0 && query.trim()
+            {vista.page.items.length > 0 && query.trim()
               ? 'Ningún comprobante coincide con la búsqueda.'
-              : subTab === 1
+              : enRetenciones
                 ? 'No hay CFDIs de retenciones en este período.'
                 : origen || tipo || clasificada
                   ? 'No hay comprobantes con esos filtros.'
                   : 'No hay comprobantes en este período.'}
-            {subTab === 1 && tipo && (
-              <div className="mt-1.5 text-[12.5px]">
-                Los CFDI de retenciones no tienen tipo de comprobante, así que el filtro
-                “Tipo de comprobante” los deja fuera. Ponlo en “Todos” para verlos.
-              </div>
-            )}
             {subTab === 0 && page.items.length === 0 && clasificada === 'true' && (
               <div className="mt-1.5 text-[12.5px]">
                 Si la declaración no tiene periodo asignado, el clasificador no ha corrido y esta vista sale vacía.
@@ -774,19 +854,23 @@ export function ComprobantesTab({
         ) : subTab === 1 ? (
           <>
             <TotalesResumen
-              caption={`${visibles.length} CFDI de retenciones en pantalla`}
-              entries={[['Total retenido', money(totales.retenido)]]}
+              caption={
+                totales.esDelPeriodo
+                  ? `${retPage.total} CFDI de retenciones del período`
+                  : `${visibles.length} CFDI de retenciones en pantalla`
+              }
+              entries={[['Total retenido (en esta página)', money(totales.retenido)]]}
             />
 
-            <div className="overflow-x-auto -mx-1">
+            <div className="overflow-auto -mx-1 rounded-lg" style={{ maxHeight: TABLE_MAX_H }}>
               <table className="w-full text-[12.5px]">
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
                     {['Fecha', 'Folio / UUID', 'Origen', 'Emisor', 'Receptor', 'Retenciones', 'Total retenido'].map((h) => (
                       <th
                         key={h}
-                        className="px-3 py-2.5 text-left font-extrabold whitespace-nowrap"
-                        style={{ color: 'var(--ink-700)' }}
+                        className="px-3 py-2.5 text-left font-extrabold whitespace-nowrap sticky top-0 z-10"
+                        style={{ color: 'var(--ink-700)', background: 'var(--card)', boxShadow: 'inset 0 -1px 0 var(--border)' }}
                       >
                         {h}
                       </th>
@@ -842,37 +926,50 @@ export function ComprobantesTab({
               coincidir con el de la declaración ({periodo}).
             </p>
 
-            {page.total > TAKE && (
+            {vista.page.total > TAKE && (
               <Pagination
                 page={currentPage}
                 totalPages={totalPages}
-                total={page.total}
-                skip={skip}
+                total={vista.page.total}
+                skip={vista.skip}
                 take={TAKE}
-                itemCount={page.items.length}
-                onPrev={() => setSkip((s) => Math.max(0, s - TAKE))}
-                onNext={() => setSkip((s) => (s + TAKE < page.total ? s + TAKE : s))}
+                itemCount={vista.page.items.length}
+                onPrev={() => vista.setSkip((s) => Math.max(0, s - TAKE))}
+                onNext={() => vista.setSkip((s) => (s + TAKE < vista.page.total ? s + TAKE : s))}
               />
             )}
           </>
         ) : (
           <>
             <TotalesResumen
-              caption={`${visibles.length} comprobantes en pantalla`}
+              caption={
+                totales.esDelPeriodo
+                  ? `${page.total} comprobantes del período`
+                  : `${visibles.length} comprobantes en pantalla`
+              }
               entries={[
                 ['Subtotal', money(totales.subTotal)],
                 ['Total', money(totales.total)],
+                ...(totales.egresos > 0
+                  ? ([[
+                      `Incluye ${totales.egresos} nota${totales.egresos === 1 ? '' : 's'} de crédito`,
+                      `−${money(totales.egresosSubTotal)}`,
+                    ]] as [string, string][])
+                  : []),
                 ...(effectiveColSet.has('iva')
                   ? ([['IVA (en esta página)', totales.ivaResuelto ? money(totales.iva) : '—']] as [string, string][])
                   : []),
               ]}
             />
 
-            <div className="overflow-x-auto -mx-1">
+            <div className="overflow-auto -mx-1 rounded-lg" style={{ maxHeight: TABLE_MAX_H }}>
               <table className="w-full text-[12.5px]">
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    <th className="px-3 py-2.5 text-left whitespace-nowrap" style={{ color: 'var(--ink-700)' }}>
+                    <th
+                      className="px-3 py-2.5 text-left whitespace-nowrap sticky top-0 z-10"
+                      style={{ color: 'var(--ink-700)', background: 'var(--card)', boxShadow: 'inset 0 -1px 0 var(--border)' }}
+                    >
                       <SortableHeader
                         label="Fecha"
                         active={sortBy === 'invoiceDate'}
@@ -880,14 +977,17 @@ export function ComprobantesTab({
                         onClick={() => setSort('invoiceDate')}
                       />
                     </th>
-                    <th className="px-3 py-2.5 text-left font-extrabold whitespace-nowrap" style={{ color: 'var(--ink-700)' }}>
+                    <th
+                      className="px-3 py-2.5 text-left font-extrabold whitespace-nowrap sticky top-0 z-10"
+                      style={{ color: 'var(--ink-700)', background: 'var(--card)', boxShadow: 'inset 0 -1px 0 var(--border)' }}
+                    >
                       Folio / UUID
                     </th>
                     {visibleColumns.map((col) => (
                       <th
                         key={col.key}
-                        className="px-3 py-2.5 text-left font-extrabold whitespace-nowrap"
-                        style={{ color: 'var(--ink-700)' }}
+                        className="px-3 py-2.5 text-left font-extrabold whitespace-nowrap sticky top-0 z-10"
+                        style={{ color: 'var(--ink-700)', background: 'var(--card)', boxShadow: 'inset 0 -1px 0 var(--border)' }}
                       >
                         {col.key === 'total' ? (
                           <SortableHeader
@@ -1034,16 +1134,16 @@ export function ComprobantesTab({
               </table>
             </div>
 
-            {page.total > TAKE && (
+            {vista.page.total > TAKE && (
               <Pagination
                 page={currentPage}
                 totalPages={totalPages}
-                total={page.total}
-                skip={skip}
+                total={vista.page.total}
+                skip={vista.skip}
                 take={TAKE}
-                itemCount={page.items.length}
-                onPrev={() => setSkip((s) => Math.max(0, s - TAKE))}
-                onNext={() => setSkip((s) => (s + TAKE < page.total ? s + TAKE : s))}
+                itemCount={vista.page.items.length}
+                onPrev={() => vista.setSkip((s) => Math.max(0, s - TAKE))}
+                onNext={() => vista.setSkip((s) => (s + TAKE < vista.page.total ? s + TAKE : s))}
               />
             )}
           </>

@@ -276,6 +276,10 @@ export const API_ROUTES = {
     // `sortBy`/`sortDir`: lista blanca del backend (invoiceDate|total, asc|desc);
     // default invoiceDate/asc reproduce el orden anterior. `includeConcepts=true`
     // llena `conceptos` (detalle completo); sin el flag viaja `null`.
+    // `esRetencion`: null/omitido = todos, true = solo constancias, false = solo
+    // CFDI normales. La pantalla manda false en la sub-pestaña de normales para
+    // que `total` y las páginas sean las de ESE universo (las constancias tienen
+    // su propio EP, RETENCIONES).
     INVOICES: (params: {
       declarationId: number
       isIssued?: boolean
@@ -286,6 +290,7 @@ export const API_ROUTES = {
       sortBy?: "invoiceDate" | "total"
       sortDir?: "asc" | "desc"
       includeConcepts?: boolean
+      esRetencion?: boolean
       consulta?: boolean
     }) => {
       const qs = new URLSearchParams()
@@ -297,7 +302,32 @@ export const API_ROUTES = {
       if (params.sortBy) qs.set("sortBy", params.sortBy)
       if (params.sortDir) qs.set("sortDir", params.sortDir)
       if (params.includeConcepts) qs.set("includeConcepts", "true")
+      if (params.esRetencion != null) qs.set("esRetencion", String(params.esRetencion))
       return `/${params.declarationId}${params.consulta ? "/consulta" : ""}/invoices?${qs.toString()}`
+    },
+    // SOLO las constancias de retención del periodo, paginadas sobre su propio
+    // universo. Misma forma de respuesta que INVOICES (PagedResult) con
+    // esRetencion/totalRetenido/retenciones ya poblados.
+    // No acepta invoiceTypeId: los CFDI de retención no tienen TipoDeComprobante
+    // y filtrar por tipo vaciaba la lista.
+    INVOICES_RETENCIONES: (params: {
+      declarationId: number
+      isIssued?: boolean
+      clasificada?: boolean
+      skip?: number
+      take?: number
+      sortBy?: "invoiceDate" | "total"
+      sortDir?: "asc" | "desc"
+      consulta?: boolean
+    }) => {
+      const qs = new URLSearchParams()
+      if (params.isIssued != null) qs.set("isIssued", String(params.isIssued))
+      if (params.clasificada != null) qs.set("clasificada", String(params.clasificada))
+      qs.set("skip", String(params.skip ?? 0))
+      qs.set("take", String(params.take ?? 100))
+      if (params.sortBy) qs.set("sortBy", params.sortBy)
+      if (params.sortDir) qs.set("sortDir", params.sortDir)
+      return `/${params.declarationId}${params.consulta ? "/consulta" : ""}/invoices/retenciones?${qs.toString()}`
     },
     GENERAL: (declarationId: number, consulta = false) =>
       `/${declarationId}${consulta ? "/consulta" : ""}/general`,
