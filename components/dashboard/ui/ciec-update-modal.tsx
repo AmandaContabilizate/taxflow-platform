@@ -13,7 +13,7 @@ interface Props {
   rfc: string
 }
 
-type Feedback = { kind: 'invalid' | 'unverified' | 'error'; message: string } | null
+type Feedback = { kind: 'invalid' | 'unverified' | 'error' } | null
 
 const FEEDBACK_COPY: Record<NonNullable<Feedback>['kind'], string> = {
   invalid: 'Esa contraseña tampoco funcionó. El SAT la sigue rechazando: verifica que sea la CIEC vigente e inténtalo de nuevo.',
@@ -49,7 +49,7 @@ export function CiecUpdateModal({ isOpen, onClose, rfc }: Props) {
 
     if (!res.success) {
       setLoading(false)
-      setFeedback({ kind: 'error', message: res.error.message })
+      setFeedback({ kind: 'error' })
       return
     }
 
@@ -60,7 +60,7 @@ export function CiecUpdateModal({ isOpen, onClose, rfc }: Props) {
       handleClose()
       return
     }
-    setFeedback({ kind: res.value.ciecState === 2 ? 'invalid' : 'unverified', message: '' })
+    setFeedback({ kind: res.value.ciecState === 2 ? 'invalid' : 'unverified' })
   }
 
   return (

@@ -17,6 +17,8 @@ interface UpdateCiecError {
 
 interface UpdateCiecApiResponse {
   success: boolean;
+  /** Estado resultante explicito: 0 sin verificar, 1 valida, 2 invalida. */
+  ciecState?: number;
   message?: string;
   state?: string;
 }
@@ -27,11 +29,15 @@ export interface UpdateCiecResult {
 }
 
 /**
- * El endpoint no manda un CiecState numérico consistente: Válida/Inválida solo traen
- * `message`, y Unverified es el único caso que trae `state`. Se infiere del `message`
- * porque es lo único que el back expone hoy (ver Bloqueo por estado de CIEC, SALIDA DEL FRONT).
+ * El back manda `ciecState` numérico explícito (0 sin verificar, 1 válida, 2 inválida) —
+ * `TaxpayersController.UpdateCIEC` lo agregó justamente para que el cliente no tenga que
+ * adivinar el estado del texto. `message`/`state` siguen llegando por compatibilidad y solo
+ * se leen como respaldo si la respuesta no trae el campo.
  */
 function resolveCiecState(data: UpdateCiecApiResponse | null | undefined): 0 | 1 | 2 {
+  if (data?.ciecState === 0 || data?.ciecState === 1 || data?.ciecState === 2) {
+    return data.ciecState;
+  }
   if (data?.state === "Unverified") return 0;
   if (data?.message === "Password can't be validated") return 2;
   return 1;
