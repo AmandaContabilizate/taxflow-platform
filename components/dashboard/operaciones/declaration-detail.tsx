@@ -244,10 +244,11 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
     void (async () => {
       const value = await loadGeneral()
       if (cancelled || !value) return
-      // La bitácora solo se necesita para el banner de rechazo (estatus 10);
-      // su claim (ReadDeclaracionLogs) no lo tiene el perfil de consulta.
-      if (!soloConsulta && value.statusId === DECLARATION_STATUS.CLIENT_REJECTED) {
-        const logsRes = await getDeclarationLogs(d.declarationId)
+      // La bitácora solo se necesita para el banner de rechazo (estatus 10). El perfil de
+      // consulta no tiene ReadDeclaracionLogs: va por la ruta espejo `/consulta/logs`, acotada
+      // a esta declaración, para que SAC también vea el comentario que dejó el cliente.
+      if (value.statusId === DECLARATION_STATUS.CLIENT_REJECTED) {
+        const logsRes = await getDeclarationLogs(d.declarationId, 0, 100, soloConsulta)
         if (!cancelled && logsRes.success) setLogs(logsRes.value)
       }
     })()
@@ -592,7 +593,11 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
         className="flex p-1 rounded-2xl overflow-x-auto"
         style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}
       >
-        {(soloConsulta ? TAB_ITEMS.slice(0, 2) : TAB_ITEMS).map((t, i) => (
+        {/* Modo consulta (SAC): Comprobantes, Cálculos y Comentarios, sin las pantallas de
+            trabajo del contador. Se conservan los índices originales de TAB_ITEMS. */}
+        {TAB_ITEMS.map((t, i) => ({ t, i }))
+          .filter(({ i }) => !soloConsulta || i <= 1 || i === COMMENTS_TAB_INDEX)
+          .map(({ t, i }) => (
           <button
             key={t}
             onClick={() => setTab(i)}
@@ -657,7 +662,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
           />,
         )}
       {tab === COMMENTS_TAB_INDEX && (
-        <DeclarationComments declarationId={d.declarationId} currentUser={currentUser} />
+        <DeclarationComments declarationId={d.declarationId} currentUser={currentUser} readOnly={soloConsulta} />
       )}
 
       <Modal
