@@ -25,6 +25,8 @@ const NO_PLAN: ActivePlan = {
   status: null,
   subscriptionId: null,
   renewDate: null,
+  cancelAtPeriodEnd: false,
+  cancelAt: null,
   nextChargeAmount: null,
   paymentIntentId: null,
   paidAmount: null,

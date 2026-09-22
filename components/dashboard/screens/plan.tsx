@@ -19,6 +19,16 @@ import { PlanPickerModal } from '../plan/plan-picker-modal'
 import { PurchaseHistory } from '../plan/purchase-history'
 import { DISPLAY, MONO } from '../constants'
 import { Badge, Btn, Card, CiecWarningBanner, Divider, HelpBox, Pill, VideoSlot } from '../ui'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { getCiecBlockStatus, isConnectedByEfirmaOnly, isSatConnected } from '../sat-connection.utils'
 import { CiecBlockedScreen } from './ciec-blocked'
 import { NeedsSatConnect } from './needs-sat-connect'
@@ -61,6 +71,7 @@ export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled, go }: Pl
   const [catalog, setCatalog] = useState<PlansCatalog>(EMPTY_PLANS_CATALOG)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [canceling, setCanceling] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const loadSubscription = useCallback(async () => {
@@ -88,9 +99,7 @@ export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled, go }: Pl
 
   const handleCancel = useCallback(async () => {
     if (!activePlan?.subscriptionId) return
-    if (!window.confirm('¿Cancelar tu suscripción? Conservarás el acceso hasta el final del periodo.')) {
-      return
-    }
+    setConfirmOpen(false)
     setCanceling(true)
     setError(null)
     const res = await cancelSubscription(activePlan.subscriptionId)
@@ -104,7 +113,9 @@ export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled, go }: Pl
 
   const hasSub = activePlan?.hasPlan === true
   const isSubscription = activePlan?.type === 'subscription'
+  const canceled = isSubscription && activePlan?.cancelAtPeriodEnd === true
   const renewDate = formatRenewDate(activePlan?.renewDate ?? undefined)
+  const endDate = formatRenewDate(activePlan?.cancelAt ?? activePlan?.renewDate ?? undefined)
   const planCount = catalog.futurePlans.length
   const hasPlans = planCount > 0
   const features = resolveFeatures(activePlan?.features, activePlan?.featuresJson)
@@ -159,9 +170,13 @@ export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled, go }: Pl
             <div className="text-[14px] mt-2" style={{ color: 'rgba(255,255,255,0.8)' }}>
               {periodLabel(activePlan?.billingPeriod ?? undefined)}
               {isSubscription
-                ? renewDate
-                  ? ` · se renueva el ${renewDate}`
-                  : ''
+                ? canceled
+                  ? endDate
+                    ? ` · termina el ${endDate}`
+                    : ''
+                  : renewDate
+                    ? ` · se renueva el ${renewDate}`
+                    : ''
                 : ' · pago único'}
             </div>
             <div
@@ -276,17 +291,46 @@ export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled, go }: Pl
         </Btn>
       </div>
 
-      {isSubscription && activePlan?.subscriptionId && (
-        <Btn block kind="ghost" style={{ color: '#B01F1F' }} disabled={canceling} onClick={handleCancel}>
-          {canceling ? (
-            <>
-              <Loader2 size={16} className="animate-spin" /> Cancelando…
-            </>
-          ) : (
-            'Cancelar mi suscripción'
-          )}
-        </Btn>
+      {canceled ? (
+        <div
+          className="text-[13px] font-semibold px-4 py-2.5 rounded-xl"
+          style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}
+        >
+          {endDate
+            ? `Tu suscripción termina el ${endDate}. Conservas el acceso hasta esa fecha.`
+            : 'Tu suscripción está cancelada. Conservas el acceso hasta el final del periodo.'}
+        </div>
+      ) : (
+        isSubscription &&
+        activePlan?.subscriptionId && (
+          <Btn block kind="ghost" style={{ color: '#B01F1F' }} disabled={canceling} onClick={() => setConfirmOpen(true)}>
+            {canceling ? (
+              <>
+                <Loader2 size={16} className="animate-spin" /> Cancelando…
+              </>
+            ) : (
+              'Cancelar mi suscripción'
+            )}
+          </Btn>
+        )
       )}
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Cancelar tu suscripción?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {endDate
+                ? `Conservarás el acceso hasta el ${endDate}.`
+                : 'Conservarás el acceso hasta el final del periodo.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No, conservarla</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCancel}>Sí, cancelar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {!loadingSub && account && <OtherRfcs cuentas={account.otrosRfc} onSelect={setSelectedRfc} />}
 

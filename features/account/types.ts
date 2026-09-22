@@ -258,6 +258,8 @@ export interface CurrentSubscription {
 export interface CancelSubscriptionResponse {
   success: boolean;
   canceledAt?: string;
+  /** La suscripción ya venía cancelada; el back responde 200 igual. */
+  alreadyCanceled?: boolean;
 }
 
 /**
@@ -280,6 +282,10 @@ export interface ActivePlan {
   status: string | null;
   subscriptionId: string | null;
   renewDate: string | null;
+  /** Ya se canceló: Stripe la deja activa hasta `cancelAt`, por eso no basta con `status`. */
+  cancelAtPeriodEnd: boolean;
+  /** Fecha en que termina el acceso cuando `cancelAtPeriodEnd` (yyyy-MM-dd). */
+  cancelAt: string | null;
   nextChargeAmount: number | null;
   paymentIntentId: string | null;
   paidAmount: number | null;
