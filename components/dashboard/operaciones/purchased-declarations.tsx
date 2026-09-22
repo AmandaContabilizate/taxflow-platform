@@ -22,6 +22,7 @@ import { DISPLAY, MONO } from '../constants'
 import { Badge, type BadgeKind, Btn, Card, ErrorState, HelpBox } from '../ui'
 import { buildUrl, numParam, useUrlState } from '../url-state'
 import type { MouseEvent as ReactMouseEvent } from 'react'
+import { AccountantCell } from './accountant-cell'
 import { DeclarationDetail } from './declaration-detail'
 import { ExportReportModal, type StatusOption } from './export-report-modal'
 
@@ -374,7 +375,7 @@ function TaxpayerGroups({
               />
               <input
                 type="text"
-                placeholder="Buscar por RFC o razón social…"
+                placeholder="Buscar por RFC, razón social o correo…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 rounded-lg"
@@ -496,7 +497,7 @@ function TaxpayerGroups({
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Contribuyente', 'RFC', 'CIEC', 'Correo', 'Compradas', 'Último ejercicio', 'Régimen', ''].map((h) => (
+                    {['Contribuyente', 'RFC', 'CIEC', 'Correo', 'Compradas', 'Último ejercicio', 'Régimen', 'Contador', ''].map((h) => (
                       <th
                         key={h}
                         className="px-5 py-3 text-left font-extrabold whitespace-nowrap"
@@ -573,6 +574,9 @@ function TaxpayerGroups({
                             ))}
                           </select>
                         )}
+                      </td>
+                      <td className="px-5 py-4">
+                        <AccountantCell accountantName={g.accountantName} accountantUserId={g.accountantUserId} />
                       </td>
                       <td className="px-5 py-4 text-right">
                         <a
@@ -987,11 +991,13 @@ export function PurchasedDeclarations({
 
   const [legalName, setLegalName] = useState('')
   const [groupRegimes, setGroupRegimes] = useState<TaxpayerRegime[]>([])
+  const [groupAccountant, setGroupAccountant] = useState<string | null>(null)
   const [subject, setSubject] = useState<DeclarationSubject | null>(null)
 
   const openGroup = (g: TaxpayerGroup, taxRegimeId: number | null) => {
     setLegalName(g.legalName ?? '')
     setGroupRegimes(g.regimes ?? [])
+    setGroupAccountant(g.accountantName ?? null)
     setParams({ rfc: g.rfc, decl: null, regimen: taxRegimeId })
   }
 
@@ -1002,7 +1008,7 @@ export function PurchasedDeclarations({
       legalName,
       periodo: `${periodLabel(d.periodValueId)} ${d.fiscalYear}`,
       fiscalYear: d.fiscalYear,
-      accountantName: null,
+      accountantName: groupAccountant,
     })
     setParams({ decl: d.declarationId })
   }

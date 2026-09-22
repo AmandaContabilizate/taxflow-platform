@@ -6,6 +6,7 @@ import { DECLARATION_STATUS } from '@/features/declaration-report/types'
 import { getDeclarations } from '@/features/operations/actions/getDeclarations.action'
 import type { DeclarationListItem, DeclarationSubject, Paged } from '@/features/operations/types'
 import { declarationStatusBadge } from '../declaraciones/parts'
+import { AccountantCell } from '../operaciones/accountant-cell'
 import { DeclarationDetail } from '../operaciones/declaration-detail'
 import { Pagination } from '../clientes/parts'
 import { MONO } from '../constants'
@@ -88,7 +89,7 @@ export function DeclaracionesRechazadasScreen({ currentUser }: { currentUser: Cu
       legalName: item.legalName ?? '',
       periodo: item.periodo ?? '',
       fiscalYear: item.fiscalYear,
-      accountantName: null,
+      accountantName: item.accountantName ?? null,
     })
     setParams({ decl: item.id, rfc: item.rfc })
   }
@@ -139,7 +140,7 @@ export function DeclaracionesRechazadasScreen({ currentUser }: { currentUser: Cu
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Contribuyente', 'RFC', 'Periodo', 'Ejercicio', 'Régimen', 'Estatus', ''].map((h) => (
+                    {['Contribuyente', 'RFC', 'Periodo', 'Ejercicio', 'Régimen', 'Estatus', 'Contador', ''].map((h) => (
                       <th
                         key={h}
                         className="px-5 py-3 text-left font-extrabold whitespace-nowrap"
@@ -166,6 +167,9 @@ export function DeclaracionesRechazadasScreen({ currentUser }: { currentUser: Cu
                         <td className="px-5 py-4" style={{ color: 'var(--ink-700)' }}>{item.regimeName ?? '—'}</td>
                         <td className="px-5 py-4">
                           <Badge kind={badge.kind}>{badge.label}</Badge>
+                        </td>
+                        <td className="px-5 py-4">
+                          <AccountantCell accountantName={item.accountantName} accountantUserId={item.accountantUserId} />
                         </td>
                         <td className="px-5 py-4 text-right">
                           <button

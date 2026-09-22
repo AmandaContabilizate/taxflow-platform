@@ -336,8 +336,10 @@ export const API_ROUTES = {
     PREDECLARACION: (declarationId: number) => `/${declarationId}/predeclaracion`,
     // apiType "declarations_reports" · GET. Bitácora de cambios de estatus
     // (`DeclarationLog`). Devuelve un ARRAY plano (NO PagedResult), changedAt DESC.
-    LOGS: (declarationId: number, skip = 0, take = 100) =>
-      `/logs?declarationId=${declarationId}&skip=${skip}&take=${take}`,
+    // `consulta`: ruta espejo (claim Contador.ConsultaDeclaraciones) acotada a una
+    // declaración — la usa el banner de rechazo para el perfil de solo consulta (SAC).
+    LOGS: (declarationId: number, skip = 0, take = 100, consulta = false) =>
+      `${consulta ? "/consulta" : ""}/logs?declarationId=${declarationId}&skip=${skip}&take=${take}`,
   },
   // Controller nuevo de Procedures (`api/declarations`, plural). apiType
   // "declarations_procedures". Policy Contador.UpdateDeclaracionEstatus.

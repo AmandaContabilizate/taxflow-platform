@@ -16,6 +16,8 @@ interface CurrentUser {
 interface Props {
   declarationId: number
   currentUser: CurrentUser
+  /** Solo lectura (perfil de consulta, SAC): se ve la conversación, sin caja para escribir. */
+  readOnly?: boolean
 }
 
 type State =
@@ -30,7 +32,7 @@ const WRAP: Record<'bold' | 'italic' | 'strike' | 'mono', [string, string]> = {
   mono: ['```', '```'],
 }
 
-export function DeclarationComments({ declarationId, currentUser }: Props) {
+export function DeclarationComments({ declarationId, currentUser, readOnly = false }: Props) {
   const [state, setState] = useState<State>({ status: 'loading' })
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
@@ -131,6 +133,11 @@ export function DeclarationComments({ declarationId, currentUser }: Props) {
           })}
       </div>
 
+      {readOnly ? (
+        <div className="text-[12.5px] px-1" style={{ color: 'var(--ink-500)' }}>
+          Solo consulta: puedes leer la conversación, pero no escribir en ella.
+        </div>
+      ) : (
       <div
         className="rounded-2xl p-3 flex flex-col gap-2"
         style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
@@ -168,6 +175,7 @@ export function DeclarationComments({ declarationId, currentUser }: Props) {
           </button>
         </div>
       </div>
+      )}
     </div>
   )
 }

@@ -47,6 +47,9 @@ export interface DeclarationListItem {
   regimeName: string | null;
   /** `StatusDeclaration.Description`. */
   statusLabel: string | null;
+  /** Contador asignado hoy al contribuyente (TaxpayerAccountant activo). Null = sin asignar. */
+  accountantUserId?: string | null;
+  accountantName?: string | null;
 }
 
 /**

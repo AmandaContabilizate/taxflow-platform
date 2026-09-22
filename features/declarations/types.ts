@@ -487,6 +487,9 @@ export interface TaxpayerGroup {
    * null desde el backend, pero puede venir `[]` (declaraciones sin régimen).
    */
   regimes?: TaxpayerRegime[]
+  /** Contador asignado hoy al contribuyente (TaxpayerAccountant activo). Null = sin asignar. */
+  accountantUserId?: string | null
+  accountantName?: string | null
 }
 
 /** Fila de `Catalogs.StatusDeclaration` (GET catalogs/declaration-statuses). */
