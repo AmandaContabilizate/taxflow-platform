@@ -140,8 +140,8 @@ export default function SatConnectScreen({
 
       <Card>
         <div className="p-6 lg:p-7">
-          <div className="text-[22px] font-extrabold tracking-tight" style={DISPLAY}>¿Cómo quieres conectarte?</div>
-          <div className="text-[13.5px] mt-1.5" style={{ color: 'var(--ink-500)' }}>Elige una opción. Si no estás seguro, te recomendamos la primera.</div>
+          <div className="text-[22px] font-extrabold tracking-tight" style={DISPLAY}>Conecta tu SAT</div>
+          <div className="text-[13.5px] mt-1.5" style={{ color: 'var(--ink-500)' }}>Con tu RFC y la contraseña que usas para entrar al portal del SAT.</div>
 
           {error && (
             <div className="rounded-2xl p-3.5 mt-4 text-[13px] font-semibold flex items-start gap-2.5" style={{ background: 'var(--danger-soft)', color: '#8B1E1E' }}>
@@ -151,11 +151,15 @@ export default function SatConnectScreen({
           )}
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-5 mt-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* Por el momento el cliente solo conecta con CIEC (Amanda, 2026-09-21). La opción
+                e.Firma queda comentada, con su formulario y su action intactos, para reactivarla
+                agregando la tarjeta de vuelta a esta lista:
+                { id: 'fiel' as const, title: 'Con mi e.Firma', desc: 'Si tienes los archivos .cer y .key', icon: <FileDown size={22} /> }
+            */}
+            <div className="grid grid-cols-1 gap-3">
               {([
                 { id: 'ciec' as const, title: 'Con mi contraseña del SAT', desc: 'La que usas para entrar al portal del SAT. (CIEC)', icon: <Lock size={22} />, recommended: true },
-                { id: 'fiel' as const, title: 'Con mi e.Firma', desc: 'Si tienes los archivos .cer y .key', icon: <FileDown size={22} /> },
-              ]).map(m => {
+              ] as Array<{ id: 'ciec' | 'fiel'; title: string; desc: string; icon: ReactNode; recommended?: boolean }>).map(m => {
                 const active = authMethod === m.id
                 return (
                   <button

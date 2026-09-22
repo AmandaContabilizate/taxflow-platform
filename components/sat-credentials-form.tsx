@@ -113,12 +113,23 @@ export default function SatCredentialsForm({ existingRfc, onComplete }: Props) {
             Acceso al SAT
           </h2>
           <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-            Elige cómo quieres conectar tu cuenta del SAT
+            Conecta tu cuenta del SAT con tu RFC y tu contraseña CIEC
           </p>
         </div>
 
-        {/* Method selector */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* Method selector. Por el momento solo CIEC (Amanda, 2026-09-21): la tarjeta de
+            e.Firma queda comentada; su formulario y su action siguen intactos. Para
+            reactivarla, vuelve a agregar a la lista:
+            {
+              id: 'fiel' as AuthMethod,
+              title: 'Con e.Firma',
+              desc: 'Certificado .cer y llave .key',
+              icon: (
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="M9 15l3 3 3-3"/></svg>
+              ),
+            },
+            y regresa el grid a `grid-cols-2`. */}
+        <div className="grid grid-cols-1 gap-3">
           {([
             {
               id: 'ciec' as AuthMethod,
@@ -126,14 +137,6 @@ export default function SatCredentialsForm({ existingRfc, onComplete }: Props) {
               desc: 'Contraseña del portal del SAT',
               icon: (
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              ),
-            },
-            {
-              id: 'fiel' as AuthMethod,
-              title: 'Con e.Firma',
-              desc: 'Certificado .cer y llave .key',
-              icon: (
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="M9 15l3 3 3-3"/></svg>
               ),
             },
           ] as const).map((m) => {
