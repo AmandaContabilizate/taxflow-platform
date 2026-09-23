@@ -122,6 +122,7 @@ export interface SatPassword {
   publicId: string
   rfc: string
   tieneEfirma: boolean
+  ciecState?: number
 }
 
 export interface ClientListItem extends TaxpayerListItem {

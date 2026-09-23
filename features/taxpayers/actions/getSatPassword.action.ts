@@ -15,6 +15,7 @@ interface SatPasswordResponse {
   satPassword?: string | null;
   publicId?: string | null;
   rfc?: string | null;
+  ciecState?: number | null;
   digitalIdentities?: { identityCertPath: string }[] | null;
 }
 
@@ -42,6 +43,7 @@ export async function getSatPassword(
       publicId: data?.publicId ?? "",
       rfc: data?.rfc ?? parsed.data.rfc,
       tieneEfirma: (data?.digitalIdentities?.length ?? 0) > 0,
+      ciecState: data?.ciecState ?? undefined,
     });
   } catch (e) {
     if (e instanceof ApiError) {

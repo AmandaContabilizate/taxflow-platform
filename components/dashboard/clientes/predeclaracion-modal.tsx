@@ -22,9 +22,11 @@ interface Props {
 
 const PRESENTADA_STATUS = [3, 5, 7, 8]
 
-function fmtMoney(v: number | null | undefined): string {
-  if (v === null || v === undefined) return '—'
-  return v.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
+function fmtMoney(v: number | string | null | undefined): string {
+  if (v === null || v === undefined || v === '') return '—'
+  const n = typeof v === 'number' ? v : Number(v)
+  if (isNaN(n)) return String(v)
+  return n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
 }
 
 /** Reporte de predeclaración (solo lectura) para SAC / Renovaciones. */
@@ -52,7 +54,7 @@ export function PredeclaracionModal({ open, onOpenChange, declarationId }: Props
 
   const presentada = data ? PRESENTADA_STATUS.includes(data.statusId) : false
 
-  const montos: { label: string; value: number | null }[] = data
+  const montos: { label: string; value: number | string | null }[] = data
     ? [
         { label: 'Ingresos brutos', value: data.ingresosBrutos },
         { label: 'Gastos deducibles', value: data.gastosDeducibles },

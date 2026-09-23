@@ -31,7 +31,7 @@ import {
 } from '@/features/taxpayers/actions/getDocumentMetadata.action'
 import type { ExpedienteCliente, ExpedientePeriodo } from '@/features/taxpayers/types'
 import { DISPLAY, MONO } from '../constants'
-import { Badge, Card, ErrorState, NoAccessState, Tabs, isForbiddenError } from '../ui'
+import { Badge, Card, CiecUpdateModal, CiecValidationBadge, ErrorState, NoAccessState, Tabs, isForbiddenError } from '../ui'
 import { TabDiagnostico } from './tab-diagnostico'
 import { TabVistaCliente } from './tab-vista-cliente'
 import { PredeclaracionModal } from './predeclaracion-modal'
@@ -140,6 +140,8 @@ export function ExpedienteCliente({ taxpayerId, permissions, onBack }: Props) {
   const [data, setData] = useState<ExpedienteCliente | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showCiecModal, setShowCiecModal] = useState(false)
+  const [updateCiecRfc, setUpdateCiecRfc] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -198,9 +200,18 @@ export function ExpedienteCliente({ taxpayerId, permissions, onBack }: Props) {
               <span className="text-[18px] font-extrabold tracking-tight" style={DISPLAY}>
                 {data.legalName}
               </span>
-              <Badge kind={ciecOk ? 'brand' : 'amber'}>
-                {ciecOk ? 'CIEC válida' : data.passwordState === 2 ? 'CIEC inválida' : 'CIEC sin verificar'}
-              </Badge>
+              <CiecValidationBadge
+                rfc={data.rfc}
+                ciecState={data.passwordState}
+                size="md"
+                onStateChange={(nextState) => {
+                  setData((prev) => (prev ? { ...prev, passwordState: nextState } : prev))
+                }}
+                onOpenUpdateModal={(r) => {
+                  setUpdateCiecRfc(r)
+                  setShowCiecModal(true)
+                }}
+              />
             </div>
             <div className="flex items-center gap-3 flex-wrap mt-1.5 text-[12.5px]" style={{ color: 'var(--ink-500)' }}>
               <span className="inline-flex items-center gap-1.5">
@@ -230,7 +241,18 @@ export function ExpedienteCliente({ taxpayerId, permissions, onBack }: Props) {
 
       {activeTab === TAB_RESUMEN && <TabResumen data={data} ciecOk={ciecOk} />}
       {activeTab === TAB_CREDENCIALES && canCredentials && (
-        <TabCredenciales rfc={data.rfc} ciecOk={ciecOk} data={data} />
+        <TabCredenciales
+          rfc={data.rfc}
+          ciecOk={ciecOk}
+          data={data}
+          onStateChange={(nextState) => {
+            setData((prev) => (prev ? { ...prev, passwordState: nextState } : prev))
+          }}
+          onOpenUpdateModal={(r) => {
+            setUpdateCiecRfc(r)
+            setShowCiecModal(true)
+          }}
+        />
       )}
       {activeTab === TAB_PRODUCTOS && <TabProductos data={data} permissions={permissions} />}
       {activeTab === TAB_DOCUMENTOS && canDocs && <TabDocumentos rfc={data.rfc} permissions={permissions} />}
@@ -245,6 +267,17 @@ export function ExpedienteCliente({ taxpayerId, permissions, onBack }: Props) {
       )}
       {activeTab === TAB_VISTA_CLIENTE && canVistaCliente && (
         <TabVistaCliente taxpayerId={taxpayerId} legalName={data.legalName} />
+      )}
+
+      {showCiecModal && updateCiecRfc && (
+        <CiecUpdateModal
+          isOpen={showCiecModal}
+          onClose={() => {
+            setShowCiecModal(false)
+            setUpdateCiecRfc(null)
+          }}
+          rfc={updateCiecRfc}
+        />
       )}
     </div>
   )
@@ -359,7 +392,19 @@ function IndicadorRow({
   )
 }
 
-function TabCredenciales({ rfc, ciecOk, data }: { rfc: string; ciecOk: boolean; data: ExpedienteCliente }) {
+function TabCredenciales({
+  rfc,
+  ciecOk,
+  data,
+  onStateChange,
+  onOpenUpdateModal,
+}: {
+  rfc: string
+  ciecOk: boolean
+  data: ExpedienteCliente
+  onStateChange?: (newState: 0 | 1 | 2) => void
+  onOpenUpdateModal?: (rfc: string) => void
+}) {
   const [password, setPassword] = useState<string | null>(null)
   const [tieneEfirma, setTieneEfirma] = useState<boolean | null>(null)
   const [visible, setVisible] = useState(false)
@@ -403,7 +448,13 @@ function TabCredenciales({ rfc, ciecOk, data }: { rfc: string; ciecOk: boolean; 
               </div>
             </div>
           </div>
-          <Badge kind={ciecOk ? 'brand' : 'amber'}>{ciecOk ? 'Activa' : 'Revisar'}</Badge>
+          <CiecValidationBadge
+            rfc={rfc}
+            ciecState={data.passwordState}
+            size="sm"
+            onStateChange={onStateChange}
+            onOpenUpdateModal={onOpenUpdateModal}
+          />
         </div>
 
         <div className="p-5 flex flex-col gap-4">

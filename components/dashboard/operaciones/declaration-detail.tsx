@@ -43,7 +43,7 @@ import { declarationStatusBadge, fmtDate } from '../declaraciones/parts'
 import { DISPLAY, MONO } from '../constants'
 import { useHasPermission } from '../permissions'
 import { Modal } from '../modal'
-import { Badge, Card } from '../ui'
+import { Badge, Card, CiecUpdateModal, CiecValidationBadge } from '../ui'
 
 /** Estatus que habilitan "Enviar Predeclaración" (10|15 → 9; 9 reintenta el correo). */
 const RESENDABLE_STATUSES = new Set<number>([
@@ -75,14 +75,20 @@ const moneyOrDash = (n: number | null | undefined) => (n == null ? '—' : money
  * - La contraseña vive en el estado local de este componente: no se loguea, no
  *   se sube por props ni se guarda en storage.
  * - "Ocultar" la borra del estado; el siguiente "Ver" vuelve a pedirla.
- * - Sin el claim `Contador.GetSatPassword` el control no se pinta.
+ * - Sin el claim `Contador.GetSatPassword` el control no se printable.
  */
-function CiecInline({ rfc }: { rfc: string }) {
+function CiecInline({ rfc, ciecState: initialCiecState }: { rfc: string; ciecState?: number | null }) {
   const puedeVerCiec = useHasPermission('Contador.GetSatPassword')
   const [ciec, setCiec] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [aviso, setAviso] = useState<string | null>(null)
   const [copiado, setCopiado] = useState(false)
+  const [currentCiecState, setCurrentCiecState] = useState<number | null | undefined>(initialCiecState)
+  const [updateModalOpen, setUpdateModalOpen] = useState(false)
+
+  useEffect(() => {
+    setCurrentCiecState(initialCiecState)
+  }, [initialCiecState])
 
   useEffect(() => {
     setCiec(null)
@@ -105,9 +111,15 @@ function CiecInline({ rfc }: { rfc: string }) {
     setLoading(false)
     if (res.success && res.value.satPassword) {
       setCiec(res.value.satPassword)
+      if (res.value.ciecState !== undefined && res.value.ciecState !== null) {
+        setCurrentCiecState(res.value.ciecState)
+      } else {
+        setCurrentCiecState(0)
+      }
       return
     }
     setCiec(null)
+    setCurrentCiecState(null)
     setAviso(res.success || res.error.statusCode === 404 ? 'Sin CIEC registrada' : 'No disponible')
   }
 
@@ -123,53 +135,72 @@ function CiecInline({ rfc }: { rfc: string }) {
   }
 
   return (
-    <div
-      className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-xl"
-      style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
-    >
-      <span
-        className="text-[10.5px] font-extrabold uppercase tracking-wide"
-        style={{ color: 'var(--ink-500)' }}
+    <div className="inline-flex items-center gap-2 flex-wrap">
+      <CiecValidationBadge
+        rfc={rfc}
+        ciecState={currentCiecState}
+        size="sm"
+        onStateChange={(s) => setCurrentCiecState(s)}
+        onOpenUpdateModal={() => setUpdateModalOpen(true)}
+      />
+      <div
+        className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-xl"
+        style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
       >
-        CIEC
-      </span>
-      <code style={{ ...MONO, fontSize: '13px', color: 'var(--ink-900)' }}>
-        {ciec ?? '••••••••'}
-      </code>
-      {aviso && (
-        <span className="text-[11.5px] font-semibold" style={{ color: 'var(--ink-500)' }}>
-          {aviso}
+        <span
+          className="text-[10.5px] font-extrabold uppercase tracking-wide"
+          style={{ color: 'var(--ink-500)' }}
+        >
+          CIEC
         </span>
-      )}
-      <button
-        type="button"
-        onClick={() => (ciec ? ocultar() : void ver())}
-        disabled={loading}
-        title={ciec ? 'Ocultar la CIEC' : 'Consultar y mostrar la CIEC'}
-        className="inline-flex items-center gap-1 text-[11.5px] font-bold px-2 py-1 rounded-lg transition hover:opacity-80 disabled:opacity-60"
-        style={{ background: 'var(--ink-50)', color: 'var(--ink-700)', border: '1px solid var(--border)' }}
-      >
-        {loading ? (
-          <Loader2 size={12} className="animate-spin" />
-        ) : ciec ? (
-          <EyeOff size={12} />
-        ) : (
-          <Eye size={12} />
+        <code style={{ ...MONO, fontSize: '13px', color: 'var(--ink-900)' }}>
+          {ciec ?? '••••••••'}
+        </code>
+        {aviso && (
+          <span className="text-[11.5px] font-semibold" style={{ color: 'var(--ink-500)' }}>
+            {aviso}
+          </span>
         )}
-        {ciec ? 'Ocultar' : 'Ver'}
-      </button>
-      {ciec && (
         <button
           type="button"
-          onClick={() => void copiar()}
-          title="Copiar la CIEC al portapapeles"
-          className="inline-flex items-center gap-1 text-[11.5px] font-bold px-2 py-1 rounded-lg transition hover:opacity-80"
+          onClick={() => (ciec ? ocultar() : void ver())}
+          disabled={loading}
+          title={ciec ? 'Ocultar la CIEC' : 'Consultar y mostrar la CIEC'}
+          className="inline-flex items-center gap-1 text-[11.5px] font-bold px-2 py-1 rounded-lg transition hover:opacity-80 disabled:opacity-60"
           style={{ background: 'var(--ink-50)', color: 'var(--ink-700)', border: '1px solid var(--border)' }}
         >
-          {copiado ? <Check size={12} /> : <Copy size={12} />}
-          {copiado ? 'Copiada' : 'Copiar'}
+          {loading ? (
+            <Loader2 size={12} className="animate-spin" />
+          ) : ciec ? (
+            <EyeOff size={12} />
+          ) : (
+            <Eye size={12} />
+          )}
+          {ciec ? 'Ocultar' : 'Ver'}
         </button>
-      )}
+        {ciec && (
+          <button
+            type="button"
+            onClick={() => void copiar()}
+            title="Copiar la CIEC al portapapeles"
+            className="inline-flex items-center gap-1 text-[11.5px] font-bold px-2 py-1 rounded-lg transition hover:opacity-80"
+            style={{ background: 'var(--ink-50)', color: 'var(--ink-700)', border: '1px solid var(--border)' }}
+          >
+            {copiado ? <Check size={12} /> : <Copy size={12} />}
+            {copiado ? 'Copiada' : 'Copiar'}
+          </button>
+        )}
+      </div>
+
+      <CiecUpdateModal
+        isOpen={updateModalOpen}
+        onClose={() => setUpdateModalOpen(false)}
+        rfc={rfc}
+        onSuccess={() => {
+          setCurrentCiecState(1)
+          if (ciec) void ver()
+        }}
+      />
     </div>
   )
 }
@@ -462,7 +493,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
                   <Eye size={12} /> Solo consulta
                 </span>
               ) : (
-                <CiecInline rfc={rfc} />
+                <CiecInline rfc={rfc} ciecState={(d as { ciecState?: number }).ciecState} />
               )}
             </div>
             {actividades.length > 0 && <ActivityChips activities={actividades} />}

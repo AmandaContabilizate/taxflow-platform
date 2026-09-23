@@ -19,7 +19,7 @@ import type { DeclarationSubject } from '@/features/operations/types'
 import { declarationStatusBadge } from '../declaraciones/parts'
 import { Pagination } from '../clientes/parts'
 import { DISPLAY, MONO } from '../constants'
-import { Badge, type BadgeKind, Btn, Card, ErrorState, HelpBox } from '../ui'
+import { Badge, type BadgeKind, Btn, Card, CiecUpdateModal, CiecValidationBadge, ErrorState, HelpBox } from '../ui'
 import { buildUrl, numParam, useUrlState } from '../url-state'
 import type { MouseEvent as ReactMouseEvent } from 'react'
 import { AccountantCell } from './accountant-cell'
@@ -271,6 +271,8 @@ function TaxpayerGroups({
   const [regimeByTaxpayer, setRegimeByTaxpayer] = useState<Record<number, number>>({})
   const [exportOpen, setExportOpen] = useState(false)
   const [statusCatalog, setStatusCatalog] = useState<DeclarationStatusCatalogItem[]>([])
+  const [showCiecModal, setShowCiecModal] = useState(false)
+  const [updateCiecRfc, setUpdateCiecRfc] = useState<string | null>(null)
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -525,12 +527,24 @@ function TaxpayerGroups({
                         <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-700)' }}>{g.rfc}</code>
                       </td>
                       <td className="px-5 py-4">
-                        {(() => {
-                          const ciec = g.ciecState != null ? CIEC_BADGE[g.ciecState] : undefined
-                          return ciec
-                            ? <Badge kind={ciec.kind}>{ciec.label}</Badge>
-                            : <span className="text-[12.5px]" style={{ color: 'var(--ink-500)' }}>—</span>
-                        })()}
+                        <CiecValidationBadge
+                          rfc={g.rfc}
+                          ciecState={g.ciecState}
+                          size="sm"
+                          variant="compact"
+                          onStateChange={(nextState) => {
+                            setPage((prev) => ({
+                              ...prev,
+                              items: prev.items.map((it) =>
+                                it.taxpayerId === g.taxpayerId ? { ...it, ciecState: nextState } : it,
+                              ),
+                            }))
+                          }}
+                          onOpenUpdateModal={(r) => {
+                            setUpdateCiecRfc(r)
+                            setShowCiecModal(true)
+                          }}
+                        />
                       </td>
                       <td className="px-5 py-4">
                         <span className="text-sm" style={{ color: 'var(--ink-700)' }}>{g.email || '—'}</span>
@@ -622,6 +636,17 @@ function TaxpayerGroups({
         initial={{ search: query || undefined }}
         statusOptions={[]}
       />
+
+      {showCiecModal && updateCiecRfc && (
+        <CiecUpdateModal
+          isOpen={showCiecModal}
+          onClose={() => {
+            setShowCiecModal(false)
+            setUpdateCiecRfc(null)
+          }}
+          rfc={updateCiecRfc}
+        />
+      )}
     </div>
   )
 }

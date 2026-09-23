@@ -198,6 +198,7 @@ export const API_ROUTES = {
     GET: (id: string) => `/${id}`,
     GET_BY_RFC: (rfc: string) => `/2/taxpayer?rfc=${encodeURIComponent(rfc)}`,
     UPDATECIEC: "/updateCiec",
+    VALIDATE_CIEC: "/validate-ciec",
     // Actividades económicas por régimen (matriz de la última CSF). apiType "taxpayers"
     REGIME_ACTIVITIES: (rfc: string) => `/regime-activities?rfc=${encodeURIComponent(rfc)}`,
     REGIME_ACTIVITY_ACTIVATE: (rfc: string, regimeId: number, activityId: number) =>

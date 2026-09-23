@@ -11,6 +11,7 @@ interface Props {
   isOpen: boolean
   onClose: () => void
   rfc: string
+  onSuccess?: (newCiecState: number) => void
 }
 
 type Feedback = { kind: 'invalid' | 'unverified' | 'error' } | null
@@ -25,7 +26,7 @@ const FEEDBACK_COPY: Record<NonNullable<Feedback>['kind'], string> = {
  * Único camino de recuperación para el estado 2 (D2: el worker de reintento no se toca).
  * Reutilizado por el bloqueo de E1 y por Mi cuenta (E2). Nunca persiste la contraseña.
  */
-export function CiecUpdateModal({ isOpen, onClose, rfc }: Props) {
+export function CiecUpdateModal({ isOpen, onClose, rfc, onSuccess }: Props) {
   const { refresh } = useRfcStore()
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -57,6 +58,7 @@ export function CiecUpdateModal({ isOpen, onClose, rfc }: Props) {
     setLoading(false)
 
     if (res.value.ciecState === 1) {
+      onSuccess?.(res.value.ciecState)
       handleClose()
       return
     }
