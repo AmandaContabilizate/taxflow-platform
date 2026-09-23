@@ -380,6 +380,45 @@ export interface PaidPendingDeclaration {
   accountantName: string | null;
 }
 
+/** Motivo derivado por el que una venta pagada no se ha activado (GET sales/por-activar). */
+export type VentaPorActivarMotivo =
+  | "SinCiec"
+  | "CiecSinVerificar"
+  | "CiecInvalida"
+  | "SinConstancia"
+  | "RegimenNoCoincide"
+  | "ListaParaActivar";
+
+/** Venta pagada con plan a futuro sin declaraciones creadas (spec-ventas-por-activar). */
+export interface VentaPorActivar {
+  saleId: number;
+  saleDate: string;
+  amount: number;
+  checkoutId: string | null;
+  /** "App del cliente" · "Backoffice" · "Liga de pago". */
+  origen: string;
+  /** Correo del vendedor que registró la venta; null si la hizo el cliente en la app. */
+  vendedor: string | null;
+  taxpayerId: number;
+  rfc: string;
+  legalName: string | null;
+  email: string | null;
+  phone: string | null;
+  planes: string[];
+  contadorNombre: string | null;
+  /** 0 sin verificar · 1 válida · 2 inválida. */
+  ciecEstado: number;
+  tieneCiecCapturada: boolean;
+  tieneConstancia: boolean;
+  constanciaVerificada: boolean;
+  queFalta: VentaPorActivarMotivo;
+  diasDesdePago: number;
+}
+
+export interface VentasPorActivarPage extends Paged<VentaPorActivar> {
+  porMotivo: Record<string, number>;
+}
+
 /** Item de `/sales/procedures` (trámites adicionales vendidos). */
 export interface ProcedureSale {
   id: number;
@@ -573,4 +612,32 @@ export interface VentaDetalleStripe {
 export interface DeclarationReportLink {
   url: string;
   token: string;
+}
+
+/** Estado derivado de una liga de pago emitida desde el backoffice (GET sales/ligas-pago). */
+export type LigaPagoEstado = "Vigente" | "Vencida" | "Pagada" | "Cancelada";
+
+/** Venta armada desde el backoffice con liga de pago (spec-liga-de-pago-vendedor). */
+export interface LigaPago {
+  saleId: number;
+  saleDate: string;
+  amount: number;
+  taxpayerId: number;
+  rfc: string;
+  legalName: string | null;
+  email: string | null;
+  phone: string | null;
+  planes: string[];
+  emitidaPorUserId: string;
+  emitidaPorNombre: string | null;
+  emitidaPorEmail: string | null;
+  ligaVenceAt: string | null;
+  estado: LigaPagoEstado;
+  /** Fecha de pago si Pagada, de cancelación si Cancelada. */
+  updatedAt: string;
+  tieneConstancia: boolean;
+}
+
+export interface LigasPagoPage extends Paged<LigaPago> {
+  porEstado: Record<string, number>;
 }

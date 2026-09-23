@@ -40,6 +40,7 @@ import {
   ManualScreen,
   MarketingScreen,
   DeclaracionesFuturasScreen,
+  VentasPorActivarScreen,
   MisClientesScreen,
   NotificacionesScreen,
   OperacionesScreen,
@@ -67,6 +68,7 @@ const WIDE_SCREENS = new Set<Screen>([
   'operaciones',
   'declaraciones-rechazadas',
   'declaraciones-futuras',
+  'ventas-por-activar',
   'regularizaciones',
   'tramites-adicionales',
   'tramites',
@@ -358,6 +360,9 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
     }
     if (screen === 'declaraciones-futuras') {
       return <DeclaracionesFuturasScreen currentUser={{ userId: userId ?? '', fullName }} permissions={permissions} />
+    }
+    if (screen === 'ventas-por-activar') {
+      return <VentasPorActivarScreen permissions={permissions} />
     }
     if (screen === 'regularizaciones') {
       return <RegularizacionesScreen currentUser={{ userId: userId ?? '', fullName }} permissions={permissions} />

@@ -7,6 +7,7 @@ import type { TaxpayerListItem } from '@/features/taxpayers/types'
 import { MONO } from '../constants'
 import { Card, ErrorState, HelpBox } from '../ui'
 import { DiagnosticoHistorialModal } from '../clientes/diagnostico-historial-modal'
+import { ExpedienteCliente } from '../clientes/expediente-cliente'
 import {
   Pagination,
   RegimenesCell,
@@ -19,12 +20,29 @@ import {
 const DEFAULT_MIN_SALES: number | '' = ''
 /** Mismo claim que protege el historial de diagnósticos en el backend. */
 const DIAGNOSTICO_PERMISSION = 'GerenciaComercial.RunDiagnosticoCliente'
+/** Mismo claim con el que Clientes abre el expediente. */
+const EXPEDIENTE_PERMISSION = 'GerenciaComercial.ReadExpedienteCliente'
 
 export function ContribuyentesScreen({ permissions = [] }: { permissions?: string[] }) {
   const list = usePagedList(getTaxpayers, 50, DEFAULT_MIN_SALES)
   const regimenOptions = useRegimenOptions(list.items)
   const canDiagnostico = permissions.includes(DIAGNOSTICO_PERMISSION)
+  const canExpediente = permissions.includes(EXPEDIENTE_PERMISSION)
   const [diagTarget, setDiagTarget] = useState<TaxpayerListItem | null>(null)
+  const [expedienteId, setExpedienteId] = useState<number | null>(null)
+
+  // Clic en el nombre → el mismo expediente que en Clientes. Aquí es la única entrada para un
+  // contribuyente SIN ventas (Clientes solo lista quien ya compró): primera venta desde el
+  // backoffice y subida de constancia (spec-ventas-por-activar, paso 1).
+  if (expedienteId !== null) {
+    return (
+      <ExpedienteCliente
+        taxpayerId={expedienteId}
+        permissions={permissions}
+        onBack={() => setExpedienteId(null)}
+      />
+    )
+  }
 
   return (
     <div className="flex flex-col gap-5 max-w-full h-[calc(100dvh-8.5rem)] min-h-[600px]">
@@ -102,9 +120,25 @@ export function ContribuyentesScreen({ permissions = [] }: { permissions?: strin
                   {list.items.map((t) => (
                     <tr key={t.taxpayerId} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td className="px-5 py-4">
-                        <div className="font-semibold" style={{ color: 'var(--ink-900)' }}>
-                          {t.legalName}
-                        </div>
+                        {canExpediente ? (
+                          <button
+                            type="button"
+                            onClick={() => setExpedienteId(t.taxpayerId)}
+                            title="Abrir expediente del contribuyente"
+                            className="text-left cursor-pointer group"
+                          >
+                            <div
+                              className="font-semibold group-hover:underline underline-offset-2"
+                              style={{ color: 'var(--ink-900)' }}
+                            >
+                              {t.legalName || t.rfc}
+                            </div>
+                          </button>
+                        ) : (
+                          <div className="font-semibold" style={{ color: 'var(--ink-900)' }}>
+                            {t.legalName}
+                          </div>
+                        )}
                       </td>
                       <td className="px-5 py-4">
                         <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-700)' }}>{t.rfc}</code>

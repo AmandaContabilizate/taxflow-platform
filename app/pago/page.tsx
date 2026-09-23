@@ -69,7 +69,7 @@ function InvalidLink({ code, message }: { code?: string; message: string }) {
         icon={<Clock3 size={28} style={{ color: 'var(--amber)' }} />}
         iconBg="var(--amber-soft)"
         title="Este enlace de pago venció"
-        message="Por seguridad, el enlace solo dura unos minutos. Vuelve a la app y abre el pago de nuevo para generar uno actualizado."
+        message="Por seguridad, los enlaces de pago tienen vigencia limitada. Si te lo envió tu asesor, pídele uno nuevo; si venías de la app, vuelve a abrir el pago para generar uno actualizado."
       />
     )
   }
@@ -80,7 +80,7 @@ function InvalidLink({ code, message }: { code?: string; message: string }) {
         icon={<SearchX size={28} style={{ color: 'var(--amber)' }} />}
         iconBg="var(--amber-soft)"
         title="No encontramos esta compra"
-        message="El enlace no corresponde a ningún pago pendiente. Vuelve a la app e inténtalo de nuevo."
+        message="El enlace no corresponde a ningún pago pendiente. Si te lo envió tu asesor, pídele que lo revise; si venías de la app, inténtalo de nuevo."
       />
     )
   }

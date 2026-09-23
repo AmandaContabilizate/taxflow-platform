@@ -106,6 +106,11 @@ export function useRfcStore(): RfcStoreValue {
   return ctx
 }
 
+/** Igual que useRfcStore pero devuelve null fuera de <RfcProvider> (componentes compartidos con el backoffice). */
+export function useOptionalRfcStore(): RfcStoreValue | null {
+  return useContext(RfcContext)
+}
+
 export function useSelectedRfc(): string | null {
   return useRfcStore().selectedRfc
 }

@@ -49,6 +49,21 @@ export interface ExpedienteProducto {
   regimenName?: string | null
 }
 
+/**
+ * Venta ABIERTA (pendiente de cobro). Con liga del vendedor: LigaVigente · LigaVencida;
+ * PendienteApp = checkout que el cliente dejó a medias en la app (sin liga del backoffice).
+ */
+export interface ExpedienteVentaAbierta {
+  saleId: number
+  fecha: string
+  monto: number
+  planes: string[]
+  estado: 'LigaVigente' | 'LigaVencida' | 'PendienteApp'
+  emitidaPorNombre: string | null
+  emitidaPorEmail: string | null
+  ligaVenceAt: string | null
+}
+
 /** Periodo (declaración) del expediente con su estatus agrupado. */
 export interface ExpedientePeriodo {
   /** Id de la declaración: abre su reporte de predeclaración. */
@@ -91,6 +106,8 @@ export interface ExpedienteCliente {
   ciecHistorial: CiecValidacion[]
   /** e.firmas registradas con su vigencia de certificado. */
   efirmas: Efirma[]
+  /** Ventas pendientes de cobro (ligas del vendedor y checkouts a medias). */
+  ventasAbiertas: ExpedienteVentaAbierta[]
 }
 
 export interface CiecValidacion {

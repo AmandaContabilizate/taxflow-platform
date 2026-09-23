@@ -17,6 +17,7 @@ import {
   Phone,
   ShieldAlert,
   ShieldCheck,
+  ShoppingCart,
 } from 'lucide-react'
 import {
   getExpedienteCliente,
@@ -32,6 +33,8 @@ import {
 import type { ExpedienteCliente, ExpedientePeriodo } from '@/features/taxpayers/types'
 import { DISPLAY, MONO } from '../constants'
 import { Badge, Card, CiecUpdateModal, CiecValidationBadge, ErrorState, NoAccessState, Tabs, isForbiddenError } from '../ui'
+import { ArmarVentaModal } from './armar-venta-modal'
+import { VentasAbiertas } from './ventas-abiertas'
 import { TabDiagnostico } from './tab-diagnostico'
 import { TabVistaCliente } from './tab-vista-cliente'
 import { PredeclaracionModal } from './predeclaracion-modal'
@@ -99,10 +102,15 @@ function CopyBtn({ value, label }: { value: string; label: string }) {
   )
 }
 
+/** Pestaña con la que abre el expediente (p. ej. desde "Ventas por activar": la acción sugerida). */
+export type ExpedienteTab = 'resumen' | 'credenciales' | 'productos' | 'documentos' | 'diagnostico'
+
 interface Props {
   taxpayerId: number
   permissions: string[]
   onBack: () => void
+  /** Pestaña inicial; si el usuario no tiene permiso para esa pestaña, abre en Resumen. */
+  initialTab?: ExpedienteTab
 }
 
 const TAB_RESUMEN = 'Resumen'
@@ -112,13 +120,21 @@ const TAB_DOCUMENTOS = 'Documentos'
 const TAB_DIAGNOSTICO = 'Diagnóstico'
 const TAB_VISTA_CLIENTE = 'Vista del cliente'
 
+const TAB_LABEL: Record<ExpedienteTab, string> = {
+  resumen: TAB_RESUMEN,
+  credenciales: TAB_CREDENCIALES,
+  productos: TAB_PRODUCTOS,
+  documentos: TAB_DOCUMENTOS,
+  diagnostico: TAB_DIAGNOSTICO,
+}
+
 /**
  * Expediente del cliente (pantalla Clientes → clic en el nombre). Función de
  * gerencia comercial: tabs Resumen / Credenciales / Productos. La tab de
  * Credenciales solo se pinta con el claim Contador.GetSatPassword y pide la
  * contraseña BAJO DEMANDA al backend.
  */
-export function ExpedienteCliente({ taxpayerId, permissions, onBack }: Props) {
+export function ExpedienteCliente({ taxpayerId, permissions, onBack, initialTab }: Props) {
   const canCredentials = permissions.includes('Contador.GetSatPassword')
   const canDocs =
     permissions.includes('Contador.GetTaxCertificate') ||
@@ -135,7 +151,10 @@ export function ExpedienteCliente({ taxpayerId, permissions, onBack }: Props) {
     if (canVistaCliente) t.push(TAB_VISTA_CLIENTE)
     return t
   }, [canCredentials, canDocs, canDiagnostico, canVistaCliente])
-  const [tab, setTab] = useState(0)
+  const [tab, setTab] = useState(() => {
+    const idx = initialTab ? tabs.indexOf(TAB_LABEL[initialTab]) : 0
+    return idx >= 0 ? idx : 0
+  })
 
   const [data, setData] = useState<ExpedienteCliente | null>(null)
   const [loading, setLoading] = useState(true)
@@ -254,11 +273,22 @@ export function ExpedienteCliente({ taxpayerId, permissions, onBack }: Props) {
           }}
         />
       )}
-      {activeTab === TAB_PRODUCTOS && <TabProductos data={data} permissions={permissions} />}
+      {activeTab === TAB_PRODUCTOS && (
+        <TabProductos
+          data={data}
+          permissions={permissions}
+          onRefresh={() => void load()}
+          onGoDiagnostico={canDiagnostico ? () => {
+            const i = tabs.indexOf(TAB_DIAGNOSTICO)
+            if (i >= 0) setTab(i)
+          } : undefined}
+        />
+      )}
       {activeTab === TAB_DOCUMENTOS && canDocs && <TabDocumentos rfc={data.rfc} permissions={permissions} />}
       {activeTab === TAB_DIAGNOSTICO && canDiagnostico && (
         <TabDiagnostico
           taxpayerId={taxpayerId}
+          rfc={data.rfc}
           onGoCredenciales={() => {
             const i = tabs.indexOf(TAB_CREDENCIALES)
             if (i >= 0) setTab(i)
@@ -785,10 +815,25 @@ function CredencialEfirmas({ efirmas }: { efirmas: ExpedienteCliente['efirmas'] 
   )
 }
 
-function TabProductos({ data, permissions }: { data: ExpedienteCliente; permissions: string[] }) {
+function TabProductos({
+  data,
+  permissions,
+  onRefresh,
+  onGoDiagnostico,
+}: {
+  data: ExpedienteCliente
+  permissions: string[]
+  onRefresh?: () => void
+  /** Desde Armar venta: "Ir a Diagnóstico primero" (validar CIEC / bajar o subir constancia). */
+  onGoDiagnostico?: () => void
+}) {
   const [selectedRegime, setSelectedRegime] = useState<string>('ALL')
   // Ver el reporte de predeclaración de un periodo (SAC/Renovaciones y superusuarios).
   const canPredeclaracion = permissions.includes('Comercial.ReadPredeclaracion')
+  // Armar venta a nombre del cliente y emitir/re-emitir su liga de pago (spec-liga-de-pago-vendedor).
+  // Claim propio: vendedores, atención a clientes, gerencia comercial y gerencia SAC.
+  const canArmarVenta = permissions.includes('Comercial.EmitirLigaPago')
+  const [ventaOpen, setVentaOpen] = useState(false)
   const [reportDeclId, setReportDeclId] = useState<number | null>(null)
   // Producto seleccionado: resalta los periodos que cubre esa venta.
   const [selectedSaleItemId, setSelectedSaleItemId] = useState<number | null>(null)
@@ -970,12 +1015,36 @@ function TabProductos({ data, permissions }: { data: ExpedienteCliente; permissi
   return (
     <div className="flex flex-col gap-4">
       <Card>
-        <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
-          <div className="text-[14.5px] font-extrabold" style={DISPLAY}>Productos comprados</div>
-          <div className="text-[12px]" style={{ color: 'var(--ink-500)' }}>
-            Partidas de ventas pagadas, la más reciente primero.
+        <div className="px-5 py-4 border-b flex items-start justify-between gap-3 flex-wrap" style={{ borderColor: 'var(--border)' }}>
+          <div>
+            <div className="text-[14.5px] font-extrabold" style={DISPLAY}>Productos comprados</div>
+            <div className="text-[12px]" style={{ color: 'var(--ink-500)' }}>
+              Partidas de ventas pagadas, la más reciente primero.
+            </div>
           </div>
+          {canArmarVenta && (
+            <button
+              type="button"
+              onClick={() => setVentaOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12.5px] font-bold whitespace-nowrap"
+              style={{ background: 'linear-gradient(135deg,#00D3A1 0%,#00AD87 100%)', color: '#fff' }}
+            >
+              <ShoppingCart size={14} /> Armar venta
+            </button>
+          )}
         </div>
+        {canArmarVenta && (
+          <ArmarVentaModal
+            isOpen={ventaOpen}
+            onClose={() => setVentaOpen(false)}
+            taxpayerId={data.taxpayerId}
+            rfc={data.rfc}
+            legalName={data.legalName}
+            onCreated={() => onRefresh?.()}
+            onGoDiagnostico={onGoDiagnostico}
+          />
+        )}
+        <VentasAbiertas ventas={data.ventasAbiertas ?? []} canEmitir={canArmarVenta} onChanged={onRefresh} />
         {data.productos.length === 0 ? (
           <div className="px-5 py-8 text-center text-[13px]" style={{ color: 'var(--ink-500)' }}>
             Sin productos comprados.

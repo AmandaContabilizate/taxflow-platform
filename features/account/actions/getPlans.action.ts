@@ -10,12 +10,18 @@ interface PlansError {
   message: string;
 }
 
+/**
+ * Catálogo de planes y trámites para un RFC.
+ * @param backoffice Solo desde Armar venta (claim Comercial.EmitirLigaPago): sin régimen documentado
+ * devuelve todo el catálogo. En la app del cliente sin constancia no se devuelve ningún plan.
+ */
 export async function getPlans(
   rfc: string,
+  backoffice = false,
 ): Promise<Result<PlansCatalog, PlansError>> {
   try {
     const data = await fetchGet<unknown>(
-      API_ROUTES.CATALOGS.PLANS(rfc),
+      API_ROUTES.CATALOGS.PLANS(rfc, backoffice),
       "catalogs_procedures",
     );
     return ok(toPlansCatalog(data));

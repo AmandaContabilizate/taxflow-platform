@@ -16,6 +16,7 @@ import {
   Gem,
   HelpCircle,
   Home,
+  Hourglass,
   Inbox,
   KanbanSquare,
   KeyRound,
@@ -92,6 +93,7 @@ export const TITLES: Record<Screen, [string, string]> = {
   operaciones: ['Centro de operaciones', 'Gestión y supervisión de declaraciones fiscales'],
   'declaraciones-rechazadas': ['Declaraciones rechazadas', 'Declaraciones que el cliente rechazó y esperan corrección'],
   'declaraciones-futuras': ['Declaraciones futuras', 'Declaraciones compradas de periodos posteriores al mes actual'],
+  'ventas-por-activar': ['Ventas por activar', 'Ventas pagadas sin declaraciones activadas y ligas de pago emitidas'],
   'tramites-adicionales': ['Trámites adicionales', 'Seguimiento de trámites vendidos a tus clientes'],
   ventas: ['Ventas', 'Resumen de ventas registradas por cuenta'],
   roles: ['Roles y permisos', 'Administra roles, sus permisos y los roles de cada usuario'],
@@ -270,6 +272,12 @@ const OPERACIONES_ITEM: NavDef = {
   Icon: Briefcase,
   hint: 'Gestión de declaraciones',
 }
+const VENTAS_POR_ACTIVAR_ITEM: NavDef = {
+  id: 'ventas-por-activar',
+  label: 'Ventas por activar',
+  Icon: Hourglass,
+  hint: 'Pagadas sin declaraciones',
+}
 const DECLARACIONES_RECHAZADAS_ITEM: NavDef = {
   id: 'declaraciones-rechazadas',
   label: 'Declaraciones rechazadas',
@@ -438,6 +446,7 @@ export const MASTER_NAV_SECTIONS: NavSection[] = [
       USUARIOS_ITEM,
       CLIENTES_ITEM,
       CONTRIBUYENTES_ITEM,
+      VENTAS_POR_ACTIVAR_ITEM,
       ASIGNACIONES_ITEM,
       COMISIONES_ITEM,
       RENOVACIONES_ITEM,
@@ -525,6 +534,9 @@ export const MODULE_CLAIMS: Record<string, string[]> = {
   // lista sigue bajo Contador.ReadDeclaraciones (mismo patrón que Decl. futuras).
   'declaraciones-rechazadas': ['Contador.ReadDeclaracionesRechazadas'],
   'declaraciones-futuras': ['Contador.ReadDeclaracionesFuturas'],
+  // Ventas por activar + Ligas de pago: mismo claim que emitir liga (vendedores, atención a
+  // clientes, gerencia comercial y gerencia SAC). spec-ventas-por-activar / spec-liga-de-pago-vendedor.
+  'ventas-por-activar': ['Comercial.EmitirLigaPago'],
   // Cartera propia (contador) o todas las carteras (gerencia con AssignAccountant)
   'mis-clientes': ['Contador.ReadMisClientes', 'AssignAccountant'],
   regularizaciones: ['Contador.ReadDeclaraciones'],
