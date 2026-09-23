@@ -1017,12 +1017,14 @@ export function PurchasedDeclarations({
   const [legalName, setLegalName] = useState('')
   const [groupRegimes, setGroupRegimes] = useState<TaxpayerRegime[]>([])
   const [groupAccountant, setGroupAccountant] = useState<string | null>(null)
+  const [groupCiecState, setGroupCiecState] = useState<number | null | undefined>(undefined)
   const [subject, setSubject] = useState<DeclarationSubject | null>(null)
 
   const openGroup = (g: TaxpayerGroup, taxRegimeId: number | null) => {
     setLegalName(g.legalName ?? '')
     setGroupRegimes(g.regimes ?? [])
     setGroupAccountant(g.accountantName ?? null)
+    setGroupCiecState(g.ciecState ?? null)
     setParams({ rfc: g.rfc, decl: null, regimen: taxRegimeId })
   }
 
@@ -1034,6 +1036,7 @@ export function PurchasedDeclarations({
       periodo: `${periodLabel(d.periodValueId)} ${d.fiscalYear}`,
       fiscalYear: d.fiscalYear,
       accountantName: groupAccountant,
+      ciecState: groupCiecState,
     })
     setParams({ decl: d.declarationId })
   }

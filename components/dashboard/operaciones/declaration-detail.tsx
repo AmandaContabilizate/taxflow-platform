@@ -493,7 +493,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
                   <Eye size={12} /> Solo consulta
                 </span>
               ) : (
-                <CiecInline rfc={rfc} ciecState={(d as { ciecState?: number }).ciecState} />
+                <CiecInline rfc={rfc} ciecState={general?.ciecState ?? d.ciecState} />
               )}
             </div>
             {actividades.length > 0 && <ActivityChips activities={actividades} />}

@@ -222,6 +222,7 @@ export interface DeclarationSubject {
   periodo: string;
   fiscalYear: number;
   accountantName: string | null;
+  ciecState?: number | null;
 }
 
 /** Actividad económica del contribuyente dentro del régimen (DeclaracionActividadDto). */
@@ -270,6 +271,7 @@ export interface DeclarationGeneral {
   paymentAcknowledgmentPdfUrl: string | null;
   accountantUserId: string | null;
   accountantName: string | null;
+  ciecState?: number | null;
   /** Actividades económicas del contribuyente en el régimen de esta declaración. */
   activities: DeclarationActivity[];
   /** `DeclarationSummary.Ingresos`; fallback `Declaration.AccumulatedIncome`. */
