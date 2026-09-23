@@ -50,6 +50,8 @@ export type Screen =
   | 'operaciones'
   | 'declaraciones-rechazadas'
   | 'declaraciones-futuras'
+  // Ventas pagadas sin activar (spec-ventas-por-activar)
+  | 'ventas-por-activar'
   | 'tramites-adicionales'
   | 'ventas'
   | 'roles'

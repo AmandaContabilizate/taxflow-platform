@@ -29,7 +29,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { getCiecBlockStatus, isConnectedByEfirmaOnly, isSatConnected } from '../sat-connection.utils'
+import {
+  canPurchase,
+  getPurchaseBlockStatus,
+  hasUnverifiedTaxCertificate,
+  isConnectedByEfirmaOnly,
+  isSatConnected,
+} from '../sat-connection.utils'
 import { CiecBlockedScreen } from './ciec-blocked'
 import { NeedsSatConnect } from './needs-sat-connect'
 import type { GoFn } from '../types'
@@ -129,13 +135,18 @@ export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled, go }: Pl
 
   if (loading) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tus planes" />
-  // D1: comprar/cambiar plan bloquea también en estado 0 (sin verificar).
-  const ciecBlock = getCiecBlockStatus(selectedRfcInfo)
-  if (!isSatConnected(selectedRfcInfo) && !ciecBlock) return <NeedsSatConnect go={go} feature="ver tus planes" />
-  if (ciecBlock) return <CiecBlockedScreen go={go} state={ciecBlock} />
+  // D1: comprar/cambiar plan bloquea también en estado 0 (sin verificar)… salvo que ya haya
+  // constancia registrada (régimen documentado): entonces se puede contratar aunque el SAT no
+  // responda (spec-venta-con-constancia-subida.md). Tras la espera, el bloqueo ofrece subirla.
+  const ciecBlock = getPurchaseBlockStatus(selectedRfcInfo)
+  if (!canPurchase(selectedRfcInfo) && !ciecBlock) return <NeedsSatConnect go={go} feature="ver tus planes" />
+  if (ciecBlock) return <CiecBlockedScreen go={go} state={ciecBlock} allowCsfUpload />
 
   return (
     <div className="flex flex-col gap-6">
+      {hasUnverifiedTaxCertificate(selectedRfcInfo) && !isSatConnected(selectedRfcInfo) && (
+        <CiecWarningBanner go={go} variant="constancia" />
+      )}
       {isConnectedByEfirmaOnly(selectedRfcInfo) && <CiecWarningBanner go={go} variant="efirma" />}
       <HelpBox>
         Aquí ves tu suscripción, qué tienes incluido y cómo cambiar de plan. Si quieres cancelar o pausar, también lo

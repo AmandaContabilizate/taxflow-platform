@@ -83,6 +83,34 @@ export interface DiagnosticoActividad {
   intentos: DiagnosticoRobotIntento[];
 }
 
+/**
+ * Estado de la espera al SAT del cliente (GET cliente/actividad). Regla única del backend
+ * (CsfEsperaEvaluator): puede subir constancia = CIEC capturada · ≠ inválida · sin constancia ·
+ * ≥ esperaMaxMinutos desde la captura.
+ */
+export interface CsfEsperaEstado {
+  taxpayerId: number;
+  rfc: string;
+  /** 0 sin verificar · 1 válida · 2 inválida. */
+  ciecEstado: number;
+  tieneCiecCapturada: boolean;
+  ciecCapturadaEn: string | null;
+  tieneConstancia: boolean;
+  /** "sat" | "subida" | null. */
+  constanciaOrigen: string | null;
+  constanciaVerificada: boolean;
+  constanciaFecha: string | null;
+  esperaMaxMinutos: number;
+  /** 0 cuando ya se cumplió la espera. */
+  segundosRestantes: number;
+  puedeSubirConstancia: boolean;
+}
+
+export interface ClienteConstanciaEstado {
+  estado: CsfEsperaEstado;
+  intentos: DiagnosticoRobotIntento[];
+}
+
 /** Códigos estables de los 400 del POST. */
 export type DiagnosticoErrorCode =
   | "NO_VALID_CREDENTIAL"

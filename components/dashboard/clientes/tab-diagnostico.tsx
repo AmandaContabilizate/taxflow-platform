@@ -8,10 +8,13 @@ import { getDiagnosticoResultado } from '@/features/diagnostico/actions/getDiagn
 import { runDiagnosticoVendedor } from '@/features/diagnostico/actions/runDiagnostico.action'
 import type { CanRunDiagnostico, DiagnosticoHistorial, DiagnosticoResultado } from '@/features/diagnostico/types'
 import { ActividadRobots } from './actividad-robots'
+import { ConstanciaEstado } from './constancia-estado'
 import { Badge, Btn, Card } from '../ui'
 
 interface Props {
   taxpayerId: number
+  /** RFC del contribuyente (para el bloque de constancia y su modal de subida). */
+  rfc: string
   /** Liga al tab Credenciales cuando el bloqueo es la CIEC/e.firma. */
   onGoCredenciales: () => void
 }
@@ -36,7 +39,7 @@ function duracionCorrida(startedAt: string, finishedAt: string | null): string {
  * El progreso sale de puede-ejecutar (yaCorriendo) — el fiscal-score no sirve
  * aquí porque está amarrado al dueño del RFC.
  */
-export function TabDiagnostico({ taxpayerId, onGoCredenciales }: Props) {
+export function TabDiagnostico({ taxpayerId, rfc, onGoCredenciales }: Props) {
   const [canRun, setCanRun] = useState<CanRunDiagnostico | null>(null)
   const [checkError, setCheckError] = useState<string | null>(null)
   const [resultado, setResultado] = useState<DiagnosticoResultado | null>(null)
@@ -191,8 +194,11 @@ export function TabDiagnostico({ taxpayerId, onGoCredenciales }: Props) {
         )}
       </div>
 
+      {/* ===== Constancia: SAT · subida sin verificar · sin constancia (+ subir a mano tras el tope) ===== */}
+      <ConstanciaEstado taxpayerId={taxpayerId} rfc={rfc} onChanged={() => void load()} />
+
       {/* ===== Lo que encontró el diagnóstico ===== */}
-      <div className="px-5 py-4">
+      <div className="px-5 py-4 border-t" style={{ borderColor: 'var(--border)' }}>
         <div className="flex items-center gap-2 flex-wrap mb-3">
           <div className="text-[13px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
             Declaraciones pendientes encontradas

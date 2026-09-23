@@ -14,6 +14,13 @@ export interface AvailableRfc {
   hasActiveDigitalIdentity?: boolean;
   /** true si hay una contraseña CIEC guardada (distingue los dos sabores de ciecState 0). */
   hasSatPassword?: boolean;
+  /**
+   * true si hay constancia de situación fiscal registrada (del robot o subida). Con constancia
+   * hay régimen documentado: Mi plan y Trámites se desbloquean aunque la CIEC siga "sin verificar".
+   */
+  hasTaxCertificate?: boolean;
+  /** true si la constancia vigente la bajó el robot del SAT; false si es la subida, aún sin contrastar. */
+  taxCertificateVerified?: boolean;
   taxRegimes?: Array<{ regimeId: number; idActivities?: number[] }>;
 }
 

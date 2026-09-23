@@ -4,8 +4,11 @@ import type { GoFn } from '../types'
 
 interface Props {
   go: GoFn
-  /** 'efirma': CIEC inválida pero entra por e.firma. 'unverified': CIEC (0) validándose, D1. */
-  variant?: 'efirma' | 'unverified'
+  /**
+   * 'efirma': CIEC inválida pero entra por e.firma. 'unverified': CIEC (0) validándose, D1.
+   * 'constancia': entra a comprar con la constancia que subió; su CIEC sigue sin confirmar.
+   */
+  variant?: 'efirma' | 'unverified' | 'constancia'
 }
 
 const COPY: Record<NonNullable<Props['variant']>, { text: ReactNode; cta?: string }> = {
@@ -23,6 +26,15 @@ const COPY: Record<NonNullable<Props['variant']>, { text: ReactNode; cta?: strin
       <>
         <strong>Estamos validando tu CIEC, espera.</strong> No es algo que tengas que arreglar: en cuanto el
         SAT confirme tu contraseña, esta sección se actualiza sola.
+      </>
+    ),
+  },
+  constancia: {
+    text: (
+      <>
+        <strong>Estás usando la constancia que subiste.</strong> Tu régimen ya está documentado y puedes
+        contratar. En cuanto el SAT responda confirmaremos tu información automáticamente; si algo no
+        coincide, te avisamos.
       </>
     ),
   },

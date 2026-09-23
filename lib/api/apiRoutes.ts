@@ -211,6 +211,11 @@ export const API_ROUTES = {
     // Crea (o reutiliza) contribuyente por RFC y persiste su e.Firma. apiType "taxpayers"
     CREATE_BY_EFIRMA: "/create-by-efirma",
     AVAILABLE_RFCS: "/available-rfcs",
+    // Constancia de situación fiscal subida por el cliente (PDF, multipart: rfc + file) cuando el
+    // SAT no responde. apiType "taxpayers" (Identity, con /SQLServer).
+    UPLOAD_TAX_CERTIFICATE: "/uploadTaxCertificate",
+    // Backoffice: el vendedor/gerente sube la constancia de un contribuyente ajeno (multipart: file).
+    UPLOAD_TAX_CERTIFICATE_STAFF: (taxpayerId: number) => `/${taxpayerId}/uploadTaxCertificate`,
     // Credenciales del contribuyente (tab Credenciales del expediente). apiType "taxpayers"
     SAT_PASSWORD: (rfc: string) => `/sat-password?rfc=${encodeURIComponent(rfc)}`,
     RFC_STATUS: (rfc: string) => `/rfc-status?rfc=${encodeURIComponent(rfc)}`,
@@ -357,6 +362,14 @@ export const API_ROUTES = {
       `/summary?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${status ? `&status=${status}` : ""}`,
     // GET sales_reports — trazabilidad Stripe de una venta (policy Contador.ReadVentas).
     DETAIL: (saleId: number) => `/detail/${saleId}`,
+    // GET sales_reports — ventas pagadas sin activar (plan sin régimen / sin declaraciones), con
+    // el motivo derivado. Pantalla "Ventas por activar" (spec-ventas-por-activar).
+    POR_ACTIVAR: (skip = 0, take = 100, search?: string, queFalta?: string) =>
+      `/por-activar?skip=${skip}&take=${take}${search ? `&search=${encodeURIComponent(search)}` : ""}${queFalta ? `&queFalta=${encodeURIComponent(queFalta)}` : ""}`,
+    // GET sales_reports — ligas de pago emitidas desde el backoffice con estado derivado
+    // (Vigente · Vencida · Pagada · Cancelada). Pestaña "Ligas de pago" de Ventas por activar.
+    LIGAS_PAGO: (skip = 0, take = 100, search?: string, estado?: string, soloMias = false) =>
+      `/ligas-pago?skip=${skip}&take=${take}${search ? `&search=${encodeURIComponent(search)}` : ""}${estado ? `&estado=${encodeURIComponent(estado)}` : ""}${soloMias ? "&soloMias=true" : ""}`,
     // GET sales_reports — planes por vencer en los próximos `dias`.
     UPCOMING_RENEWALS: (
       skip = 0,
@@ -433,6 +446,11 @@ export const API_ROUTES = {
     // Actividad de robots SAT (constancia/evaluación/decl-*): qué se ejecutó y en qué
     // paso va — incluye el trabajo del onboarding, que el historial no registra.
     ACTIVIDAD_VENDEDOR: (taxpayerId: number) => `/vendedor/actividad/${taxpayerId}`,
+    // Lo mismo para el propio cliente + estado de su espera al SAT (cuenta regresiva de
+    // Csf:MaxWaitMinutes y si ya puede subir su constancia). La pantalla de bloqueo lo sondea.
+    ACTIVIDAD_CLIENTE: (rfc: string) => `/cliente/actividad?rfc=${encodeURIComponent(rfc)}`,
+    // Backoffice: mismo estado de espera/constancia, por taxpayerId (tab Diagnóstico del expediente).
+    CONSTANCIA_ESTADO_VENDEDOR: (taxpayerId: number) => `/vendedor/constancia-estado/${taxpayerId}`,
   },
   DECLARATION: {
     FISCAL_SCORE: (rfc: string) => `/fiscal-score?rfc=${encodeURIComponent(rfc)}`,
@@ -519,7 +537,10 @@ export const API_ROUTES = {
     EXPENSE_XML: (id: string) => `/expense-xml?IdExpense=${encodeURIComponent(id)}`,
   },
   CATALOGS: {
-    PLANS: (rfc: string) => `/plans?rfc=${encodeURIComponent(rfc)}`,
+    // backoffice=true (solo con claim Comercial.EmitirLigaPago): sin régimen documentado devuelve
+    // todo el catálogo para Armar venta. El cliente sin constancia no ve ningún plan.
+    PLANS: (rfc: string, backoffice = false) =>
+      `/plans?rfc=${encodeURIComponent(rfc)}${backoffice ? "&backoffice=true" : ""}`,
     ADDITIONAL_PROCEDURES: "/additional-procedures",
     TAX_REGIMES: "/taxregimes",
     CLASSIFICATIONS: (isExpense?: boolean) =>
@@ -529,6 +550,11 @@ export const API_ROUTES = {
   },
   FINANCES: {
     REGISTER_SALE_NEW: "/register-sale/new",
+    // Backoffice: venta en nombre de un cliente registrado, firmada por el vendedor. Sin saldo
+    // nace pagada; con saldo devuelve la liga de pago de 48 h. Policy Comercial.EmitirLigaPago.
+    REGISTER_SALE_ON_BEHALF: (taxpayerId: number) => `/register-sale/on-behalf/${taxpayerId}`,
+    // Backoffice: re-emite la liga de pago (48 h) de una venta abierta armada desde el expediente.
+    REISSUE_PAYMENT_LINK_ON_BEHALF: (saleId: number) => `/register-sale/on-behalf/${saleId}/payment-link`,
     DISCOUNT_CODE_PREVIEW: (code: string, rfc: string) =>
       `/discount-code?code=${encodeURIComponent(code)}&rfc=${encodeURIComponent(rfc)}`,
   },
