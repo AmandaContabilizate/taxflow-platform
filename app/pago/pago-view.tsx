@@ -14,12 +14,77 @@ const IN_PROGRESS_STATUSES = new Set(['processing', 'succeeded'])
 
 type View = 'form' | 'waiting' | 'cancelled'
 
+export interface PagoResumen {
+  amount: number
+  currency: string
+  rfc: string
+  conceptos: string[]
+  expiresAt: string | null
+}
+
+function formatoDinero(amount: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: currency || 'MXN', minimumFractionDigits: 2 }).format(amount)
+  } catch {
+    return `$${amount.toFixed(2)} ${currency}`
+  }
+}
+
+function formatoVence(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleString('es-MX', {
+    timeZone: 'America/Mexico_City',
+    day: 'numeric',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
+/**
+ * Qué se está pagando, antes del método de pago. Stripe Elements no muestra el monto por sí solo:
+ * sin este bloque el cliente veía "Completa tu pago" sin saber cuánto ni por qué.
+ */
+function ResumenPago({ resumen }: { resumen: PagoResumen }) {
+  const concepto = resumen.conceptos.length > 0 ? resumen.conceptos.join(' · ') : 'Compra en Contabilízate'
+  return (
+    <div
+      className="mb-5 rounded-2xl px-4 py-4"
+      style={{ background: 'var(--brand-soft, var(--muted))', border: '1px solid var(--border)' }}
+    >
+      <div className="text-[11px] font-bold uppercase tracking-[0.08em]" style={{ color: 'var(--ink-500)' }}>
+        Total a pagar
+      </div>
+      <div
+        className="mt-0.5 text-[30px] font-extrabold leading-none tabular-nums"
+        style={{ color: 'var(--ink-900)', fontFamily: 'var(--font-display)' }}
+      >
+        {formatoDinero(resumen.amount, resumen.currency)}
+      </div>
+      <div className="mt-2 text-sm font-semibold" style={{ color: 'var(--ink-900)' }}>
+        {concepto}
+      </div>
+      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[12.5px]" style={{ color: 'var(--ink-500)' }}>
+        {resumen.rfc && (
+          <span>
+            RFC <span className="font-semibold tabular-nums" style={{ color: 'var(--ink-900)' }}>{resumen.rfc}</span>
+          </span>
+        )}
+        {resumen.expiresAt && formatoVence(resumen.expiresAt) && <span>Liga vigente hasta el {formatoVence(resumen.expiresAt)}</span>}
+      </div>
+    </div>
+  )
+}
+
 export function PagoView({
   clientSecret,
   initialStatus,
+  resumen,
 }: {
   clientSecret: string
   initialStatus: string | null
+  resumen?: PagoResumen
 }) {
   const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null)
   const [view, setView] = useState<View>(IN_PROGRESS_STATUSES.has(initialStatus ?? '') ? 'waiting' : 'form')
@@ -73,6 +138,7 @@ export function PagoView({
       <p className="mb-5 text-sm" style={{ color: 'var(--ink-500)' }}>
         Elige tu método de pago, incluida transferencia bancaria SPEI.
       </p>
+      {resumen && resumen.amount > 0 && <ResumenPago resumen={resumen} />}
       {stripePromise ? (
         <Elements
           stripe={stripePromise}

@@ -555,6 +555,10 @@ export const API_ROUTES = {
     REGISTER_SALE_ON_BEHALF: (taxpayerId: number) => `/register-sale/on-behalf/${taxpayerId}`,
     // Backoffice: re-emite la liga de pago (48 h) de una venta abierta armada desde el expediente.
     REISSUE_PAYMENT_LINK_ON_BEHALF: (saleId: number) => `/register-sale/on-behalf/${saleId}/payment-link`,
+    // Backoffice: activa ahora las ventas pagadas sin declaraciones de un cliente que ya tiene constancia.
+    ACTIVATE_PENDING_SALES: (taxpayerId: number) => `/activate-pending/${taxpayerId}`,
+    // Backoffice: cambia el plan de una venta pagada cuyo plan no cubre el régimen y la activa.
+    ADJUST_SALE_PLAN: (saleId: number) => `/register-sale/on-behalf/${saleId}/ajustar-plan`,
     DISCOUNT_CODE_PREVIEW: (code: string, rfc: string) =>
       `/discount-code?code=${encodeURIComponent(code)}&rfc=${encodeURIComponent(rfc)}`,
   },

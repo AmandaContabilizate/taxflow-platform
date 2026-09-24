@@ -386,6 +386,7 @@ export type VentaPorActivarMotivo =
   | "CiecSinVerificar"
   | "CiecInvalida"
   | "SinConstancia"
+  | "ConstanciaSinRegimen"
   | "RegimenNoCoincide"
   | "ListaParaActivar";
 

@@ -48,7 +48,14 @@ async function RedeemedPayment({ token }: { token: string }) {
     return <InvalidLink code={result.error.code} message={result.error.message} />
   }
 
-  return <PagoView clientSecret={result.value.clientSecret} initialStatus={result.value.status} />
+  const { clientSecret, status, amount, currency, rfc, conceptos, expiresAt } = result.value
+  return (
+    <PagoView
+      clientSecret={clientSecret}
+      initialStatus={status}
+      resumen={{ amount: amount ?? 0, currency: currency ?? 'MXN', rfc: rfc ?? '', conceptos: conceptos ?? [], expiresAt: expiresAt ?? null }}
+    />
+  )
 }
 
 function InvalidLink({ code, message }: { code?: string; message: string }) {

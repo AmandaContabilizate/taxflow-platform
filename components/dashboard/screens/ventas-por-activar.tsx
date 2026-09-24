@@ -1,8 +1,10 @@
 'use client'
 
-import { ArrowRight, Loader2, Search } from 'lucide-react'
+import { ArrowRight, Loader2, Search, Zap } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
+import { activarVentasPendientes } from '@/features/account/actions/activarVentas.action'
 import { getVentasPorActivar } from '@/features/operations/actions/getVentasPorActivar.action'
+import { AjustarPlanModal } from '../ventas/ajustar-plan-modal'
 import type { VentaPorActivar, VentaPorActivarMotivo, VentasPorActivarPage } from '@/features/operations/types'
 import { ExpedienteCliente, type ExpedienteTab } from '../clientes/expediente-cliente'
 import { Pagination } from '../clientes/parts'
@@ -20,16 +22,20 @@ const TABS = ['Ventas por activar', 'Ligas de pago']
  * Por motivo: etiqueta, color, instrucción para el vendedor (siempre visible) y la acción que abre
  * el expediente en la pestaña donde se resuelve. El orden es el de urgencia para el vendedor.
  */
-const MOTIVOS: Record<VentaPorActivarMotivo, { label: string; kind: BadgeKind; accion: string; boton: string; tab: ExpedienteTab }> = {
-  ListaParaActivar: { label: 'Lista para activar', kind: 'brand', accion: 'Ya tiene constancia y régimen. Ejecuta el diagnóstico para crear sus declaraciones.', boton: 'Ejecutar diagnóstico', tab: 'diagnostico' },
-  SinConstancia: { label: 'Sin constancia', kind: 'amber', accion: 'CIEC válida, pero el robot no bajó la constancia. Ejecuta el diagnóstico o sube la del cliente.', boton: 'Ejecutar diagnóstico', tab: 'diagnostico' },
-  CiecSinVerificar: { label: 'CIEC sin verificar', kind: 'amber', accion: 'El SAT no respondió. Pide al cliente su constancia y súbela.', boton: 'Subir constancia', tab: 'diagnostico' },
-  SinCiec: { label: 'Sin CIEC', kind: 'coral', accion: 'El cliente no capturó su CIEC. Pídesela y captúrala, o sube su constancia.', boton: 'Capturar CIEC', tab: 'credenciales' },
-  CiecInvalida: { label: 'CIEC inválida', kind: 'coral', accion: 'La contraseña está mal. El cliente debe corregirla; mientras, sube su constancia.', boton: 'Subir constancia', tab: 'diagnostico' },
-  RegimenNoCoincide: { label: 'Régimen no coincide', kind: 'coral', accion: 'La constancia trae un régimen que el plan no cubre. Revisa el plan cobrado; el ajuste llega en la siguiente entrega.', boton: 'Ver productos', tab: 'productos' },
-}
+type Accion = 'expediente' | 'activar' | 'ajustar'
 
-const MOTIVO_ORDER: VentaPorActivarMotivo[] = ['ListaParaActivar', 'SinConstancia', 'CiecSinVerificar', 'SinCiec', 'CiecInvalida', 'RegimenNoCoincide']
+const MOTIVOS: Record<VentaPorActivarMotivo, { label: string; kind: BadgeKind; accion: string; boton: string; tab: ExpedienteTab; tipo: Accion }> = {
+  ListaParaActivar: { label: 'Lista para activar', kind: 'brand', accion: 'Ya tiene constancia y régimen compatible. El sistema la activa solo cada 15 min; puedes activarla ahora.', boton: 'Activar ahora', tab: 'diagnostico', tipo: 'activar' },
+  SinConstancia: { label: 'Sin constancia', kind: 'amber', accion: 'CIEC válida, pero el robot no bajó la constancia. Ejecuta el diagnóstico o sube la del cliente.', boton: 'Ejecutar diagnóstico', tab: 'diagnostico', tipo: 'expediente' },
+  ConstanciaSinRegimen: { label: 'Constancia sin régimen', kind: 'amber', accion: 'Hay constancia registrada pero no se pudieron leer sus regímenes. Sube la del portal del SAT (emitida hoy o ayer) en Diagnóstico: al guardarse se activa sola.', boton: 'Subir constancia', tab: 'diagnostico', tipo: 'expediente' },
+  CiecSinVerificar: { label: 'CIEC sin verificar', kind: 'amber', accion: 'El SAT no respondió. Pide al cliente su constancia y súbela.', boton: 'Subir constancia', tab: 'diagnostico', tipo: 'expediente' },
+  SinCiec: { label: 'Sin CIEC', kind: 'coral', accion: 'El cliente no capturó su CIEC. Pídesela y captúrala, o sube su constancia.', boton: 'Capturar CIEC', tab: 'credenciales', tipo: 'expediente' },
+  CiecInvalida: { label: 'CIEC inválida', kind: 'coral', accion: 'La contraseña está mal. El cliente debe corregirla; mientras, sube su constancia.', boton: 'Subir constancia', tab: 'diagnostico', tipo: 'expediente' },
+  RegimenNoCoincide: { label: 'Régimen no coincide', kind: 'coral', accion: 'La constancia trae un régimen que el plan cobrado no cubre. Elige el plan correcto y se activa al momento.', boton: 'Ajustar plan', tab: 'productos', tipo: 'ajustar' },
+}
+const MOTIVO_DEFAULT = { label: '', kind: 'default' as BadgeKind, accion: '', boton: 'Expediente', tab: 'resumen' as ExpedienteTab, tipo: 'expediente' as Accion }
+
+const MOTIVO_ORDER: VentaPorActivarMotivo[] = ['ListaParaActivar', 'ConstanciaSinRegimen', 'SinConstancia', 'CiecSinVerificar', 'SinCiec', 'CiecInvalida', 'RegimenNoCoincide']
 
 const money = (n: number) => n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
 const fecha = (iso: string) => new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -90,6 +96,7 @@ function VentasTab({ onOpenExpediente }: { onOpenExpediente: (taxpayerId: number
   const [query, setQuery] = useState('')
   const [motivo, setMotivo] = useState<VentaPorActivarMotivo | ''>('')
   const [skip, setSkip] = useState(0)
+  const [ajustar, setAjustar] = useState<VentaPorActivar | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -176,59 +183,9 @@ function VentasTab({ onOpenExpediente }: { onOpenExpediente: (taxpayerId: number
                   </tr>
                 </thead>
                 <tbody>
-                  {page.items.map((v: VentaPorActivar) => {
-                    const m = MOTIVOS[v.queFalta] ?? { label: v.queFalta, kind: 'default' as BadgeKind, accion: '', boton: 'Expediente', tab: 'resumen' as ExpedienteTab }
-                    return (
-                      <tr key={v.saleId} style={{ borderBottom: '1px solid var(--border)' }}>
-                        <td className="px-4 py-3">
-                          <div className="font-semibold" style={{ color: 'var(--ink-900)' }}>{v.legalName || v.rfc}</div>
-                          <div className="text-[11.5px]" style={{ color: 'var(--ink-500)' }}>{v.email ?? '—'}{v.phone ? ` · ${v.phone}` : ''}</div>
-                        </td>
-                        <td className="px-4 py-3"><code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-700)' }}>{v.rfc}</code></td>
-                        <td className="px-4 py-3 text-[12.5px]" style={{ color: 'var(--ink-700)' }}>{v.planes.join(', ') || '—'}</td>
-                        <td className="px-4 py-3 tabular-nums font-semibold" style={{ color: v.amount === 0 ? 'var(--ink-500)' : 'var(--ink-900)' }}>
-                          {money(v.amount)}
-                          {v.amount === 0 && <div className="text-[11px] font-normal" style={{ color: 'var(--ink-500)' }}>cupón / cobro externo</div>}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap" style={{ color: 'var(--ink-700)' }}>{fecha(v.saleDate)}</td>
-                        <td className="px-4 py-3 tabular-nums font-bold" style={{ color: v.diasDesdePago >= 15 ? 'var(--coral)' : 'var(--ink-700)' }}>{v.diasDesdePago}</td>
-                        <td className="px-4 py-3 text-[12.5px]" style={{ color: v.vendedor ? 'var(--ink-900)' : 'var(--ink-500)' }}>
-                          {v.vendedor ? (
-                            <span className="font-semibold truncate max-w-[200px] inline-block align-bottom" title={v.origen}>{v.vendedor}</span>
-                          ) : (
-                            'Cliente'
-                          )}
-                        </td>
-                        <td className="px-4 py-3 min-w-[260px]">
-                          <Badge kind={m.kind}>{m.label}</Badge>
-                          {m.accion && (
-                            <div className="text-[11.5px] leading-snug mt-1.5 max-w-[300px]" style={{ color: 'var(--ink-700)' }}>{m.accion}</div>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-right whitespace-nowrap">
-                          <div className="inline-flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => onOpenExpediente(v.taxpayerId, m.tab)}
-                              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12.5px] font-bold whitespace-nowrap transition-[opacity,transform] duration-150 active:scale-[0.97] hover:opacity-95"
-                              style={{ background: 'linear-gradient(135deg,#00D3A1 0%,#00AD87 100%)', color: '#fff' }}
-                            >
-                              {m.boton} <ArrowRight size={14} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => onOpenExpediente(v.taxpayerId)}
-                              title="Abrir el expediente completo"
-                              className="inline-flex items-center px-3 py-2 rounded-xl text-[12.5px] font-bold whitespace-nowrap transition-[background-color,transform] duration-150 active:scale-[0.97]"
-                              style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
-                            >
-                              Expediente
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
+                  {page.items.map((v: VentaPorActivar) => (
+                    <VentaRow key={v.saleId} venta={v} onOpenExpediente={onOpenExpediente} onChanged={load} onAjustar={() => setAjustar(v)} />
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -254,8 +211,120 @@ function VentasTab({ onOpenExpediente }: { onOpenExpediente: (taxpayerId: number
       </Card>
 
       <div className="text-[11.5px]" style={{ color: 'var(--ink-500)' }}>
-        El botón verde abre el expediente en la pestaña donde se resuelve cada caso. Activación automática y ajuste de plan llegan en la siguiente entrega.
+        El botón verde resuelve cada caso: activa la venta, ajusta el plan o abre el expediente en la pestaña correcta. Las ventas
+        listas también se activan solas cada 15 minutos cuando llega la constancia.
       </div>
+
+      <AjustarPlanModal
+        isOpen={ajustar !== null}
+        onClose={() => setAjustar(null)}
+        venta={ajustar}
+        onDone={() => void load()}
+      />
     </div>
+  )
+}
+
+/** Fila de venta por activar con su acción directa: activar ahora, ajustar plan o ir al expediente. */
+function VentaRow({
+  venta: v,
+  onOpenExpediente,
+  onChanged,
+  onAjustar,
+}: {
+  venta: VentaPorActivar
+  onOpenExpediente: (taxpayerId: number, tab?: ExpedienteTab) => void
+  onChanged: () => void
+  onAjustar: () => void
+}) {
+  const m = MOTIVOS[v.queFalta] ?? { ...MOTIVO_DEFAULT, label: v.queFalta }
+  const [busy, setBusy] = useState(false)
+  const [nota, setNota] = useState<{ ok: boolean; texto: string } | null>(null)
+
+  async function activar() {
+    setBusy(true)
+    setNota(null)
+    const res = await activarVentasPendientes(v.taxpayerId)
+    setBusy(false)
+    if (!res.success) {
+      setNota({ ok: false, texto: res.error.message || 'No se pudo activar.' })
+      return
+    }
+    const r = res.value
+    if (r.activadas.some((a) => a.saleId === v.saleId)) {
+      setNota({ ok: true, texto: 'Activada: declaraciones creadas y contador asignado.' })
+      onChanged()
+    } else if (r.regimenNoCoincide.includes(v.saleId)) {
+      setNota({ ok: false, texto: 'El plan no cubre el régimen de la constancia. Usa Ajustar plan.' })
+    } else if (r.sinConstancia.includes(v.saleId)) {
+      setNota({ ok: false, texto: 'El cliente aún no tiene constancia registrada.' })
+    } else if (r.errores.length > 0) {
+      setNota({ ok: false, texto: r.errores[0] })
+    } else {
+      setNota({ ok: true, texto: 'Sin cambios: la venta ya estaba activada.' })
+      onChanged()
+    }
+  }
+
+  function accionPrincipal() {
+    if (m.tipo === 'activar') return void activar()
+    if (m.tipo === 'ajustar') return onAjustar()
+    onOpenExpediente(v.taxpayerId, m.tab)
+  }
+
+  return (
+    <tr style={{ borderBottom: '1px solid var(--border)' }}>
+      <td className="px-4 py-3">
+        <div className="font-semibold" style={{ color: 'var(--ink-900)' }}>{v.legalName || v.rfc}</div>
+        <div className="text-[11.5px]" style={{ color: 'var(--ink-500)' }}>{v.email ?? '—'}{v.phone ? ` · ${v.phone}` : ''}</div>
+      </td>
+      <td className="px-4 py-3"><code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-700)' }}>{v.rfc}</code></td>
+      <td className="px-4 py-3 text-[12.5px]" style={{ color: 'var(--ink-700)' }}>{v.planes.join(', ') || '—'}</td>
+      <td className="px-4 py-3 tabular-nums font-semibold" style={{ color: v.amount === 0 ? 'var(--ink-500)' : 'var(--ink-900)' }}>
+        {money(v.amount)}
+        {v.amount === 0 && <div className="text-[11px] font-normal" style={{ color: 'var(--ink-500)' }}>cupón / cobro externo</div>}
+      </td>
+      <td className="px-4 py-3 whitespace-nowrap" style={{ color: 'var(--ink-700)' }}>{fecha(v.saleDate)}</td>
+      <td className="px-4 py-3 tabular-nums font-bold" style={{ color: v.diasDesdePago >= 15 ? 'var(--coral)' : 'var(--ink-700)' }}>{v.diasDesdePago}</td>
+      <td className="px-4 py-3 text-[12.5px]" style={{ color: v.vendedor ? 'var(--ink-900)' : 'var(--ink-500)' }}>
+        {v.vendedor ? (
+          <span className="font-semibold truncate max-w-[200px] inline-block align-bottom" title={v.origen}>{v.vendedor}</span>
+        ) : (
+          'Cliente'
+        )}
+      </td>
+      <td className="px-4 py-3 min-w-[260px]">
+        <Badge kind={m.kind}>{m.label}</Badge>
+        {m.accion && (
+          <div className="text-[11.5px] leading-snug mt-1.5 max-w-[300px]" style={{ color: 'var(--ink-700)' }}>{m.accion}</div>
+        )}
+        {nota && (
+          <div className="text-[11.5px] font-semibold mt-1.5 max-w-[300px]" style={{ color: nota.ok ? 'var(--brand-700)' : 'var(--violet-ink)' }}>{nota.texto}</div>
+        )}
+      </td>
+      <td className="px-4 py-3 text-right whitespace-nowrap">
+        <div className="inline-flex items-center gap-1.5">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={accionPrincipal}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12.5px] font-bold whitespace-nowrap transition-[opacity,transform] duration-150 active:scale-[0.97] hover:opacity-95 disabled:opacity-60"
+            style={{ background: 'linear-gradient(135deg,#00D3A1 0%,#00AD87 100%)', color: '#fff' }}
+          >
+            {busy ? <Loader2 size={14} className="animate-spin" /> : m.tipo === 'activar' ? <Zap size={14} /> : null}
+            {m.boton} {m.tipo === 'expediente' && <ArrowRight size={14} />}
+          </button>
+          <button
+            type="button"
+            onClick={() => onOpenExpediente(v.taxpayerId)}
+            title="Abrir el expediente completo"
+            className="inline-flex items-center px-3 py-2 rounded-xl text-[12.5px] font-bold whitespace-nowrap transition-[background-color,transform] duration-150 active:scale-[0.97]"
+            style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+          >
+            Expediente
+          </button>
+        </div>
+      </td>
+    </tr>
   )
 }

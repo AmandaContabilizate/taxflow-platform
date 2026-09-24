@@ -11,6 +11,14 @@ export interface PaymentLinkClientSecret {
   paymentIntentId: string
   clientSecret: string
   status: string | null
+  /** Total a pagar (lo que cobra el PaymentIntent). */
+  amount: number
+  currency: string
+  rfc: string
+  /** Nombres de los productos de la venta, sin repetir. */
+  conceptos: string[]
+  /** Vigencia de la liga emitida por un vendedor (ISO, UTC); null en ligas de la app. */
+  expiresAt: string | null
 }
 
 /**

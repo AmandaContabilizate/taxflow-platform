@@ -4,6 +4,7 @@ import { FileCheck2, FileClock, FileX2, Loader2, UploadCloud } from 'lucide-reac
 import { useCallback, useEffect, useState } from 'react'
 import { getConstanciaEstadoVendedor } from '@/features/diagnostico/actions/getConstanciaEstadoVendedor.action'
 import type { CsfEsperaEstado } from '@/features/diagnostico/types'
+import { activarVentasPendientes } from '@/features/account/actions/activarVentas.action'
 import { Badge, Btn, CsfUploadModal } from '../ui'
 
 interface Props {
@@ -113,6 +114,20 @@ export function ConstanciaEstado({ taxpayerId, rfc, onChanged }: Props) {
         </div>
       )}
 
+      {/* Con constancia registrada también se puede volver a subir: cubre el caso en que se guardó
+          sin regímenes (la aplicación de datos falló) y la venta quedó "Constancia sin régimen". */}
+      {estado.tieneConstancia && (
+        <div className="flex items-center gap-3 flex-wrap mt-2">
+          <Btn kind="ghost" size="sm" onClick={() => setUploadOpen(true)}>
+            <UploadCloud size={14} /> Reemplazar constancia
+          </Btn>
+          <span className="text-[12.5px]" style={{ color: 'var(--ink-500)' }}>
+            Úsalo si la constancia se registró sin regímenes o está desactualizada. PDF del SAT emitido hoy o ayer; al
+            guardarse se releen regímenes y actividades y se activan sus ventas pendientes.
+          </span>
+        </div>
+      )}
+
       <CsfUploadModal
         isOpen={uploadOpen}
         onClose={() => setUploadOpen(false)}
@@ -121,6 +136,9 @@ export function ConstanciaEstado({ taxpayerId, rfc, onChanged }: Props) {
         onUploaded={() => {
           void load()
           onChanged?.()
+          // Constancia recién subida: si el cliente tenía ventas pagadas esperándola, activarlas ya
+          // (el cron lo haría en ≤ 15 min; aquí no se espera). Best-effort.
+          void activarVentasPendientes(taxpayerId).then(() => onChanged?.())
         }}
       />
     </div>

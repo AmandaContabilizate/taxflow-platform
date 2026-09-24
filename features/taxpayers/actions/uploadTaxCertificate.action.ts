@@ -30,6 +30,30 @@ export interface UploadTaxCertificateError {
 }
 
 /**
+ * En un 500 el catálogo (UNEXPECTED_ERROR → "Ocurrió un error inesperado.") tapa el `detail`
+ * del ProblemDetails, que es donde Identity pone el mensaje de la excepción. Para la subida de
+ * constancia ese detalle es justo lo que se necesita para saber qué falló (blob, régimen,
+ * base de datos), así que se antepone al mensaje catalogado. Solo texto corto y de una línea.
+ */
+/**
+ * Identity responde `{ success: true, data: {...} }` (TaxpayersController.SendUploadTaxCertificateAsync)
+ * y el cliente HTTP devuelve el cuerpo tal cual: el resultado real va en `data`.
+ */
+function desenvolver(raw: unknown): UploadTaxCertificateResult {
+  const env = raw as { data?: UploadTaxCertificateResult } | null | undefined;
+  const r = (env && typeof env === "object" && env.data ? env.data : raw) as UploadTaxCertificateResult;
+  return { ...r, regimenes: Array.isArray(r?.regimenes) ? r.regimenes : [] };
+}
+
+function mensajeConDetalle(e: ApiError): string {
+  if (e.status < 500) return e.message;
+  const body = e.body as { detail?: unknown } | null | undefined;
+  const detail = typeof body?.detail === "string" ? body.detail.trim() : "";
+  if (!detail || detail.length > 400 || /\n/.test(detail)) return e.message;
+  return `No se pudo guardar la constancia. Detalle técnico: ${detail}`;
+}
+
+/**
  * Sube la constancia de situación fiscal (PDF) del RFC del propio cliente cuando el SAT no
  * responde. El backend valida fecha de emisión (≤ Csf:MaxAgeDays), RFC del PDF y al menos un
  * régimen; si pasa, aplica régimenes/actividades por el mismo camino que el robot.
@@ -43,15 +67,15 @@ export async function uploadTaxCertificate(
     formData.append("rfc", rfc);
     formData.append("file", file);
 
-    const data = await fetchPostMultipart<UploadTaxCertificateResult>(
+    const data = desenvolver(await fetchPostMultipart<unknown>(
       API_ROUTES.TAXPAYERS.UPLOAD_TAX_CERTIFICATE,
       formData,
       "taxpayers",
-    );
+    ));
     return ok(data);
   } catch (e) {
     if (e instanceof ApiError) {
-      return err({ statusCode: e.status, errorCode: e.errorCode, message: e.message });
+      return err({ statusCode: e.status, errorCode: e.errorCode, message: mensajeConDetalle(e) });
     }
     console.error("[uploadTaxCertificate] Error:", e);
     return err({ statusCode: 500, message: "No pudimos subir tu constancia. Intenta de nuevo." });
@@ -70,15 +94,15 @@ export async function uploadTaxCertificateStaff(
     const formData = new FormData();
     formData.append("file", file);
 
-    const data = await fetchPostMultipart<UploadTaxCertificateResult>(
+    const data = desenvolver(await fetchPostMultipart<unknown>(
       API_ROUTES.TAXPAYERS.UPLOAD_TAX_CERTIFICATE_STAFF(taxpayerId),
       formData,
       "taxpayers",
-    );
+    ));
     return ok(data);
   } catch (e) {
     if (e instanceof ApiError) {
-      return err({ statusCode: e.status, errorCode: e.errorCode, message: e.message });
+      return err({ statusCode: e.status, errorCode: e.errorCode, message: mensajeConDetalle(e) });
     }
     console.error("[uploadTaxCertificateStaff] Error:", e);
     return err({ statusCode: 500, message: "No pudimos subir la constancia. Intenta de nuevo." });
