@@ -229,6 +229,11 @@ export interface ClassificationAdjustment {
 
 export type ClassificationAdjustmentScope = 'declaration' | 'client' | 'global'
 
+/** Alcance elegido por fila en la pestaña Recálculo. */
+export interface RecalcScopeState {
+  scope: ClassificationAdjustmentScope
+}
+
 /** Categoría de `classification.clasificacion` (GET catalogs/classifications). */
 export interface ClassificationCategory {
   id: number
@@ -341,6 +346,12 @@ export interface DeclarationPeriodInvoice {
   classificationId: number | null
   isExpense: boolean | null
   activityId: number | null
+  /**
+   * true = el contador lo ajustó a mano: un recálculo completo no lo reclasifica y
+   * la propagación de otro ajuste por clave no lo toca. Opcional mientras haya un
+   * back que no lo mande.
+   */
+  isManualAdjustment?: boolean
   /** Claves prod/serv SAT de los conceptos. */
   productServiceKeys: string[]
   /** Suma de Invoices.Withholds; null si el CFDI no trae retenciones. */

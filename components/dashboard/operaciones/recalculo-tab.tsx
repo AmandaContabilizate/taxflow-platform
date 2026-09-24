@@ -11,6 +11,7 @@ import type {
   ClassificationAdjustmentScope,
   ClassificationCategory,
   DeclarationPeriodInvoice,
+  RecalcScopeState,
 } from '@/features/declarations/types'
 import { money } from './calc-read'
 import {
@@ -58,38 +59,47 @@ const TIPO_COMPROBANTE_OPTIONS: [string, string][] = [
 /** Todas visibles por default: es el comportamiento que ya tenía la tabla. */
 const RECALC_DEFAULT_COLUMNS: ColumnKey[] = COLUMN_DEFS.map((d) => d.key)
 
-/** E2/E7: qué memoriza cada alcance, para que se lea sin abrir documentación. */
+/**
+ * E2/E7: qué hace cada alcance, para que se lea sin abrir documentación. En los tres
+ * casos el ajuste se extiende a las demás facturas de la declaración con la misma
+ * clave (la del concepto de mayor importe) y la misma naturaleza.
+ */
 const SCOPE_OPTIONS: [ClassificationAdjustmentScope, string, string][] = [
-  ['declaration', 'Solo este recálculo', 'No memoriza nada: se aplica y ahí se acaba.'],
-  ['client', 'Solo este cliente', 'Memoriza la clave para este contribuyente.'],
+  [
+    'declaration',
+    'Solo este recálculo',
+    'Cambia todas las facturas de esta declaración con la misma clave y se conserva en los siguientes recálculos.',
+  ],
+  [
+    'client',
+    'Solo este cliente',
+    'Cambia las facturas con esta clave en esta declaración y en las futuras de este contribuyente.',
+  ],
   ['global', 'Todos', 'Memoriza la clave para todos los contribuyentes de esta actividad.'],
 ]
 
-type KeyMode = 'single' | 'all'
+/** Clave genérica del SAT: lo que ampara cambia con cada cliente y cada declaración. */
+const GENERIC_PRODUCT_CODE = '01010101'
 
-interface ScopeState {
-  scope: ClassificationAdjustmentScope
-  keyMode: KeyMode
-  selectedKey: string
-}
+const DEFAULT_SCOPE_STATE: RecalcScopeState = { scope: 'declaration' }
 
-const DEFAULT_SCOPE_STATE: ScopeState = { scope: 'declaration', keyMode: 'single', selectedKey: '' }
-
-/** Claves prod/serv distintas del comprobante, en orden de aparición. */
-function productCodesOf(inv: DeclarationPeriodInvoice): string[] {
-  const seen = new Set<string>()
+/**
+ * Clave del comprobante: la del concepto de mayor importe (en empate, la primera).
+ * Es el mismo criterio con el que el clasificador propaga el ajuste a las demás
+ * facturas, así que la regla que se memoriza y las facturas que cambian coinciden.
+ */
+function dominantProductCode(inv: DeclarationPeriodInvoice): string | null {
+  let best: string | null = null
+  let bestAmount = Number.NEGATIVE_INFINITY
   for (const c of inv.concepts) {
-    if (c.productCode) seen.add(c.productCode)
+    if (!c.productCode) continue
+    const amount = Number.isFinite(c.subtotal) ? c.subtotal : 0
+    if (amount > bestAmount) {
+      best = c.productCode
+      bestAmount = amount
+    }
   }
-  return Array.from(seen)
-}
-
-/** `productKeys` que se mandarían con el estado de alcance actual. */
-function resolveProductKeys(state: ScopeState, productCodes: string[]): string[] {
-  if (state.scope === 'declaration') return []
-  if (productCodes.length === 1) return productCodes
-  if (state.keyMode === 'all') return productCodes
-  return state.selectedKey ? [state.selectedKey] : []
+  return best ?? inv.productServiceKeys[0] ?? null
 }
 
 const fmtDate = (iso: string | null) => {
@@ -128,10 +138,10 @@ export function RecalculoTab({
   const [categories, setCategories] = useState<ClassificationCategory[]>([])
   const [query, setQuery] = useState('')
   const [soloProblemas, setSoloProblemas] = useState(false)
-  const [adjustments, setAdjustments] = useState<Record<string, ClassificationAdjustment>>({})
-  // Alcance por fila (E2/E7): aparte de `adjustments` porque elegir el alcance,
-  // por sí solo, no es un cambio que se deba mandar (ver `hasChanges`).
-  const [scopeByUuid, setScopeByUuid] = useState<Record<string, ScopeState>>({})
+  // Ajustes y alcance por fila (E2/E7) viven en `recalc` para sobrevivir al cambio de
+  // pestaña. El alcance va aparte porque elegirlo, por sí solo, no es un cambio que se
+  // deba mandar (ver `hasChanges`).
+  const { adjustments, setAdjustments, scopeByUuid, setScopeByUuid } = recalc
 
   // Filtros de comprobantes, pero EN CLIENTE: el EP de recálculo no los
   // soporta y ya trae el universo completo del periodo en memoria.
@@ -203,14 +213,6 @@ export function RecalculoTab({
     }
   }, [readOnly])
 
-  // Los ajustes ya aplicados dejan de estar pendientes: el siguiente recálculo no
-  // los debe volver a mandar.
-  useEffect(() => {
-    if (recalc.version === 0) return
-    setAdjustments({})
-    setScopeByUuid({})
-  }, [recalc.version])
-
   const invoiceByUuid = useMemo(() => {
     const map: Record<string, DeclarationPeriodInvoice> = {}
     for (const inv of invoices) map[inv.uuid] = inv
@@ -227,8 +229,8 @@ export function RecalculoTab({
           const scopeState = scopeByUuid[adj.uuid]
           if (!scopeState || scopeState.scope === 'declaration') return adj
           const inv = invoiceByUuid[adj.uuid]
-          const productKeys = inv ? resolveProductKeys(scopeState, productCodesOf(inv)) : []
-          return { ...adj, scope: scopeState.scope, productKeys }
+          const key = inv ? dominantProductCode(inv) : null
+          return { ...adj, scope: scopeState.scope, productKeys: key ? [key] : [] }
         }),
     [adjustments, scopeByUuid, invoiceByUuid],
   )
@@ -236,7 +238,11 @@ export function RecalculoTab({
   // Alcance != "declaration" sin ninguna clave resuelta: el back respondería
   // 422. Se bloquea el botón antes de mandarlo.
   const hasScopeError = pending.some(
-    (adj) => adj.scope && adj.scope !== 'declaration' && (adj.productKeys?.length ?? 0) === 0,
+    (adj) =>
+      adj.scope &&
+      adj.scope !== 'declaration' &&
+      ((adj.productKeys?.length ?? 0) === 0 ||
+        (adj.scope === 'global' && adj.productKeys?.includes(GENERIC_PRODUCT_CODE))),
   )
 
   const rows = useMemo(() => {
@@ -316,7 +322,7 @@ export function RecalculoTab({
     })
   }
 
-  const patchScope = (uuid: string, change: Partial<ScopeState>) =>
+  const patchScope = (uuid: string, change: Partial<RecalcScopeState>) =>
     setScopeByUuid((prev) => ({ ...prev, [uuid]: { ...DEFAULT_SCOPE_STATE, ...prev[uuid], ...change } }))
 
   /** "Todos" es la única opción que toca datos de terceros: exige confirmación. */
@@ -357,7 +363,10 @@ export function RecalculoTab({
               <div className="flex items-center gap-2 flex-wrap">
                 {pending.length > 0 && (
                   <button
-                    onClick={() => setAdjustments({})}
+                    onClick={() => {
+                      setAdjustments({})
+                      setScopeByUuid({})
+                    }}
                     disabled={recalc.running}
                     className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-[12.5px] font-bold transition hover:opacity-90 disabled:opacity-50"
                     style={{
@@ -405,8 +414,9 @@ export function RecalculoTab({
 
           {hasScopeError && (
             <Note tone="warn">
-              Hay un ajuste con alcance "Solo este cliente" o "Todos" sin ninguna clave elegida.
-              Selecciona una clave o vuelve a "Solo este recálculo" para poder recalcular.
+              Hay un ajuste que no se puede memorizar: el comprobante no trae clave de producto, o
+              es la clave genérica 01010101 con alcance "Todos". Cámbialo a "Solo este cliente" o
+              "Solo este recálculo" para poder recalcular.
             </Note>
           )}
 
@@ -849,11 +859,10 @@ export function RecalculoTab({
 
                               <ScopeSelector
                                 state={scopeByUuid[inv.uuid] ?? DEFAULT_SCOPE_STATE}
-                                productCodes={productCodesOf(inv)}
+                                productCode={dominantProductCode(inv)}
+                                multipleCodes={inv.productServiceKeys.length > 1}
                                 disabled={rowDisabled}
                                 onScopeChange={(scope) => setScope(inv.uuid, scope)}
-                                onKeyModeChange={(keyMode) => patchScope(inv.uuid, { keyMode })}
-                                onKeyChange={(selectedKey) => patchScope(inv.uuid, { selectedKey })}
                               />
 
                               {adj && hasChanges(adj) && (
@@ -1084,6 +1093,11 @@ function ClasificacionActual({ inv }: { inv: DeclarationPeriodInvoice }) {
   return (
     <div className="flex flex-col gap-1">
       <div className="flex flex-wrap gap-1">
+        {inv.isManualAdjustment && (
+          <Chip bg="var(--violet-soft)" fg="var(--violet-ink)" title="Ajustado a mano: el recálculo no lo reclasifica">
+            Manual
+          </Chip>
+        )}
         {inv.isDeductible ? (
           <Chip bg="var(--brand-50)" fg="var(--brand-700)">Deducible</Chip>
         ) : (
@@ -1117,33 +1131,35 @@ function ClasificacionActual({ inv }: { inv: DeclarationPeriodInvoice }) {
  */
 function ScopeSelector({
   state,
-  productCodes,
+  productCode,
+  multipleCodes,
   disabled,
   onScopeChange,
-  onKeyModeChange,
-  onKeyChange,
 }: {
-  state: ScopeState
-  productCodes: string[]
+  state: RecalcScopeState
+  /** Clave del concepto de mayor importe: es la que se memoriza y la que se propaga. */
+  productCode: string | null
+  multipleCodes: boolean
   disabled: boolean
   onScopeChange: (scope: ClassificationAdjustmentScope) => void
-  onKeyModeChange: (mode: KeyMode) => void
-  onKeyChange: (key: string) => void
 }) {
+  const isGeneric = productCode === GENERIC_PRODUCT_CODE
+  // La genérica solo se guarda para este cliente o esta declaración: lo que ampara
+  // varía con cada contribuyente, así que una regla para todos siempre estaría mal.
+  const options = isGeneric ? SCOPE_OPTIONS.filter(([s]) => s !== 'global') : SCOPE_OPTIONS
   const help = SCOPE_OPTIONS.find(([s]) => s === state.scope)?.[2]
-  const showKeys = state.scope !== 'declaration' && productCodes.length > 1
-  const missingKey = state.scope !== 'declaration' && resolveProductKeys(state, productCodes).length === 0
+  const missingKey = state.scope !== 'declaration' && !productCode
 
   return (
     <div className="flex flex-col gap-1 pt-1" style={{ borderTop: '1px dashed var(--border)' }}>
       <select
-        value={state.scope}
+        value={isGeneric && state.scope === 'global' ? 'client' : state.scope}
         onChange={(e) => onScopeChange(e.target.value as ClassificationAdjustmentScope)}
-        disabled={disabled || productCodes.length === 0}
+        disabled={disabled || !productCode}
         className="w-full px-2.5 py-2 rounded-lg text-[12.5px] disabled:opacity-60"
         style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
       >
-        {SCOPE_OPTIONS.map(([value, label]) => (
+        {options.map(([value, label]) => (
           <option key={value} value={value}>
             {label}
           </option>
@@ -1155,48 +1171,22 @@ function ScopeSelector({
         </span>
       )}
 
-      {showKeys && (
-        <div className="flex flex-col gap-1">
-          <label className="inline-flex items-center gap-1.5 text-[11.5px]" style={{ color: 'var(--ink-700)' }}>
-            <input
-              type="radio"
-              checked={state.keyMode === 'single'}
-              onChange={() => onKeyModeChange('single')}
-              disabled={disabled}
-            />
-            Solo esta clave
-          </label>
-          {state.keyMode === 'single' && (
-            <select
-              value={state.selectedKey}
-              onChange={(e) => onKeyChange(e.target.value)}
-              disabled={disabled}
-              className="w-full px-2.5 py-2 rounded-lg text-[12.5px] disabled:opacity-60"
-              style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
-            >
-              <option value="">Elegir clave…</option>
-              {productCodes.map((k) => (
-                <option key={k} value={k}>
-                  {k}
-                </option>
-              ))}
-            </select>
-          )}
-          <label className="inline-flex items-center gap-1.5 text-[11.5px]" style={{ color: 'var(--ink-700)' }}>
-            <input
-              type="radio"
-              checked={state.keyMode === 'all'}
-              onChange={() => onKeyModeChange('all')}
-              disabled={disabled}
-            />
-            Todas las claves de este comprobante ({productCodes.length})
-          </label>
-        </div>
+      {productCode && (
+        <span className="text-[11px] leading-snug" style={{ color: 'var(--ink-500)' }}>
+          Clave: <code style={{ ...MONO, color: 'var(--ink-700)' }}>{productCode}</code>
+          {multipleCodes ? ' (la del concepto de mayor importe)' : ''}
+        </span>
+      )}
+
+      {isGeneric && (
+        <span className="text-[11px] font-semibold leading-snug" style={{ color: 'var(--ink-700)' }}>
+          Clave genérica: solo se puede guardar para este cliente o para esta declaración.
+        </span>
       )}
 
       {missingKey && (
         <span className="text-[11px] font-semibold" style={{ color: 'var(--danger)' }}>
-          Elige una clave para poder memorizar este ajuste.
+          El comprobante no trae clave de producto: este ajuste no se puede memorizar.
         </span>
       )}
     </div>
