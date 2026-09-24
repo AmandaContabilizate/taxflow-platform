@@ -22,9 +22,13 @@ export const CLIENT_REVIEW_CALENDAR_DAYS = 2
 
 /** Estatus de `Declarations.StatusDeclaration` relevantes para este flujo. */
 export const DECLARATION_STATUS = {
+  SUBMITTED: 3,
   CLIENT_REVIEW: 9,
   CLIENT_REJECTED: 10,
   TO_SUBMIT: 11,
+  IN_PROCESS: 15,
+  /** Reabierta por el contador: se trabaja igual que En proceso, solo cambia el estatus que se pinta. */
+  REOPENED: 17,
 } as const
 
 /** Espejo de `DeclarationReportDto`. */

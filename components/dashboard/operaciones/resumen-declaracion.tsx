@@ -186,6 +186,8 @@ const STATUS_MAP: Record<string, StatusInfo> = {
   Calculada: { step: 0, label: 'Calculada', tone: 'amber' },
   IntervencionManual: { step: 0, label: 'En revisión manual', tone: 'amber' },
   NoPresentada: { step: 0, label: 'No presentada', tone: 'coral' },
+  EnProceso: { step: 0, label: 'En proceso', tone: 'amber' },
+  Reopened: { step: 0, label: 'Reabierta', tone: 'amber' },
   EnRevisionCliente: { step: 1, label: 'En revisión del cliente', tone: 'amber' },
   RebotadaCliente: { step: 1, label: 'Rechazada por el cliente', tone: 'coral' },
   Aprobada: { step: 2, label: 'Aprobada', tone: 'brand' },

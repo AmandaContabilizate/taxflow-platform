@@ -63,9 +63,21 @@ export interface DeclarationLog {
   newStatusId: number;
   changedAt: string;
   changedBy: string;
-  /** `client-report` | `manual` | `contador-resend`. */
+  /** `client-report` | `manual` | `contador-resend` | `contador-reopen` | `accountant-upload` | `ai-poster` | `portal-scrape`… */
   source: string;
   note: string | null;
+}
+
+/** Respuesta de `POST declarations/{id}/reopen`. */
+export interface ReopenDeclarationResult {
+  declarationId: number;
+  /** Con el que estaba antes: 3, 9 u 11. */
+  previousStatusId: number;
+  /** Siempre 17 (Reabierta) en un 200. */
+  statusId: number;
+  statusCode: string | null;
+  /** true si venía de Presentada: la siguiente presentación será complementaria. */
+  wasSubmitted: boolean;
 }
 
 /** Respuesta de `POST declarations/{id}/resend-to-client` (E2). */
