@@ -5,12 +5,12 @@ import { Bot } from 'lucide-react'
 import { DISPLAY } from './constants'
 import { useDraggableSnap } from './hooks/useDraggableSnap'
 
-const WHATSAPP_URL = 'http://wa.me/5660963169'
+const WHATSAPP_URL = 'https://wa.me/5215635798030'
 
 /**
  * Botón flotante interactivo con arrastre magnético (Snap-to-Edge) y persistencia
  * exclusivo para usuarios con rol GUEST (clientes contribuyentes).
- * Conecta 24/7 con el asistente virtual inteligente "Conta Vic" en WhatsApp.
+ * Conecta con el canal de atención a clientes en WhatsApp.
  */
 export function FloatingContadorButton() {
   const [hovered, setHovered] = useState(false)
