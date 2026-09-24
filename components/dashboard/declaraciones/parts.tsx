@@ -24,6 +24,35 @@ const STATUS_BADGE: Record<string, { kind: BadgeKind; label: string }> = {
   // constancia y que todavia estamos confirmando contra el SAT.
   PorRevisar: { kind: 'default', label: 'En revisión de declaración ante el SAT' },
   NoPresentada: { kind: 'coral', label: 'No presentada' },
+  EnProceso: { kind: 'amber', label: 'En proceso' },
+  // Reabierta por el contador: el cliente la ve exactamente como una En proceso, solo con
+  // su propio estatus. El motivo de la reapertura nunca le llega.
+  Reopened: { kind: 'amber', label: 'Reabierta' },
+}
+
+/** Etiqueta corta por Id de `Catalogs.StatusDeclaration`, para la bitácora (que solo trae Ids). */
+const STATUS_LABEL_BY_ID: Record<number, string> = {
+  1: 'Pendiente de pago',
+  2: 'En conciliación',
+  3: 'Presentada',
+  4: 'Intervención manual',
+  5: 'Presentada (manual)',
+  6: 'Enviando',
+  7: 'Presentada previamente',
+  8: 'Presentada (SAT)',
+  9: 'Por autorizar',
+  10: 'Rechazada por el cliente',
+  11: 'Por presentar',
+  12: 'Desconocido',
+  13: 'Por revisar',
+  14: 'No presentada',
+  15: 'En proceso',
+  16: 'En proceso (Legacy)',
+  17: 'Reabierta',
+}
+
+export function declarationStatusLabelById(statusId: number): string {
+  return STATUS_LABEL_BY_ID[statusId] ?? `Estatus ${statusId}`
 }
 
 export function declarationStatusBadge(
@@ -56,7 +85,7 @@ export function regularizationBadge(
   kind: number | null,
   statusCode: string,
 ): { kind: 'brand' | 'coral'; label: string } | null {
-  if (kind === KIND_REGULARIZATION && statusCode === 'EnProceso') {
+  if (kind === KIND_REGULARIZATION && (statusCode === 'EnProceso' || statusCode === 'Reopened')) {
     return { kind: 'brand', label: 'Comprada' }
   }
   if (kind == null && statusCode === 'NoPresentada') {

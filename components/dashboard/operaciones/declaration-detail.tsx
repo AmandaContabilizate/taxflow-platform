@@ -14,6 +14,7 @@ import {
   EyeOff,
   FileCheck2,
   Loader2,
+  LockOpen,
   Mail,
   MessageSquarePlus,
   RotateCcw,
@@ -28,7 +29,9 @@ import { useRecalculation } from '@/features/declarations/hooks/useRecalculation
 import { getDeclarationGeneral } from '@/features/operations/actions/getDeclarationGeneral.action'
 import { getDeclarationLogs } from '@/features/operations/actions/getDeclarationLogs.action'
 import { getDeclarationReportLink } from '@/features/operations/actions/getDeclarationReportLink.action'
+import { reopenDeclaration } from '@/features/operations/actions/reopenDeclaration.action'
 import { resendDeclarationToClient } from '@/features/operations/actions/resendDeclarationToClient.action'
+import { REOPEN_REASON_MAX_LENGTH } from '@/features/operations/schemas/reopenDeclaration.schema'
 import type { DeclarationActivity, DeclarationGeneral, DeclarationLog, DeclarationSubject } from '@/features/operations/types'
 import { getSatPassword } from '@/features/taxpayers/actions/getSatPassword.action'
 import { num, toNumber } from './calc-read'
@@ -37,6 +40,7 @@ import { DescargarArchivosSatBtn } from './descargar-archivos-sat-btn'
 import { DescargasSatStatus } from './descargas-sat-status'
 import { ComprobantesTab } from './comprobantes-tab'
 import { DeclarationDocumentsModal } from './declaration-documents-modal'
+import { DeclarationHistory } from './declaration-history'
 import { RecalculoTab } from './recalculo-tab'
 import { ResumenDeclaracion } from './resumen-declaracion'
 import { declarationStatusBadge, fmtDate } from '../declaraciones/parts'
@@ -45,11 +49,18 @@ import { useHasPermission } from '../permissions'
 import { Modal } from '../modal'
 import { Badge, Card, CiecUpdateModal, CiecValidationBadge } from '../ui'
 
-/** Estatus que habilitan "Enviar Predeclaración" (10|15 → 9; 9 reintenta el correo). */
-const RESENDABLE_STATUSES = new Set<number>([
+/**
+ * Estatus que se pueden reabrir: Presentada, Por autorizar y Por presentar. Pasan a
+ * Reabierta (17), que se trabaja igual que En proceso.
+ *
+ * "Enviar Predeclaración" ya NO tiene lista de estatus en el front: el botón siempre
+ * está activo y el back decide (9|10|11|15|17). Antes el front solo lo habilitaba en
+ * 9, 10 y 15 aunque el back aceptaba el 11, y por eso a veces aparecía gris.
+ */
+const REOPENABLE_STATUSES = new Set<number>([
+  DECLARATION_STATUS.SUBMITTED,
   DECLARATION_STATUS.CLIENT_REVIEW,
-  DECLARATION_STATUS.CLIENT_REJECTED,
-  15, // InProcess
+  DECLARATION_STATUS.TO_SUBMIT,
 ])
 
 /* -------------------------------------------------------------------------- */
@@ -244,6 +255,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
   const [general, setGeneral] = useState<DeclarationGeneral | null>(null)
   const [generalError, setGeneralError] = useState<string | null>(null)
   const [logs, setLogs] = useState<DeclarationLog[]>([])
+  const [logsLoading, setLogsLoading] = useState(false)
   // Sube cuando el botón encola una descarga: obliga al chip de estatus a re-consultar.
   const [descargasRefreshKey, setDescargasRefreshKey] = useState(0)
 
@@ -267,6 +279,16 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
     return null
   }, [d.declarationId, soloConsulta])
 
+  // La bitácora alimenta el banner de rechazo y el Historial (motivos de reapertura y
+  // mensajes de reenvío), así que se pide siempre, no solo en estatus 10. El perfil de
+  // consulta no tiene ReadDeclaracionLogs: va por la ruta espejo `/consulta/logs`.
+  const loadLogs = useCallback(async () => {
+    setLogsLoading(true)
+    const logsRes = await getDeclarationLogs(d.declarationId, 0, 100, soloConsulta)
+    setLogsLoading(false)
+    if (logsRes.success) setLogs(logsRes.value)
+  }, [d.declarationId, soloConsulta])
+
   useEffect(() => {
     let cancelled = false
     setGeneral(null)
@@ -275,18 +297,12 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
     void (async () => {
       const value = await loadGeneral()
       if (cancelled || !value) return
-      // La bitácora solo se necesita para el banner de rechazo (estatus 10). El perfil de
-      // consulta no tiene ReadDeclaracionLogs: va por la ruta espejo `/consulta/logs`, acotada
-      // a esta declaración, para que SAC también vea el comentario que dejó el cliente.
-      if (value.statusId === DECLARATION_STATUS.CLIENT_REJECTED) {
-        const logsRes = await getDeclarationLogs(d.declarationId, 0, 100, soloConsulta)
-        if (!cancelled && logsRes.success) setLogs(logsRes.value)
-      }
+      await loadLogs()
     })()
     return () => {
       cancelled = true
     }
-  }, [d.declarationId, loadGeneral, soloConsulta])
+  }, [d.declarationId, loadGeneral, loadLogs])
 
   // Fila más reciente con NewStatusId = 10: es el rechazo vigente del cliente.
   const rejection = logs
@@ -312,7 +328,46 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
   const [previewLoading, setPreviewLoading] = useState(false)
   const [previewFailed, setPreviewFailed] = useState(false)
 
-  const resendEnabled = general != null && RESENDABLE_STATUSES.has(general.statusId)
+  // Siempre activo en cuanto carga la declaración: el back decide si el estatus lo permite y
+  // el mensaje de error dice qué hacer (p. ej. reabrir una presentada).
+  const resendEnabled = general != null
+
+  /* ------------------------------------------------------------------ */
+  /*  "Reabrir declaración"                                              */
+  /* ------------------------------------------------------------------ */
+  const [reopenOpen, setReopenOpen] = useState(false)
+  const [reopenReason, setReopenReason] = useState('')
+  const [reopenLoading, setReopenLoading] = useState(false)
+  const [reopenError, setReopenError] = useState<string | null>(null)
+
+  const canReopen = general != null && REOPENABLE_STATUSES.has(general.statusId)
+  const reopenFromSubmitted = general?.statusId === DECLARATION_STATUS.SUBMITTED
+
+  const handleReopenConfirm = async () => {
+    setReopenLoading(true)
+    setReopenError(null)
+    const res = await reopenDeclaration(d.declarationId, reopenReason)
+    setReopenLoading(false)
+    if (res.success) {
+      setReopenOpen(false)
+      setReopenReason('')
+      setResendMessage({
+        kind: 'success',
+        text: res.value.wasSubmitted
+          ? 'Declaración reabierta. Como ya estaba presentada, la siguiente presentación irá como complementaria.'
+          : 'Declaración reabierta: ya puedes corregirla y reenviarla al cliente.',
+      })
+      void loadGeneral()
+      void loadLogs()
+    } else {
+      // El catálogo de errores trae textos pensados para el cliente: aquí se le habla al contador.
+      setReopenError(
+        res.error.code === 'INVALID_STATUS_TRANSITION'
+          ? 'Solo se puede reabrir una declaración Presentada, Por autorizar o Por presentar.'
+          : res.error.message,
+      )
+    }
+  }
 
   // La vista previa es el mismo `/reporte` del cliente en modo solo lectura. El
   // `url` que devuelve el back apunta al FrontendUrl configurado y no trae
@@ -350,11 +405,17 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
           : { kind: 'warning', text: 'Estatus actualizado pero el correo falló; reintenta.' },
       )
       void loadGeneral()
+      void loadLogs()
     } else {
+      // El catálogo de errores trae textos pensados para el cliente: aquí se le habla al contador.
+      const presentada = general?.statusId === DECLARATION_STATUS.SUBMITTED
       const text =
         res.error.code === 'INVALID_STATUS_TRANSITION'
-          ? 'Esta declaración ya no admite reenvío con su estatus actual.'
+          ? presentada
+            ? 'Esta declaración ya está presentada. Reábrela para poder corregirla y reenviarla al cliente.'
+            : 'Con su estatus actual esta declaración no se puede reenviar al cliente.'
           : res.error.message
+      setResendOpen(false)
       setResendMessage({ kind: 'error', text })
     }
   }
@@ -482,6 +543,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
               {periodicidad ? ` • ${periodicidad}` : ''}
             </div>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <StatusChip general={general} />
               <MetaChip label="Ejercicio" value={String(ejercicio)} />
               <MetaChip label="Régimen" value={regimen ?? 'Sin régimen asignado'} muted={!regimen} />
               {soloConsulta ? (
@@ -548,6 +610,18 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
               />
             </div>
           )}
+          {!soloConsulta && canReopen && (
+            <HeaderBtn
+              icon={<LockOpen size={15} />}
+              label="Reabrir declaración"
+              kind="ghost"
+              title="Regresa la declaración a tus manos para corregirla. Queda en estatus Reabierta."
+              onClick={() => {
+                setReopenError(null)
+                setReopenOpen(true)
+              }}
+            />
+          )}
           {!soloConsulta && (
             <HeaderBtn
               icon={<Send size={15} />}
@@ -557,7 +631,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
               title={
                 resendEnabled
                   ? 'Reenvía la declaración corregida a revisión del cliente'
-                  : 'Solo disponible cuando la declaración está rechazada, en proceso o en revisión del cliente'
+                  : 'Cargando la declaración…'
               }
               onClick={() => {
                 setResendMessage(null)
@@ -696,6 +770,78 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
         <DeclarationComments declarationId={d.declarationId} currentUser={currentUser} readOnly={soloConsulta} />
       )}
 
+      <DeclarationHistory logs={logs} loading={logsLoading} />
+
+      <Modal
+        isOpen={reopenOpen}
+        onClose={() => !reopenLoading && setReopenOpen(false)}
+        title="Reabrir declaración"
+        maxWidth={560}
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-[13.5px]" style={{ color: 'var(--foreground)' }}>
+            La declaración de <strong>{legalName}</strong> ({periodo} {ejercicio}) regresará a tus manos
+            en estatus <strong>Reabierta</strong> para que la corrijas. Después podrás reenviarla al cliente.
+          </p>
+          {reopenFromSubmitted && (
+            <div
+              className="rounded-xl px-3.5 py-3 flex items-start gap-2 text-[12.5px] font-semibold"
+              style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)', border: '1px solid var(--hero-amber-border, var(--border))' }}
+            >
+              <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+              <span>
+                Esta declaración ya se presentó ante el SAT. Al reabrirla, la corrección se tendrá que
+                presentar como complementaria.
+              </span>
+            </div>
+          )}
+          <div>
+            <label className="text-[12px] font-bold" style={{ color: 'var(--ink-500)' }}>
+              Motivo de la reapertura (obligatorio, no lo ve el cliente)
+            </label>
+            <textarea
+              value={reopenReason}
+              onChange={(e) => setReopenReason(e.target.value.slice(0, REOPEN_REASON_MAX_LENGTH))}
+              rows={4}
+              placeholder="Qué hay que corregir y por qué…"
+              className="w-full mt-1.5 px-3 py-2 rounded-lg text-[13px]"
+              style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+            />
+            <div className="text-[11px] text-right mt-1" style={{ color: 'var(--ink-500)' }}>
+              {reopenReason.length}/{REOPEN_REASON_MAX_LENGTH}
+            </div>
+          </div>
+          {reopenError && (
+            <div
+              className="rounded-xl px-3.5 py-3 flex items-start gap-2 text-[12.5px] font-semibold"
+              style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)', border: '1px solid var(--border)' }}
+            >
+              <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+              <span>{reopenError}</span>
+            </div>
+          )}
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => setReopenOpen(false)}
+              disabled={reopenLoading}
+              className="px-4 py-2.5 rounded-xl text-[13px] font-bold disabled:opacity-60"
+              style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={() => void handleReopenConfirm()}
+              disabled={reopenLoading || reopenReason.trim().length === 0}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold disabled:opacity-60"
+              style={{ background: 'linear-gradient(135deg,#00D3A1 0%,#00AD87 100%)', color: '#fff' }}
+            >
+              {reopenLoading && <Loader2 size={14} className="animate-spin" />}
+              Reabrir
+            </button>
+          </div>
+        </div>
+      </Modal>
+
       <Modal
         isOpen={resendOpen}
         onClose={() => !resendLoading && setResendOpen(false)}
@@ -710,13 +856,13 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
             </p>
             <div>
               <label className="text-[12px] font-bold" style={{ color: 'var(--ink-500)' }}>
-                Nota interna (opcional)
+                Mensaje del reenvío (opcional, no lo ve el cliente)
               </label>
               <textarea
                 value={resendNote}
                 onChange={(e) => setResendNote(e.target.value.slice(0, 500))}
                 rows={3}
-                placeholder="Motivo de la corrección, visible solo en la bitácora…"
+                placeholder="Qué corregiste. Queda en el historial y en tu correo de confirmación…"
                 className="w-full mt-1.5 px-3 py-2 rounded-lg text-[13px]"
                 style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
               />
@@ -838,6 +984,27 @@ function RegimenSinPantallas({ satCode, name }: { satCode: string | null; name: 
 /* -------------------------------------------------------------------------- */
 /*  Chip de metadato (ejercicio, régimen)                                     */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * Estatus actual dentro de la declaración: antes solo se veía en el listado y el contador
+ * tenía que salirse para saberlo. Mismo mapa que el listado y la vista del cliente.
+ */
+function StatusChip({ general }: { general: DeclarationGeneral | null }) {
+  if (!general) return <MetaChip label="Estatus" value="Cargando…" muted />
+  const status = declarationStatusBadge(general.statusCode ?? '', general.statusDescription ?? `Estatus ${general.statusId}`)
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[12px]"
+      style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}
+      title={general.statusDescription ?? undefined}
+    >
+      <span className="font-semibold uppercase tracking-wide text-[10px]" style={{ color: 'var(--ink-500)' }}>
+        Estatus
+      </span>
+      <Badge kind={status.kind}>{status.label}</Badge>
+    </span>
+  )
+}
 
 function MetaChip({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
   return (

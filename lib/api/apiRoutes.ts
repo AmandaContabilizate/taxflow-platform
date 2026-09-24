@@ -350,8 +350,11 @@ export const API_ROUTES = {
   // Controller nuevo de Procedures (`api/declarations`, plural). apiType
   // "declarations_procedures". Policy Contador.UpdateDeclaracionEstatus.
   DECLARATIONS_PROCEDURES: {
-    // POST · body opcional `{ note?: string }`. 10|15 -> 9 + correo (best-effort).
+    // POST · body opcional `{ note?: string }`. 9|10|11|15|17 -> 9 + correo (best-effort).
     RESEND_TO_CLIENT: (declarationId: number) => `/${declarationId}/resend-to-client`,
+    // POST · body `{ reason: string }` (obligatorio, máx. 500). 3|9|11 -> 17 Reabierta.
+    // Sin correo: el motivo solo va a la bitácora y el cliente nunca lo ve.
+    REOPEN: (declarationId: number) => `/${declarationId}/reopen`,
     // GET · solo lectura. Devuelve `{ url, token }` del reporte del cliente.
     REPORT_LINK: (declarationId: number) => `/${declarationId}/report-link`,
   },
