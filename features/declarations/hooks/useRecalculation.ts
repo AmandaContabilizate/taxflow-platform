@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { recalculateDeclaration } from '../actions/recalculateDeclaration.action'
-import type { ClassificationAdjustment, RecalculationResult } from '../types'
+import type { ClassificationAdjustment, RecalcScopeState, RecalculationResult } from '../types'
 
 interface Target {
   rfc: string
@@ -25,6 +25,10 @@ export function useRecalculation(target: Target) {
   /** Sube en cada recálculo exitoso: las listas que dependen del cálculo se recargan. */
   const [version, setVersion] = useState(0)
   const runningRef = useRef(false)
+  // Ajustes pendientes y su alcance, por UUID. Viven aquí y no en la pestaña: la pestaña se
+  // desmonta al cambiar de tab y el contador perdía lo que había corregido sin mandarlo.
+  const [adjustments, setAdjustments] = useState<Record<string, ClassificationAdjustment>>({})
+  const [scopeByUuid, setScopeByUuid] = useState<Record<string, RecalcScopeState>>({})
 
   const ready = Boolean(target.rfc && target.periodValueId && target.regimeSatCode)
 
@@ -47,28 +51,57 @@ export function useRecalculation(target: Target) {
       setRunning(true)
       setError(null)
 
-      const res = await recalculateDeclaration({
-        rfc: target.rfc,
-        fiscalYear: target.fiscalYear,
-        periodValueId: target.periodValueId!,
-        regimeCode: target.regimeSatCode!,
-        adjustments,
-      })
-      console.log(res);
-      if (res.success) {
-        setResult(res.value)
-        setVersion((v) => v + 1)
-      } else {
-        setError(res.error.message)
+      // Sin este try, un fallo de la llamada a la server action (red, timeout del balanceador,
+      // deploy nuevo) rechazaba la promesa: el spinner se quedaba contando para siempre y los
+      // clics siguientes salían en silencio por el `runningRef`.
+      try {
+        const res = await recalculateDeclaration({
+          rfc: target.rfc,
+          fiscalYear: target.fiscalYear,
+          periodValueId: target.periodValueId!,
+          regimeCode: target.regimeSatCode!,
+          adjustments,
+        })
+        if (res.success) {
+          setResult(res.value)
+          setVersion((v) => v + 1)
+          // Solo dejan de estar pendientes los ajustes que el back confirmó. El recálculo sin
+          // ajustes (botón del encabezado) ya no borra lo que el contador tenía por mandar.
+          const applied = new Set(res.value.appliedAdjustments.map((u) => u.toUpperCase()))
+          if (applied.size > 0) {
+            const keep = <T,>(prev: Record<string, T>) =>
+              Object.fromEntries(Object.entries(prev).filter(([uuid]) => !applied.has(uuid.toUpperCase())))
+            setAdjustments(keep)
+            setScopeByUuid(keep)
+          }
+        } else {
+          setError(res.error.message)
+        }
+      } catch {
+        setError(
+          'Se perdió la conexión mientras se recalculaba. El cálculo pudo haber terminado en el servidor: recarga la declaración antes de volver a intentarlo.',
+        )
+      } finally {
+        runningRef.current = false
+        setRunning(false)
       }
-
-      runningRef.current = false
-      setRunning(false)
     },
     [ready, target.rfc, target.fiscalYear, target.periodValueId, target.regimeSatCode],
   )
 
-  return { running, seconds, result, error, version, ready, run }
+  return {
+    running,
+    seconds,
+    result,
+    error,
+    version,
+    ready,
+    run,
+    adjustments,
+    setAdjustments,
+    scopeByUuid,
+    setScopeByUuid,
+  }
 }
 
 export type Recalculation = ReturnType<typeof useRecalculation>
