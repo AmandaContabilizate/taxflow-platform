@@ -19,6 +19,8 @@ export interface PaymentLinkClientSecret {
   conceptos: string[]
   /** Vigencia de la liga emitida por un vendedor (ISO, UTC); null en ligas de la app. */
   expiresAt: string | null
+  /** true: primer cobro de una suscripción (solo tarjeta, renovación automática). */
+  esSuscripcion: boolean
 }
 
 /**

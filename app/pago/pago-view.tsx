@@ -2,7 +2,7 @@
 
 import { Elements } from '@stripe/react-stripe-js'
 import type { Stripe } from '@stripe/stripe-js'
-import { CalendarClock, Clock3, Info, Loader2 } from 'lucide-react'
+import { AlertTriangle, CalendarClock, Clock3, Info, Loader2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { PaymentForm } from '@/components/dashboard/plan/payment-form'
 import { getStripePublishableKey } from '@/features/account/actions/getStripePublishableKey.action'
@@ -21,6 +21,8 @@ export interface PagoResumen {
   rfc: string
   conceptos: string[]
   expiresAt: string | null
+  /** Primer cobro de una suscripción: solo tarjeta, renovación automática. */
+  esSuscripcion?: boolean
 }
 
 function formatoDinero(amount: number, currency: string): { entero: string; centavos: string } {
@@ -74,7 +76,9 @@ function ResumenPago({ resumen }: { resumen: PagoResumen }) {
       />
 
       <div className="relative">
-        <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/70">Total a pagar</div>
+        <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/70">
+          {resumen.esSuscripcion ? 'Primer cobro de tu suscripción' : 'Total a pagar'}
+        </div>
         <div className="mt-1 flex items-baseline gap-1.5" style={{ fontFamily: 'var(--font-display)' }}>
           <span className="text-[38px] font-black leading-none tabular-nums">{entero}</span>
           <span className="text-lg font-bold tabular-nums text-white/80">{centavos}</span>
@@ -106,6 +110,12 @@ function ResumenPago({ resumen }: { resumen: PagoResumen }) {
               </dd>
             </>
           )}
+          {resumen.esSuscripcion && (
+            <>
+              <dt className="text-white/60">Renovación</dt>
+              <dd className="font-semibold">Automática al terminar cada periodo, con la misma tarjeta. Cancelas cuando quieras desde la app.</dd>
+            </>
+          )}
         </dl>
       </div>
     </section>
@@ -123,6 +133,8 @@ export function PagoView({
 }) {
   const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null)
   const [view, setView] = useState<View>(IN_PROGRESS_STATUSES.has(initialStatus ?? '') ? 'waiting' : 'form')
+  // Suscripción: el cliente confirma que entendió el cargo recurrente antes de ver el formulario.
+  const [aceptaRecurrente, setAceptaRecurrente] = useState(false)
 
   useEffect(() => {
     getStripePublishableKey().then((key) => {
@@ -216,13 +228,69 @@ export function PagoView({
             Completa tu pago
           </h1>
           <p className="mb-5 mt-1 text-sm" style={{ color: 'var(--ink-500)' }}>
-            Paga con transferencia SPEI, tarjeta u OXXO. Tu plan se activa al confirmarse el pago.
+            {resumen?.esSuscripcion
+              ? 'Paga con tarjeta. Tu plan se activa al confirmarse el pago y se renueva solo.'
+              : 'Paga con transferencia SPEI, tarjeta u OXXO. Tu plan se activa al confirmarse el pago.'}
           </p>
           {conResumen && <ResumenPago resumen={resumen!} />}
         </div>
-        <div>{formulario}</div>
+        <div className="flex flex-col gap-4">
+          {resumen?.esSuscripcion && <AvisoRecurrente aceptado={aceptaRecurrente} onChange={setAceptaRecurrente} />}
+          {resumen?.esSuscripcion && !aceptaRecurrente ? (
+            <p className="text-center text-[12.5px]" style={{ color: 'var(--ink-500)' }}>
+              Marca la casilla para continuar con el pago.
+            </p>
+          ) : (
+            <div key="form" className="animate-in fade-in slide-in-from-top-1 duration-200 motion-reduce:animate-none" style={EASE_OUT}>
+              {formulario}
+            </div>
+          )}
+        </div>
       </div>
     </Card>
+  )
+}
+
+/**
+ * Aviso de cargo recurrente con confirmación explícita. El formulario de Stripe no aparece hasta
+ * marcarla: es la única forma de que se lea antes de poner la tarjeta.
+ */
+function AvisoRecurrente({ aceptado, onChange }: { aceptado: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <section
+      aria-label="Aviso de cargo recurrente"
+      className="rounded-2xl px-4 py-4 flex flex-col gap-3"
+      style={{ background: 'var(--amber-soft)', border: '1.5px solid var(--amber)', color: 'var(--violet-ink)' }}
+    >
+      <div className="flex items-start gap-3">
+        <AlertTriangle size={20} className="mt-0.5 shrink-0" style={{ color: 'var(--amber)' }} />
+        <div className="text-[13.5px] leading-snug">
+          <div className="text-[15px] font-extrabold text-balance" style={{ fontFamily: 'var(--font-display)' }}>
+            Esto es una suscripción con cargo recurrente
+          </div>
+          <ul className="mt-2 flex flex-col gap-1.5 list-disc pl-4 marker:text-[var(--amber)]">
+            <li><strong>Hoy pagas el periodo completo</strong> con tu tarjeta.</li>
+            <li>Al terminar el periodo, <strong>se te cobra solo el siguiente</strong> con la misma tarjeta.</li>
+            <li><strong>No son pagos a meses sin intereses</strong> ni pagos parciales.</li>
+            <li>Puedes cancelar la renovación cuando quieras desde la app.</li>
+          </ul>
+        </div>
+      </div>
+      <label
+        className="flex items-start gap-3 rounded-xl px-3 py-2.5 cursor-pointer select-none transition-[background-color,transform] duration-150 ease-out active:scale-[0.99]"
+        style={{ background: 'var(--card)', border: '1px solid var(--border-strong)' }}
+      >
+        <input
+          type="checkbox"
+          checked={aceptado}
+          onChange={(ev) => onChange(ev.target.checked)}
+          className="mt-0.5 size-4 shrink-0 accent-[#34197F]"
+        />
+        <span className="text-[13px] font-semibold leading-snug" style={{ color: 'var(--ink-900)' }}>
+          Entiendo que es una suscripción con cargo recurrente y no un plan a meses sin intereses.
+        </span>
+      </label>
+    </section>
   )
 }
 

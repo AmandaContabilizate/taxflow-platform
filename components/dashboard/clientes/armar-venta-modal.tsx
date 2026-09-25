@@ -1,6 +1,6 @@
 'use client'
 
-import { AlertTriangle, Check, CheckCircle2, Copy, Link2, Loader2, Minus, Plus, TicketPercent } from 'lucide-react'
+import { AlertTriangle, Check, CheckCircle2, Copy, Link2, Loader2, Minus, Plus, Stethoscope, TicketPercent } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import {
   Dialog,
@@ -18,15 +18,20 @@ import {
 } from '@/features/account/actions/registerSaleOnBehalf.action'
 import {
   EMPTY_PLANS_CATALOG,
+  SUBSCRIPTION_DISCOUNT_PERCENT,
   formatMXN,
+  isAvailableForMode,
   periodLabel,
+  priceForMode,
   type DiscountCodePreview,
+  type PaymentMode,
   type Plan,
   type PlansCatalog,
   type RegisterSaleItem,
 } from '@/features/account/types'
 import { getConstanciaEstadoVendedor } from '@/features/diagnostico/actions/getConstanciaEstadoVendedor.action'
-import type { CsfEsperaEstado } from '@/features/diagnostico/types'
+import { getDiagnosticoHistorial } from '@/features/diagnostico/actions/getDiagnosticoHistorial.action'
+import type { CsfEsperaEstado, DiagnosticoCorrida, DiagnosticoRobotIntento } from '@/features/diagnostico/types'
 import { DISPLAY } from '../constants'
 import { Badge, Btn } from '../ui'
 
@@ -48,7 +53,7 @@ function errorMessage(code: string | undefined, fallback: string): string {
     case 'PAYMENT_LINK_ONLY_ONE_TIME':
       return 'La liga de pago solo aplica a productos de pago único. Para una suscripción el cliente debe comprar desde la app.'
     case 'PAYMENT_LINK_STRIPE_ERROR':
-      return 'Stripe no pudo crear el cobro. La venta no se registró; intenta de nuevo en un momento.'
+      return fallback || 'Stripe no pudo crear el cobro. La venta no se registró; intenta de nuevo en un momento.'
     case 'TAXPAYER_NOT_FOUND':
       return 'No encontramos al contribuyente.'
     case 'USER_NOT_FOUND':
@@ -63,19 +68,66 @@ function errorMessage(code: string | undefined, fallback: string): string {
 const PRESSABLE = 'transition-[border-color,box-shadow,transform] duration-150 ease-out active:scale-[0.99]'
 
 /**
+ * Estado del diagnóstico que condiciona las regularizaciones (Amanda, 2026-09-24): las declaraciones
+ * por regularizar solo se ofrecen cuando el ÚLTIMO diagnóstico terminó, porque es el robot quien
+ * las detecta en el portal del SAT. Antes de eso se explica el porqué en vez de mostrar una lista
+ * vacía, para que el vendedor no pregunte "¿por qué no salen?".
+ */
+type DiagnosticoEstado = 'cargando' | 'sin' | 'en_curso' | 'terminado' | 'abortado'
+
+function ultimaCorrida(corridas: DiagnosticoCorrida[] | null): DiagnosticoCorrida | null {
+  if (!corridas || corridas.length === 0) return null
+  return corridas.reduce((a, b) => (new Date(b.startedAt) > new Date(a.startedAt) ? b : a))
+}
+
+/**
+ * Quién decide si "el diagnóstico terminó": la última corrida del módulo o, si no hay corridas (clientes
+ * de antes del módulo, o robots lanzados por el cron), el robot de evaluación de declaraciones, que es el
+ * que detecta las pendientes. Estatus del robot: 1 Completado · 2 Fallido · 3 Corriendo · 4 Abortado ·
+ * 5 En espera · 6 Encolado.
+ */
+function estadoDiagnostico(corrida: DiagnosticoCorrida | null, intentos: DiagnosticoRobotIntento[] | null): { estado: DiagnosticoEstado; fin: string | null } {
+  if (corrida) {
+    if (corrida.estatusId === 2) return { estado: 'terminado', fin: corrida.finishedAt }
+    if (corrida.estatusId === 1) return { estado: 'en_curso', fin: null }
+    return { estado: 'abortado', fin: null }
+  }
+  const evaluacion = (intentos ?? [])
+    .filter((i) => /evaluaci/i.test(i.robot) || /evaluat/i.test(i.scraperName))
+    .sort((a, b) => new Date(b.lastAttemptDate).getTime() - new Date(a.lastAttemptDate).getTime())[0]
+  if (!evaluacion) return { estado: 'sin', fin: null }
+  if (evaluacion.estatusId === 1) return { estado: 'terminado', fin: evaluacion.lastAttemptDate }
+  if (evaluacion.estatusId === 3 || evaluacion.estatusId === 5 || evaluacion.estatusId === 6) return { estado: 'en_curso', fin: null }
+  return { estado: 'abortado', fin: null }
+}
+
+function fechaHoraCorta(iso: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
+}
+
+/**
  * Backoffice → expediente → "Armar venta" (spec-ventas-por-activar paso 1 · spec-liga-de-pago-vendedor
- * paso 4). Misma anatomía que el carrito del cliente ("Arma tu plan"): catálogo que scrollea, pie
- * fijo con cupón + total + acción. Sin saldo nace pagada y activada; con saldo el backend crea el
- * cobro y devuelve la liga de 48 h con el texto para WhatsApp.
+ * paso 4). Misma anatomía que el carrito del cliente ("Arma tu plan"): pestañas Suscripción (−10 %,
+ * renovación automática) y Pago único; catálogo que scrollea; pie fijo con cupón + total + acción.
+ * Sin saldo nace pagada y activada; con saldo el backend crea el cobro (pago único o primer cobro de
+ * la suscripción) y devuelve la liga con el texto para WhatsApp.
  */
 export function ArmarVentaModal({ isOpen, onClose, taxpayerId, rfc, legalName, onCreated, onGoDiagnostico }: Props) {
   const [catalog, setCatalog] = useState<PlansCatalog>(EMPTY_PLANS_CATALOG)
   const [estado, setEstado] = useState<CsfEsperaEstado | null>(null)
+  const [diagnostico, setDiagnostico] = useState<DiagnosticoEstado>('cargando')
+  const [diagnosticoFin, setDiagnosticoFin] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
 
+  // Pago único por defecto: es lo que el vendedor cobra casi siempre por liga.
+  const [paymentMode, setPaymentMode] = useState<PaymentMode>(1)
   const [planId, setPlanId] = useState<number | null>(null)
   const [qty, setQty] = useState<Record<number, number>>({})
+  const [selectedDecls, setSelectedDecls] = useState<Set<number>>(new Set())
   const [coupon, setCoupon] = useState('')
   const [preview, setPreview] = useState<DiscountCodePreview | null>(null)
   const [previewError, setPreviewError] = useState<string | null>(null)
@@ -90,12 +142,21 @@ export function ArmarVentaModal({ isOpen, onClose, taxpayerId, rfc, legalName, o
     let cancelled = false
     setLoading(true)
     setLoadError(null)
+    setDiagnostico('cargando')
     void (async () => {
-      const [plansRes, estadoRes] = await Promise.all([getPlans(rfc, true), getConstanciaEstadoVendedor(taxpayerId)])
+      const [plansRes, estadoRes, historialRes] = await Promise.all([
+        getPlans(rfc, true),
+        getConstanciaEstadoVendedor(taxpayerId),
+        getDiagnosticoHistorial(taxpayerId),
+      ])
       if (cancelled) return
       if (plansRes.success) setCatalog(plansRes.value)
       else setLoadError(plansRes.error.message)
       if (estadoRes.success) setEstado(estadoRes.value.estado)
+      const corrida = ultimaCorrida(historialRes.success ? historialRes.value.corridas : null)
+      const diag = estadoDiagnostico(corrida, estadoRes.success ? estadoRes.value.intentos : null)
+      setDiagnostico(diag.estado)
+      setDiagnosticoFin(diag.fin)
       setLoading(false)
     })()
     return () => {
@@ -106,8 +167,10 @@ export function ArmarVentaModal({ isOpen, onClose, taxpayerId, rfc, legalName, o
   // Carrito limpio cada vez que se abre.
   useEffect(() => {
     if (!isOpen) return
+    setPaymentMode(1)
     setPlanId(null)
     setQty({})
+    setSelectedDecls(new Set())
     setCoupon('')
     setPreview(null)
     setPreviewError(null)
@@ -115,33 +178,52 @@ export function ArmarVentaModal({ isOpen, onClose, taxpayerId, rfc, legalName, o
     setResult(null)
   }, [isOpen])
 
-  const handleOpenChange = (open: boolean) => {
-    if (!open && !submitting) onClose()
-  }
-
   const selectedPlan = useMemo(() => catalog.futurePlans.find((p) => p.id === planId) ?? null, [catalog, planId])
   const tieneConstancia = estado?.tieneConstancia === true
   const grantsFree = selectedPlan?.grantsFreeAddOns === true
+  const isSubscriptionMode = paymentMode === 0
 
-  // Total a precio de lista, con la misma regla de trámites liberados que el carrito del cliente.
+  // Igual que en la app: los trámites solo se venden como pago único.
+  const procedures = isSubscriptionMode ? [] : catalog.additionalProcedures
+  const regularizations = diagnostico === 'terminado' ? catalog.regularizations : []
+
+  // Al cambiar de pestaña se suelta lo que no aplica en la otra (plan sin ese precio, trámites en
+  // suscripción, regularizaciones sin precio en ese modo).
+  useEffect(() => {
+    if (!isOpen) return
+    if (selectedPlan && !isAvailableForMode(selectedPlan, paymentMode)) setPlanId(null)
+    if (isSubscriptionMode) setQty({})
+    setSelectedDecls((prev) => {
+      const next = new Set<number>()
+      for (const reg of catalog.regularizations) {
+        if (reg.plan && isAvailableForMode(reg.plan, paymentMode) && prev.has(reg.declarationId)) next.add(reg.declarationId)
+      }
+      return next
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paymentMode])
+
+  // Total a precio de lista (o de suscripción), con la misma regla de trámites liberados que el
+  // carrito del cliente. Las regularizaciones se cobran siempre.
   const subtotal = useMemo(() => {
-    let sum = selectedPlan ? selectedPlan.price : 0
-    for (const addon of catalog.additionalProcedures) {
+    let sum = selectedPlan ? priceForMode(selectedPlan.price, paymentMode) : 0
+    for (const addon of procedures) {
       const q = qty[addon.id] ?? 0
       if (q <= 0) continue
-      const unit = grantsFree && addon.canBeGrantedFree ? 0 : addon.price
+      const unit = grantsFree && addon.canBeGrantedFree ? 0 : priceForMode(addon.price, paymentMode)
       sum += unit * q
     }
+    for (const reg of regularizations) {
+      if (reg.plan && selectedDecls.has(reg.declarationId)) sum += priceForMode(reg.plan.price, paymentMode)
+    }
     return sum
-  }, [selectedPlan, catalog, qty, grantsFree])
+  }, [selectedPlan, procedures, regularizations, qty, grantsFree, paymentMode, selectedDecls])
 
   const percent = preview?.discountTypeId === 1 ? preview.discountPercent : 0
   const total = Math.max(0, subtotal - subtotal * (percent / 100))
-  const itemCount = (selectedPlan ? 1 : 0) + Object.values(qty).filter((q) => q > 0).length
+  const itemCount = (selectedPlan ? 1 : 0) + Object.values(qty).filter((q) => q > 0).length + selectedDecls.size
   const hasItems = itemCount > 0
-  // La liga cobra por pago único: un plan sin precio de pago único solo se vende desde la app.
-  const planSoloSuscripcion = Boolean(selectedPlan && !selectedPlan.stripeOneTimePriceId && total > 0)
-  const canSubmit = hasItems && !planSoloSuscripcion && !submitting && !loading
+  const canSubmit = hasItems && !submitting && !loading
 
   async function handlePreview() {
     const code = coupon.trim()
@@ -160,12 +242,21 @@ export function ArmarVentaModal({ isOpen, onClose, taxpayerId, rfc, legalName, o
 
   function buildItems(): RegisterSaleItem[] {
     const items: RegisterSaleItem[] = []
-    if (selectedPlan) {
-      items.push({ subscriptionId: selectedPlan.id, quantity: 1, paymentMode: selectedPlan.stripeOneTimePriceId ? 1 : 0 })
-    }
-    for (const addon of catalog.additionalProcedures) {
+    if (selectedPlan) items.push({ subscriptionId: selectedPlan.id, quantity: 1, paymentMode })
+    for (const addon of procedures) {
       const q = qty[addon.id] ?? 0
-      if (q > 0) items.push({ subscriptionId: addon.id, quantity: q, paymentMode: addon.stripeOneTimePriceId ? 1 : 0 })
+      if (q > 0) items.push({ subscriptionId: addon.id, quantity: q, paymentMode })
+    }
+    // Regularizaciones: un item por producto con la lista de declaraciones que cubre, como en la app.
+    const regGroups = new Map<number, number[]>()
+    for (const reg of regularizations) {
+      if (!reg.plan || !selectedDecls.has(reg.declarationId)) continue
+      const list = regGroups.get(reg.plan.id) ?? []
+      list.push(reg.declarationId)
+      regGroups.set(reg.plan.id, list)
+    }
+    for (const [subscriptionId, declarationIds] of regGroups) {
+      items.push({ subscriptionId, quantity: declarationIds.length, paymentMode, regularizationDeclarationIds: declarationIds })
     }
     return items
   }
@@ -198,14 +289,26 @@ export function ArmarVentaModal({ isOpen, onClose, taxpayerId, rfc, legalName, o
       return next
     })
 
+  const toggleDecl = (declarationId: number) =>
+    setSelectedDecls((prev) => {
+      const next = new Set(prev)
+      if (next.has(declarationId)) next.delete(declarationId)
+      else next.add(declarationId)
+      return next
+    })
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open && !submitting) onClose()
+  }
+
   const step: 'cart' | 'done' = result ? 'done' : 'cart'
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent
         className={
-          (step === 'cart' ? 'sm:max-w-3xl ' : 'sm:max-w-xl ') +
-          'w-[calc(100%-2rem)] max-h-[90vh] flex flex-col overflow-hidden'
+          (step === 'cart' ? 'sm:max-w-5xl ' : 'sm:max-w-xl ') +
+          'w-[calc(100%-2rem)] max-h-[92vh] flex flex-col overflow-hidden'
         }
       >
         <DialogHeader className="text-left">
@@ -239,6 +342,76 @@ export function ArmarVentaModal({ isOpen, onClose, taxpayerId, rfc, legalName, o
           </div>
         ) : (
           <>
+            {/* Modo de pago: fijo arriba, mismo control que "Arma tu plan" del cliente */}
+            <div className="shrink-0 flex flex-col gap-2">
+              {/* Control segmentado: el fondo activo es UNA pastilla que se desliza (transform, interrumpible),
+                  no dos fondos que se prenden y apagan. */}
+              <div className="relative grid grid-cols-2 gap-1 p-1 rounded-2xl" role="tablist" aria-label="Modo de pago" style={{ background: 'var(--muted)' }}>
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-0.375rem)] rounded-xl motion-reduce:transition-none"
+                  style={{
+                    background: 'var(--nav-active-bg)',
+                    transform: paymentMode === 0 ? 'translateX(0)' : 'translateX(calc(100% + 0.25rem))',
+                    transition: 'transform 220ms cubic-bezier(0.23, 1, 0.32, 1)',
+                  }}
+                />
+                {([0, 1] as PaymentMode[]).map((mode) => {
+                  const active = paymentMode === mode
+                  return (
+                    <button
+                      key={mode}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      onClick={() => setPaymentMode(mode)}
+                      className="relative py-2.5 rounded-xl text-[13.5px] font-bold transition-[color,transform] duration-150 ease-out active:scale-[0.98]"
+                      style={{ color: active ? 'var(--nav-active-fg)' : 'var(--ink-500)' }}
+                    >
+                      {mode === 0 ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          Suscripción
+                          <span
+                            className="text-[10.5px] font-extrabold px-1.5 py-0.5 rounded-full"
+                            style={active ? { background: 'rgba(255,255,255,0.22)', color: 'var(--nav-active-fg)' } : { background: 'var(--hero-brand-soft)', color: 'var(--brand-700)' }}
+                          >
+                            −{SUBSCRIPTION_DISCOUNT_PERCENT}%
+                          </span>
+                        </span>
+                      ) : (
+                        'Pago único'
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+              {isSubscriptionMode ? (
+                <div
+                  key="aviso-suscripcion"
+                  className="rounded-2xl px-4 py-3 flex items-start gap-3 animate-in fade-in slide-in-from-top-1 duration-200 motion-reduce:animate-none"
+                  style={{ background: 'var(--amber-soft)', border: '1.5px solid var(--amber)', color: 'var(--violet-ink)', animationTimingFunction: 'cubic-bezier(0.23, 1, 0.32, 1)' }}
+                  role="note"
+                >
+                  <AlertTriangle size={18} className="mt-0.5 shrink-0" style={{ color: 'var(--amber)' }} />
+                  <div className="text-[13px] leading-snug">
+                    <div className="font-extrabold text-[14px]" style={{ fontFamily: 'var(--font-display)' }}>
+                      Cargo recurrente, no meses sin intereses
+                    </div>
+                    <ul className="mt-1.5 flex flex-col gap-1 list-disc pl-4 marker:text-[var(--amber)]">
+                      <li>El cliente paga <strong>hoy el periodo completo</strong> con tarjeta y obtiene el −10 %.</li>
+                      <li>Al terminar el periodo, Stripe le <strong>cobra solo el siguiente</strong> con la misma tarjeta. No son pagos parciales.</li>
+                      <li><strong>Díselo antes de mandar la liga.</strong> El mensaje de WhatsApp y la página de pago también lo advierten, y el cliente tiene que confirmarlo para pagar.</li>
+                    </ul>
+                    <div className="mt-1.5 text-[12px]" style={{ color: 'var(--ink-500)' }}>La liga vence en 23 horas.</div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-[12px] leading-snug px-1" style={{ color: 'var(--ink-500)' }}>
+                  Un solo cobro, sin renovación. La liga acepta tarjeta, SPEI y OXXO y vence en 48 horas.
+                </p>
+              )}
+            </div>
+
             {/* Catálogo: única zona que scrollea */}
             <div className="flex-1 min-h-0 overflow-y-auto -mx-1 px-1 flex flex-col gap-6 py-1">
               {!tieneConstancia && (
@@ -284,38 +457,58 @@ export function ArmarVentaModal({ isOpen, onClose, taxpayerId, rfc, legalName, o
                 {catalog.futurePlans.length === 0 ? (
                   <div className="text-[13px]" style={{ color: 'var(--ink-500)' }}>Sin planes elegibles para el régimen del cliente.</div>
                 ) : (
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {catalog.futurePlans.map((p) => {
                       const selected = planId === p.id
+                      const enabled = isAvailableForMode(p, paymentMode)
                       return (
                         <button
                           key={p.id}
                           type="button"
                           aria-pressed={selected}
+                          disabled={!enabled}
                           onClick={() => setPlanId(selected ? null : p.id)}
-                          className={`relative text-left rounded-2xl p-4 ${PRESSABLE}`}
+                          className={`relative text-left rounded-2xl p-4 ${PRESSABLE} disabled:opacity-45 disabled:cursor-not-allowed disabled:active:scale-100`}
                           style={{
                             background: 'var(--card)',
                             border: `2px solid ${selected ? 'var(--brand-500)' : 'var(--border)'}`,
                             boxShadow: selected ? 'var(--sh-brand)' : 'none',
                           }}
                         >
-                          {selected && (
-                            <div className="absolute top-3 right-3 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: 'var(--brand-500)', color: '#fff' }}>
-                              <Check size={13} strokeWidth={3} />
-                            </div>
-                          )}
+                          <div
+                            aria-hidden
+                            className="absolute top-3 right-3 w-5 h-5 rounded-full flex items-center justify-center motion-reduce:transition-none"
+                            style={{
+                              background: 'var(--brand-500)',
+                              color: '#fff',
+                              opacity: selected ? 1 : 0,
+                              transform: selected ? 'scale(1)' : 'scale(0.6)',
+                              transition: 'opacity 140ms ease-out, transform 180ms cubic-bezier(0.23, 1, 0.32, 1)',
+                            }}
+                          >
+                            <Check size={13} strokeWidth={3} />
+                          </div>
                           <div className="font-bold text-[15px] pr-6 leading-snug" style={{ color: 'var(--ink-900)' }}>{p.name}</div>
                           <div className="mt-2 flex items-baseline gap-1.5 flex-wrap">
-                            <span className="font-extrabold text-[22px] tabular-nums" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
-                              {formatMXN(p.price)}
+                            {isSubscriptionMode && enabled && (
+                              <span className="text-[13px] font-semibold line-through tabular-nums" style={{ color: 'var(--ink-400)' }}>
+                                {formatMXN(p.price)}
+                              </span>
+                            )}
+                            <span
+                              className="font-extrabold text-[22px] tabular-nums"
+                              style={{ ...DISPLAY, color: isSubscriptionMode && enabled ? 'var(--brand-700)' : 'var(--ink-900)' }}
+                            >
+                              {formatMXN(priceForMode(p.price, paymentMode))}
                             </span>
                             <span className="text-[11.5px] font-semibold" style={{ color: 'var(--ink-500)' }}>
                               MXN · {periodLabel(p.billingPeriod)}
                             </span>
                           </div>
-                          {!p.stripeOneTimePriceId && (
-                            <div className="text-[11px] mt-1.5" style={{ color: 'var(--ink-500)' }}>Solo suscripción · sin liga de pago</div>
+                          {!enabled && (
+                            <div className="text-[11px] mt-1.5" style={{ color: 'var(--ink-500)' }}>
+                              {isSubscriptionMode ? 'No se vende como suscripción' : 'Solo como suscripción'}
+                            </div>
                           )}
                           {p.shortDescription && (
                             <div className="text-[12.5px] mt-2 leading-snug" style={{ color: 'var(--ink-700)' }}>{p.shortDescription}</div>
@@ -327,17 +520,17 @@ export function ArmarVentaModal({ isOpen, onClose, taxpayerId, rfc, legalName, o
                 )}
               </section>
 
-              {/* Trámites */}
-              {catalog.additionalProcedures.length > 0 && (
+              {/* Trámites: solo en pago único, como en la app */}
+              {procedures.length > 0 && (
                 <section className="flex flex-col gap-3">
                   <div className="flex items-center justify-between">
                     <SectionLabel>Trámites</SectionLabel>
-                    {grantsFree && catalog.additionalProcedures.some((a) => a.canBeGrantedFree) && (
+                    {grantsFree && procedures.some((a) => a.canBeGrantedFree) && (
                       <Badge kind="brand">Incluidos con el plan</Badge>
                     )}
                   </div>
-                  <div className="grid gap-2.5 sm:grid-cols-2">
-                    {catalog.additionalProcedures.map((a) => {
+                  <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                    {procedures.map((a) => {
                       const q = qty[a.id] ?? 0
                       const inCart = q > 0
                       const free = grantsFree && a.canBeGrantedFree
@@ -383,6 +576,72 @@ export function ArmarVentaModal({ isOpen, onClose, taxpayerId, rfc, legalName, o
                   </div>
                 </section>
               )}
+
+              {/* Declaraciones por regularizar: solo con diagnóstico terminado */}
+              <section className="flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <SectionLabel>Declaraciones por regularizar</SectionLabel>
+                  {diagnostico === 'terminado' && (
+                    <Badge kind="brand">
+                      <span className="inline-flex items-center gap-1">
+                        <Stethoscope size={12} /> Diagnóstico terminado{diagnosticoFin ? ` · ${fechaHoraCorta(diagnosticoFin)}` : ''}
+                      </span>
+                    </Badge>
+                  )}
+                </div>
+                {diagnostico === 'terminado' && (
+                  <p className="text-[12px] leading-snug -mt-1" style={{ color: 'var(--ink-500)' }}>
+                    Estas son las declaraciones pendientes que el robot encontró en el portal del SAT en esa corrida. Si el cliente
+                    presentó algo después, vuelve a ejecutar el diagnóstico para actualizarlas.
+                  </p>
+                )}
+                {diagnostico !== 'terminado' ? (
+                  <RegularizacionesBloqueadas estado={diagnostico} onGoDiagnostico={onGoDiagnostico ? () => { onClose(); onGoDiagnostico() } : undefined} />
+                ) : regularizations.length === 0 ? (
+                  <div className="text-[13px]" style={{ color: 'var(--ink-500)' }}>
+                    El diagnóstico no encontró declaraciones pendientes de regularizar.
+                  </div>
+                ) : (
+                  <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                    {regularizations.map((reg) => {
+                      const enabled = !!reg.plan && isAvailableForMode(reg.plan, paymentMode)
+                      const checked = selectedDecls.has(reg.declarationId)
+                      const periodo = [reg.month, reg.year].filter(Boolean).join(' ')
+                      const title = reg.taxRegimeName || reg.plan?.name || `Declaración ${reg.declarationId}`
+                      return (
+                        <button
+                          key={reg.declarationId}
+                          type="button"
+                          role="checkbox"
+                          aria-checked={checked}
+                          disabled={!enabled}
+                          onClick={() => toggleDecl(reg.declarationId)}
+                          className={`text-left flex items-start justify-between gap-3 rounded-2xl p-3.5 ${PRESSABLE} disabled:opacity-45 disabled:cursor-not-allowed disabled:active:scale-100`}
+                          style={{ background: 'var(--card)', border: `1.5px solid ${checked ? 'var(--brand-500)' : 'var(--border)'}` }}
+                        >
+                          <div className="min-w-0">
+                            <div className="font-bold text-[13.5px] leading-snug" style={{ color: 'var(--ink-900)' }}>{title}</div>
+                            <div className="text-[12px] mt-0.5 tabular-nums" style={{ color: 'var(--ink-500)' }}>
+                              {periodo || 'Declaración pendiente'}
+                              {reg.plan ? ` · ${formatMXN(priceForMode(reg.plan.price, paymentMode))}` : ''}
+                            </div>
+                          </div>
+                          <div
+                            className="w-5 h-5 mt-0.5 rounded-md flex items-center justify-center shrink-0 transition-[background-color,border-color] duration-150"
+                            style={{
+                              background: checked ? 'var(--brand-500)' : 'transparent',
+                              border: `1.5px solid ${checked ? 'var(--brand-500)' : 'var(--border-strong)'}`,
+                              color: '#fff',
+                            }}
+                          >
+                            {checked && <Check size={13} strokeWidth={3} />}
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </section>
             </div>
 
             {/* Pie fijo: cupón + total + acción */}
@@ -401,11 +660,6 @@ export function ArmarVentaModal({ isOpen, onClose, taxpayerId, rfc, legalName, o
               )}
               {previewError && (
                 <div className="text-[12.5px] font-semibold px-3 py-2 rounded-xl" style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}>{previewError}</div>
-              )}
-              {planSoloSuscripcion && (
-                <div className="text-[12.5px] font-semibold px-3 py-2 rounded-xl" style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}>
-                  Este plan solo se vende como suscripción y la liga cobra pagos únicos. El cliente debe comprarlo desde la app, o aplica un cupón que deje el total en cero.
-                </div>
               )}
               {error && (
                 <div className="text-[12.5px] font-semibold px-3 py-2 rounded-xl" style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}>{error}</div>
@@ -432,7 +686,9 @@ export function ArmarVentaModal({ isOpen, onClose, taxpayerId, rfc, legalName, o
                   </button>
                 </div>
                 <div className="flex flex-col items-end leading-none">
-                  <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>Total</span>
+                  <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+                    Total{isSubscriptionMode ? ' · primer cobro' : ''}
+                  </span>
                   <span className="text-[24px] font-extrabold mt-0.5 tabular-nums" style={{ ...DISPLAY, color: percent > 0 ? 'var(--brand-700)' : 'var(--ink-900)' }}>
                     {percent > 0 && (
                       <span className="text-[14px] font-semibold mr-2 line-through" style={{ color: 'var(--ink-400)' }}>{formatMXN(subtotal)}</span>
@@ -446,23 +702,60 @@ export function ArmarVentaModal({ isOpen, onClose, taxpayerId, rfc, legalName, o
                 {submitting ? (
                   <><Loader2 size={16} className="animate-spin" /> {total > 0 ? 'Generando liga…' : 'Registrando…'}</>
                 ) : !hasItems ? (
-                  'Elige un plan o un trámite para continuar'
+                  'Elige un plan, un trámite o una declaración para continuar'
                 ) : total > 0 ? (
-                  <><Link2 size={16} /> Generar liga de pago · {formatMXN(total)}</>
+                  <><Link2 size={16} /> Generar liga de {isSubscriptionMode ? 'suscripción' : 'pago'} · {formatMXN(total)}</>
                 ) : (
                   'Registrar venta sin saldo'
                 )}
               </Btn>
               <p className="text-[11px] text-center leading-snug" style={{ color: 'var(--ink-500)' }}>
-                {total > 0
-                  ? 'La liga vence en 48 horas. El cliente paga con tarjeta, OXXO o transferencia y la venta se activa sola.'
-                  : 'Sin saldo la venta nace pagada. El cumplimiento corre al instante.'}
+                {total <= 0
+                  ? 'Sin saldo la venta nace pagada. El cumplimiento corre al instante.'
+                  : isSubscriptionMode
+                    ? 'La liga vence en 23 horas y se paga con tarjeta. Al pagar, la venta se activa y Stripe renueva el plan solo.'
+                    : 'La liga vence en 48 horas. El cliente paga con tarjeta, OXXO o transferencia y la venta se activa sola.'}
               </p>
             </div>
           </>
         )}
       </DialogContent>
     </Dialog>
+  )
+}
+
+/**
+ * Sustituye la lista de regularizaciones mientras el diagnóstico no haya terminado: dice por qué no
+ * salen y qué hacer, para que el vendedor no lo pregunte cada vez.
+ */
+function RegularizacionesBloqueadas({ estado, onGoDiagnostico }: { estado: DiagnosticoEstado; onGoDiagnostico?: () => void }) {
+  const texto =
+    estado === 'cargando'
+      ? 'Consultando el diagnóstico…'
+      : estado === 'en_curso'
+        ? 'El diagnóstico de este cliente está en curso. Cuando termine, aquí aparecen sus declaraciones pendientes: el robot las detecta en el portal del SAT. Suele tardar unos minutos; vuelve a abrir Armar venta al terminar.'
+        : estado === 'abortado'
+          ? 'El último diagnóstico se abortó, así que no hay lectura confiable de sus declaraciones pendientes. Vuelve a ejecutarlo en la pestaña Diagnóstico y, al terminar, abre de nuevo Armar venta.'
+          : 'Las declaraciones por regularizar aparecen cuando termina el diagnóstico: el robot revisa el portal del SAT y detecta las pendientes. Ejecútalo en la pestaña Diagnóstico y, al terminar, abre de nuevo Armar venta.'
+  return (
+    <div className="rounded-2xl p-4 flex items-start gap-3 text-[13px] leading-snug" style={{ background: 'var(--muted)', color: 'var(--ink-700)' }}>
+      <Stethoscope size={16} className="mt-0.5 shrink-0" style={{ color: 'var(--ink-500)' }} />
+      <div className="flex flex-col gap-2 min-w-0">
+        <span>{texto}</span>
+        {onGoDiagnostico && estado !== 'cargando' && estado !== 'en_curso' && (
+          <div>
+            <button
+              type="button"
+              onClick={onGoDiagnostico}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12.5px] font-bold transition-[background-color,transform] duration-150 active:scale-[0.97]"
+              style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--ink-900)' }}
+            >
+              Ir a Diagnóstico
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -511,7 +804,9 @@ function DoneStep({
           <div className="mt-0.5">
             {pagada
               ? 'Quedó pagada sin cobro y el cumplimiento corrió: contador, trámites y, si el cliente tiene constancia, sus declaraciones.'
-              : `Quedó abierta por ${formatMXN(result.amount)}. Al pagar con la liga se activa sola.`}
+              : result.paymentLink?.esSuscripcion
+                ? `Quedó abierta por ${formatMXN(result.amount)} como suscripción. El cliente paga con tarjeta, la venta se activa sola y Stripe renueva el plan al terminar cada periodo.`
+                : `Quedó abierta por ${formatMXN(result.amount)}. Al pagar con la liga se activa sola.`}
           </div>
           {sinConstancia && (
             <div className="mt-1 text-[13px]" style={{ color: 'var(--violet-ink)' }}>
@@ -536,8 +831,10 @@ export function PaymentLinkPanel({ link }: { link: VendorPaymentLink }) {
   return (
     <div className="rounded-2xl p-4 flex flex-col gap-3" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="text-[12px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>Liga de pago</div>
-        <Badge kind="brand">Vence {vence}</Badge>
+        <div className="text-[12px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+          {link.esSuscripcion ? 'Liga de suscripción · solo tarjeta' : 'Liga de pago'}
+        </div>
+        <Badge kind={link.esSuscripcion ? 'amber' : 'brand'}>Vence {vence}</Badge>
       </div>
       <div className="flex items-center gap-2">
         <input

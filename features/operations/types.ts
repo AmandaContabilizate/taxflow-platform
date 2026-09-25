@@ -649,6 +649,8 @@ export interface LigaPago {
   /** Fecha de pago si Pagada, de cancelación si Cancelada. */
   updatedAt: string;
   tieneConstancia: boolean;
+  /** "Suscripción" (primer cobro, solo tarjeta, 23 h) · "Pago único" (48 h). */
+  tipo: "Suscripción" | "Pago único";
 }
 
 export interface LigasPagoPage extends Paged<LigaPago> {

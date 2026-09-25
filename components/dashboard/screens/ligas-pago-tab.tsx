@@ -207,7 +207,12 @@ function LigaRow({
           </div>
         </td>
         <td className="px-4 py-3"><code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-700)' }}>{liga.rfc}</code></td>
-        <td className="px-4 py-3 text-[12.5px]" style={{ color: 'var(--ink-700)' }}>{liga.planes.join(' + ') || '—'}</td>
+        <td className="px-4 py-3 text-[12.5px]" style={{ color: 'var(--ink-700)' }}>
+          <div>{liga.planes.join(' + ') || '—'}</div>
+          {liga.tipo === 'Suscripción' && (
+            <div className="mt-0.5 text-[11px] font-bold" style={{ color: 'var(--brand-700)' }}>Suscripción · solo tarjeta · 23 h</div>
+          )}
+        </td>
         <td className="px-4 py-3 tabular-nums font-semibold" style={{ color: 'var(--ink-900)' }}>{money(liga.amount)}</td>
         <td className="px-4 py-3 whitespace-nowrap" style={{ color: 'var(--ink-700)' }}>{fecha(liga.saleDate)}</td>
         <td className="px-4 py-3 whitespace-nowrap text-[12.5px]" style={{ color: liga.estado === 'Vencida' ? 'var(--violet-ink)' : 'var(--ink-700)' }}>

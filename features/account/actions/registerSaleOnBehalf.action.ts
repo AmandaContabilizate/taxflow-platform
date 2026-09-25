@@ -18,6 +18,8 @@ export interface VendorPaymentLink {
   /** Vencimiento en UTC (ISO). */
   expiresAt: string;
   whatsAppText: string;
+  /** true: primer cobro de una suscripción (solo tarjeta, 23 h, renovación automática). */
+  esSuscripcion?: boolean;
 }
 
 export interface RegisterSaleOnBehalfResponse {
