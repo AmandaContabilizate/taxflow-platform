@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import { AlertTriangle, Clock3, SearchX } from 'lucide-react'
 import { redeemPaymentLink } from '@/features/payment-link/actions'
+import { EASE_OUT, ENTRADA, TARJETA } from './pago-estilos'
 import { PagoView } from './pago-view'
 
 export const metadata: Metadata = {
@@ -21,7 +23,11 @@ export default async function PagoPage({
   const returnStatus = Array.isArray(status) ? status[0] : status
 
   return (
-    <main className="flex min-h-screen justify-center px-4 py-8" style={{ background: 'var(--background)' }}>
+    <main
+      className="flex min-h-screen flex-col items-center gap-5 px-4 py-6 sm:py-8"
+      style={{ background: 'var(--background)' }}
+    >
+      <MarcaCabecera />
       {returnStatus === 'return' ? (
         <StatusCard
           icon={<Clock3 size={28} style={{ color: 'var(--amber)' }} />}
@@ -32,7 +38,29 @@ export default async function PagoPage({
       ) : (
         <RedeemedPayment token={token} />
       )}
+      <MarcaPie />
     </main>
+  )
+}
+
+/** Logo + nombre, igual que el login: el cliente llega desde un WhatsApp y debe reconocer la marca. */
+function MarcaCabecera() {
+  return (
+    <header className="flex items-center gap-2.5">
+      <Image src="/logo.png" alt="" width={36} height={36} priority className="size-9 select-none" />
+      <span className="text-lg font-black" style={{ color: 'var(--ink-900)', fontFamily: 'var(--font-display)' }}>
+        Contabilízate
+      </span>
+    </header>
+  )
+}
+
+function MarcaPie() {
+  return (
+    <footer className="flex max-w-[480px] flex-col items-center gap-1 text-center text-[12px]" style={{ color: 'var(--ink-500)' }}>
+      <span>¿Dudas con tu pago? Escríbele al asesor que te envió este enlace.</span>
+      <span className="opacity-80">© {new Date().getFullYear()} Contabilízate</span>
+    </footer>
   )
 }
 
@@ -115,8 +143,8 @@ function StatusCard({
 }) {
   return (
     <div
-      className="w-full max-w-[440px] self-start rounded-3xl px-6 py-9 text-center"
-      style={{ background: 'var(--card)', border: '1.5px solid var(--border-strong)', boxShadow: 'var(--sh-3)' }}
+      className={`w-full max-w-[440px] rounded-3xl px-6 py-9 text-center ${ENTRADA}`}
+      style={{ ...EASE_OUT, ...TARJETA }}
     >
       <div className="mx-auto mb-4 grid size-[62px] place-items-center rounded-full" style={{ background: iconBg }}>
         {icon}
