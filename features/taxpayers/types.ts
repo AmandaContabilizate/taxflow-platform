@@ -39,6 +39,8 @@ export interface TaxpayerListItem {
 export interface ExpedienteProducto {
   /** Id de la partida (SaleItem): enlaza el producto con los periodos que cubre. */
   saleItemId: number
+  /** Id de la venta padre (SaleId). */
+  saleId?: number
   plan: string
   monto: number
   fecha: string

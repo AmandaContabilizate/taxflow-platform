@@ -838,8 +838,10 @@ function TabProductos({
   // Producto seleccionado: resalta los periodos que cubre esa venta.
   const [selectedSaleItemId, setSelectedSaleItemId] = useState<number | null>(null)
 
-  // Las anuales (501) no se muestran aquí: el servicio se sigue por periodos mensuales.
-  const periodos = data.periodos.filter((p) => p.periodValueId !== 501)
+  // Las anuales (501) y estatus desconocido (12) no se muestran aquí: el servicio se sigue por periodos mensuales activos.
+  const periodos = data.periodos.filter(
+    (p) => p.periodValueId !== 501 && !p.estatus?.toLowerCase().includes('desconocido')
+  )
 
   // Opciones de regímenes presentes en las declaraciones del cliente
   const regimeOptions = useMemo(() => {
@@ -1086,6 +1088,14 @@ function TabProductos({
                   </span>
                 </div>
                 <div className="text-[11.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                  {p.saleId ? (
+                    <>
+                      <span className="font-semibold" style={{ color: 'var(--ink-700)' }}>
+                        Venta #{p.saleId}
+                      </span>
+                      <span className="mx-1.5">·</span>
+                    </>
+                  ) : null}
                   Comprado el {fmtDate(p.fecha)}
                 </div>
                 <div className="flex gap-3 mt-2 text-[12px]" style={{ color: 'var(--ink-700)' }}>
