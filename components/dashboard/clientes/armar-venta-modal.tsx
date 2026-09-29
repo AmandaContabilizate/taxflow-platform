@@ -52,6 +52,9 @@ function errorMessage(code: string | undefined, fallback: string): string {
   switch (code) {
     case 'PAYMENT_LINK_ONLY_ONE_TIME':
       return 'La liga de pago solo aplica a productos de pago único. Para una suscripción el cliente debe comprar desde la app.'
+    case 'DISCOUNT_CODE_NOT_APPLIED':
+      // El backend no registró la venta y trae el motivo exacto (sin usos, no cubre el plan, etc.).
+      return fallback || 'El cupón no aplica a esta venta. No se registró nada; corrige el cupón o quítalo.'
     case 'PAYMENT_LINK_STRIPE_ERROR':
       return fallback || 'Stripe no pudo crear el cobro. La venta no se registró; intenta de nuevo en un momento.'
     case 'TAXPAYER_NOT_FOUND':
@@ -219,11 +222,44 @@ export function ArmarVentaModal({ isOpen, onClose, taxpayerId, rfc, legalName, o
     return sum
   }, [selectedPlan, procedures, regularizations, qty, grantsFree, paymentMode, selectedDecls])
 
-  const percent = preview?.discountTypeId === 1 ? preview.discountPercent : 0
+  // Mismo alcance que el backend (DiscountCodePlanScope) y que el carrito del cliente: sin planes
+  // ligados aplica a todo; si tiene planes, algún producto del carrito debe estar entre ellos. El tipo
+  // Declaraciones (regalo) exige un plan a futuro. Si no aplica, el −% NO se muestra ni se descuenta.
+  const cartProductIds = useMemo(() => {
+    const ids = new Set<number>()
+    if (selectedPlan) ids.add(selectedPlan.id)
+    for (const a of procedures) if ((qty[a.id] ?? 0) > 0) ids.add(a.id)
+    for (const reg of regularizations) if (reg.plan && selectedDecls.has(reg.declarationId)) ids.add(reg.plan.id)
+    return ids
+  }, [selectedPlan, procedures, qty, regularizations, selectedDecls])
+
+  const couponPlanNames = useMemo(() => {
+    if (!preview || preview.subscriptionPlanIds.length === 0) return [] as string[]
+    const todos = [...catalog.futurePlans, ...catalog.additionalProcedures, ...catalog.regularizations.map((r) => r.plan).filter((p): p is Plan => !!p)]
+    const nombres = new Set<string>()
+    for (const id of preview.subscriptionPlanIds) {
+      const p = todos.find((x) => x.id === id)
+      if (p?.name) nombres.add(p.name)
+    }
+    return [...nombres]
+  }, [preview, catalog])
+
+  const couponApplies = useMemo(() => {
+    if (!preview) return false
+    const sinRestriccion = preview.subscriptionPlanIds.length === 0
+    if (preview.discountTypeId === 2)
+      return !!selectedPlan && (sinRestriccion || preview.subscriptionPlanIds.includes(selectedPlan.id))
+    if (cartProductIds.size === 0) return true // aún no hay carrito: se valida al elegir
+    return sinRestriccion || preview.subscriptionPlanIds.some((id) => cartProductIds.has(id))
+  }, [preview, selectedPlan, cartProductIds])
+
+  const percent = preview?.discountTypeId === 1 && couponApplies ? preview.discountPercent : 0
   const total = Math.max(0, subtotal - subtotal * (percent / 100))
   const itemCount = (selectedPlan ? 1 : 0) + Object.values(qty).filter((q) => q > 0).length + selectedDecls.size
   const hasItems = itemCount > 0
-  const canSubmit = hasItems && !submitting && !loading
+  // Un cupón capturado que no cubre el carrito bloquea el envío: el backend lo rechazaría igual.
+  const couponBlocks = !!preview && hasItems && !couponApplies
+  const canSubmit = hasItems && !couponBlocks && !submitting && !loading
 
   async function handlePreview() {
     const code = coupon.trim()
@@ -646,7 +682,18 @@ export function ArmarVentaModal({ isOpen, onClose, taxpayerId, rfc, legalName, o
 
             {/* Pie fijo: cupón + total + acción */}
             <div className="shrink-0 pt-4 flex flex-col gap-3" style={{ borderTop: '1px solid var(--border)' }}>
-              {preview && (
+              {couponBlocks && preview && (
+                <div className="flex items-start gap-2 text-[12.5px] font-semibold px-3 py-2 rounded-xl" style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}>
+                  <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                  <span>
+                    El cupón <b>{preview.code}</b> no aplica a lo que está en el carrito
+                    {preview.discountTypeId === 2 ? ': regala declaraciones y requiere un plan a futuro' : ''}.
+                    {couponPlanNames.length > 0 && <> Aplica a: {couponPlanNames.join(', ')}.</>}
+                    {' '}Cambia los productos o quita el cupón para continuar.
+                  </span>
+                </div>
+              )}
+              {preview && !couponBlocks && (
                 <div className="flex items-center gap-2 text-[12.5px] font-semibold px-3 py-2 rounded-xl" style={{ background: 'var(--hero-brand-soft)', color: 'var(--ink-700)' }}>
                   <TicketPercent size={14} className="shrink-0" style={{ color: 'var(--brand-700)' }} />
                   <span>
