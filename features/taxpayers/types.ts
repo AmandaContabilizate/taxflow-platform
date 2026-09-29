@@ -49,6 +49,12 @@ export interface ExpedienteProducto {
   /** Régimen de la venta, derivado de sus declaraciones (confiable en migrados). */
   regimenSatCode?: string | null
   regimenName?: string | null
+  /** Código de promoción / descuento aplicado en la compra (null si no hubo). */
+  discountCode?: string | null
+  discountPercent?: number | null
+  discountAmount?: number | null
+  discountTypeId?: number | null
+  declarationsCount?: number | null
 }
 
 /**

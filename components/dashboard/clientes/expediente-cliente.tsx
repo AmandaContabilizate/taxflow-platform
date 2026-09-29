@@ -18,6 +18,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   ShoppingCart,
+  Tag,
 } from 'lucide-react'
 import {
   getExpedienteCliente,
@@ -1087,16 +1088,41 @@ function TabProductos({
                     {fmtMoney(p.monto)}
                   </span>
                 </div>
-                <div className="text-[11.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
-                  {p.saleId ? (
-                    <>
-                      <span className="font-semibold" style={{ color: 'var(--ink-700)' }}>
-                        Venta #{p.saleId}
-                      </span>
-                      <span className="mx-1.5">·</span>
-                    </>
-                  ) : null}
-                  Comprado el {fmtDate(p.fecha)}
+                <div className="flex items-center justify-between gap-2 flex-wrap text-[11.5px] mt-0.5">
+                  <div style={{ color: 'var(--ink-500)' }}>
+                    {p.saleId ? (
+                      <>
+                        <span className="font-semibold" style={{ color: 'var(--ink-700)' }}>
+                          Venta #{p.saleId}
+                        </span>
+                        <span className="mx-1.5">·</span>
+                      </>
+                    ) : null}
+                    Comprado el {fmtDate(p.fecha)}
+                  </div>
+                  {p.discountCode && (
+                    <span
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold"
+                      style={{
+                        background: 'var(--violet-soft)',
+                        color: 'var(--violet-ink)',
+                        border: '1px solid rgba(115, 57, 253, 0.25)',
+                      }}
+                      title={`Código de promoción aplicado: ${p.discountCode}`}
+                    >
+                      <Tag size={10} />
+                      <span style={MONO}>{p.discountCode}</span>
+                      {p.discountPercent != null && p.discountPercent > 0 && (
+                        <span>· {p.discountPercent}%</span>
+                      )}
+                      {p.discountTypeId === 2 && p.declarationsCount != null && p.declarationsCount > 0 && (
+                        <span>· +{p.declarationsCount} reg</span>
+                      )}
+                      {p.discountTypeId === 3 && p.discountAmount != null && p.discountAmount > 0 && (
+                        <span>· -{fmtMoney(p.discountAmount)}</span>
+                      )}
+                    </span>
+                  )}
                 </div>
                 <div className="flex gap-3 mt-2 text-[12px]" style={{ color: 'var(--ink-700)' }}>
                   <span>Futuras: <b>{p.futuras}</b></span>
