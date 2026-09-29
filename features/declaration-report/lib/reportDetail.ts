@@ -76,12 +76,11 @@ const HIDDEN = new Set([
 /** Objetos que no merecen bloque propio: sus escalares suben al bloque padre. */
 const INLINE_OBJECTS = new Set(['isr', 'optioniva'])
 
-// Objetos del JSON que NO van al reporte del cliente: `ivadefinitiva` es el
-// desglose interno del contador (CalculosTab lo pinta en el backoffice); sin
-// esta exclusión, buildDetailBlocks lo convertía en un bloque "Iva definitiva"
-// en el reporte del cliente y en la vista previa de Enviar Predeclaración.
-// OJO: no va en INLINE_OBJECTS — eso aplanaría sus filas dentro del bloque IVA
-// en vez de ocultarlas (collectEntries línea ~223).
+// Objetos del JSON que NO van crudos al reporte del cliente: sin esta exclusión,
+// buildDetailBlocks convertía `ivadefinitiva` en un bloque "Iva definitiva" con
+// llaves sin etiquetar. En pago definitivo se pinta aparte, con los renglones del
+// formato (buildIvaDefinitivaBlocks); en provisional no se muestra.
+// OJO: no va en INLINE_OBJECTS — eso aplanaría sus filas dentro del bloque IVA.
 const EXCLUDED_OBJECTS = new Set(['ivadefinitiva'])
 
 const SERVICE_TITLES: Record<string, string> = {
@@ -306,6 +305,95 @@ function ivaTag(source: Record<string, unknown>): string | null {
 }
 
 /**
+ * true si el IVA del periodo es de pago definitivo (625). El back injerta `ivaModality`
+ * e `ivaDefinitiva` dentro del `RawIvaJson`; sin `ivaModality` (declaraciones viejas) es
+ * provisional.
+ */
+export function isIvaDefinitiva(ivaDetail: unknown): boolean {
+  if (!isPlainObject(ivaDetail)) return false
+  const modality = ivaDetail.ivaModality
+  return typeof modality === 'string' && modality.trim().toLowerCase() === 'definitiva'
+    && isPlainObject(ivaDetail.ivaDefinitiva)
+}
+
+/**
+ * Renglones del IVA definitivo por servicio, con los nombres del formato del área contable
+ * ("Calculo 625 modalidad definitiva", sección IVA). Misma lista que la pestaña Cálculos del
+ * contador (calculos-tab.tsx).
+ */
+const IVA_DEFINITIVA_SERVICES: {
+  key: string
+  title: string
+  incomes: [string, string][]
+  withMonthTotal: boolean
+}[] = [
+  {
+    key: 'serviceGround',
+    title: SERVICE_TITLES.serviceground,
+    incomes: [
+      ['totalPassengersForUsers', 'Ingresos obtenidos directamente del usuario por servicios terrestres de pasajeros'],
+      ['totalDealerForUsers', 'Ingresos obtenidos directamente del usuario por entrega de bienes'],
+    ],
+    withMonthTotal: true,
+  },
+  {
+    key: 'serviceLodging',
+    title: SERVICE_TITLES.servicelodging,
+    incomes: [['totalForUsers', 'Ingresos obtenidos directamente del usuario']],
+    withMonthTotal: false,
+  },
+  {
+    key: 'serviceAlienation',
+    title: SERVICE_TITLES.servicealienation,
+    incomes: [
+      ['totalAlienationForUsers', 'Ingresos obtenidos directamente del usuario por enajenación de bienes'],
+      ['totalLendingForUsers', 'Ingresos obtenidos directamente del usuario por prestación de servicios'],
+    ],
+    withMonthTotal: true,
+  },
+]
+
+function money(label: string, value: unknown, emphasis: ReportRowEmphasis = 'normal'): ReportDetailRow {
+  return { label, amount: asAmount(value) ?? 0, format: 'money', emphasis, tone: 'neutral' }
+}
+
+/**
+ * IVA de pago definitivo: sin acreditamiento, retenciones ni saldo a favor. Un bloque con el
+ * total a pagar y uno por cada servicio con importe. Reemplaza al bloque provisional, que en
+ * definitiva no es lo que se presenta.
+ */
+function buildIvaDefinitivaBlocks(definitiva: Record<string, unknown>): ReportDetailBlock[] {
+  const blocks: ReportDetailBlock[] = [
+    {
+      key: 'iva',
+      title: 'IVA',
+      tag: 'Pago definitivo',
+      rows: [money('IVA a cargo', definitiva.totalIva, 'total')],
+    },
+  ]
+
+  for (const service of IVA_DEFINITIVA_SERVICES) {
+    const source = definitiva[service.key]
+    if (!isPlainObject(source)) continue
+
+    const rows: ReportDetailRow[] = service.incomes.map(([key, label]) => money(label, source[key]))
+    if (service.withMonthTotal) rows.push(money('Ingresos totales del mes', source.totalForUsers, 'sub'))
+    const optionIva = isPlainObject(source.optionIva) ? source.optionIva : {}
+    rows.push({ label: 'Tasa %', amount: asAmount(optionIva.porcentage) ?? 0, format: 'percent', emphasis: 'normal', tone: 'neutral' })
+    rows.push(money('IVA a cargo', source.totalIva, 'total'))
+
+    // Igual que en provisional: el servicio sin movimiento no aporta nada al desglose.
+    const ingresos = asAmount(source.totalForUsers) ?? 0
+    const iva = asAmount(source.totalIva) ?? 0
+    if (ingresos === 0 && iva === 0) continue
+
+    blocks.push({ key: `iva.${service.key.toLowerCase()}`, title: service.title, tag: 'IVA', rows })
+  }
+
+  return blocks
+}
+
+/**
  * Convierte `ivaDetail`/`isrDetail` en bloques pintables. Devuelve `[]` cuando el
  * régimen no maneja ese impuesto o el JSON venía corrupto (el backend lo degrada
  * a null sin tumbar el reporte).
@@ -315,6 +403,10 @@ export function buildDetailBlocks(
   kind: 'iva' | 'isr',
 ): ReportDetailBlock[] {
   if (!isPlainObject(detail)) return []
+
+  if (kind === 'iva' && isIvaDefinitiva(detail)) {
+    return buildIvaDefinitivaBlocks(detail.ivaDefinitiva as Record<string, unknown>)
+  }
 
   const blocks: ReportDetailBlock[] = []
   const rootRows = buildRows(detail)

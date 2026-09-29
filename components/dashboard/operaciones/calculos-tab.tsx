@@ -56,13 +56,18 @@ const TOTALS_ROWS: RowSpec[] = [
   { id: 'cargo', label: 'ISR a cargo', keys: ['totalIsr'] },
 ]
 
-/** Filas por servicio del IVA definitivo (625, pago definitivo): sin acreditamiento. */
-const IVA_DEFINITIVA_TOTAL_ROWS: RowSpec[] = [
-  { id: 'def-usr', label: 'Ingresos totales del servicio', keys: ['totalForUsers'] },
-  { id: 'def-tasa', label: 'Tasa', keys: ['optionIva.porcentage'], kind: 'percent' },
-  { id: 'def-serv', label: 'Total del servicio', keys: ['totalService'] },
-  { id: 'def-iva', label: 'IVA a cargo', keys: ['totalIva'] },
+/**
+ * Cierre de cada servicio del IVA definitivo (625, pago definitivo): sin acreditamiento. Filas,
+ * nombres y orden son los del formato del área contable ("Calculo 625 modalidad definitiva",
+ * hoja "modalidad definitiva", sección IVA). No se agregan renglones que el formato no tiene:
+ * "Total del servicio" (`totalService`) repetía los ingresos, y no hay totales del periodo.
+ */
+const IVA_DEFINITIVA_CLOSING_ROWS: RowSpec[] = [
+  { id: 'def-tasa', label: 'Tasa %', keys: ['optionIva.porcentage'], kind: 'percent' },
+  { id: 'def-iva', label: 'IVA a cargo', keys: ['totalIva'], total: true },
 ]
+
+const DEF_TOTAL_MES: RowSpec = { id: 'def-tot', label: 'Ingresos totales del mes', keys: ['totalForUsers'] }
 
 // Mismos tres servicios y mismo orden que ISR_TABS, para que el índice de
 // pestaña (isrTab) sirva igual en ambas tarjetas.
@@ -71,32 +76,31 @@ const IVA_DEFINITIVA_TABS: IsrTab[] = [
     label: 'Servicio terrestre',
     section: ['serviceGround'],
     rows: [
-      { id: 'def-ter-pas', label: 'Ingresos servicio de pasajeros', keys: ['totalPassengersForUsers'] },
-      { id: 'def-ter-bie', label: 'Ingresos entrega de bienes', keys: ['totalDealerForUsers'] },
-      ...IVA_DEFINITIVA_TOTAL_ROWS.map((r) => ({ ...r, id: `ter-${r.id}` })),
+      { id: 'def-ter-pas', label: 'Ingresos obtenidos directamente del usuario por servicios terrestres de pasajeros', keys: ['totalPassengersForUsers'] },
+      { id: 'def-ter-bie', label: 'Ingresos obtenidos directamente del usuario por entrega de bienes', keys: ['totalDealerForUsers'] },
+      { ...DEF_TOTAL_MES, id: 'ter-def-tot' },
+      ...IVA_DEFINITIVA_CLOSING_ROWS.map((r) => ({ ...r, id: `ter-${r.id}` })),
     ],
   },
   {
     label: 'Servicio hospedaje',
     section: ['serviceLodging'],
-    rows: IVA_DEFINITIVA_TOTAL_ROWS.map((r) => ({ ...r, id: `hos-${r.id}` })),
+    // El formato no tiene renglón de total para hospedaje: un solo concepto de ingreso.
+    rows: [
+      { id: 'def-hos-usr', label: 'Ingresos obtenidos directamente del usuario', keys: ['totalForUsers'] },
+      ...IVA_DEFINITIVA_CLOSING_ROWS.map((r) => ({ ...r, id: `hos-${r.id}` })),
+    ],
   },
   {
     label: 'Enajenación y prestación servicios',
     section: ['serviceAlienation'],
     rows: [
-      { id: 'def-ena-ena', label: 'Ingresos por enajenación', keys: ['totalAlienationForUsers'] },
-      { id: 'def-ena-ser', label: 'Ingresos por prestación de servicios', keys: ['totalLendingForUsers'] },
-      ...IVA_DEFINITIVA_TOTAL_ROWS.map((r) => ({ ...r, id: `ena-${r.id}` })),
+      { id: 'def-ena-ena', label: 'Ingresos obtenidos directamente del usuario por enajenación de bienes', keys: ['totalAlienationForUsers'] },
+      { id: 'def-ena-ser', label: 'Ingresos obtenidos directamente del usuario por prestación de servicios', keys: ['totalLendingForUsers'] },
+      { ...DEF_TOTAL_MES, id: 'ena-def-tot' },
+      ...IVA_DEFINITIVA_CLOSING_ROWS.map((r) => ({ ...r, id: `ena-${r.id}` })),
     ],
   },
-]
-
-// Ingresos totales del IVA definitivo a nivel raíz (suma de los tres servicios).
-const IVA_DEFINITIVA_GRAND_TOTAL_ROWS: RowSpec[] = [
-  { id: 'def-tot-usr', label: 'Ingresos totales del periodo', keys: ['totalForUsers'] },
-  { id: 'def-tot-serv', label: 'Total de servicios', keys: ['totalService'] },
-  { id: 'def-tot-iva', label: 'IVA definitivo a cargo', keys: ['totalIva'], total: true },
 ]
 
 const ISR_TABS: IsrTab[] = [
@@ -482,9 +486,6 @@ export function CalculosTab({
             <PanelHeader title="IVA" subtitle="Pago definitivo" />
             <ServiceTabBar tabs={IVA_DEFINITIVA_TABS} active={isrTab} onChange={setIsrTab} />
             <RowList rows={activeIvaDefinitiva.rows} data={ivaDefinitivaSection} drafts={drafts} setDraft={setDraft} readOnly />
-            <div style={{ borderTop: '1px solid var(--border)' }}>
-              <RowList rows={IVA_DEFINITIVA_GRAND_TOTAL_ROWS} data={ivaDefinitiva} drafts={drafts} setDraft={setDraft} readOnly />
-            </div>
           </Card>
         ) : (
           <Card>

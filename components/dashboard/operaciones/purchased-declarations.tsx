@@ -157,6 +157,24 @@ function periodYearOptions(): number[] {
   return Array.from({ length: 8 }, (_, i) => y + 1 - i)
 }
 
+/**
+ * Día del mes M desde el que el periodo M se puede trabajar (el SAT da hasta el 17-18 del mes
+ * siguiente para el anterior). El back oculta de estos listados los periodos que aún no llegan
+ * (`SaleDeclarationHelpers.EnabledPeriodPredicate`, configurable en `DeclarationPeriods:EnableDay`);
+ * aquí solo se usa para explicar por qué un mes elegido a mano sale vacío.
+ */
+const PERIOD_ENABLE_DAY = 18
+
+/** Aviso si (año, mes) todavía no se habilita; null si ya se puede trabajar. En hora de México. */
+function periodNotEnabledNotice(year: number, month: number): string | null {
+  const hoyMx = new Date(Date.now() - 6 * 60 * 60 * 1000)
+  const y = hoyMx.getUTCFullYear()
+  const m = hoyMx.getUTCMonth() + 1
+  const [ultY, ultM] = hoyMx.getUTCDate() >= PERIOD_ENABLE_DAY ? [y, m] : m === 1 ? [y - 1, 12] : [y, m - 1]
+  if (year < ultY || (year === ultY && month <= ultM)) return null
+  return `Este periodo se habilita el ${PERIOD_ENABLE_DAY} de ${MESES[month - 1].toLowerCase()} de ${year}. Hasta entonces no se muestra ni se puede trabajar.`
+}
+
 interface PeriodFilter {
   periodMode: PeriodMode
   periodYear?: number
@@ -452,6 +470,12 @@ function TaxpayerGroups({
                   ))}
                 </select>
               </>
+            )}
+
+            {periodMode === 'month' && periodYear != null && periodMonth != null && periodNotEnabledNotice(periodYear, periodMonth) && (
+              <span className="text-[12px] font-semibold" style={{ color: 'var(--amber)' }}>
+                {periodNotEnabledNotice(periodYear, periodMonth)}
+              </span>
             )}
 
             <select

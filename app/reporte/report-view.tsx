@@ -23,6 +23,7 @@ import {
   formatMoney,
   formatPercent,
   formatSignedMoney,
+  isIvaDefinitiva,
   toNumber,
 } from '@/features/declaration-report/lib/reportDetail'
 import {
@@ -98,7 +99,9 @@ export function ReportView({
   const isrCargo = toNumber(report.isrCargo) ?? 0
   const ivaCargo = toNumber(report.ivaCargo) ?? 0
   const total = toNumber(report.totalDeclaration) ?? isrCargo + ivaCargo
-  const ivaFavor = toNumber(report.ivaFavor) ?? 0
+  // En pago definitivo no hay saldo a favor ni retención de IVA que acreditar: no se pintan.
+  const ivaDefinitiva = isIvaDefinitiva(report.ivaDetail)
+  const ivaFavor = ivaDefinitiva ? 0 : toNumber(report.ivaFavor) ?? 0
   const canReturn = report.canAuthorize
 
   async function handleAuthorize() {
@@ -261,7 +264,7 @@ export function ReportView({
             {toNumber(report.isrRetenido) ? (
               <IdRow label="ISR retenido" value={formatMoney(report.isrRetenido)} />
             ) : null}
-            {toNumber(report.ivaRetenido) ? (
+            {!ivaDefinitiva && toNumber(report.ivaRetenido) ? (
               <IdRow label="IVA retenido" value={formatMoney(report.ivaRetenido)} />
             ) : null}
             {toNumber(report.personalDeductions) ? (

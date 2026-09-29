@@ -11,6 +11,7 @@ import {
   formatMoney,
   formatPercent,
   formatSignedMoney,
+  isIvaDefinitiva,
   toNumber,
 } from '@/features/declaration-report/lib/reportDetail'
 import {
@@ -68,7 +69,9 @@ export function DeclarationReportPanel({
   const isrCargo = toNumber(report.isrCargo) ?? 0
   const ivaCargo = toNumber(report.ivaCargo) ?? 0
   const total = toNumber(report.totalDeclaration) ?? isrCargo + ivaCargo
-  const ivaFavor = toNumber(report.ivaFavor) ?? 0
+  // En pago definitivo no hay saldo a favor ni retención de IVA que acreditar: no se pintan.
+  const ivaDefinitiva = isIvaDefinitiva(report.ivaDetail)
+  const ivaFavor = ivaDefinitiva ? 0 : toNumber(report.ivaFavor) ?? 0
 
   async function authorize() {
     setError(null)
@@ -154,7 +157,7 @@ export function DeclarationReportPanel({
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Dato label="Ingresos del periodo" value={formatMoney(report.income)} />
         <Dato label="ISR retenido" value={formatMoney(report.isrRetenido)} />
-        <Dato label="IVA retenido" value={formatMoney(report.ivaRetenido)} />
+        {!ivaDefinitiva && <Dato label="IVA retenido" value={formatMoney(report.ivaRetenido)} />}
         <Dato label="Régimen" value={report.regimeSatCode ?? '—'} />
       </div>
 
