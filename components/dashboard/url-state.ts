@@ -20,9 +20,8 @@ import { useCallback, useMemo, useSyncExternalStore } from 'react'
  *            "exact" (upcomingExact), "upcoming" (onlyUpcoming, `>=`), "month"
  *            (periodYear+periodMonth) o ausente/"todos" = sin filtro de periodo
  *   pyear / pmonth  año y mes cuando pmode="month"
- *   estatus  filtro de estatus (statusId) de la lista del contador: ausente =
- *            default por pantalla (15 en Regularizaciones, "todos" en las demás),
- *            "todos" = sin filtro, cualquier otro valor = ese id de la whitelist
+ *   estatus  filtro de estatus (statusId) de la lista del contador: ausente/"todos" =
+ *            todos los estatus por default, cualquier otro valor = ese id de la whitelist
  */
 
 const URL_EVENT = 'dashboard:urlchange'

@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowLeft, ArrowRight, Download, Loader2, Search } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Download, Loader2, Lock, Search } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getDeclarationStatuses } from '@/features/declarations/actions/getDeclarationStatuses.action'
 import { getDeclarationTaxpayers } from '@/features/declarations/actions/getDeclarationTaxpayers.action'
@@ -165,14 +165,25 @@ function periodYearOptions(): number[] {
  */
 const PERIOD_ENABLE_DAY = 18
 
-/** Aviso si (año, mes) todavía no se habilita; null si ya se puede trabajar. En hora de México. */
-function periodNotEnabledNotice(year: number, month: number): string | null {
+/** Mapea periodValueId (101-112 mensual, 201-206 bimestral) o mes directo (1-12) a mes de cierre (1-12). */
+function declarationClosingMonth(periodOrMonth: number | null | undefined): number | null {
+  if (periodOrMonth == null) return null
+  if (periodOrMonth >= 1 && periodOrMonth <= 12) return periodOrMonth
+  if (periodOrMonth >= 101 && periodOrMonth <= 112) return periodOrMonth - 100
+  if (periodOrMonth >= 201 && periodOrMonth <= 206) return (periodOrMonth - 200) * 2
+  return null
+}
+
+/** Aviso si (año, mes o periodo) todavía no se habilita; null si ya se puede trabajar. En hora de México. */
+function periodNotEnabledNotice(year: number, periodOrMonth: number | null | undefined): string | null {
+  const month = declarationClosingMonth(periodOrMonth)
+  if (month == null) return null
   const hoyMx = new Date(Date.now() - 6 * 60 * 60 * 1000)
   const y = hoyMx.getUTCFullYear()
   const m = hoyMx.getUTCMonth() + 1
   const [ultY, ultM] = hoyMx.getUTCDate() >= PERIOD_ENABLE_DAY ? [y, m] : m === 1 ? [y - 1, 12] : [y, m - 1]
   if (year < ultY || (year === ultY && month <= ultM)) return null
-  return `Este periodo se habilita el ${PERIOD_ENABLE_DAY} de ${MESES[month - 1].toLowerCase()} de ${year}. Hasta entonces no se muestra ni se puede trabajar.`
+  return `Este periodo se habilita el ${PERIOD_ENABLE_DAY} de ${MESES[month - 1].toLowerCase()} de ${year}.`
 }
 
 interface PeriodFilter {
@@ -209,11 +220,11 @@ function periodFilterFromParams(mode: Mode, params: URLSearchParams): PeriodFilt
  */
 export const STATUS_ID_WHITELIST = [15, 17, 11, 9, 10, 3, 14, 4, 7, 8] as const
 
-/** D4: Regularizaciones arranca con "En proceso" preseleccionado; las otras dos en "Todos". */
+/** Todas las pantallas arrancan con "Todos los estatus" por default (statusId: undefined). */
 const DEFAULT_STATUS_ID: Record<Mode, number | undefined> = {
   all: undefined,
   future: undefined,
-  regularization: IN_PROCESS_STATUS_ID,
+  regularization: undefined,
 }
 
 /** Texto antes de ":" para el `<select>`; la descripción completa si no hay ":". El título lleva la completa. */
@@ -916,56 +927,73 @@ function PurchasedTable({
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((d) => (
-                    <tr key={d.declarationId} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td className="px-5 py-4 font-semibold" style={{ color: 'var(--ink-900)' }}>{d.fiscalYear}</td>
-                      <td className="px-5 py-4" style={{ color: 'var(--ink-700)' }}>{periodLabel(d.periodValueId)}</td>
-                      <td className="px-5 py-4" style={{ color: 'var(--ink-700)' }}>{d.taxRegimeName ?? '—'}</td>
-                      {mode === 'all' && (
+                  {rows.map((d) => {
+                    const notice = periodNotEnabledNotice(d.fiscalYear, d.periodValueId)
+                    const isBlocked = notice != null
+
+                    return (
+                      <tr key={d.declarationId} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td className="px-5 py-4 font-semibold" style={{ color: 'var(--ink-900)' }}>{d.fiscalYear}</td>
+                        <td className="px-5 py-4" style={{ color: 'var(--ink-700)' }}>{periodLabel(d.periodValueId)}</td>
+                        <td className="px-5 py-4" style={{ color: 'var(--ink-700)' }}>{d.taxRegimeName ?? '—'}</td>
+                        {mode === 'all' && (
+                          <td className="px-5 py-4">
+                            {d.declarationKind != null && TIPO_LABEL[d.declarationKind] ? (
+                              <span
+                                className="inline-flex px-2.5 py-1 rounded-md text-[11px] font-bold whitespace-nowrap"
+                                style={
+                                  d.declarationKind === 2
+                                    ? { background: 'var(--sky-soft)', color: 'var(--sky)' }
+                                    : { background: 'var(--violet-soft)', color: 'var(--violet)' }
+                                }
+                              >
+                                {TIPO_LABEL[d.declarationKind]}
+                              </span>
+                            ) : (
+                              <span style={{ color: 'var(--ink-500)' }}>—</span>
+                            )}
+                          </td>
+                        )}
                         <td className="px-5 py-4">
-                          {d.declarationKind != null && TIPO_LABEL[d.declarationKind] ? (
+                          {d.statusCode ? (
+                            (() => {
+                              const badge = declarationStatusBadge(d.statusCode as string, d.statusLabel ?? d.statusCode as string)
+                              return <Badge kind={badge.kind}>{badge.label}</Badge>
+                            })()
+                          ) : (
                             <span
                               className="inline-flex px-2.5 py-1 rounded-md text-[11px] font-bold whitespace-nowrap"
-                              style={
-                                d.declarationKind === 2
-                                  ? { background: 'var(--sky-soft)', color: 'var(--sky)' }
-                                  : { background: 'var(--violet-soft)', color: 'var(--violet)' }
-                              }
+                              style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
                             >
-                              {TIPO_LABEL[d.declarationKind]}
+                              {d.statusLabel ?? 'En proceso'}
                             </span>
-                          ) : (
-                            <span style={{ color: 'var(--ink-500)' }}>—</span>
                           )}
                         </td>
-                      )}
-                      <td className="px-5 py-4">
-                        {d.statusCode ? (
-                          (() => {
-                            const badge = declarationStatusBadge(d.statusCode as string, d.statusLabel ?? d.statusCode as string)
-                            return <Badge kind={badge.kind}>{badge.label}</Badge>
-                          })()
-                        ) : (
-                          <span
-                            className="inline-flex px-2.5 py-1 rounded-md text-[11px] font-bold whitespace-nowrap"
-                            style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
-                          >
-                            {d.statusLabel ?? 'En proceso'}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-5 py-4 text-right">
-                        <a
-                          href={buildUrl({ decl: d.declarationId }, pathname, params.toString())}
-                          onClick={(e) => handlePlainLeftClick(e, () => onOpen(d))}
-                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12.5px] font-bold whitespace-nowrap"
-                          style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
-                        >
-                          Abrir <ArrowRight size={14} />
-                        </a>
-                      </td>
-                    </tr>
-                  ))}
+                        <td className="px-5 py-4 text-right">
+                          {isBlocked ? (
+                            <button
+                              type="button"
+                              disabled
+                              title={notice}
+                              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12.5px] font-bold whitespace-nowrap cursor-not-allowed opacity-60 transition"
+                              style={{ background: 'var(--card)', border: '1px dashed var(--border-strong)', color: 'var(--ink-500)' }}
+                            >
+                              <Lock size={13} /> Bloqueado
+                            </button>
+                          ) : (
+                            <a
+                              href={buildUrl({ decl: d.declarationId }, pathname, params.toString())}
+                              onClick={(e) => handlePlainLeftClick(e, () => onOpen(d))}
+                              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12.5px] font-bold whitespace-nowrap transition hover:opacity-90"
+                              style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+                            >
+                              Abrir <ArrowRight size={14} />
+                            </a>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
