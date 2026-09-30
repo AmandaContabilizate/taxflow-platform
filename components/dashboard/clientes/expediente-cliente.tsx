@@ -1007,13 +1007,11 @@ function TabProductos({
       })
   }, [periodos, selectedRegime])
 
-  // Cuántos periodos visibles cubre la venta seleccionada. Si 0 (complementarias,
-  // tramites, o venta de otro regimen no mostrado), no atenuamos: mostramos aviso.
+  // Cuántos periodos visibles cubre la venta seleccionada.
   const coberturaVisible =
     selectedSaleItemId === null
       ? null
       : displayCards.filter((c) => c.saleItemIds.includes(selectedSaleItemId)).length
-  const resaltadoActivo = coberturaVisible !== null && coberturaVisible > 0
 
   return (
     <div className="flex flex-col gap-4">
@@ -1156,7 +1154,7 @@ function TabProductos({
                 {(() => {
                   const prod = data.productos.find((p) => p.saleItemId === selectedSaleItemId)
                   const cupo = prod ? prod.futuras + prod.regularizaciones : 0
-                  if (resaltadoActivo) {
+                  if (coberturaVisible !== null && coberturaVisible > 0) {
                     return (
                       <span
                         className="text-[11.5px]"
@@ -1220,9 +1218,9 @@ function TabProductos({
 
               const cardBorder = card.isMixed ? '1px solid var(--border-strong)' : '1px solid var(--border)'
 
-              // Producto seleccionado: los periodos que NO cubre esa venta se atenúan
-              // (solo si la venta cubre al menos un periodo visible).
-              const dimmed = resaltadoActivo && !card.saleItemIds.includes(selectedSaleItemId as number)
+              // Producto seleccionado: los periodos que NO cubre esa venta se atenúan.
+              // Si la venta no tiene declaraciones vinculadas, todas las tarjetas quedan tenues.
+              const dimmed = selectedSaleItemId !== null && !card.saleItemIds.includes(selectedSaleItemId as number)
 
               return (
                 <div
