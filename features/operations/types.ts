@@ -656,3 +656,24 @@ export interface LigaPago {
 export interface LigasPagoPage extends Paged<LigaPago> {
   porEstado: Record<string, number>;
 }
+
+/** Item de `/sales/coverage-renewals` (Declarations.vw_RenovacionesCobertura). */
+export interface RenovacionCobertura {
+  rfc: string;
+  cliente: string;
+  correo: string;
+  telefono: string;
+  regimen: string;
+  regimenNombre: string;
+  taxpayerId: number;
+  taxRegimeId: number;
+  ultimoMesCubierto: number;
+  finIdx: number;
+  mesesParaVencer: number;
+  estado: string;
+  futurasPendientes: number;
+  ultimaCompra: string | null;
+  anio: number;
+  mes: number;
+  periodoTexto: string;
+}

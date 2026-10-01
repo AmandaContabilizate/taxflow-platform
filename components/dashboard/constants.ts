@@ -563,6 +563,17 @@ export const MODULE_CLAIMS: Record<string, string[]> = {
     'Sistema.ManageNotificacionesInternas',
     'Sistema.ReadConfiguracionSistema',
   ],
+  // Módulo de Reportes Ejecutivos: abre con claims de gerencia o reportería general
+  'reportes-ejecutivos': [
+    'Backoffice.ViewDashboard',
+    'Dashboard.GerenciaComercial',
+    'Dashboard.GerenciaContable',
+    'GerenciaComercial.ReadTeamCommissions',
+    'GerenciaContable.ReadEquipoOperaciones',
+    'Contador.ReadDeclaraciones',
+    'Comercial.ReadRenovaciones',
+    'Reportes.ReadEjecutivos',
+  ],
 }
 
 /**

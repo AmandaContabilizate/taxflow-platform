@@ -54,6 +54,7 @@ import {
   RegularizacionesScreen,
   RenovacionesScreen,
   RolesScreen,
+  ReportesEjecutivosScreen,
   TipDetailScreen,
   TramitesScreen,
   TramitesAdicionalesScreen,
@@ -437,6 +438,9 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
     }
     if (screen === 'centro-notificaciones') {
       return <NotificationCenterPage />;
+    }
+    if (screen === 'reportes-ejecutivos') {
+      return <ReportesEjecutivosScreen permissions={permissions} />;
     }
     const [title, hint] = TITLES[screen] ?? ['Próximamente', ''];
     return (

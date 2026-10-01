@@ -384,6 +384,34 @@ export const API_ROUTES = {
     ) =>
       `/upcoming-renewals?skip=${skip}&take=${take}&dias=${dias}${tipo ? `&tipo=${tipo}` : ""}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""
       }${incluirVencidas ? "&incluirVencidas=true" : ""}`,
+    // GET sales_reports — reporte de cobertura de renovaciones por régimen (vista Declarations.vw_RenovacionesCobertura).
+    COVERAGE_RENEWALS: (
+      margen?: number,
+      regimen?: string,
+      search?: string,
+      skip = 0,
+      take = 1000,
+    ) => {
+      const qs = new URLSearchParams()
+      if (margen !== undefined && margen !== null) qs.set("margen", String(margen))
+      if (regimen) qs.set("regimen", regimen)
+      if (search) qs.set("search", search)
+      qs.set("skip", String(skip))
+      qs.set("take", String(take))
+      return `/coverage-renewals?${qs.toString()}`
+    },
+    // GET sales_reports — exportar reporte de cobertura de renovaciones en Excel .xlsx
+    EXPORT_COVERAGE_RENEWALS: (
+      margen?: number,
+      regimen?: string,
+      search?: string,
+    ) => {
+      const qs = new URLSearchParams()
+      if (margen !== undefined && margen !== null) qs.set("margen", String(margen))
+      if (regimen) qs.set("regimen", regimen)
+      if (search) qs.set("search", search)
+      return `/export-coverage-renewals?${qs.toString()}`
+    },
   },
   TAXPAYERS_OPS: {
     // regimeId es el Id interno de Users.TaxRegimes (p.ej. 18), NO el código SAT (625).
