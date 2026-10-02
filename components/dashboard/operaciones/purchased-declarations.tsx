@@ -534,7 +534,7 @@ function TaxpayerGroups({
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Contribuyente', 'RFC', 'CIEC', 'Correo', 'Compradas', 'Último ejercicio', 'Régimen', 'Contador', ''].map((h) => (
+                    {['Contribuyente', 'RFC', 'CIEC', 'Correo', 'Cliente desde', 'Compradas', 'Futuras', 'Regularizaciones', 'Último ejercicio', 'Régimen', 'Contador', ''].map((h) => (
                       <th
                         key={h}
                         className="px-5 py-3 text-left font-extrabold whitespace-nowrap"
@@ -584,6 +584,11 @@ function TaxpayerGroups({
                       <td className="px-5 py-4">
                         <span className="text-sm" style={{ color: 'var(--ink-700)' }}>{g.email || '—'}</span>
                       </td>
+                      <td className="px-5 py-4 whitespace-nowrap text-[13px] tabular-nums" style={{ color: 'var(--ink-700)' }}>
+                        {g.clienteDesde
+                          ? new Date(g.clienteDesde).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
+                          : <span style={{ color: 'var(--ink-500)' }}>—</span>}
+                      </td>
                       <td className="px-5 py-4">
                         <span
                           className="inline-flex items-center px-2.5 py-1 rounded-full text-[11.5px] font-bold"
@@ -591,6 +596,12 @@ function TaxpayerGroups({
                         >
                           {g.declarationCount} {g.declarationCount === 1 ? copy.noun : copy.nounPlural}
                         </span>
+                      </td>
+                      <td className="px-5 py-4 text-[13px] font-semibold tabular-nums" style={{ color: (g.futureCount ?? 0) > 0 ? 'var(--ink-900)' : 'var(--ink-400)' }}>
+                        {g.futureCount ?? 0}
+                      </td>
+                      <td className="px-5 py-4 text-[13px] font-semibold tabular-nums" style={{ color: (g.regularizationCount ?? 0) > 0 ? 'var(--ink-900)' : 'var(--ink-400)' }}>
+                        {g.regularizationCount ?? 0}
                       </td>
                       <td className="px-5 py-4" style={{ color: 'var(--ink-500)' }}>
                         {g.lastFiscalYear ?? '—'}

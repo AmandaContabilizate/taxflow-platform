@@ -487,6 +487,12 @@ export interface TaxpayerGroup {
   legalName: string | null
   email: string | null
   declarationCount: number
+  /** De declarationCount, cuántas se compraron a futuro. */
+  futureCount?: number
+  /** De declarationCount, cuántas se compraron como regularización. */
+  regularizationCount?: number
+  /** Fecha de su primera venta pagada (ISO). Null si no tiene ninguna pagada. */
+  clienteDesde?: string | null
   lastFiscalYear: number | null
   /**
    * Estado de la CIEC del RFC (Users.Taxpayers.PasswordState): 0 sin verificar,
