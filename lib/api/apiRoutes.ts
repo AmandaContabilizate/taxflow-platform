@@ -528,6 +528,9 @@ export const API_ROUTES = {
         periodMonth: undefined,
       })}`,
     UPLOAD_DOCUMENT: (declarationId: number) => `/${declarationId}/upload-document`,
+    // Presentación autorizada (GO, claim Operaciones.ForcePostDeclaration): encola en su cola de
+    // posteo aunque no cumpla pago/descargas/historial. El autorizador es el usuario del token.
+    FORCE_POST: (declarationId: number) => `/${declarationId}/force-post`,
     DOCUMENTS: (declarationId: number) => `/${declarationId}/documents`,
     // GET declaration (Procedures). Policy Contador.ReadDeclaraciones. Responde el
     // .xlsx binario; sin resultados el back manda 400 con errorCode EXPORT_NO_RESULTS.

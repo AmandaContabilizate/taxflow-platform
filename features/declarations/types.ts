@@ -537,4 +537,31 @@ export interface TaxpayerDeclarationItem {
   /** 1 = regularización, 2 = plan a futuro. */
   declarationKind?: number
   assignedToUser: string | null
+  /** Razón social del contribuyente (las listas sin `rfc` mezclan contribuyentes). */
+  legalName?: string | null
+  /** Semáforo de posteo; sólo viene en estatus 11 (PorPresentar). */
+  postingReadiness?: PostingReadiness | null
+}
+
+/**
+ * Por qué el robot no presentará una declaración en PorPresentar (11). Lo calcula el back con la
+ * MISMA validación que corre la cola de posteo.
+ * - `blocked` (rojo): no se puede presentar ni autorizándola (sin CIEC, sin cálculo, régimen sin robot).
+ * - `warning` (amarillo): el robot no la toma, pero el GO puede autorizarla (sin pago, descargas incompletas…).
+ * - `ok`: el robot la tomará en su siguiente corrida.
+ */
+export interface PostingReadiness {
+  level: 'ok' | 'warning' | 'blocked'
+  blockers: string[]
+  warnings: string[]
+}
+
+/** Respuesta de `POST /Declaration/{id}/force-post`. */
+export interface ForcePostResult {
+  declarationId: number
+  /** Cola a la que fue: posting-625 / posting-626 / posting-complementary. */
+  task: string
+  /** false = ya había un intento vivo para esta declaración; no se duplicó. */
+  enqueued: boolean
+  taskAttemptId: number | null
 }

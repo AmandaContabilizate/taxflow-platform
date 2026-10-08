@@ -49,6 +49,8 @@ export type Screen =
   | 'reportes-ejecutivos'
   | 'operaciones'
   | 'declaraciones-rechazadas'
+  // Concentrado de PorPresentar (11) con semáforo de posteo y "Enviar" (GO)
+  | 'declaraciones-por-presentar'
   | 'declaraciones-futuras'
   // Ventas pagadas sin activar (spec-ventas-por-activar)
   | 'ventas-por-activar'

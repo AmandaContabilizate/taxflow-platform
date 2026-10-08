@@ -24,6 +24,7 @@ import { buildUrl, numParam, useUrlState } from '../url-state'
 import type { MouseEvent as ReactMouseEvent } from 'react'
 import { AccountantCell } from './accountant-cell'
 import { DeclarationDetail } from './declaration-detail'
+import { ForcePostButton, PostingReadinessIcon } from './posting-readiness'
 import { ExportReportModal, type StatusOption } from './export-report-modal'
 
 export const MESES = [
@@ -47,7 +48,7 @@ const CIEC_BADGE: Record<number, { label: string; kind: BadgeKind }> = {
 }
 
 /** 101-112 mensual · 201-206 bimestral · 501 anual. */
-function periodLabel(periodValueId: number | null | undefined): string {
+export function periodLabel(periodValueId: number | null | undefined): string {
   if (periodValueId == null) return '—'
   if (periodValueId >= 101 && periodValueId <= 112) return MESES[periodValueId - 101]
   if (periodValueId >= 201 && periodValueId <= 206) return BIMESTRES[periodValueId - 201]
@@ -124,7 +125,7 @@ const KIND_BY_MODE: Record<Mode, 1 | 2 | undefined> = {
   all: undefined,
 }
 
-const TIPO_LABEL: Record<number, string> = { 1: 'Regularización', 2: 'A futuro' }
+export const TIPO_LABEL: Record<number, string> = { 1: 'Regularización', 2: 'A futuro' }
 
 /** Filtro por contador, gerencia (E1): mismo claim y patrón que Mis clientes. */
 const ASSIGN_PERMISSION = 'AssignAccountant'
@@ -979,8 +980,11 @@ function PurchasedTable({
                               {d.statusLabel ?? 'En proceso'}
                             </span>
                           )}
+                          <PostingReadinessIcon readiness={d.postingReadiness} />
                         </td>
                         <td className="px-5 py-4 text-right">
+                          <div className="inline-flex items-start justify-end gap-2">
+                          <ForcePostButton declarationId={d.declarationId} statusId={d.statusId} readiness={d.postingReadiness} />
                           {isBlocked ? (
                             <button
                               type="button"
@@ -1001,6 +1005,7 @@ function PurchasedTable({
                               Abrir <ArrowRight size={14} />
                             </a>
                           )}
+                          </div>
                         </td>
                       </tr>
                     )

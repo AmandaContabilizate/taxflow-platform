@@ -92,6 +92,7 @@ export const TITLES: Record<Screen, [string, string]> = {
   'reportes-ejecutivos': ['Reportes ejecutivos', 'KPIs y resultados del área'],
   operaciones: ['Centro de operaciones', 'Gestión y supervisión de declaraciones fiscales'],
   'declaraciones-rechazadas': ['Declaraciones rechazadas', 'Declaraciones que el cliente rechazó y esperan corrección'],
+  'declaraciones-por-presentar': ['Declaraciones por presentar', 'Listas para el robot o pausadas por alguna validación'],
   'declaraciones-futuras': ['Declaraciones futuras', 'Declaraciones compradas de periodos posteriores al mes actual'],
   'ventas-por-activar': ['Ventas por activar', 'Ventas pagadas sin declaraciones activadas y ligas de pago emitidas'],
   'tramites-adicionales': ['Trámites adicionales', 'Seguimiento de trámites vendidos a tus clientes'],
@@ -284,6 +285,12 @@ const DECLARACIONES_RECHAZADAS_ITEM: NavDef = {
   Icon: Ban,
   hint: 'Rechazadas por el cliente',
 }
+const DECLARACIONES_POR_PRESENTAR_ITEM: NavDef = {
+  id: 'declaraciones-por-presentar',
+  label: 'Por presentar',
+  Icon: Send,
+  hint: 'Pausadas y listas para presentar',
+}
 const DECLARACIONES_FUTURAS_ITEM: NavDef = {
   id: 'declaraciones-futuras',
   label: 'Declaraciones futuras',
@@ -366,6 +373,7 @@ export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
     CONTRIBUYENTES_ITEM,
     OPERACIONES_ITEM,
     DECLARACIONES_RECHAZADAS_ITEM,
+    DECLARACIONES_POR_PRESENTAR_ITEM,
     REGULARIZACIONES_ITEM,
     TRAMITES_ADICIONALES_ITEM,
     DECLARACIONES_ANUALES_ITEM,
@@ -463,6 +471,7 @@ export const MASTER_NAV_SECTIONS: NavSection[] = [
     items: [
       OPERACIONES_ITEM,
       DECLARACIONES_RECHAZADAS_ITEM,
+      DECLARACIONES_POR_PRESENTAR_ITEM,
       DECLARACIONES_FUTURAS_ITEM,
       MIS_CLIENTES_ITEM,
       REGULARIZACIONES_ITEM,
@@ -533,6 +542,9 @@ export const MODULE_CLAIMS: Record<string, string[]> = {
   // Roles y permisos, independiente del Centro de operaciones. El endpoint de la
   // lista sigue bajo Contador.ReadDeclaraciones (mismo patrón que Decl. futuras).
   'declaraciones-rechazadas': ['Contador.ReadDeclaracionesRechazadas'],
+  // Concentrado de PorPresentar: es del GO (mismo claim que autoriza la presentación). La lista viaja
+  // por declarations-by-taxpayer, que sólo exige sesión.
+  'declaraciones-por-presentar': ['Operaciones.ForcePostDeclaration'],
   'declaraciones-futuras': ['Contador.ReadDeclaracionesFuturas'],
   // Ventas por activar + Ligas de pago: mismo claim que emitir liga (vendedores, atención a
   // clientes, gerencia comercial y gerencia SAC). spec-ventas-por-activar / spec-liga-de-pago-vendedor.
