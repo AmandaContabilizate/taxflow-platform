@@ -356,6 +356,7 @@ export function CalculosTab({
   readOnly,
   regimeSatCode,
   consulta = false,
+  refreshKey = 0,
 }: {
   declarationId: number
   readOnly?: boolean
@@ -363,6 +364,8 @@ export function CalculosTab({
   regimeSatCode?: string | null
   /** true = perfil de solo consulta: usa la ruta espejo bajo Contador.ConsultaDeclaraciones. */
   consulta?: boolean
+  /** Sube cuando el detalle recarga la declaración (recálculo, reapertura…): vuelve a pedir los cálculos. */
+  refreshKey?: number
 }) {
   const [calc, setCalc] = useState<DeclarationCalculations | null>(null)
   const [loading, setLoading] = useState(true)
@@ -384,7 +387,7 @@ export function CalculosTab({
     return () => {
       cancelled = true
     }
-  }, [declarationId, consulta])
+  }, [declarationId, consulta, refreshKey])
 
   const setDraft = (id: string, v: string) => setDrafts((prev) => ({ ...prev, [id]: v }))
 

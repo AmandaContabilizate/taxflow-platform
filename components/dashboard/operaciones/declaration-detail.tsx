@@ -34,7 +34,7 @@ import { resendDeclarationToClient } from '@/features/operations/actions/resendD
 import { REOPEN_REASON_MAX_LENGTH } from '@/features/operations/schemas/reopenDeclaration.schema'
 import type { DeclarationActivity, DeclarationGeneral, DeclarationLog, DeclarationSubject } from '@/features/operations/types'
 import { getSatPassword } from '@/features/taxpayers/actions/getSatPassword.action'
-import { num, toNumber } from './calc-read'
+import { toNumber } from './calc-read'
 import { CalculosTab } from './calculos-tab'
 import { DescargarArchivosSatBtn } from './descargar-archivos-sat-btn'
 import { DescargasSatStatus } from './descargas-sat-status'
@@ -304,6 +304,19 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
     }
   }, [d.declarationId, loadGeneral, loadLogs])
 
+  // Sube cada vez que algo cambia la declaración en el back (recálculo, reapertura,
+  // reenvío, documentos): las pestañas lo reciben como `refreshKey` y vuelven a pedir
+  // sus datos. Antes solo se recargaba /general y el resumen, los cálculos y los
+  // comprobantes se quedaban con lo de antes de recalcular.
+  const [dataVersion, setDataVersion] = useState(0)
+
+  /** Recarga /general y la bitácora, y avisa a las pestañas que vuelvan a consultar. */
+  const refreshDeclaration = useCallback(async () => {
+    await loadGeneral()
+    void loadLogs()
+    setDataVersion((v) => v + 1)
+  }, [loadGeneral, loadLogs])
+
   // Fila más reciente con NewStatusId = 10: es el rechazo vigente del cliente.
   const rejection = logs
     .filter((l) => l.newStatusId === DECLARATION_STATUS.CLIENT_REJECTED)
@@ -357,8 +370,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
           ? 'Declaración reabierta. Como ya estaba presentada, la siguiente presentación irá como complementaria.'
           : 'Declaración reabierta: ya puedes corregirla y reenviarla al cliente.',
       })
-      void loadGeneral()
-      void loadLogs()
+      void refreshDeclaration()
     } else {
       // El catálogo de errores trae textos pensados para el cliente: aquí se le habla al contador.
       setReopenError(
@@ -390,7 +402,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
     return () => {
       cancelled = true
     }
-  }, [resendOpen, d.declarationId])
+  }, [resendOpen, d.declarationId, dataVersion])
 
   const handleResendConfirm = async () => {
     setResendLoading(true)
@@ -404,8 +416,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
           ? { kind: 'success', text: 'Correo enviado al cliente, declaración en revisión.' }
           : { kind: 'warning', text: 'Estatus actualizado pero el correo falló; reintenta.' },
       )
-      void loadGeneral()
-      void loadLogs()
+      void refreshDeclaration()
     } else {
       // El catálogo de errores trae textos pensados para el cliente: aquí se le habla al contador.
       const presentada = general?.statusId === DECLARATION_STATUS.SUBMITTED
@@ -432,13 +443,17 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
 
   // El recálculo vive aquí y no en la pestaña: el botón del header y la pestaña
   // "Recálculo" comparten estado, y las tarjetas de arriba se repintan con el
-  // resultado.
-  const recalc = useRecalculation({
-    rfc,
-    fiscalYear: ejercicio,
-    periodValueId: general?.periodValueId,
-    regimeSatCode: general?.regimeSatCode,
-  })
+  // resultado. Al terminar se recarga todo: el back ya escribió los totales nuevos.
+  const recalc = useRecalculation(
+    {
+      declarationId: d.declarationId,
+      rfc,
+      fiscalYear: ejercicio,
+      periodValueId: general?.periodValueId,
+      regimeSatCode: general?.regimeSatCode,
+    },
+    () => void refreshDeclaration(),
+  )
 
   // Entrada por URL directa: sin el listado detrás no hay nada que pintar hasta
   // que /general responda (las tabs necesitan ejercicio y periodo reales).
@@ -473,15 +488,14 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
       </div>
     )
   }
-  // Con el resultado del recálculo ya no hay que volver a pedir /general: el
-  // response del EP trae los totales nuevos. Sin recálculo ni dato real, el
-  // campo viaja `null` y la tarjeta pinta "—" — prohibido inventar cifras.
-  const r = recalc.result
+  // El response del recálculo pinta las tarjetas mientras /general se refresca, pero
+  // solo si es de ESTA declaración (con complementarias el periodo se comparte). Los
+  // gastos siempre salen de /general: el clasificador no los manda en `ivaDetail`.
+  // Sin dato real, el campo viaja `null` y la tarjeta pinta "—" — prohibido inventar cifras.
+  const r = recalc.result?.declarationId === d.declarationId ? recalc.result : null
   const stats = {
     ingresosBrutos: r?.income ?? r?.accumulatedIncome ?? toNumber(general?.ingresosBrutos),
-    gastosDeducibles:
-      num(r?.ivaDetail ?? null, ['totalExpenses', 'expenseTotal', 'subtotalExpenses']) ??
-      toNumber(general?.gastosDeducibles),
+    gastosDeducibles: toNumber(general?.gastosDeducibles),
     isrCalculado: r?.annualTax ?? toNumber(general?.isrCalculado),
     ivaCargo: r?.ivaCargo ?? toNumber(general?.ivaCargo),
     ivaFavor: r?.ivaFavor ?? toNumber(general?.ivaFavor),
@@ -725,6 +739,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
           periodo={`${periodo} ${ejercicio}`}
           regimeSatCode={general?.regimeSatCode ?? null}
           consulta={soloConsulta}
+          refreshKey={dataVersion}
         />
       )}
       {tab === 1 &&
@@ -734,6 +749,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
             regimeSatCode={general?.regimeSatCode ?? null}
             readOnly={soloConsulta}
             consulta={soloConsulta}
+            refreshKey={dataVersion}
           />,
         )}
       {tab === RECALCULO_TAB_INDEX && (
@@ -753,6 +769,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
             general={general}
             periodo={periodo}
             fiscalYear={ejercicio}
+            refreshKey={dataVersion}
           />,
         )}
       {tab === 4 &&
@@ -763,6 +780,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
             general={general}
             periodo={periodo}
             fiscalYear={ejercicio}
+            refreshKey={dataVersion}
             onGoToComments={() => setTab(COMMENTS_TAB_INDEX)}
           />,
         )}
@@ -937,7 +955,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
         rfc={rfc}
         legalName={legalName}
         onDocumentUploaded={(statusId, statusLabel) => {
-          void loadGeneral()
+          void refreshDeclaration()
         }}
       />
     </div>
@@ -1126,19 +1144,21 @@ interface ResumenProps {
   general: DeclarationGeneral | null
   periodo: string
   fiscalYear: number
+  refreshKey: number
 }
 
 /* -------------------------------------------------------------------------- */
 /*  Tab: Clasificación                                                        */
 /* -------------------------------------------------------------------------- */
 
-function ClasificacionTab({ declarationId, general, periodo, fiscalYear }: ResumenProps) {
+function ClasificacionTab({ declarationId, general, periodo, fiscalYear, refreshKey }: ResumenProps) {
   return (
     <ResumenDeclaracion
       declarationId={declarationId}
       general={general}
       periodo={periodo}
       fiscalYear={fiscalYear}
+      refreshKey={refreshKey}
     />
   )
 }
@@ -1153,6 +1173,7 @@ function ReporteClienteTab({
   general,
   periodo,
   fiscalYear,
+  refreshKey,
   onGoToComments,
 }: ResumenProps & { d: DeclarationSubject; onGoToComments: () => void }) {
   const initials =
@@ -1223,6 +1244,7 @@ function ReporteClienteTab({
         general={general}
         periodo={periodo}
         fiscalYear={fiscalYear}
+        refreshKey={refreshKey}
       />
     </div>
   )

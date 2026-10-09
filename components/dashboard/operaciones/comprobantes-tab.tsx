@@ -474,12 +474,15 @@ export function ComprobantesTab({
   periodo,
   regimeSatCode,
   consulta = false,
+  refreshKey = 0,
 }: {
   declarationId: number
   periodo: string
   regimeSatCode?: string | null
   /** true = perfil de solo consulta: usa la ruta espejo bajo Contador.ConsultaDeclaraciones. */
   consulta?: boolean
+  /** Sube cuando el detalle recarga la declaración (p. ej. tras recalcular): la clasificación pudo cambiar. */
+  refreshKey?: number
 }) {
   const { params, setParams } = useUrlState()
 
@@ -604,7 +607,7 @@ export function ComprobantesTab({
     return () => {
       cancelled = true
     }
-  }, [declarationId, skip, origen, tipo, clasificada, sortBy, sortDir, consulta])
+  }, [declarationId, skip, origen, tipo, clasificada, sortBy, sortDir, consulta, refreshKey])
 
   // Las constancias van por su propio endpoint. `tipo` NO entra en las
   // dependencias: los CFDI de retención no tienen TipoDeComprobante, así que ese
@@ -635,7 +638,7 @@ export function ComprobantesTab({
     return () => {
       cancelled = true
     }
-  }, [declarationId, retSkip, origen, clasificada, sortBy, sortDir, consulta])
+  }, [declarationId, retSkip, origen, clasificada, sortBy, sortDir, consulta, refreshKey])
 
   // Cambiar un filtro reinicia la paginación de los DOS universos: el `total` del
   // backend cambia en ambos.

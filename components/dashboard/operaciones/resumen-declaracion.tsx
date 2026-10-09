@@ -11,6 +11,7 @@ import {
   Table2,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { isIvaDefinitiva } from '@/features/declaration-report/lib/reportDetail'
 import { getDeclarationCalculations } from '@/features/operations/actions/getDeclarationCalculations.action'
 import { getDeclarationInvoices } from '@/features/operations/actions/getDeclarationInvoices.action'
 import type { DeclarationCalculations, DeclarationGeneral, Money } from '@/features/operations/types'
@@ -57,6 +58,12 @@ interface Resumen {
   egresos: number | null
   ivaTrasladado: number | null
   ivaAcreditable: number | null
+  /** IVA que retuvo la plataforma (625); se resta del trasladado. */
+  ivaRetenido: number | null
+  /** Saldo a favor de periodos anteriores (625); se resta del trasladado. */
+  ivaSaldoPrevio: number | null
+  /** 625 en pago definitivo: el IVA sale por servicio y no hay acreditamiento. */
+  ivaDefinitiva: boolean
   isrCausado: number | null
   isrRetenciones: number | null
   isrCargo: number | null
@@ -65,12 +72,34 @@ interface Resumen {
   total: number | null
 }
 
-/** El total a pagar sale de `/general` cuando es un número > 0; si no, se suma. */
+/**
+ * El total a pagar se suma de los cálculos. `/general` solo es respaldo cuando no hay
+ * cálculo (y es un número > 0): antes ganaba él y, tras recalcular, el resumen seguía
+ * con el total viejo.
+ */
+/**
+ * Fórmula del IVA tal como la calcula el clasificador. En el 625 provisional el
+ * neto descuenta además lo retenido por la plataforma y el saldo a favor previo
+ * (totalIva = ivaCaused − retentionPlataform − ivaExpenseTotal − ivaPeriodsPrevius);
+ * sin esos dos, la resta en pantalla no daba el IVA a pagar.
+ */
+function ivaFormula(r: Resumen): string {
+  if (r.ivaDefinitiva) return 'Suma del IVA de cada servicio (sin acreditamiento)'
+  if (r.ivaRetenido == null && r.ivaSaldoPrevio == null) return 'IVA trasladado − IVA acreditable'
+  return 'IVA trasladado − retenido por plataforma − IVA acreditable − saldo a favor previo'
+}
+
+function ivaOperands(r: Resumen, fmt: (n: number | null) => string): string {
+  if (r.ivaDefinitiva) return fmt(r.ivaTrasladado)
+  if (r.ivaRetenido == null && r.ivaSaldoPrevio == null) return `${fmt(r.ivaTrasladado)} − ${fmt(r.ivaAcreditable)}`
+  return `${fmt(r.ivaTrasladado)} − ${fmt(r.ivaRetenido)} − ${fmt(r.ivaAcreditable)} − ${fmt(r.ivaSaldoPrevio)}`
+}
+
 function totalAPagar(generalTotal: Money, isrCargo: number | null, ivaPagar: number | null) {
+  if (isrCargo != null || ivaPagar != null) return (isrCargo ?? 0) + (ivaPagar ?? 0)
   const generalNumber =
     typeof generalTotal === 'string' ? Number(generalTotal) : typeof generalTotal === 'number' ? generalTotal : null
-  if (generalNumber != null && Number.isFinite(generalNumber) && generalNumber > 0) return generalNumber
-  return isrCargo != null || ivaPagar != null ? (isrCargo ?? 0) + (ivaPagar ?? 0) : null
+  return generalNumber != null && Number.isFinite(generalNumber) && generalNumber > 0 ? generalNumber : null
 }
 
 /**
@@ -102,6 +131,9 @@ function readResumen626(calc: DeclarationCalculations | null, generalTotal: Mone
     egresos: num(isr, ['expensesSubtotalAutorized', 'expensesAccumulatedsTotal']),
     ivaTrasladado: num(iva, ['totalTaxe16']),
     ivaAcreditable: num(iva, ['totalIvaCreditable']),
+    ivaRetenido: null,
+    ivaSaldoPrevio: null,
+    ivaDefinitiva: false,
     isrCausado: num(isr, ['ISR.taxeBeforeRetentions']),
     isrRetenciones: num(isr, ['ISR.isrRetentions']),
     isrCargo,
@@ -128,13 +160,21 @@ function readResumen625(calc: DeclarationCalculations | null, generalTotal: Mone
       : null)
 
   const isrCargo = num(isr, ['totalIsr']) ?? sumSections(isr, ['totalIsr'])
-  const ivaPagar = num(iva, ['totalIva'])
+  // El clasificador calcula las dos modalidades. En definitiva el IVA es el de
+  // `ivaDefinitiva` (suma del IVA de cada servicio) y no se acredita nada; la raíz es la
+  // provisional. Mismo criterio que el back (TotalIvaDeLaModalidad) y el reporte del
+  // cliente (reportDetail).
+  const definitiva = isIvaDefinitiva(iva)
+  const ivaPagar = definitiva ? num(iva, ['ivaDefinitiva.totalIva']) : num(iva, ['totalIva'])
 
   return {
     ingresos,
     egresos,
-    ivaTrasladado: num(iva, ['ivaCaused']),
-    ivaAcreditable,
+    ivaTrasladado: definitiva ? ivaPagar : num(iva, ['ivaCaused']),
+    ivaAcreditable: definitiva ? 0 : ivaAcreditable,
+    ivaRetenido: definitiva ? 0 : num(iva, ['retentionPlataform']),
+    ivaSaldoPrevio: definitiva ? 0 : num(iva, ['ivaPeriodsPrevius']),
+    ivaDefinitiva: definitiva,
     isrCausado: sumSections(isr, ['ISR.isrCaused']),
     isrRetenciones: sumSections(isr, ['totalRetained']),
     isrCargo,
@@ -362,9 +402,11 @@ interface Props {
   general: DeclarationGeneral | null
   periodo: string
   fiscalYear: number
+  /** Sube cuando el detalle recarga la declaración (recálculo, reapertura…): vuelve a pedir los cálculos. */
+  refreshKey?: number
 }
 
-export function ResumenDeclaracion({ declarationId, general, periodo, fiscalYear }: Props) {
+export function ResumenDeclaracion({ declarationId, general, periodo, fiscalYear, refreshKey = 0 }: Props) {
   const [calc, setCalc] = useState<DeclarationCalculations | null>(null)
   const [cfdis, setCfdis] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
@@ -389,7 +431,7 @@ export function ResumenDeclaracion({ declarationId, general, periodo, fiscalYear
     return () => {
       cancelled = true
     }
-  }, [declarationId])
+  }, [declarationId, refreshKey])
 
   // Fuente única del régimen: `/calculations` (E3); `/general` solo como fallback.
   const satCode = calc?.regimeSatCode ?? general?.regimeSatCode ?? null
@@ -531,9 +573,9 @@ export function ResumenDeclaracion({ declarationId, general, periodo, fiscalYear
               />
               <StepRow
                 index={3}
-                title="IVA neto"
-                formula="IVA trasladado − IVA acreditable"
-                operands={`${fmt(r.ivaTrasladado)} − ${fmt(r.ivaAcreditable)}`}
+                title={r.ivaDefinitiva ? 'IVA a cargo (pago definitivo)' : 'IVA neto'}
+                formula={ivaFormula(r)}
+                operands={ivaOperands(r, fmt)}
                 value={fmt(r.ivaPagar)}
                 last={false}
               />

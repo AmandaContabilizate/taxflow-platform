@@ -5,6 +5,11 @@ import { recalculateDeclaration } from '../actions/recalculateDeclaration.action
 import type { ClassificationAdjustment, RecalcScopeState, RecalculationResult } from '../types'
 
 interface Target {
+  /**
+   * Declaración que se está viendo. Viaja en el body para que el back escriba en
+   * ella y no en la "vigente" del periodo (las complementarias comparten periodo).
+   */
+  declarationId: number
   rfc: string
   fiscalYear: number
   periodValueId: number | null | undefined
@@ -17,7 +22,11 @@ interface Target {
  * que puede tardar minutos: se lleva un contador de segundos para que el spinner
  * no parezca colgado.
  */
-export function useRecalculation(target: Target) {
+export function useRecalculation(
+  target: Target,
+  /** Se llama tras cada recálculo exitoso: la pantalla recarga /general, bitácora y pestañas. */
+  onSuccess?: (result: RecalculationResult) => void,
+) {
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState<RecalculationResult | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -29,6 +38,19 @@ export function useRecalculation(target: Target) {
   // desmonta al cambiar de tab y el contador perdía lo que había corregido sin mandarlo.
   const [adjustments, setAdjustments] = useState<Record<string, ClassificationAdjustment>>({})
   const [scopeByUuid, setScopeByUuid] = useState<Record<string, RecalcScopeState>>({})
+
+  // El callback llega como función inline: se guarda en un ref para no reconstruir `run`.
+  const onSuccessRef = useRef(onSuccess)
+  useEffect(() => {
+    onSuccessRef.current = onSuccess
+  })
+
+  // Al cambiar de declaración el resultado anterior ya no aplica: las tarjetas
+  // pintaban los totales de la otra declaración.
+  useEffect(() => {
+    setResult(null)
+    setError(null)
+  }, [target.declarationId])
 
   const ready = Boolean(target.rfc && target.periodValueId && target.regimeSatCode)
 
@@ -56,6 +78,7 @@ export function useRecalculation(target: Target) {
       // clics siguientes salían en silencio por el `runningRef`.
       try {
         const res = await recalculateDeclaration({
+          declarationId: target.declarationId,
           rfc: target.rfc,
           fiscalYear: target.fiscalYear,
           periodValueId: target.periodValueId!,
@@ -74,6 +97,7 @@ export function useRecalculation(target: Target) {
             setAdjustments(keep)
             setScopeByUuid(keep)
           }
+          onSuccessRef.current?.(res.value)
         } else {
           setError(res.error.message)
         }
@@ -86,7 +110,7 @@ export function useRecalculation(target: Target) {
         setRunning(false)
       }
     },
-    [ready, target.rfc, target.fiscalYear, target.periodValueId, target.regimeSatCode],
+    [ready, target.declarationId, target.rfc, target.fiscalYear, target.periodValueId, target.regimeSatCode],
   )
 
   return {

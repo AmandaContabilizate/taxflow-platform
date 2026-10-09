@@ -1114,8 +1114,11 @@ export function PurchasedDeclarations({
 
   if (declarationId) {
     const current = subject?.declarationId === declarationId ? subject : stubSubject(declarationId, rfcParam)
+    // `key`: al saltar de una declaración a otra (p. ej. a su complementaria) el detalle se
+    // monta de cero; si no, arrastraba el estado y el recálculo de la anterior.
     return (
       <DeclarationDetail
+        key={current.declarationId}
         declaration={current}
         onBack={() => setParams({ decl: null })}
         currentUser={currentUser}

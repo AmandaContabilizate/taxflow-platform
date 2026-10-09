@@ -25,6 +25,11 @@ export const classificationAdjustmentSchema = z
 
 /** `RecalculateDeclarationRequestDto`. `regimeCode` es el código SAT, no el Id interno. */
 export const recalculateDeclarationSchema = z.object({
+  /**
+   * Declaración donde se escribe el resultado. Opcional: sin él, el back escribe en
+   * la del periodo; con él, en esa (p. ej. una complementaria).
+   */
+  declarationId: z.number().int().positive().optional(),
   rfc: z
     .string()
     .trim()
