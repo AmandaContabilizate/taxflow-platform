@@ -28,6 +28,8 @@ const STATUS_BADGE: Record<string, { kind: BadgeKind; label: string }> = {
   // Reabierta por el contador: el cliente la ve exactamente como una En proceso, solo con
   // su propio estatus. El motivo de la reapertura nunca le llega.
   Reopened: { kind: 'amber', label: 'Reabierta' },
+  // Paquete vendido con baja confirmada de régimen previo al periodo.
+  RegimeCancelled: { kind: 'coral', label: 'Régimen cancelado' },
 }
 
 /** Etiqueta corta por Id de `Catalogs.StatusDeclaration`, para la bitácora (que solo trae Ids). */
@@ -49,6 +51,7 @@ const STATUS_LABEL_BY_ID: Record<number, string> = {
   15: 'En proceso',
   16: 'En proceso (Legacy)',
   17: 'Reabierta',
+  18: 'Régimen cancelado',
 }
 
 export function declarationStatusLabelById(statusId: number): string {

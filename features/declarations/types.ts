@@ -541,6 +541,7 @@ export interface TaxpayerDeclarationItem {
   legalName?: string | null
   /** Semáforo de posteo; sólo viene en estatus 11 (PorPresentar). */
   postingReadiness?: PostingReadiness | null
+  createdAt?: string | null
 }
 
 /**

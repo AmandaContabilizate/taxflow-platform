@@ -143,7 +143,7 @@ export function DeclaracionesRechazadasScreen({ currentUser }: { currentUser: Cu
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Contribuyente', 'RFC', 'Periodo', 'Ejercicio', 'Régimen', 'Estatus', 'Contador', ''].map((h) => (
+                    {['Contribuyente', 'RFC', 'Periodo', 'Ejercicio', 'Creado', 'Régimen', 'Estatus', 'Contador', ''].map((h) => (
                       <th
                         key={h}
                         className="px-5 py-3 text-left font-extrabold whitespace-nowrap"
@@ -167,6 +167,11 @@ export function DeclaracionesRechazadasScreen({ currentUser }: { currentUser: Cu
                         </td>
                         <td className="px-5 py-4" style={{ color: 'var(--ink-700)' }}>{item.periodo ?? '—'}</td>
                         <td className="px-5 py-4" style={{ color: 'var(--ink-700)' }}>{item.fiscalYear}</td>
+                        <td className="px-5 py-4 whitespace-nowrap text-[13px] tabular-nums" style={{ color: 'var(--ink-700)' }}>
+                          {item.createdAt
+                            ? new Date(item.createdAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
+                            : '—'}
+                        </td>
                         <td className="px-5 py-4" style={{ color: 'var(--ink-700)' }}>{item.regimeName ?? '—'}</td>
                         <td className="px-5 py-4">
                           <Badge kind={badge.kind}>{badge.label}</Badge>

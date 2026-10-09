@@ -219,7 +219,7 @@ function periodFilterFromParams(mode: Mode, params: URLSearchParams): PeriodFilt
  * D3: subconjunto operativo, en el orden de trabajo del contador. 12 y 13
  * quedan fuera por ser estados del sistema (sembrado/migrado), no del contador.
  */
-export const STATUS_ID_WHITELIST = [15, 17, 11, 9, 10, 3, 14, 4, 7, 8] as const
+export const STATUS_ID_WHITELIST = [15, 17, 11, 9, 10, 3, 14, 4, 7, 8, 18] as const
 
 /** Todas las pantallas arrancan con "Todos los estatus" por default (statusId: undefined). */
 const DEFAULT_STATUS_ID: Record<Mode, number | undefined> = {
@@ -923,6 +923,7 @@ function PurchasedTable({
                     {[
                       'Ejercicio',
                       'Periodo',
+                      'Creado',
                       'Régimen',
                       ...(mode === 'all' ? ['Tipo'] : []),
                       'Estatus',
@@ -947,6 +948,11 @@ function PurchasedTable({
                       <tr key={d.declarationId} style={{ borderBottom: '1px solid var(--border)' }}>
                         <td className="px-5 py-4 font-semibold" style={{ color: 'var(--ink-900)' }}>{d.fiscalYear}</td>
                         <td className="px-5 py-4" style={{ color: 'var(--ink-700)' }}>{periodLabel(d.periodValueId)}</td>
+                        <td className="px-5 py-4 whitespace-nowrap text-[13px] tabular-nums" style={{ color: 'var(--ink-700)' }}>
+                          {d.createdAt
+                            ? new Date(d.createdAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
+                            : '—'}
+                        </td>
                         <td className="px-5 py-4" style={{ color: 'var(--ink-700)' }}>{d.taxRegimeName ?? '—'}</td>
                         {mode === 'all' && (
                           <td className="px-5 py-4">

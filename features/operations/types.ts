@@ -50,6 +50,7 @@ export interface DeclarationListItem {
   /** Contador asignado hoy al contribuyente (TaxpayerAccountant activo). Null = sin asignar. */
   accountantUserId?: string | null;
   accountantName?: string | null;
+  createdAt?: string | null;
 }
 
 /**
