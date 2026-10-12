@@ -10,10 +10,11 @@ import { declarationStatusBadge } from '../declaraciones/parts'
 import { Pagination } from '../clientes/parts'
 import { MONO } from '../constants'
 import { DeclarationDetail } from '../operaciones/declaration-detail'
-import { ForcePostButton, PostingReadinessIcon } from '../operaciones/posting-readiness'
+import { FORCE_POST_CLAIM, ForcePostButton, PostingReadinessIcon } from '../operaciones/posting-readiness'
 import { MESES, TIPO_LABEL, periodLabel, selectStyle } from '../operaciones/purchased-declarations'
+import { useHasPermission } from '../permissions'
 import { buildUrl, numParam, useUrlState } from '../url-state'
-import { Badge, Card, ErrorState, HelpBox } from '../ui'
+import { Badge, Card, ErrorState, HelpBox, NoAccessState } from '../ui'
 
 const TAKE = 50
 const READY_TO_SUBMIT = 11
@@ -61,16 +62,20 @@ export function DeclaracionesPorPresentarScreen({ currentUser }: { currentUser: 
   const [subject, setSubject] = useState<DeclarationSubject | null>(null)
   const [regimes, setRegimes] = useState<TaxRegime[]>([])
   const [rfcInput, setRfcInput] = useState(rfcParam ?? '')
+  // El menú ya la oculta sin el claim, pero la URL directa (`?s=declaraciones-por-presentar`) no:
+  // sin esto cualquier empleado con sesión vería todas las PorPresentar de todos los contribuyentes.
+  const canView = useHasPermission(FORCE_POST_CLAIM)
 
   useEffect(() => {
+    if (!canView) return
     void (async () => {
       const res = await getTaxRegimes()
       if (res.success) setRegimes(res.value)
     })()
-  }, [])
+  }, [canView])
 
   useEffect(() => {
-    if (declarationId) return
+    if (!canView || declarationId) return
     let cancelled = false
     setLoading(true)
     setError(null)
@@ -96,7 +101,7 @@ export function DeclaracionesPorPresentarScreen({ currentUser }: { currentUser: 
     return () => {
       cancelled = true
     }
-  }, [declarationId, rfcParam, regimeId, year, month, skip])
+  }, [canView, declarationId, rfcParam, regimeId, year, month, skip])
 
   const counts = useMemo(() => {
     const c = { blocked: 0, warning: 0, ok: 0 }
@@ -124,6 +129,14 @@ export function DeclaracionesPorPresentarScreen({ currentUser }: { currentUser: 
   const applyRfc = () => {
     const value = rfcInput.trim().toUpperCase()
     setParams({ rfc: value || null, skip: null }, { replace: true })
+  }
+
+  if (!canView) {
+    return (
+      <Card>
+        <NoAccessState />
+      </Card>
+    )
   }
 
   if (declarationId) {

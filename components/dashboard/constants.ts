@@ -287,7 +287,7 @@ const DECLARACIONES_RECHAZADAS_ITEM: NavDef = {
 }
 const DECLARACIONES_POR_PRESENTAR_ITEM: NavDef = {
   id: 'declaraciones-por-presentar',
-  label: 'Por presentar',
+  label: 'Declaraciones por presentar',
   Icon: Send,
   hint: 'Pausadas y listas para presentar',
 }
