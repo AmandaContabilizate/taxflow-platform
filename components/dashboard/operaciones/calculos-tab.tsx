@@ -370,6 +370,9 @@ export function CalculosTab({
   const [calc, setCalc] = useState<DeclarationCalculations | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // El back responde DECLARATION_NOT_FOUND cuando no hay DeclarationSummary: la declaración
+  // existe pero nunca se ha calculado. No es un error del enlace.
+  const [sinCalculos, setSinCalculos] = useState(false)
   const [isrTab, setIsrTab] = useState(0)
   const [drafts, setDrafts] = useState<Record<string, string>>({})
 
@@ -377,10 +380,12 @@ export function CalculosTab({
     let cancelled = false
     setLoading(true)
     setError(null)
+    setSinCalculos(false)
     void (async () => {
       const res = await getDeclarationCalculations(declarationId, consulta)
       if (cancelled) return
       if (res.success) setCalc(res.value)
+      else if (res.error.code === 'DECLARATION_NOT_FOUND') setSinCalculos(true)
       else setError(res.error.message)
       setLoading(false)
     })()
@@ -433,6 +438,26 @@ export function CalculosTab({
       <Card>
         <div className="flex items-center gap-2 px-5 py-8 text-[14px]" style={{ color: 'var(--ink-500)' }}>
           <Loader2 size={18} className="animate-spin" /> Cargando cálculos…
+        </div>
+      </Card>
+    )
+  }
+
+  if (sinCalculos) {
+    return (
+      <Card>
+        <div className="px-5 py-6">
+          <div
+            className="rounded-2xl px-4 py-3 text-[13px]"
+            style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)', border: '1px solid var(--border)' }}
+          >
+            <div className="font-semibold">Esta declaración todavía no tiene cálculos.</div>
+            <div className="mt-1">
+              {readOnly || consulta
+                ? 'Se generan cuando el contador la recalcula.'
+                : 'Usa Recalcular para clasificar sus comprobantes y generar los cálculos.'}
+            </div>
+          </div>
         </div>
       </Card>
     )

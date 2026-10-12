@@ -9,6 +9,8 @@ import type { DeclarationCalculations } from "../types";
 interface OpsError {
   statusCode: number;
   message: string;
+  /** errorCode del back. DECLARATION_NOT_FOUND = la declaración aún no tiene DeclarationSummary. */
+  code?: string;
 }
 
 // Cálculos fiscales (IVA/ISR) de una declaración. Contadores; `consulta` usa la
@@ -42,7 +44,7 @@ export async function getDeclarationCalculations(
         `[getDeclarationCalculations] ${e.status} en ${url} ·`,
         JSON.stringify(e.body),
       );
-      return err({ statusCode: e.status, message: e.message });
+      return err({ statusCode: e.status, message: e.message, code: e.errorCode });
     }
     console.error("[getDeclarationCalculations] Error:", e);
     return err({ statusCode: 500, message: "No pudimos obtener los cálculos de la declaración." });
