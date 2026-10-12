@@ -806,8 +806,25 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
               style={{ color: "#857AC0" }}
             >
               Al continuar aceptas nuestros{" "}
-              <span style={{ color: "#221158" }}>Términos</span> y{" "}
-              <span style={{ color: "#00AD87" }}>Privacidad</span>
+              <a
+                href="https://contabilizate.com/terminos"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:underline"
+                style={{ color: "#221158" }}
+              >
+                Términos
+              </a>{" "}
+              y{" "}
+              <a
+                href="https://contabilizate.com/privacidad"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:underline"
+                style={{ color: "#00AD87" }}
+              >
+                Privacidad
+              </a>
             </p>
           </div>
         </section>

@@ -64,5 +64,16 @@ export interface VaultStats {
   totalExpenses: ComparateDecimal
 }
 
-// statusComprobante del SAT: 1 = Vigente, 0 = Cancelado.
-export const CFDI_STATUS_VIGENTE = 1
+// Reglas iguales a las de la app móvil (vault.actions.ts).
+// StatusComprobante del back: Unknown = 0, Vigente = 1, Cancelled = 2.
+const CFDI_STATUS_VIGENTE = 1
+const CFDI_STATUS_CANCELADO = 2
+const USOS_SIN_DEDUCCION = new Set(['S01', 'CP01', 'P01']) // sin efectos fiscales / pagos
+
+export const isCfdiCancelled = (inv: VaultInvoice) => inv.statusComprobante === CFDI_STATUS_CANCELADO
+
+// Solo lo vigente es deducible (el estatus desconocido tampoco) y nunca los usos sin deducción.
+export function isCfdiDeducible(inv: VaultInvoice): boolean {
+  if (inv.statusComprobante !== CFDI_STATUS_VIGENTE) return false
+  return !USOS_SIN_DEDUCCION.has((inv.uso ?? '').toUpperCase())
+}

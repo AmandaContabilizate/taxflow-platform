@@ -8,7 +8,8 @@ import {
   getReceivedInvoices,
   getVaultStats,
 } from '@/features/vault/actions'
-import { CFDI_STATUS_VIGENTE, type VaultInvoice, type VaultStats } from '@/features/vault/types'
+import type { InvoiceFilters } from '@/features/vault/actions/getIssuedInvoices.action'
+import { isCfdiCancelled, isCfdiDeducible, type VaultInvoice, type VaultStats } from '@/features/vault/types'
 import { MONO } from '../constants'
 import type { GoFn } from '../types'
 import { Badge, Btn, Card, CiecWarningBanner, Divider, SummaryStat, Tabs } from '../ui'
@@ -17,17 +18,67 @@ import { getCiecBlockStatus, isConnectedByEfirmaOnly, isSatConnected } from '../
 import { CiecBlockedScreen } from './ciec-blocked'
 import { NeedsSatConnect } from './needs-sat-connect'
 
+// Mismos filtros, opciones y etiquetas que la Bóveda SAT de la app móvil.
 interface Filters {
   search: string
-  startDate: string
-  endDate: string
-  rfc: string
+  rfcSearch: string
+  from: string
+  to: string
+  minTotal: string
+  maxTotal: string
   cfdiUse: string
-  minAmount: string
-  maxAmount: string
-  status: string
-  type: string
+  statusCfdi: string
+  typeCfdi: string
 }
+
+const EMPTY_FILTERS: Filters = {
+  search: '',
+  rfcSearch: '',
+  from: '',
+  to: '',
+  minTotal: '',
+  maxTotal: '',
+  cfdiUse: '',
+  statusCfdi: '',
+  typeCfdi: '',
+}
+
+// Enum StatusCFDI del back: el filtro solo reconoce Vigente = 1 y Cancelado = 2.
+const STATUS_OPTIONS = [
+  { value: '', label: 'Todos' },
+  { value: '1', label: 'Vigentes' },
+  { value: '2', label: 'Cancelados' },
+]
+
+// Códigos que acepta MapTypeCfdiToBytes del back.
+const TYPE_OPTIONS = [
+  { value: '', label: 'Todos' },
+  { value: 'I', label: 'Ingreso' },
+  { value: 'E', label: 'Egreso' },
+  { value: 'P', label: 'Pago' },
+  { value: 'N', label: 'Nómina' },
+  { value: 'T', label: 'Traslado' },
+]
+
+function toApiFilters(f: Filters): InvoiceFilters | undefined {
+  const filters: InvoiceFilters = {}
+  if (f.search.trim()) filters.search = f.search.trim()
+  if (f.rfcSearch.trim()) filters.rfcSearch = f.rfcSearch.trim().toUpperCase()
+  if (f.from) filters.from = f.from
+  if (f.to) filters.to = f.to
+  if (f.cfdiUse.trim()) filters.cfdiUse = f.cfdiUse.trim().toUpperCase()
+  if (f.statusCfdi) filters.statusCfdi = Number(f.statusCfdi)
+  if (f.typeCfdi) filters.typeCfdi = [f.typeCfdi]
+  const min = parseFloat(f.minTotal)
+  const max = parseFloat(f.maxTotal)
+  if (Number.isFinite(min)) filters.minTotal = min
+  if (Number.isFinite(max)) filters.maxTotal = max
+  return Object.keys(filters).length > 0 ? filters : undefined
+}
+
+const fieldLabelClass = 'text-[11px] font-bold uppercase tracking-wider'
+const fieldClass = 'w-full px-4 py-2.5 rounded-lg border text-[13px]'
+const fieldStyle = { borderColor: 'var(--border)', background: 'var(--input)' }
 
 interface Props {
   go: GoFn
@@ -80,9 +131,6 @@ interface Row {
   stampNote?: string
   monto: string
   revisar: boolean
-  /** Para la búsqueda: el placeholder ofrece buscar por UUID y folio. */
-  uuid: string
-  folio: string
 }
 
 function toRow(inv: VaultInvoice, side: 'issued' | 'received'): Row {
@@ -103,9 +151,7 @@ function toRow(inv: VaultInvoice, side: 'issued' | 'received'): Row {
     meta: [fecha, uso].filter(Boolean).join(' · '),
     stampNote,
     monto: moneyFull.format(inv.total ?? 0),
-    revisar: inv.statusComprobante !== CFDI_STATUS_VIGENTE,
-    uuid: inv.uuid ?? '',
-    folio: inv.folio ?? '',
+    revisar: !isCfdiDeducible(inv),
   }
 }
 
@@ -173,17 +219,8 @@ export function DocumentosScreen({ go }: Props) {
   const [downloading, setDownloading] = useState(false)
   const [downloadError, setDownloadError] = useState<string | null>(null)
 
-  const [filters, setFilters] = useState<Filters>({
-    search: '',
-    startDate: '',
-    endDate: '',
-    rfc: '',
-    cfdiUse: '',
-    minAmount: '',
-    maxAmount: '',
-    status: '',
-    type: '',
-  })
+  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
+  const [applied, setApplied] = useState<Filters>(EMPTY_FILTERS)
   const [filtersExpanded, setFiltersExpanded] = useState(false)
   const [searchPending, startSearchTransition] = useTransition()
 
@@ -192,6 +229,8 @@ export function DocumentosScreen({ go }: Props) {
     let active = true
     setDataLoading(true)
     setError(null)
+    setFilters(EMPTY_FILTERS)
+    setApplied(EMPTY_FILTERS)
 
     Promise.all([getVaultStats(rfc), getIssuedInvoices(rfc), getReceivedInvoices(rfc)])
       .then(([s, i, r]) => {
@@ -213,46 +252,20 @@ export function DocumentosScreen({ go }: Props) {
     }
   }, [rfc])
 
-  const applyFilters = (rows: Row[]): Row[] => {
-    return rows.filter(row => {
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase()
-        const matches =
-          row.name.toLowerCase().includes(searchLower) ||
-          row.rfc.toLowerCase().includes(searchLower) ||
-          row.uuid.toLowerCase().includes(searchLower) ||
-          row.folio.toLowerCase().includes(searchLower)
-        if (!matches) return false
-      }
-      if (filters.rfc && row.rfc !== filters.rfc) return false
-      if (filters.minAmount) {
-        const min = parseFloat(filters.minAmount)
-        const amount = parseFloat(row.monto.replace(/[^\d.-]/g, ''))
-        if (amount < min) return false
-      }
-      if (filters.maxAmount) {
-        const max = parseFloat(filters.maxAmount)
-        const amount = parseFloat(row.monto.replace(/[^\d.-]/g, ''))
-        if (amount > max) return false
-      }
-      return true
-    })
-  }
-
   const rowsByTab = useMemo<Row[][]>(() => {
     const recibidas = received.map(r => toRow(r, 'received'))
     const emitidas = issued.map(i => toRow(i, 'issued'))
     const canceladas = [
-      ...issued.filter(i => i.statusComprobante !== CFDI_STATUS_VIGENTE).map(i => toRow(i, 'issued')),
-      ...received.filter(r => r.statusComprobante !== CFDI_STATUS_VIGENTE).map(r => toRow(r, 'received')),
+      ...issued.filter(isCfdiCancelled).map(i => toRow(i, 'issued')),
+      ...received.filter(isCfdiCancelled).map(r => toRow(r, 'received')),
     ]
-    return [applyFilters(recibidas), applyFilters(emitidas), applyFilters(canceladas)]
-  }, [issued, received, filters])
+    return [recibidas, emitidas, canceladas]
+  }, [issued, received])
 
   const deducible = useMemo(() => {
     const totalRecibido = received.reduce((sum, r) => sum + (r.total ?? 0), 0)
     const totalDeducible = received
-      .filter(r => r.statusComprobante === CFDI_STATUS_VIGENTE)
+      .filter(isCfdiDeducible)
       .reduce((sum, r) => sum + (r.total ?? 0), 0)
     const pct = totalRecibido > 0 ? Math.round((totalDeducible / totalRecibido) * 100) : 0
     return { value: totalDeducible, pct }
@@ -271,32 +284,27 @@ export function DocumentosScreen({ go }: Props) {
     }
   }
 
-  async function handleSearch() {
+  // Los filtros se aplican en el back; la descarga ZIP toma las filas ya filtradas.
+  function applyFilters(next: Filters) {
     if (!rfc) return
+    setFilters(next)
+    setApplied(next)
+    setFiltersExpanded(false)
     startSearchTransition(async () => {
       setError(null)
-      const filterParams = {
-        search: filters.search || undefined,
-        from: filters.startDate || undefined,
-        to: filters.endDate || undefined,
-        rfcSearch: filters.rfc || undefined,
-        cfdiUse: filters.cfdiUse || undefined,
-        minTotal: filters.minAmount ? parseFloat(filters.minAmount) : undefined,
-        maxTotal: filters.maxAmount ? parseFloat(filters.maxAmount) : undefined,
-        statusCfdi: filters.status ? parseInt(filters.status) : undefined,
-        typeCfdi: filters.type ? [filters.type] : undefined,
-      }
+      const apiFilters = toApiFilters(next)
       const [issuedResult, receivedResult] = await Promise.all([
-        getIssuedInvoices(rfc, filterParams),
-        getReceivedInvoices(rfc, filterParams),
+        getIssuedInvoices(rfc, apiFilters),
+        getReceivedInvoices(rfc, apiFilters),
       ])
       if (issuedResult.success) setIssued(issuedResult.value)
       else setError(issuedResult.error.message)
       if (receivedResult.success) setReceived(receivedResult.value)
       else setError(receivedResult.error.message)
-      setFiltersExpanded(false)
     })
   }
+
+  const activeFilterCount = Object.values(applied).filter(v => v.trim() !== '').length
 
   if (loading) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver tu bóveda" />
@@ -343,9 +351,7 @@ export function DocumentosScreen({ go }: Props) {
           />
         </div>
 
-        {/* Filtros - Rediseño */}
         <div className="flex flex-col gap-3">
-          {/* Buscador Principal */}
           <div className="flex gap-3 items-center">
             <div className="flex-1">
               <input
@@ -353,8 +359,11 @@ export function DocumentosScreen({ go }: Props) {
                 placeholder="Buscar por UUID, RFC, Folio o Razón Social"
                 value={filters.search}
                 onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') applyFilters(filters)
+                }}
                 className="w-full px-4 py-3 rounded-xl border text-[14px] transition"
-                style={{ borderColor: 'var(--border)', background: 'var(--input)' }}
+                style={fieldStyle}
               />
             </div>
             <button
@@ -363,6 +372,14 @@ export function DocumentosScreen({ go }: Props) {
               style={{ background: 'var(--brand-50)', color: 'var(--brand-700)', border: '1px solid var(--brand-200)' }}
             >
               <Sliders size={16} /> FILTROS
+              {activeFilterCount > 0 && (
+                <span
+                  className="min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center"
+                  style={{ background: 'var(--brand-700)', color: '#fff' }}
+                >
+                  {activeFilterCount}
+                </span>
+              )}
               <ChevronDown
                 size={16}
                 style={{
@@ -372,7 +389,7 @@ export function DocumentosScreen({ go }: Props) {
               />
             </button>
             <button
-              onClick={handleSearch}
+              onClick={() => applyFilters(filters)}
               disabled={searchPending}
               className="px-5 py-3 rounded-xl font-semibold text-[13px] text-white flex items-center gap-2 transition hover:opacity-90 disabled:opacity-50"
               style={{ background: '#221158' }}
@@ -381,116 +398,128 @@ export function DocumentosScreen({ go }: Props) {
             </button>
           </div>
 
-          {/* Panel de Filtros Avanzados */}
           {filtersExpanded && (
             <Card>
               <div className="p-5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="space-y-2">
-                    <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
-                      Fecha Inicio
-                    </label>
-                    <DatePicker
-                      value={filters.startDate}
-                      onChange={(date) => setFilters({ ...filters, startDate: date })}
-                      placeholder="Seleccionar"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
-                      Fecha Fin
-                    </label>
-                    <DatePicker
-                      value={filters.endDate}
-                      onChange={(date) => setFilters({ ...filters, endDate: date })}
-                      placeholder="Seleccionar"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+                    <label className={fieldLabelClass} style={{ color: 'var(--ink-500)' }}>
                       RFC
                     </label>
                     <input
                       type="text"
-                      placeholder="Ej: GOR0930119TXA"
-                      value={filters.rfc}
-                      onChange={(e) => setFilters({ ...filters, rfc: e.target.value.toUpperCase() })}
-                      className="w-full px-4 py-2.5 rounded-lg border text-[13px]"
-                      style={{ borderColor: 'var(--border)', background: 'var(--input)' }}
+                      placeholder="XAXX010101000"
+                      value={filters.rfcSearch}
+                      onChange={(e) => setFilters({ ...filters, rfcSearch: e.target.value.toUpperCase() })}
+                      className={fieldClass}
+                      style={fieldStyle}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+                    <label className={fieldLabelClass} style={{ color: 'var(--ink-500)' }}>
+                      Desde
+                    </label>
+                    <DatePicker
+                      value={filters.from}
+                      onChange={(date) => setFilters({ ...filters, from: date })}
+                      placeholder="Seleccionar"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className={fieldLabelClass} style={{ color: 'var(--ink-500)' }}>
+                      Hasta
+                    </label>
+                    <DatePicker
+                      value={filters.to}
+                      onChange={(date) => setFilters({ ...filters, to: date })}
+                      placeholder="Seleccionar"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className={fieldLabelClass} style={{ color: 'var(--ink-500)' }}>
                       Uso de CFDI
                     </label>
-                    <select
+                    <input
+                      type="text"
+                      placeholder="G03, P01…"
                       value={filters.cfdiUse}
-                      onChange={(e) => setFilters({ ...filters, cfdiUse: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-lg border text-[13px]"
-                      style={{ borderColor: 'var(--border)', background: 'var(--input)' }}
-                    >
-                      <option value="">Todos</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
-                      Monto Mínimo
-                    </label>
-                    <input
-                      type="number"
-                      placeholder="$0.00"
-                      value={filters.minAmount}
-                      onChange={(e) => setFilters({ ...filters, minAmount: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-lg border text-[13px]"
-                      style={{ borderColor: 'var(--border)', background: 'var(--input)' }}
+                      onChange={(e) => setFilters({ ...filters, cfdiUse: e.target.value.toUpperCase() })}
+                      className={fieldClass}
+                      style={fieldStyle}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
-                      Monto Máximo
+                    <label className={fieldLabelClass} style={{ color: 'var(--ink-500)' }}>
+                      Monto mínimo
                     </label>
                     <input
                       type="number"
-                      placeholder="$999,999.99"
-                      value={filters.maxAmount}
-                      onChange={(e) => setFilters({ ...filters, maxAmount: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-lg border text-[13px]"
-                      style={{ borderColor: 'var(--border)', background: 'var(--input)' }}
+                      placeholder="0"
+                      value={filters.minTotal}
+                      onChange={(e) => setFilters({ ...filters, minTotal: e.target.value })}
+                      className={fieldClass}
+                      style={fieldStyle}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+                    <label className={fieldLabelClass} style={{ color: 'var(--ink-500)' }}>
+                      Monto máximo
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="Sin límite"
+                      value={filters.maxTotal}
+                      onChange={(e) => setFilters({ ...filters, maxTotal: e.target.value })}
+                      className={fieldClass}
+                      style={fieldStyle}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className={fieldLabelClass} style={{ color: 'var(--ink-500)' }}>
                       Estatus
                     </label>
                     <select
-                      value={filters.status}
-                      onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-lg border text-[13px]"
-                      style={{ borderColor: 'var(--border)', background: 'var(--input)' }}
+                      value={filters.statusCfdi}
+                      onChange={(e) => setFilters({ ...filters, statusCfdi: e.target.value })}
+                      className={fieldClass}
+                      style={fieldStyle}
                     >
-                      <option value="">Todos</option>
+                      {STATUS_OPTIONS.map(o => (
+                        <option key={o.label} value={o.value}>{o.label}</option>
+                      ))}
                     </select>
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
-                      Tipo
+                    <label className={fieldLabelClass} style={{ color: 'var(--ink-500)' }}>
+                      Tipo de comprobante
                     </label>
                     <select
-                      value={filters.type}
-                      onChange={(e) => setFilters({ ...filters, type: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-lg border text-[13px]"
-                      style={{ borderColor: 'var(--border)', background: 'var(--input)' }}
+                      value={filters.typeCfdi}
+                      onChange={(e) => setFilters({ ...filters, typeCfdi: e.target.value })}
+                      className={fieldClass}
+                      style={fieldStyle}
                     >
-                      <option value="">Todos</option>
+                      {TYPE_OPTIONS.map(o => (
+                        <option key={o.label} value={o.value}>{o.label}</option>
+                      ))}
                     </select>
                   </div>
+                </div>
+
+                <div className="flex justify-end gap-3 mt-5">
+                  <Btn kind="ghost" size="sm" onClick={() => applyFilters(EMPTY_FILTERS)} disabled={searchPending}>
+                    Limpiar
+                  </Btn>
+                  <Btn kind="primary" size="sm" onClick={() => applyFilters(filters)} disabled={searchPending}>
+                    Aplicar filtros
+                  </Btn>
                 </div>
               </div>
             </Card>
@@ -527,7 +556,9 @@ export function DocumentosScreen({ go }: Props) {
             </div>
           ) : rows.length === 0 ? (
             <div className="px-4 py-10 text-center text-[13.5px]" style={{ color: 'var(--ink-500)' }}>
-              No hay facturas en esta sección.
+              {activeFilterCount > 0
+                ? 'Ningún comprobante coincide con los filtros.'
+                : 'No hay facturas en esta sección.'}
             </div>
           ) : (
             <div>
