@@ -97,6 +97,7 @@ export function TodasTab({ onViewDetail, currentUser }: Props) {
                           {title}
                         </div>
                         <Badge kind={status.kind}>{status.label}</Badge>
+                        {(d.complementNumber ?? 0) > 0 && <Badge>Complementaria</Badge>}
                         {isFuturePlan && <Badge kind="sky">Plan a futuro</Badge>}
                         {regularization && (
                           <Badge kind={regularization.kind}>{regularization.label}</Badge>

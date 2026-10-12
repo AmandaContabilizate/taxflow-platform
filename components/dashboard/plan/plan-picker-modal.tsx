@@ -19,9 +19,12 @@ import {
   formatMXN,
   isAvailableForMode,
   isFreeAddon,
+  keepSelectableForMode,
   paymentIntentIdFromSecret,
   periodLabel,
   priceForMode,
+  regularizationItems,
+  selectedRegularizationPlans,
   SUBSCRIPTION_DISCOUNT_PERCENT,
   type DiscountCodePreview,
   type PaymentMode,
@@ -33,6 +36,12 @@ import { getStripe } from '@/lib/stripe-client'
 import { DISPLAY } from '../constants'
 import { Badge, Btn } from '../ui'
 import { PaymentForm } from './payment-form'
+import {
+  COMPLEMENT_REGULARIZATIONS_HELP,
+  COMPLEMENT_REGULARIZATIONS_TITLE,
+  complementDetails,
+  RegularizationSection,
+} from './regularization-section'
 
 type Step = 'cart' | 'paying' | 'success'
 
@@ -62,6 +71,8 @@ export function PlanPickerModal({
   const [qty, setQty] = useState<Record<number, number>>({})
   // Regularizaciones seleccionadas, por declarationId.
   const [selectedDecls, setSelectedDecls] = useState<Set<number>>(new Set())
+  // Complementarias (presentadas sin pagar) seleccionadas, por declarationId.
+  const [selectedComplements, setSelectedComplements] = useState<Set<number>>(new Set())
   const [discountCode, setDiscountCode] = useState('')
   // Preview del código validado por el backend (null = sin código aplicado).
   const [appliedDiscount, setAppliedDiscount] = useState<DiscountCodePreview | null>(null)
@@ -83,6 +94,7 @@ export function PlanPickerModal({
     [paymentMode, catalog.additionalProcedures],
   )
   const regularizations = catalog.regularizations
+  const complements = catalog.complementRegularizations
 
   const selectedPlan = useMemo(
     () => planList.find((p) => p.id === selectedPlanId) ?? null,
@@ -113,6 +125,7 @@ export function PlanPickerModal({
     setSelectedPlanId(null)
     setQty({})
     setSelectedDecls(new Set())
+    setSelectedComplements(new Set())
     setDiscountCode('')
     setAppliedDiscount(null)
     setApplyingCode(false)
@@ -142,17 +155,9 @@ export function PlanPickerModal({
       if (sameKeys && prevKeys.every((k) => prev[Number(k)] === next[Number(k)])) return prev
       return next
     })
-    setSelectedDecls((prev) => {
-      const next = new Set<number>()
-      for (const reg of regularizations) {
-        if (reg.plan && isAvailableForMode(reg.plan, paymentMode) && prev.has(reg.declarationId)) {
-          next.add(reg.declarationId)
-        }
-      }
-      if (prev.size === next.size && [...prev].every((id) => next.has(id))) return prev
-      return next
-    })
-  }, [open, paymentMode, selectedPlan, procedures, regularizations])
+    setSelectedDecls((prev) => keepSelectableForMode(regularizations, prev, paymentMode))
+    setSelectedComplements((prev) => keepSelectableForMode(complements, prev, paymentMode))
+  }, [open, paymentMode, selectedPlan, procedures, regularizations, complements])
 
   // En suscripción el price recurrente de Stripe ya trae el 10% de descuento;
   // el catálogo solo expone el precio de lista, así que lo descontamos aquí.
@@ -165,14 +170,12 @@ export function PlanPickerModal({
     0,
   )
   // grantsFreeAddOns solo libera los trámites adicionales: las regularizaciones
-  // se cobran siempre. Ponerlas en 0 aquí mostraba un total menor al que
-  // termina cobrando Stripe, porque el cargo sale de los price de `items`.
-  const regsTotal = regularizations.reduce(
-    (sum, r) =>
-      sum +
-      (r.plan && selectedDecls.has(r.declarationId) ? priceForMode(r.plan.price, paymentMode) : 0),
-    0,
-  )
+  // (y las complementarias) se cobran siempre. Ponerlas en 0 aquí mostraba un total
+  // menor al que termina cobrando Stripe, porque el cargo sale de los price de `items`.
+  const regsTotal = [
+    ...selectedRegularizationPlans(regularizations, selectedDecls),
+    ...selectedRegularizationPlans(complements, selectedComplements),
+  ].reduce((sum, p) => sum + priceForMode(p.price, paymentMode), 0)
   const total =
     (selectedPlan ? priceForMode(selectedPlan.price, paymentMode) : 0) + proceduresTotal + regsTotal
 
@@ -184,10 +187,10 @@ export function PlanPickerModal({
     const ids = new Set<number>()
     if (selectedPlan) ids.add(selectedPlan.id)
     for (const addon of procedures) if ((qty[addon.id] ?? 0) > 0) ids.add(addon.id)
-    for (const reg of regularizations)
-      if (reg.plan && selectedDecls.has(reg.declarationId)) ids.add(reg.plan.id)
+    for (const p of selectedRegularizationPlans(regularizations, selectedDecls)) ids.add(p.id)
+    for (const p of selectedRegularizationPlans(complements, selectedComplements)) ids.add(p.id)
     return ids
-  }, [selectedPlan, procedures, qty, regularizations, selectedDecls])
+  }, [selectedPlan, procedures, qty, regularizations, selectedDecls, complements, selectedComplements])
 
   // El plan es opcional: hay algo que cobrar con solo trámites o regularizaciones.
   const hasSomethingToPay = cartProductIds.size > 0
@@ -235,23 +238,11 @@ export function PlanPickerModal({
       if (q > 0) items.push({ subscriptionId: addon.id, quantity: q, paymentMode })
     }
 
-    // Regularizaciones — agrupamos los declarationId seleccionados bajo su
-    // producto (plan.id) y mandamos el campo opcional regularizationDeclarationIds.
-    const regGroups = new Map<number, number[]>()
-    for (const reg of regularizations) {
-      if (!reg.plan || !selectedDecls.has(reg.declarationId)) continue
-      const ids = regGroups.get(reg.plan.id) ?? []
-      ids.push(reg.declarationId)
-      regGroups.set(reg.plan.id, ids)
-    }
-    for (const [subscriptionId, declarationIds] of regGroups) {
-      items.push({
-        subscriptionId,
-        quantity: declarationIds.length,
-        paymentMode,
-        regularizationDeclarationIds: declarationIds,
-      })
-    }
+    // Regularizaciones y complementarias — un item por producto con sus declarationId.
+    items.push(
+      ...regularizationItems(regularizations, selectedDecls, paymentMode),
+      ...regularizationItems(complements, selectedComplements, paymentMode),
+    )
 
     return items
   }
@@ -597,68 +588,26 @@ export function PlanPickerModal({
                 </div>
               )}
 
-              {/* Regularizaciones — declaraciones pendientes; se eligen (toggle) */}
               {regularizations.length > 0 && (
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between">
-                    <div className="text-[12px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
-                      Declaraciones por regularizar
-                    </div>
-                  </div>
-                  <div className="grid gap-2.5 sm:grid-cols-2">
-                    {regularizations.map((reg) => {
-                      const enabled = !!reg.plan && isAvailableForMode(reg.plan, paymentMode)
-                      const checked = selectedDecls.has(reg.declarationId)
-                      const periodo = [reg.month, reg.year].filter(Boolean).join(' ')
-                      const title =
-                        reg.taxRegimeName || reg.plan?.name || `Declaración ${reg.declarationId}`
-                      return (
-                        <button
-                          key={reg.declarationId}
-                          type="button"
-                          disabled={!enabled}
-                          onClick={() =>
-                            setSelectedDecls((prev) => {
-                              const next = new Set(prev)
-                              if (next.has(reg.declarationId)) next.delete(reg.declarationId)
-                              else next.add(reg.declarationId)
-                              return next
-                            })
-                          }
-                          className="text-left flex items-start justify-between gap-3 rounded-2xl p-3.5 transition disabled:opacity-45 disabled:cursor-not-allowed"
-                          style={{
-                            background: 'var(--card)',
-                            border: `1.5px solid ${checked ? 'var(--brand-500)' : 'var(--border)'}`,
-                          }}
-                        >
-                          <div className="min-w-0">
-                            <div className="font-bold text-[13.5px] leading-snug" style={{ color: 'var(--ink-900)' }}>
-                              {title}
-                            </div>
-                            <div className="text-[12px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
-                              {periodo || 'Declaración pendiente'}
-                              {/* Las regularizaciones se cobran siempre, incluso con un plan que
-                                  regala trámites: el precio se muestra sin condicionar al beneficio. */}
-                              {reg.plan
-                                ? ` · ${formatMXN(priceForMode(reg.plan.price, paymentMode))}`
-                                : ''}
-                            </div>
-                          </div>
-                          <div
-                            className="w-5 h-5 mt-0.5 rounded-md flex items-center justify-center flex-shrink-0"
-                            style={{
-                              background: checked ? 'var(--brand-500)' : 'transparent',
-                              border: `1.5px solid ${checked ? 'var(--brand-500)' : 'var(--border-strong)'}`,
-                              color: '#fff',
-                            }}
-                          >
-                            {checked && <Check size={13} />}
-                          </div>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
+                <RegularizationSection
+                  title="Declaraciones por regularizar"
+                  items={regularizations}
+                  selected={selectedDecls}
+                  onSelectedChange={setSelectedDecls}
+                  paymentMode={paymentMode}
+                />
+              )}
+
+              {complements.length > 0 && (
+                <RegularizationSection
+                  title={COMPLEMENT_REGULARIZATIONS_TITLE}
+                  description={COMPLEMENT_REGULARIZATIONS_HELP}
+                  items={complements}
+                  selected={selectedComplements}
+                  onSelectedChange={setSelectedComplements}
+                  paymentMode={paymentMode}
+                  details={complementDetails}
+                />
               )}
             </div>
 

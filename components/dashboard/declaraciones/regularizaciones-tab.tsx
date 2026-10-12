@@ -126,6 +126,7 @@ export function RegularizacionesTab() {
                           {monthYear(m.fiscalYear, m.month)}
                         </div>
                         <Badge kind={badge.kind}>{badge.label}</Badge>
+                        {(m.complementNumber ?? 0) > 0 && <Badge>Complementaria</Badge>}
                       </div>
 
                     </div>

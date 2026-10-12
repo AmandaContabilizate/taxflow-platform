@@ -194,6 +194,7 @@ export function TabVistaCliente({ taxpayerId, legalName }: Props) {
                                 aria-hidden
                               />
                               <Badge kind={status.kind}>{status.label}</Badge>
+                              {(d.complementNumber ?? 0) > 0 && <Badge>Complementaria</Badge>}
                               {isFuturePlan && <Badge kind="sky">Plan a futuro</Badge>}
                               {regularization && <Badge kind={regularization.kind}>{regularization.label}</Badge>}
                             </div>

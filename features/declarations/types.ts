@@ -122,6 +122,8 @@ export interface RegularizationMonth {
   statusLabel: string
   isContracted: boolean
   badge: RegularizationBadge
+  /** 0 = Normal; >0 = complementaria comprada (llega como mes contratado). */
+  complementNumber?: number
 }
 
 export interface Regularizations {
@@ -173,6 +175,8 @@ export interface AllDeclarationItem {
   paymentLinePdfUrl?: string | null
   paymentAcknowledgmentPdfUrl?: string | null
   submittedAt: string | null
+  /** 0 = Normal; >0 = complementaria comprada (sustituye a la Normal del periodo). */
+  complementNumber?: number
 }
 
 export interface AllDeclarations {

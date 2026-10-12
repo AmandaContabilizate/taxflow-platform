@@ -52,17 +52,33 @@ export interface RegularizationPlan {
 }
 
 /**
+ * Declaración ya presentada ante el SAT cuya línea de captura no se pagó. Se regulariza con una
+ * declaración complementaria (producto 20); mismo contrato que `RegularizationPlan` más los datos
+ * de la presentación previa.
+ */
+export interface ComplementRegularizationPlan extends RegularizationPlan {
+  presentedDate: string | null;
+  totalDeclaration: number | null;
+  nextComplementNumber: number;
+  operationNumber: string | null;
+  lineaCaptura: string | null;
+}
+
+/**
  * Catálogo de venta tal como lo expone ahora el endpoint de planes.
  * Antes era un `Plan[]` plano; ahora viene seccionado en tres listas.
  * - `futurePlans`        → planes/suscripciones seleccionables.
  * - `additionalProcedures` → trámites add-on (se agregan por cantidad).
  * - `regularizations`    → declaraciones pendientes a regularizar (cada una
  *   trae su `plan` de regularización; se eligen y se agrupan por producto).
+ * - `complementRegularizations` → presentadas sin pagar; se venden como complementaria
+ *   con la misma mecánica que `regularizations`.
  */
 export interface PlansCatalog {
   futurePlans: Plan[];
   additionalProcedures: Plan[];
   regularizations: RegularizationPlan[];
+  complementRegularizations: ComplementRegularizationPlan[];
 }
 
 /** Catálogo vacío — útil como estado inicial y fallback. */
@@ -70,6 +86,7 @@ export const EMPTY_PLANS_CATALOG: PlansCatalog = {
   futurePlans: [],
   additionalProcedures: [],
   regularizations: [],
+  complementRegularizations: [],
 };
 
 /** Normaliza la respuesta del endpoint a un `PlansCatalog` con activos. */
@@ -85,18 +102,19 @@ export function toPlansCatalog(data: unknown): PlansCatalog {
       futurePlans: plans.filter((p) => p.productType === 0),
       additionalProcedures: plans.filter((p) => p.productType === 1),
       regularizations: [],
+      complementRegularizations: [],
     };
   }
 
   const obj = (data ?? {}) as Record<string, unknown>;
-  // Regularizaciones: solo las que traen un plan vendible y activo.
-  const regularizations = Array.isArray(obj.regularizations)
-    ? (obj.regularizations as RegularizationPlan[]).filter((r) => r?.plan?.isActive)
-    : [];
+  // Regularizaciones (normales y por complementaria): solo las que traen un plan vendible y activo.
+  const withActivePlan = <T extends RegularizationPlan>(arr: unknown): T[] =>
+    Array.isArray(arr) ? (arr as T[]).filter((r) => r?.plan?.isActive) : [];
   return {
     futurePlans: onlyActive(obj.futurePlans),
     additionalProcedures: onlyActive(obj.additionalProcedures),
-    regularizations,
+    regularizations: withActivePlan<RegularizationPlan>(obj.regularizations),
+    complementRegularizations: withActivePlan<ComplementRegularizationPlan>(obj.complementRegularizations),
   };
 }
 
@@ -431,6 +449,48 @@ export function applySubscriptionDiscount(amount: number): number {
 /** Precio a mostrar/sumar según el modo de pago elegido. */
 export function priceForMode(price: number, mode: PaymentMode): number {
   return mode === 0 ? applySubscriptionDiscount(price) : price;
+}
+
+/** Planes de las regularizaciones elegidas (uno por declaración), para sumar el total y armar `cartProductIds`. */
+export function selectedRegularizationPlans(regs: RegularizationPlan[], selected: Set<number>): Plan[] {
+  return regs.flatMap((r) => (r.plan && selected.has(r.declarationId) ? [r.plan] : []));
+}
+
+/**
+ * Deja en la selección solo las declaraciones cuyo plan se vende en `mode`. Devuelve el mismo `Set`
+ * si no cambió, para que el updater de estado no provoque un render extra.
+ */
+export function keepSelectableForMode(
+  regs: RegularizationPlan[],
+  selected: Set<number>,
+  mode: PaymentMode,
+): Set<number> {
+  const next = new Set<number>();
+  for (const r of regs) {
+    if (r.plan && isAvailableForMode(r.plan, mode) && selected.has(r.declarationId)) next.add(r.declarationId);
+  }
+  return next.size === selected.size ? selected : next;
+}
+
+/** Un item de carrito por producto con las declaraciones que cubre (`regularizationDeclarationIds`). */
+export function regularizationItems(
+  regs: RegularizationPlan[],
+  selected: Set<number>,
+  paymentMode: PaymentMode,
+): RegisterSaleItem[] {
+  const groups = new Map<number, number[]>();
+  for (const r of regs) {
+    if (!r.plan || !selected.has(r.declarationId)) continue;
+    const ids = groups.get(r.plan.id) ?? [];
+    ids.push(r.declarationId);
+    groups.set(r.plan.id, ids);
+  }
+  return [...groups].map(([subscriptionId, ids]) => ({
+    subscriptionId,
+    quantity: ids.length,
+    paymentMode,
+    regularizationDeclarationIds: ids,
+  }));
 }
 
 /** Modo de pago implícito en el tipo de venta que devuelve el backend. */

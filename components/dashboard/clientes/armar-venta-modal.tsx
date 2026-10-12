@@ -21,8 +21,11 @@ import {
   SUBSCRIPTION_DISCOUNT_PERCENT,
   formatMXN,
   isAvailableForMode,
+  keepSelectableForMode,
   periodLabel,
   priceForMode,
+  regularizationItems,
+  selectedRegularizationPlans,
   type DiscountCodePreview,
   type PaymentMode,
   type Plan,
@@ -33,6 +36,12 @@ import { getConstanciaEstadoVendedor } from '@/features/diagnostico/actions/getC
 import { getDiagnosticoHistorial } from '@/features/diagnostico/actions/getDiagnosticoHistorial.action'
 import type { CsfEsperaEstado, DiagnosticoCorrida, DiagnosticoRobotIntento } from '@/features/diagnostico/types'
 import { DISPLAY } from '../constants'
+import {
+  COMPLEMENT_REGULARIZATIONS_HELP,
+  COMPLEMENT_REGULARIZATIONS_TITLE,
+  complementDetails,
+  RegularizationSection,
+} from '../plan/regularization-section'
 import { Badge, Btn } from '../ui'
 
 interface Props {
@@ -131,6 +140,7 @@ export function ArmarVentaModal({ isOpen, onClose, taxpayerId, rfc, legalName, o
   const [planId, setPlanId] = useState<number | null>(null)
   const [qty, setQty] = useState<Record<number, number>>({})
   const [selectedDecls, setSelectedDecls] = useState<Set<number>>(new Set())
+  const [selectedComplements, setSelectedComplements] = useState<Set<number>>(new Set())
   const [coupon, setCoupon] = useState('')
   const [preview, setPreview] = useState<DiscountCodePreview | null>(null)
   const [previewError, setPreviewError] = useState<string | null>(null)
@@ -174,6 +184,7 @@ export function ArmarVentaModal({ isOpen, onClose, taxpayerId, rfc, legalName, o
     setPlanId(null)
     setQty({})
     setSelectedDecls(new Set())
+    setSelectedComplements(new Set())
     setCoupon('')
     setPreview(null)
     setPreviewError(null)
@@ -189,6 +200,8 @@ export function ArmarVentaModal({ isOpen, onClose, taxpayerId, rfc, legalName, o
   // Igual que en la app: los trámites solo se venden como pago único.
   const procedures = isSubscriptionMode ? [] : catalog.additionalProcedures
   const regularizations = diagnostico === 'terminado' ? catalog.regularizations : []
+  // Mismo candado que las regularizaciones: solo con el diagnóstico terminado.
+  const complements = diagnostico === 'terminado' ? catalog.complementRegularizations : []
 
   // Al cambiar de pestaña se suelta lo que no aplica en la otra (plan sin ese precio, trámites en
   // suscripción, regularizaciones sin precio en ese modo).
@@ -196,18 +209,13 @@ export function ArmarVentaModal({ isOpen, onClose, taxpayerId, rfc, legalName, o
     if (!isOpen) return
     if (selectedPlan && !isAvailableForMode(selectedPlan, paymentMode)) setPlanId(null)
     if (isSubscriptionMode) setQty({})
-    setSelectedDecls((prev) => {
-      const next = new Set<number>()
-      for (const reg of catalog.regularizations) {
-        if (reg.plan && isAvailableForMode(reg.plan, paymentMode) && prev.has(reg.declarationId)) next.add(reg.declarationId)
-      }
-      return next
-    })
+    setSelectedDecls((prev) => keepSelectableForMode(catalog.regularizations, prev, paymentMode))
+    setSelectedComplements((prev) => keepSelectableForMode(catalog.complementRegularizations, prev, paymentMode))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paymentMode])
 
   // Total a precio de lista (o de suscripción), con la misma regla de trámites liberados que el
-  // carrito del cliente. Las regularizaciones se cobran siempre.
+  // carrito del cliente. Las regularizaciones y complementarias se cobran siempre.
   const subtotal = useMemo(() => {
     let sum = selectedPlan ? priceForMode(selectedPlan.price, paymentMode) : 0
     for (const addon of procedures) {
@@ -216,11 +224,10 @@ export function ArmarVentaModal({ isOpen, onClose, taxpayerId, rfc, legalName, o
       const unit = grantsFree && addon.canBeGrantedFree ? 0 : priceForMode(addon.price, paymentMode)
       sum += unit * q
     }
-    for (const reg of regularizations) {
-      if (reg.plan && selectedDecls.has(reg.declarationId)) sum += priceForMode(reg.plan.price, paymentMode)
-    }
+    for (const p of selectedRegularizationPlans(regularizations, selectedDecls)) sum += priceForMode(p.price, paymentMode)
+    for (const p of selectedRegularizationPlans(complements, selectedComplements)) sum += priceForMode(p.price, paymentMode)
     return sum
-  }, [selectedPlan, procedures, regularizations, qty, grantsFree, paymentMode, selectedDecls])
+  }, [selectedPlan, procedures, regularizations, complements, qty, grantsFree, paymentMode, selectedDecls, selectedComplements])
 
   // Mismo alcance que el backend (DiscountCodePlanScope) y que el carrito del cliente: sin planes
   // ligados aplica a todo; si tiene planes, algún producto del carrito debe estar entre ellos. El tipo
@@ -229,13 +236,14 @@ export function ArmarVentaModal({ isOpen, onClose, taxpayerId, rfc, legalName, o
     const ids = new Set<number>()
     if (selectedPlan) ids.add(selectedPlan.id)
     for (const a of procedures) if ((qty[a.id] ?? 0) > 0) ids.add(a.id)
-    for (const reg of regularizations) if (reg.plan && selectedDecls.has(reg.declarationId)) ids.add(reg.plan.id)
+    for (const p of selectedRegularizationPlans(regularizations, selectedDecls)) ids.add(p.id)
+    for (const p of selectedRegularizationPlans(complements, selectedComplements)) ids.add(p.id)
     return ids
-  }, [selectedPlan, procedures, qty, regularizations, selectedDecls])
+  }, [selectedPlan, procedures, qty, regularizations, selectedDecls, complements, selectedComplements])
 
   const couponPlanNames = useMemo(() => {
     if (!preview || preview.subscriptionPlanIds.length === 0) return [] as string[]
-    const todos = [...catalog.futurePlans, ...catalog.additionalProcedures, ...catalog.regularizations.map((r) => r.plan).filter((p): p is Plan => !!p)]
+    const todos = [...catalog.futurePlans, ...catalog.additionalProcedures, ...[...catalog.regularizations, ...catalog.complementRegularizations].map((r) => r.plan).filter((p): p is Plan => !!p)]
     const nombres = new Set<string>()
     for (const id of preview.subscriptionPlanIds) {
       const p = todos.find((x) => x.id === id)
@@ -255,7 +263,7 @@ export function ArmarVentaModal({ isOpen, onClose, taxpayerId, rfc, legalName, o
 
   const percent = preview?.discountTypeId === 1 && couponApplies ? preview.discountPercent : 0
   const total = Math.max(0, subtotal - subtotal * (percent / 100))
-  const itemCount = (selectedPlan ? 1 : 0) + Object.values(qty).filter((q) => q > 0).length + selectedDecls.size
+  const itemCount = (selectedPlan ? 1 : 0) + Object.values(qty).filter((q) => q > 0).length + selectedDecls.size + selectedComplements.size
   const hasItems = itemCount > 0
   // Un cupón capturado que no cubre el carrito bloquea el envío: el backend lo rechazaría igual.
   const couponBlocks = !!preview && hasItems && !couponApplies
@@ -283,17 +291,11 @@ export function ArmarVentaModal({ isOpen, onClose, taxpayerId, rfc, legalName, o
       const q = qty[addon.id] ?? 0
       if (q > 0) items.push({ subscriptionId: addon.id, quantity: q, paymentMode })
     }
-    // Regularizaciones: un item por producto con la lista de declaraciones que cubre, como en la app.
-    const regGroups = new Map<number, number[]>()
-    for (const reg of regularizations) {
-      if (!reg.plan || !selectedDecls.has(reg.declarationId)) continue
-      const list = regGroups.get(reg.plan.id) ?? []
-      list.push(reg.declarationId)
-      regGroups.set(reg.plan.id, list)
-    }
-    for (const [subscriptionId, declarationIds] of regGroups) {
-      items.push({ subscriptionId, quantity: declarationIds.length, paymentMode, regularizationDeclarationIds: declarationIds })
-    }
+    // Regularizaciones y complementarias: un item por producto con las declaraciones que cubre, como en la app.
+    items.push(
+      ...regularizationItems(regularizations, selectedDecls, paymentMode),
+      ...regularizationItems(complements, selectedComplements, paymentMode),
+    )
     return items
   }
 
@@ -322,14 +324,6 @@ export function ArmarVentaModal({ isOpen, onClose, taxpayerId, rfc, legalName, o
       const value = Math.min(max, Math.max(0, current + delta))
       if (value === 0) delete next[addon.id]
       else next[addon.id] = value
-      return next
-    })
-
-  const toggleDecl = (declarationId: number) =>
-    setSelectedDecls((prev) => {
-      const next = new Set(prev)
-      if (next.has(declarationId)) next.delete(declarationId)
-      else next.add(declarationId)
       return next
     })
 
@@ -614,70 +608,46 @@ export function ArmarVentaModal({ isOpen, onClose, taxpayerId, rfc, legalName, o
               )}
 
               {/* Declaraciones por regularizar: solo con diagnóstico terminado */}
-              <section className="flex flex-col gap-3">
-                <div className="flex items-center justify-between gap-3 flex-wrap">
-                  <SectionLabel>Declaraciones por regularizar</SectionLabel>
-                  {diagnostico === 'terminado' && (
+              <RegularizationSection
+                title="Declaraciones por regularizar"
+                items={regularizations}
+                selected={selectedDecls}
+                onSelectedChange={setSelectedDecls}
+                paymentMode={paymentMode}
+                gridClassName="sm:grid-cols-2 lg:grid-cols-3"
+                headerExtra={
+                  diagnostico === 'terminado' && (
                     <Badge kind="brand">
                       <span className="inline-flex items-center gap-1">
                         <Stethoscope size={12} /> Diagnóstico terminado{diagnosticoFin ? ` · ${fechaHoraCorta(diagnosticoFin)}` : ''}
                       </span>
                     </Badge>
-                  )}
-                </div>
-                {diagnostico === 'terminado' && (
-                  <p className="text-[12px] leading-snug -mt-1" style={{ color: 'var(--ink-500)' }}>
-                    Estas son las declaraciones pendientes que el robot encontró en el portal del SAT en esa corrida. Si el cliente
-                    presentó algo después, vuelve a ejecutar el diagnóstico para actualizarlas.
-                  </p>
-                )}
-                {diagnostico !== 'terminado' ? (
-                  <RegularizacionesBloqueadas estado={diagnostico} onGoDiagnostico={onGoDiagnostico ? () => { onClose(); onGoDiagnostico() } : undefined} />
-                ) : regularizations.length === 0 ? (
-                  <div className="text-[13px]" style={{ color: 'var(--ink-500)' }}>
-                    El diagnóstico no encontró declaraciones pendientes de regularizar.
-                  </div>
-                ) : (
-                  <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-                    {regularizations.map((reg) => {
-                      const enabled = !!reg.plan && isAvailableForMode(reg.plan, paymentMode)
-                      const checked = selectedDecls.has(reg.declarationId)
-                      const periodo = [reg.month, reg.year].filter(Boolean).join(' ')
-                      const title = reg.taxRegimeName || reg.plan?.name || `Declaración ${reg.declarationId}`
-                      return (
-                        <button
-                          key={reg.declarationId}
-                          type="button"
-                          role="checkbox"
-                          aria-checked={checked}
-                          disabled={!enabled}
-                          onClick={() => toggleDecl(reg.declarationId)}
-                          className={`text-left flex items-start justify-between gap-3 rounded-2xl p-3.5 ${PRESSABLE} disabled:opacity-45 disabled:cursor-not-allowed disabled:active:scale-100`}
-                          style={{ background: 'var(--card)', border: `1.5px solid ${checked ? 'var(--brand-500)' : 'var(--border)'}` }}
-                        >
-                          <div className="min-w-0">
-                            <div className="font-bold text-[13.5px] leading-snug" style={{ color: 'var(--ink-900)' }}>{title}</div>
-                            <div className="text-[12px] mt-0.5 tabular-nums" style={{ color: 'var(--ink-500)' }}>
-                              {periodo || 'Declaración pendiente'}
-                              {reg.plan ? ` · ${formatMXN(priceForMode(reg.plan.price, paymentMode))}` : ''}
-                            </div>
-                          </div>
-                          <div
-                            className="w-5 h-5 mt-0.5 rounded-md flex items-center justify-center shrink-0 transition-[background-color,border-color] duration-150"
-                            style={{
-                              background: checked ? 'var(--brand-500)' : 'transparent',
-                              border: `1.5px solid ${checked ? 'var(--brand-500)' : 'var(--border-strong)'}`,
-                              color: '#fff',
-                            }}
-                          >
-                            {checked && <Check size={13} strokeWidth={3} />}
-                          </div>
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
-              </section>
+                  )
+                }
+                description={
+                  diagnostico === 'terminado' &&
+                  'Estas son las declaraciones pendientes que el robot encontró en el portal del SAT en esa corrida. Si el cliente presentó algo después, vuelve a ejecutar el diagnóstico para actualizarlas.'
+                }
+                override={
+                  diagnostico !== 'terminado' && (
+                    <RegularizacionesBloqueadas estado={diagnostico} onGoDiagnostico={onGoDiagnostico ? () => { onClose(); onGoDiagnostico() } : undefined} />
+                  )
+                }
+                emptyText="El diagnóstico no encontró declaraciones pendientes de regularizar."
+              />
+
+              {complements.length > 0 && (
+                <RegularizationSection
+                  title={COMPLEMENT_REGULARIZATIONS_TITLE}
+                  description={COMPLEMENT_REGULARIZATIONS_HELP}
+                  items={complements}
+                  selected={selectedComplements}
+                  onSelectedChange={setSelectedComplements}
+                  paymentMode={paymentMode}
+                  gridClassName="sm:grid-cols-2 lg:grid-cols-3"
+                  details={complementDetails}
+                />
+              )}
             </div>
 
             {/* Pie fijo: cupón + total + acción */}
