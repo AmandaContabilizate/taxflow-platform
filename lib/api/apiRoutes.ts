@@ -214,6 +214,21 @@ export const API_ROUTES = {
       `/regime-activities/activate?rfc=${encodeURIComponent(rfc)}&regimeId=${regimeId}&activityId=${activityId}`,
     REGIME_ACTIVITY_DEACTIVATE: (rfc: string, regimeId: number, activityId: number) =>
       `/regime-activities/deactivate?rfc=${encodeURIComponent(rfc)}&regimeId=${regimeId}&activityId=${activityId}`,
+    // Regímenes dados de baja: actividades asignadas, sugeridas por IDC y catálogo completo. PUT reemplaza
+    // las actividades de UNA liga (taxPayerTaxRegimeId). apiType "taxpayers"
+    REGIME_ACTIVITIES_INACTIVE: (rfc: string) => `/regime-activities/inactive?rfc=${encodeURIComponent(rfc)}`,
+    REGIME_ACTIVITIES_INACTIVE_UPDATE: (rfc: string, taxPayerTaxRegimeId: number) =>
+      `/regime-activities/inactive?rfc=${encodeURIComponent(rfc)}&taxPayerTaxRegimeId=${taxPayerTaxRegimeId}`,
+    // Bandeja global del Gerente de Operaciones (claim Operaciones.ReadActividadesPendientes).
+    // kind: 0 todos, 1 regímenes sin actividades, 2 CSF sin asignar, 3 IDC sin asignar. apiType "taxpayers"
+    REGIME_ACTIVITIES_PENDING: (params: { rfc?: string; kind?: number; skip?: number; take?: number }) => {
+      const qs = new URLSearchParams()
+      if (params.rfc) qs.set("rfc", params.rfc)
+      if (params.kind) qs.set("kind", String(params.kind))
+      qs.set("skip", String(params.skip ?? 0))
+      qs.set("take", String(params.take ?? 50))
+      return `/regime-activities/pending?${qs.toString()}`
+    },
     // Crea contribuyente para cualquier régimen (no limitado a 605); valida CIEC sin
     // descargar constancia, régimen/razón social se completan async. apiType "taxpayers"
     CREATE_BY_CIEC: "/create-by-ciec",

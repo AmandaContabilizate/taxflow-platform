@@ -174,3 +174,58 @@ export interface RegimeActivityMatrixItem {
   taxPayerTaxRegimeActivityId: number | null;
   isActive: boolean;
 }
+
+/** Actividad asignada a un régimen dado de baja. */
+export interface InactiveRegimeActivityItem {
+  activityId: number;
+  description: string;
+  /** false = el catálogo de actividades por régimen no la permite para este régimen. */
+  allowedByRegime: boolean;
+  /** true = la asignó el historial de IDC en automático. */
+  autoAssigned: boolean;
+}
+
+/** Actividad del historial de IDC que coincide en fechas con el régimen y aún no está asignada. */
+export interface SuggestedHistoricalActivity {
+  activityId: number;
+  description: string;
+  startDate: string;
+  endDate: string | null;
+  allowedByRegime: boolean;
+}
+
+/** Régimen dado de baja (con fecha de baja). Se identifica por la liga, no por el régimen de catálogo. */
+export interface InactiveRegimeActivities {
+  taxPayerTaxRegimeId: number;
+  regimeId: number;
+  regimeName: string;
+  startDate: string | null;
+  endDate: string;
+  activities: InactiveRegimeActivityItem[];
+  suggested: SuggestedHistoricalActivity[];
+  /** Actividades que el catálogo de actividades por régimen permite para este régimen. */
+  allowedActivityIds: number[];
+}
+
+export interface ActivityCatalogItem {
+  id: number;
+  description: string;
+}
+
+export interface InactiveRegimeActivitiesResponse {
+  regimes: InactiveRegimeActivities[];
+  catalog: ActivityCatalogItem[];
+}
+
+/** Contribuyente con actividades pendientes de asignar (bandeja del Gerente de Operaciones). */
+export interface PendingActivityAssignment {
+  taxpayerId: number;
+  rfc: string;
+  legalName: string;
+  regimesWithoutActivities: number;
+  unassignedPdfActivities: number;
+  unassignedIdcActivities: number;
+}
+
+/** 0 todos, 1 regímenes sin actividades, 2 actividades de la CSF sin asignar, 3 actividades de IDC sin asignar. */
+export type PendingActivityKind = 0 | 1 | 2 | 3;

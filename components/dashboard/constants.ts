@@ -104,6 +104,10 @@ export const TITLES: Record<Screen, [string, string]> = {
     'Overrides de deducibilidad por clave producto/servicio: quién los puso, para quién y por qué',
   ],
   marketing: ['Marketing & Difusión', 'Envío masivo de notificaciones Push'],
+  'actividades-pendientes': [
+    'Actividades pendientes',
+    'Contribuyentes con regímenes de baja sin actividades o actividades sin régimen',
+  ],
 }
 
 const GUEST_NAV: NavDef[] = [
@@ -321,6 +325,12 @@ const REGLAS_DEDUCIBILIDAD_ITEM: NavDef = {
   Icon: ShieldAlert,
   hint: 'Overrides por clave producto/servicio',
 }
+const ACTIVIDADES_PENDIENTES_ITEM: NavDef = {
+  id: 'actividades-pendientes',
+  label: 'Actividades pendientes',
+  Icon: ClipboardList,
+  hint: 'Actividades sin régimen asignado',
+}
 const MARKETING_ITEM: NavDef = NOTIFICACIONES_ITEM
 
 export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
@@ -478,6 +488,7 @@ export const MASTER_NAV_SECTIONS: NavSection[] = [
       TRAMITES_ADICIONALES_ITEM,
       DECLARACIONES_ANUALES_ITEM,
       REGLAS_DEDUCIBILIDAD_ITEM,
+      ACTIVIDADES_PENDIENTES_ITEM,
     ],
   },
   {
@@ -567,6 +578,9 @@ export const MODULE_CLAIMS: Record<string, string[]> = {
   // El endpoint solo exige rol Admin (sin claim propio, ver E10 back): igual que
   // Catálogos, el módulo queda oculto hasta que se seedee este claim para Admin.
   'reglas-deducibilidad': ['Admin.ReadDeductibilityOverrides'],
+  // Bandeja global (sin alcance de cartera) del Gerente de Operaciones. Asignar desde ahí abre el modal
+  // de Mis clientes, que además exige AccountingManager.GetRegimeActivities.
+  'actividades-pendientes': ['Operaciones.ReadActividadesPendientes'],
   // Carga y avance por contador; solo gerencia de contabilidad (y superusuarios).
   'equipo-operaciones': ['GerenciaContable.ReadEquipoOperaciones'],
   // Hub de configuración: el menú abre con cualquiera; cada card/tab exige el suyo.

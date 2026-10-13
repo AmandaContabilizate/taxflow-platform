@@ -59,6 +59,8 @@ export type Screen =
   | 'roles'
   | 'partnership'
   | 'reglas-deducibilidad'
+  // Bandeja global de actividades sin régimen (Gerente de Operaciones)
+  | 'actividades-pendientes'
 
 export type RoleKey =
   | 'guest'

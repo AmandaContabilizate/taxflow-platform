@@ -11,8 +11,9 @@ import {
 } from '@/components/ui/dialog'
 import { getRegimeActivities } from '@/features/taxpayers/actions/regimeActivities.action'
 import { setRegimeActivityActive } from '@/features/taxpayers/actions/regimeActivities.action'
-import type { ClientListItem, RegimeActivityMatrixItem } from '@/features/taxpayers/types'
+import type { RegimeActivityMatrixItem } from '@/features/taxpayers/types'
 import { DISPLAY, MONO } from '../constants'
+import { RegimenesBajaSection } from './regimenes-baja-section'
 
 /** Etiqueta corta para el encabezado de columna; el nombre completo del régimen va en el tooltip. */
 function shortRegimeName(name: string): string {
@@ -36,15 +37,21 @@ interface ActividadesModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   /** Cliente cuyo régimen se administra; null cuando el modal está cerrado. */
-  client: ClientListItem | null
+  client: { rfc: string; legalName: string } | null
+  /** Pestaña con la que abre (la bandeja de pendientes puede abrir directo en "Dados de baja"). */
+  initialTab?: Tab
 }
+
+type Tab = 'vigentes' | 'baja'
+
 
 /**
  * Actividades económicas por régimen del contribuyente (gerencia de contabilidad).
  * La matriz sale de la última CSF leída; activar/desactivar decide qué actividad
  * cuenta en cada régimen cuando hay más de uno activo.
  */
-export function ActividadesModal({ open, onOpenChange, client }: ActividadesModalProps) {
+export function ActividadesModal({ open, onOpenChange, client, initialTab = 'vigentes' }: ActividadesModalProps) {
+  const [tab, setTab] = useState<Tab>(initialTab)
   const [matrix, setMatrix] = useState<RegimeActivityMatrixItem[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -54,6 +61,7 @@ export function ActividadesModal({ open, onOpenChange, client }: ActividadesModa
 
   useEffect(() => {
     if (!open || !client) return
+    setTab(initialTab)
     let cancelled = false
     setLoading(true)
     setError(null)
@@ -68,7 +76,7 @@ export function ActividadesModal({ open, onOpenChange, client }: ActividadesModa
     return () => {
       cancelled = true
     }
-  }, [open, client])
+  }, [open, client, initialTab])
 
   // Matriz volteada: una fila por ACTIVIDAD, una columna por régimen. Con pocos regímenes y
   // varias actividades es la orientación compacta — y deja ver de un vistazo cuáles actividades
@@ -140,7 +148,7 @@ export function ActividadesModal({ open, onOpenChange, client }: ActividadesModa
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[640px]">
+      <DialogContent className="max-w-[680px]">
         <DialogHeader>
           <DialogTitle style={DISPLAY}>Actividades económicas</DialogTitle>
           <DialogDescription>
@@ -152,132 +160,174 @@ export function ActividadesModal({ open, onOpenChange, client }: ActividadesModa
           </DialogDescription>
         </DialogHeader>
 
-        <div
-          className="flex items-start gap-2 p-3 rounded-xl text-[12.5px]"
-          style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
-        >
-          <AlertCircle size={15} className="flex-shrink-0 mt-0.5" />
-          <span>
-            Las actividades vienen de la última CSF leída o de la migración del sistema anterior.
-            Activar o desactivar aquí decide qué actividad cuenta en cada régimen —{' '}
-            <b>sobreescribe</b> lo detectado automáticamente.
-          </span>
+        <div className="flex gap-1 p-1 rounded-xl self-start" style={{ background: 'var(--border)' }}>
+          {(
+            [
+              ['vigentes', 'Regímenes vigentes'],
+              ['baja', 'Dados de baja'],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setTab(value)}
+              aria-pressed={tab === value}
+              className="px-3 py-1.5 rounded-lg text-[12.5px] font-bold"
+              style={{
+                background: tab === value ? 'var(--card)' : 'transparent',
+                color: tab === value ? 'var(--ink-900)' : 'var(--ink-500)',
+              }}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
-        {loading ? (
-          <div className="py-10 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
-            <Loader2 size={16} className="animate-spin" /> Cargando actividades…
-          </div>
-        ) : error ? (
-          <div className="py-8 text-center flex flex-col items-center gap-2">
-            <AlertCircle size={18} style={{ color: 'var(--violet-ink)' }} />
-            <div className="text-[13px]" style={{ color: 'var(--ink-700)' }}>{error}</div>
-          </div>
-        ) : activityRows.length === 0 ? (
-          <div className="py-8 text-center text-[13px]" style={{ color: 'var(--ink-500)' }}>
-            Este contribuyente no tiene regímenes con actividades registradas.
-          </div>
-        ) : (
-          <div className="max-h-[46vh] overflow-y-auto overflow-x-auto pr-1">
-            <div style={{ minWidth: regimeCols.length > 3 ? 320 + regimeCols.length * 92 : undefined }}>
-              {/* Encabezado: actividad + una columna por régimen (nombre completo en tooltip) */}
-              <div
-                className="grid items-end gap-x-2 pb-1.5 sticky top-0 z-10"
-                style={{
-                  gridTemplateColumns: `minmax(0, 1fr) repeat(${regimeCols.length}, 84px)`,
-                  background: 'var(--card)',
-                  borderBottom: '1px solid var(--border)',
-                }}
-              >
-                <div
-                  className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-wider"
-                  style={{ color: 'var(--ink-400)' }}
-                >
-                  Actividad
-                  {unassignedCount > 0 && (
-                    <span
-                      className="px-1.5 py-px rounded-full text-[10.5px] font-bold normal-case tracking-normal"
-                      style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
-                    >
-                      {unassignedCount} sin asignar
-                    </span>
-                  )}
-                </div>
-                {regimeCols.map((rc) => (
-                  <div
-                    key={rc.regimeId}
-                    title={rc.regimeName}
-                    className="text-center text-[11px] font-extrabold uppercase tracking-wider leading-tight cursor-default"
-                    style={{ color: 'var(--ink-400)' }}
-                  >
-                    {shortRegimeName(rc.regimeName)}
-                  </div>
-                ))}
-              </div>
-
-              {activityRows.map((row) => (
-                <div
-                  key={row.activityId}
-                  className="grid items-center gap-x-2 py-1.5"
-                  style={{
-                    gridTemplateColumns: `minmax(0, 1fr) repeat(${regimeCols.length}, 84px)`,
-                    borderBottom: '1px solid var(--border)',
-                  }}
-                >
-                  <div className="text-[13px] leading-snug py-1" style={{ color: 'var(--ink-900)' }}>
-                    {row.description}
-                    {!row.assigned && (
-                      <span
-                        className="ml-2 px-1.5 py-px rounded-full text-[10.5px] font-bold align-middle whitespace-nowrap"
-                        style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
-                      >
-                        Sin asignar
-                      </span>
-                    )}
-                  </div>
-                  {regimeCols.map((rc) => {
-                    const item = row.cells.get(rc.regimeId)
-                    if (!item) return <div key={rc.regimeId} />
-                    const key = `${item.regimeId}-${item.activityId}`
-                    const busy = saving === key
-                    return (
-                      <div key={rc.regimeId} className="flex justify-center">
-                        <button
-                          type="button"
-                          onClick={() => toggle(item)}
-                          disabled={busy || saving !== null}
-                          role="switch"
-                          aria-checked={item.isActive}
-                          aria-label={`${row.description} — ${rc.regimeName}`}
-                          className={`flex h-8 w-8 items-center justify-center rounded-full cursor-pointer active:scale-[0.92] disabled:cursor-wait ${
-                            item.isActive ? 'text-white' : 'text-transparent hover:text-[var(--ink-300)]'
-                          }`}
-                          style={{
-                            background: item.isActive ? 'var(--brand-500)' : 'var(--card)',
-                            border: `1px solid ${item.isActive ? 'var(--brand-500)' : 'var(--border)'}`,
-                            transition:
-                              'background-color 150ms ease, border-color 150ms ease, color 150ms ease, transform 140ms cubic-bezier(0.23, 1, 0.32, 1)',
-                          }}
-                        >
-                          {busy ? (
-                            <Loader2 size={13} className="animate-spin" style={{ color: 'var(--ink-500)' }} />
-                          ) : (
-                            <Check size={14} strokeWidth={3} />
-                          )}
-                        </button>
-                      </div>
-                    )
-                  })}
-                </div>
-              ))}
+        {tab === 'baja' && client ? (
+          <>
+            <div
+              className="flex items-start gap-2 p-3 rounded-xl text-[12.5px]"
+              style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
+            >
+              <AlertCircle size={15} className="flex-shrink-0 mt-0.5" />
+              <span>
+                Regímenes que ya se dieron de baja. Sus actividades se usan para calcular y presentar los
+                periodos <b>anteriores a la baja</b>. La constancia ya no las trae: puedes elegir cualquier
+                actividad del catálogo o tomar las del historial del SAT.
+              </span>
             </div>
-          </div>
-        )}
+            <RegimenesBajaSection rfc={client.rfc} />
+          </>
+        ) : (
+          <>
+            <div
+              className="flex items-start gap-2 p-3 rounded-xl text-[12.5px]"
+              style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
+            >
+              <AlertCircle size={15} className="flex-shrink-0 mt-0.5" />
+              <span>
+                Las actividades vienen de la última CSF leída o de la migración del sistema anterior.
+                Activar o desactivar aquí decide qué actividad cuenta en cada régimen —{' '}
+                <b>sobreescribe</b> lo detectado automáticamente.
+              </span>
+            </div>
 
-        {saveError && (
-          <div className="flex items-center gap-2 text-[12.5px] font-semibold" style={{ color: 'var(--violet-ink)' }}>
-            <AlertCircle size={14} /> {saveError}
-          </div>
+            {loading ? (
+              <div className="py-10 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
+                <Loader2 size={16} className="animate-spin" /> Cargando actividades…
+              </div>
+            ) : error ? (
+              <div className="py-8 text-center flex flex-col items-center gap-2">
+                <AlertCircle size={18} style={{ color: 'var(--violet-ink)' }} />
+                <div className="text-[13px]" style={{ color: 'var(--ink-700)' }}>{error}</div>
+              </div>
+            ) : activityRows.length === 0 ? (
+              <div className="py-8 text-center text-[13px]" style={{ color: 'var(--ink-500)' }}>
+                Este contribuyente no tiene regímenes con actividades registradas.
+              </div>
+            ) : (
+              <div className="max-h-[46vh] overflow-y-auto overflow-x-auto pr-1">
+                <div style={{ minWidth: regimeCols.length > 3 ? 320 + regimeCols.length * 92 : undefined }}>
+                  {/* Encabezado: actividad + una columna por régimen (nombre completo en tooltip) */}
+                  <div
+                    className="grid items-end gap-x-2 pb-1.5 sticky top-0 z-10"
+                    style={{
+                      gridTemplateColumns: `minmax(0, 1fr) repeat(${regimeCols.length}, 84px)`,
+                      background: 'var(--card)',
+                      borderBottom: '1px solid var(--border)',
+                    }}
+                  >
+                    <div
+                      className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-wider"
+                      style={{ color: 'var(--ink-400)' }}
+                    >
+                      Actividad
+                      {unassignedCount > 0 && (
+                        <span
+                          className="px-1.5 py-px rounded-full text-[10.5px] font-bold normal-case tracking-normal"
+                          style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
+                        >
+                          {unassignedCount} sin asignar
+                        </span>
+                      )}
+                    </div>
+                    {regimeCols.map((rc) => (
+                      <div
+                        key={rc.regimeId}
+                        title={rc.regimeName}
+                        className="text-center text-[11px] font-extrabold uppercase tracking-wider leading-tight cursor-default"
+                        style={{ color: 'var(--ink-400)' }}
+                      >
+                        {shortRegimeName(rc.regimeName)}
+                      </div>
+                    ))}
+                  </div>
+
+                  {activityRows.map((row) => (
+                    <div
+                      key={row.activityId}
+                      className="grid items-center gap-x-2 py-1.5"
+                      style={{
+                        gridTemplateColumns: `minmax(0, 1fr) repeat(${regimeCols.length}, 84px)`,
+                        borderBottom: '1px solid var(--border)',
+                      }}
+                    >
+                      <div className="text-[13px] leading-snug py-1" style={{ color: 'var(--ink-900)' }}>
+                        {row.description}
+                        {!row.assigned && (
+                          <span
+                            className="ml-2 px-1.5 py-px rounded-full text-[10.5px] font-bold align-middle whitespace-nowrap"
+                            style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
+                          >
+                            Sin asignar
+                          </span>
+                        )}
+                      </div>
+                      {regimeCols.map((rc) => {
+                        const item = row.cells.get(rc.regimeId)
+                        if (!item) return <div key={rc.regimeId} />
+                        const key = `${item.regimeId}-${item.activityId}`
+                        const busy = saving === key
+                        return (
+                          <div key={rc.regimeId} className="flex justify-center">
+                            <button
+                              type="button"
+                              onClick={() => toggle(item)}
+                              disabled={busy || saving !== null}
+                              role="switch"
+                              aria-checked={item.isActive}
+                              aria-label={`${row.description} — ${rc.regimeName}`}
+                              className={`flex h-8 w-8 items-center justify-center rounded-full cursor-pointer active:scale-[0.92] disabled:cursor-wait ${
+                                item.isActive ? 'text-white' : 'text-transparent hover:text-[var(--ink-300)]'
+                              }`}
+                              style={{
+                                background: item.isActive ? 'var(--brand-500)' : 'var(--card)',
+                                border: `1px solid ${item.isActive ? 'var(--brand-500)' : 'var(--border)'}`,
+                                transition:
+                                  'background-color 150ms ease, border-color 150ms ease, color 150ms ease, transform 140ms cubic-bezier(0.23, 1, 0.32, 1)',
+                              }}
+                            >
+                              {busy ? (
+                                <Loader2 size={13} className="animate-spin" style={{ color: 'var(--ink-500)' }} />
+                              ) : (
+                                <Check size={14} strokeWidth={3} />
+                              )}
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {saveError && (
+              <div className="flex items-center gap-2 text-[12.5px] font-semibold" style={{ color: 'var(--violet-ink)' }}>
+                <AlertCircle size={14} /> {saveError}
+              </div>
+            )}
+          </>
         )}
       </DialogContent>
     </Dialog>

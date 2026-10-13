@@ -52,6 +52,7 @@ import {
   PlanScreen,
   ProximamenteScreen,
   ReglasDeducibilidadScreen,
+  ActividadesPendientesScreen,
   RegularizacionesScreen,
   RenovacionesScreen,
   RolesScreen,
@@ -85,6 +86,7 @@ const WIDE_SCREENS = new Set<Screen>([
   'ventas',
   'roles',
   'reglas-deducibilidad',
+  'actividades-pendientes',
   'plan',
   'home',
   'vista-fiscal',
@@ -437,6 +439,9 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
     }
     if (screen === 'reglas-deducibilidad') {
       return <ReglasDeducibilidadScreen />;
+    }
+    if (screen === 'actividades-pendientes') {
+      return <ActividadesPendientesScreen permissions={permissions} />;
     }
     if (screen === 'marketing' || screen === 'notificaciones') {
       return <NotificacionesScreen />;
