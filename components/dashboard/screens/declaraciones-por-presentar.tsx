@@ -19,6 +19,31 @@ import { Badge, Card, ErrorState, HelpBox, NoAccessState } from '../ui'
 const TAKE = 50
 const READY_TO_SUBMIT = 11
 
+type Semaforo = 'blocked' | 'warning' | 'ok'
+
+/**
+ * Niveles del semáforo de posteo, en el orden en que se muestran; `kind` es el color del chip y
+ * `titulo` es cómo se lee en el encabezado ("N declaraciones que no se pueden presentar").
+ */
+const SEMAFORO: { value: Semaforo; label: string; titulo: string; kind: 'danger' | 'amber' | 'brand' }[] = [
+  { value: 'blocked', label: 'no se pueden presentar', titulo: 'que no se pueden presentar', kind: 'danger' },
+  { value: 'warning', label: 'requieren autorización', titulo: 'que requieren autorización', kind: 'amber' },
+  { value: 'ok', label: 'listas para el robot', titulo: 'listas para el robot', kind: 'brand' },
+]
+
+const esSemaforo = (v: string | null): v is Semaforo => v === 'blocked' || v === 'warning' || v === 'ok'
+
+/** Users.Taxpayers.PasswordState (enum CiecState). */
+const CIEC: { value: 0 | 1 | 2; label: string }[] = [
+  { value: 2, label: 'CIEC inválida' },
+  { value: 1, label: 'CIEC válida' },
+  { value: 0, label: 'CIEC sin verificar' },
+]
+
+type Presentacion = 'normal' | 'complementaria'
+const esPresentacion = (v: string | null): v is Presentacion => v === 'normal' || v === 'complementaria'
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+
 interface CurrentUser {
   userId: string
   fullName: string
@@ -55,6 +80,14 @@ export function DeclaracionesPorPresentarScreen({ currentUser }: { currentUser: 
   const regimeId = numParam(params, 'regimen')
   const year = numParam(params, 'year')
   const month = numParam(params, 'month')
+  // Semáforo de posteo para dar seguimiento: el back evalúa todas las filas y pagina en memoria.
+  const estadoParam = params.get('estado')
+  const estado: Semaforo | null = esSemaforo(estadoParam) ? estadoParam : null
+  // CIEC del contribuyente (0/1/2) y tipo de presentación; los dos se filtran en SQL.
+  const ciecParam = numParam(params, 'ciec')
+  const ciec: 0 | 1 | 2 | null = ciecParam === 0 || ciecParam === 1 || ciecParam === 2 ? ciecParam : null
+  const presentacionParam = params.get('presentacion')
+  const presentacion: Presentacion | null = esPresentacion(presentacionParam) ? presentacionParam : null
 
   const [page, setPage] = useState(emptyPage)
   const [loading, setLoading] = useState(true)
@@ -87,6 +120,9 @@ export function DeclaracionesPorPresentarScreen({ currentUser }: { currentUser: 
         // El back exige año y mes juntos.
         periodYear: year && month ? year : undefined,
         periodMonth: year && month ? month : undefined,
+        readiness: estado ?? undefined,
+        ciecState: ciec ?? undefined,
+        presentacion: presentacion ?? undefined,
         skip,
         take: TAKE,
       })
@@ -101,7 +137,9 @@ export function DeclaracionesPorPresentarScreen({ currentUser }: { currentUser: 
     return () => {
       cancelled = true
     }
-  }, [canView, declarationId, rfcParam, regimeId, year, month, skip])
+  }, [canView, declarationId, rfcParam, regimeId, year, month, estado, ciec, presentacion, skip])
+
+  const setEstado = (value: Semaforo | null) => setParams({ estado: value, skip: null }, { replace: true })
 
   const counts = useMemo(() => {
     const c = { blocked: 0, warning: 0, ok: 0 }
@@ -155,7 +193,7 @@ export function DeclaracionesPorPresentarScreen({ currentUser }: { currentUser: 
 
   const totalPages = Math.max(1, Math.ceil(page.total / TAKE))
   const rfcInvalid = rfcParam != null && rfcParam !== '' && !RFC_PATTERN.test(rfcParam)
-  const filtering = Boolean(rfcParam || regimeId || year || month)
+  const filtering = Boolean(rfcParam || regimeId || year || month || estado || ciec != null || presentacion)
 
   return (
     <div className="flex flex-col gap-5 max-w-full h-[calc(100dvh-8.5rem)]">
@@ -217,12 +255,53 @@ export function DeclaracionesPorPresentarScreen({ currentUser }: { currentUser: 
             ))}
           </select>
 
+          <select
+            value={estado ?? ''}
+            onChange={(e) => setEstado(esSemaforo(e.target.value) ? e.target.value : null)}
+            className="px-3 py-2 rounded-lg text-[12.5px] font-semibold"
+            style={selectStyle}
+            aria-label="Semáforo"
+          >
+            <option value="">Todos los semáforos</option>
+            {SEMAFORO.map((s) => (
+              <option key={s.value} value={s.value}>{capitalize(s.label)}</option>
+            ))}
+          </select>
+
+          <select
+            value={ciec ?? ''}
+            onChange={(e) => setParams({ ciec: e.target.value || null, skip: null }, { replace: true })}
+            className="px-3 py-2 rounded-lg text-[12.5px] font-semibold"
+            style={selectStyle}
+            aria-label="CIEC"
+          >
+            <option value="">Cualquier CIEC</option>
+            {CIEC.map((c) => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
+
+          <select
+            value={presentacion ?? ''}
+            onChange={(e) => setParams({ presentacion: e.target.value || null, skip: null }, { replace: true })}
+            className="px-3 py-2 rounded-lg text-[12.5px] font-semibold"
+            style={selectStyle}
+            aria-label="Presentación"
+          >
+            <option value="">Normales y complementarias</option>
+            <option value="normal">Solo normales</option>
+            <option value="complementaria">Solo complementarias</option>
+          </select>
+
           {filtering && (
             <button
               type="button"
               onClick={() => {
                 setRfcInput('')
-                setParams({ rfc: null, regimen: null, year: null, month: null, skip: null }, { replace: true })
+                setParams(
+                  { rfc: null, regimen: null, year: null, month: null, estado: null, ciec: null, presentacion: null, skip: null },
+                  { replace: true },
+                )
               }}
               className="px-3 py-2 rounded-lg text-[12.5px] font-bold"
               style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--ink-700)' }}
@@ -252,14 +331,39 @@ export function DeclaracionesPorPresentarScreen({ currentUser }: { currentUser: 
           <div className="text-[15px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
             {loading
               ? 'Cargando…'
-              : `${page.total} ${page.total === 1 ? 'declaración por presentar' : 'declaraciones por presentar'}`}
+              : `${page.total} ${page.total === 1 ? 'declaración' : 'declaraciones'} ${
+                  estado ? SEMAFORO.find((s) => s.value === estado)!.titulo : 'por presentar'
+                }`}
           </div>
-          {!loading && page.items.length > 0 && (
+          {!loading && (page.items.length > 0 || estado) && (
             <div className="flex items-center gap-2 text-[12px] font-bold">
-              <Badge kind="danger">{counts.blocked} no se pueden presentar</Badge>
-              <Badge kind="amber">{counts.warning} requieren autorización</Badge>
-              <Badge kind="brand">{counts.ok} listas para el robot</Badge>
-              <span style={{ color: 'var(--ink-500)' }}>(en esta página)</span>
+              {/* Chips clicables: filtran por semáforo (mismo efecto que el select). Con filtro activo
+                  solo se conoce el total del nivel elegido; los otros dos se muestran sin número. */}
+              {SEMAFORO.map((s) => {
+                const activo = estado === s.value
+                const atenuado = estado != null && !activo
+                return (
+                  <button
+                    key={s.value}
+                    type="button"
+                    aria-pressed={activo}
+                    title={activo ? 'Quitar filtro' : `Ver solo las que ${s.label}`}
+                    onClick={() => setEstado(activo ? null : s.value)}
+                    className="rounded-full transition-[transform,opacity,box-shadow] duration-150 ease-out active:scale-[0.97]"
+                    style={{
+                      opacity: atenuado ? 0.5 : 1,
+                      boxShadow: activo ? '0 0 0 2px var(--card), 0 0 0 4px var(--ring)' : 'none',
+                    }}
+                  >
+                    <Badge kind={s.kind}>
+                      {activo ? page.total : estado == null ? counts[s.value] : null}
+                      {activo || estado == null ? ' ' : ''}
+                      {s.label}
+                    </Badge>
+                  </button>
+                )
+              })}
+              <span style={{ color: 'var(--ink-500)' }}>{estado ? '(en total)' : '(en esta página)'}</span>
             </div>
           )}
         </div>
@@ -278,7 +382,7 @@ export function DeclaracionesPorPresentarScreen({ currentUser }: { currentUser: 
               <table className="w-full text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Contribuyente', 'RFC', 'Ejercicio', 'Periodo', 'Régimen', 'Tipo', 'Estatus', ''].map((h) => (
+                    {['Contribuyente', 'RFC', 'Ejercicio', 'Periodo', 'Régimen', 'Tipo', 'Presentación', 'Estatus', ''].map((h) => (
                       <th
                         key={h}
                         className="px-5 py-3 text-left font-extrabold whitespace-nowrap"
@@ -302,12 +406,26 @@ export function DeclaracionesPorPresentarScreen({ currentUser }: { currentUser: 
                         </td>
                         <td className="px-5 py-4">
                           <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-700)' }}>{d.rfc}</code>
+                          {/* La CIEC válida es lo normal; solo se marca cuando no lo es. */}
+                          {d.ciecState === 2 && (
+                            <div className="mt-1"><Badge kind="coral">CIEC inválida</Badge></div>
+                          )}
+                          {d.ciecState === 0 && (
+                            <div className="mt-1"><Badge>CIEC sin verificar</Badge></div>
+                          )}
                         </td>
                         <td className="px-5 py-4" style={{ color: 'var(--ink-700)' }}>{d.fiscalYear}</td>
                         <td className="px-5 py-4" style={{ color: 'var(--ink-700)' }}>{periodLabel(d.periodValueId)}</td>
                         <td className="px-5 py-4" style={{ color: 'var(--ink-700)' }}>{d.taxRegimeName ?? '—'}</td>
                         <td className="px-5 py-4" style={{ color: 'var(--ink-700)' }}>
                           {d.declarationKind != null ? TIPO_LABEL[d.declarationKind] ?? '—' : '—'}
+                        </td>
+                        <td className="px-5 py-4 whitespace-nowrap" style={{ color: 'var(--ink-700)' }}>
+                          {(d.complementNumber ?? 0) > 0 ? (
+                            <Badge kind="sky">Complementaria {d.complementNumber}</Badge>
+                          ) : (
+                            'Normal'
+                          )}
                         </td>
                         <td className="px-5 py-4 whitespace-nowrap">
                           <Badge kind={badge.kind}>{badge.label}</Badge>

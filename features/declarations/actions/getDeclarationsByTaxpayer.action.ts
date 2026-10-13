@@ -22,8 +22,10 @@ export async function getDeclarationsByTaxpayer(
     })
   }
 
-  const { rfc, skip, take, kind, taxRegimeId, onlyUpcoming, upcomingExact, periodYear, periodMonth, statusId } =
-    parsed.data
+  const {
+    rfc, skip, take, kind, taxRegimeId, onlyUpcoming, upcomingExact, periodYear, periodMonth, statusId,
+    readiness, ciecState, presentacion,
+  } = parsed.data
 
   try {
     const data = await fetchGet<PagedDeclarations<TaxpayerDeclarationItem>>(
@@ -38,6 +40,9 @@ export async function getDeclarationsByTaxpayer(
         periodYear,
         periodMonth,
         statusId,
+        readiness,
+        ciecState,
+        presentacion,
       }),
       'declaration',
     )

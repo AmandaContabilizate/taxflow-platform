@@ -546,6 +546,10 @@ export interface TaxpayerDeclarationItem {
   /** Semáforo de posteo; sólo viene en estatus 11 (PorPresentar). */
   postingReadiness?: PostingReadiness | null
   createdAt?: string | null
+  /** `Users.Taxpayers.PasswordState`: 0 sin verificar, 1 válida, 2 inválida. */
+  ciecState?: number
+  /** 0 = presentación normal; > 0 = número de complementaria. */
+  complementNumber?: number
 }
 
 /**

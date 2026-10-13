@@ -37,6 +37,12 @@ interface TaxpayerListQuery {
   periodMonth?: number
   /** Id de `DeclarationStatus` (`Declarations.Declaration.IdStatusDeclaration`). "En proceso" = 15. */
   statusId?: number
+  /** Nivel del semáforo de posteo (solo con `statusId: 11`); el back evalúa todo y pagina en memoria. */
+  readiness?: "ok" | "warning" | "blocked"
+  /** Estado de la CIEC del contribuyente: 0 sin verificar, 1 válida, 2 inválida. */
+  ciecState?: number
+  /** Tipo de presentación: normal (ComplementNumber = 0) o complementaria (> 0). */
+  presentacion?: "normal" | "complementaria"
 }
 
 export interface TaxpayerGroupsQuery extends TaxpayerListQuery {
@@ -61,6 +67,9 @@ function taxpayerListQuery(p: TaxpayerListQuery): URLSearchParams {
   if (p.periodYear != null) qs.set("periodYear", String(p.periodYear))
   if (p.periodMonth != null) qs.set("periodMonth", String(p.periodMonth))
   if (p.statusId) qs.set("statusId", String(p.statusId))
+  if (p.readiness) qs.set("readiness", p.readiness)
+  if (p.ciecState != null) qs.set("ciecState", String(p.ciecState))
+  if (p.presentacion) qs.set("presentacion", p.presentacion)
   return qs
 }
 

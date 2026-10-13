@@ -25,6 +25,12 @@ const filters = {
   periodMonth: z.number().int().min(1).max(12).optional(),
   /** Id de `DeclarationStatus` (Declarations.Declaration.IdStatusDeclaration). "En proceso" = 15. */
   statusId: z.number().int().positive().optional(),
+  /** Nivel del semáforo de posteo; el back solo lo acepta junto con `statusId: 11` (Por presentar). */
+  readiness: z.enum(['ok', 'warning', 'blocked']).optional(),
+  /** Estado de la CIEC del contribuyente: 0 sin verificar, 1 válida, 2 inválida. */
+  ciecState: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(),
+  /** Tipo de presentación: normal (ComplementNumber = 0) o complementaria (> 0). */
+  presentacion: z.enum(['normal', 'complementaria']).optional(),
 }
 
 /** Nivel 1: contribuyentes con compras. `search` filtra por RFC o razón social. */
