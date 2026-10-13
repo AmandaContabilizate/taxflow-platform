@@ -417,6 +417,13 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
           : { kind: 'warning', text: 'Estatus actualizado pero el correo falló; reintenta.' },
       )
       void refreshDeclaration()
+    } else if (res.error.code === 'CALCULATION_CHANGED') {
+      // Llegaron comprobantes después del último cálculo y al recalcular cambiaron las cifras: el
+      // back no envió. El texto trae qué cambió; se refresca para que el contador vea lo nuevo y,
+      // ya revisado, vuelva a darle a Enviar (el cálculo ya está al día y pasa).
+      setResendOpen(false)
+      setResendMessage({ kind: 'warning', text: res.error.message })
+      void refreshDeclaration()
     } else {
       // El catálogo de errores trae textos pensados para el cliente: aquí se le habla al contador.
       const presentada = general?.statusId === DECLARATION_STATUS.SUBMITTED
@@ -904,7 +911,8 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
                 style={{ background: 'linear-gradient(135deg,#00D3A1 0%,#00AD87 100%)', color: '#fff' }}
               >
                 {resendLoading && <Loader2 size={14} className="animate-spin" />}
-                Confirmar envío
+                {/* Si llegaron comprobantes después del último cálculo, el back recalcula antes de enviar. */}
+                {resendLoading ? 'Revisando cálculo y enviando…' : 'Confirmar envío'}
               </button>
             </div>
           </div>

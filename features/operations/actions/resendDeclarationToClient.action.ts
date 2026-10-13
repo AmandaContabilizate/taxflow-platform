@@ -10,7 +10,9 @@ interface ResendError {
   statusCode: number;
   message: string;
   /** DECLARATION_NOT_FOUND | INVALID_STATUS_TRANSITION | TAXPAYER_EMAIL_NOT_FOUND
-   *  | REPORT_LINK_NOT_AVAILABLE | UPDATE_FAILED | INVALID_REQUEST. */
+   *  | REPORT_LINK_NOT_AVAILABLE | UPDATE_FAILED | INVALID_REQUEST
+   *  | CALCULATION_CHANGED (recalculó por comprobantes nuevos y cambiaron las cifras: no envió)
+   *  | CALCULATION_REFRESH_FAILED (el cálculo no estaba al día y no se pudo recalcular). */
   code?: string;
 }
 
