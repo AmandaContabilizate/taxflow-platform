@@ -3,7 +3,7 @@
 import { Elements } from '@stripe/react-stripe-js'
 import type { Stripe } from '@stripe/stripe-js'
 import { Check, CheckCircle2, Coins, Gift, Loader2, Minus, Plus, TicketPercent } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -85,7 +85,11 @@ export function PlanPickerModal({
   const [processing, setProcessing] = useState(false)
   // Créditos de referidos: saldo vigente del usuario y si quiere descontarlo en esta compra.
   const [creditBalance, setCreditBalance] = useState(0)
+  const [creditsLoading, setCreditsLoading] = useState(false)
   const [useCredits, setUseCredits] = useState(true)
+  // Promesa del saldo en curso: "Continuar al pago" la espera para no cobrar sin descontar los créditos
+  // cuando el backend tarda (p. ej. base de staging dormida).
+  const balancePromiseRef = useRef<Promise<number>>(Promise.resolve(0))
 
   const planList = catalog.futurePlans
   // Los tramites no se venden dentro de una suscripcion: son cargos de una sola vez y
@@ -139,9 +143,17 @@ export function PlanPickerModal({
     setDiscountNotice(null)
     setUseCredits(true)
     // Saldo de créditos de referidos (se descuenta en el cobro si el cliente lo deja marcado).
-    void getReferralCreditBalance().then((res) => {
-      setCreditBalance(res.success ? res.value.available : 0)
-    })
+    setCreditBalance(0)
+    setCreditsLoading(true)
+    const p = getReferralCreditBalance()
+      .then((res) => (res.success ? res.value.available : 0))
+      .catch(() => 0)
+      .then((available) => {
+        setCreditBalance(available)
+        setCreditsLoading(false)
+        return available
+      })
+    balancePromiseRef.current = p
     setProcessing(false)
   }, [open])
 
@@ -278,6 +290,13 @@ export function PlanPickerModal({
     setError(null)
 
     const items = buildItems()
+
+    // Si el saldo de créditos todavía no llegó, se espera: así el cobro sale descontado aunque el
+    // cliente haya dado clic antes de que apareciera la fila de créditos.
+    const balance = await balancePromiseRef.current
+    const credits = useCredits && balance > 0 ? Math.min(balance, discountedTotal) : 0
+    const finalTotal = Math.max(0, discountedTotal - credits)
+    const creditsApplied = credits
 
     // Venta gratis (código de 100% o créditos que cubren todo): Stripe no acepta cobros
     // de $0, así que se salta por completo — la venta se registra directo (el backend la
@@ -695,7 +714,15 @@ export function PlanPickerModal({
                 </div>
               )}
 
-              {creditBalance > 0 && (
+              {creditsLoading && (
+                <div
+                  className="flex items-center gap-2 text-[12.5px] font-semibold px-3 py-2 rounded-xl"
+                  style={{ background: 'var(--card-muted)', color: 'var(--ink-500)' }}
+                >
+                  <Loader2 size={14} className="animate-spin flex-shrink-0" /> Consultando tus créditos de referidos…
+                </div>
+              )}
+              {!creditsLoading && creditBalance > 0 && (
                 <label
                   className="flex items-center justify-between gap-3 text-[12.5px] font-semibold px-3 py-2 rounded-xl cursor-pointer select-none"
                   style={{ background: 'var(--hero-brand-soft)', color: 'var(--ink-700)' }}

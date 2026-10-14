@@ -21,6 +21,28 @@ function fmtDate(iso: string): string {
 
 const PAID_STATUS_ID = 2
 
+/**
+ * Desglose de una compra. Sale.Amount guarda el precio de lista menos cupón y menos créditos de
+ * referidos; el 10 % de suscripción vive solo en el price recurrente de Stripe, así que en
+ * suscripción se descuenta aquí para que "Pagado" coincida con el cobro. Las ventas que ya traen
+ * el importe neto (renovaciones de ciclo, que se registran con el monto de la factura de Stripe)
+ * se detectan porque amount + créditos no cuadra con la lista, y ahí no se vuelve a descontar.
+ */
+function desglose(purchase: AccountPurchase) {
+  const amount = purchase.amount
+  const credits = purchase.referralCreditsApplied ?? 0
+  const subtotal = purchase.items.reduce((sum, it) => sum + it.amount, 0)
+  // Modo: por el price de Stripe de las líneas (el webhook no siempre alcanza a ligar el sub_ a la venta).
+  const mode: 0 | 1 = purchase.items.some((it) => it.paymentMode === 0) ? 0 : modeOf(purchase.type) === 0 ? 0 : 1
+  const registradoALista = Math.abs(amount + credits - subtotal) < 0.05
+  const subDiscount =
+    mode === 0 && registradoALista
+      ? Math.round(subtotal * (SUBSCRIPTION_DISCOUNT_PERCENT / 100) * 100) / 100
+      : 0
+  const pagado = Math.max(0, Math.round((amount - subDiscount) * 100) / 100)
+  return { amount, credits, subtotal, subDiscount, pagado, mode }
+}
+
 function PurchaseItem({ item }: { item: AccountPurchaseItem }) {
   return (
     <div className="rounded-2xl p-3.5" style={{ background: 'var(--ink-50)' }}>
@@ -53,10 +75,7 @@ function PurchaseItem({ item }: { item: AccountPurchaseItem }) {
 function PurchaseRow({ purchase }: { purchase: AccountPurchase }) {
   const [open, setOpen] = useState(false)
   const isPaid = purchase.statusId === PAID_STATUS_ID
-  const mode = modeOf(purchase.type)
-  // Lo ya cobrado se muestra tal cual: Sale.Amount guarda el importe real, y el precio
-  // de suscripcion de Stripe ya trae su descuento. Recalcularlo aqui lo descontaba dos veces.
-  const amount = purchase.amount
+  const { amount, credits, subtotal, subDiscount, pagado, mode } = desglose(purchase)
 
   return (
     <div>
@@ -77,15 +96,16 @@ function PurchaseRow({ purchase }: { purchase: AccountPurchase }) {
             </span>
             <Badge kind={isPaid ? 'brand' : 'amber'}>{purchase.status}</Badge>
             {mode === 0 && <Badge kind="brand">−{SUBSCRIPTION_DISCOUNT_PERCENT}% suscripción</Badge>}
+            {credits > 0 && <Badge kind="amber">−{formatMXN(credits)} créditos de referidos</Badge>}
           </div>
           <div className="text-[12px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
-            {typeLabel(purchase.type)} · venta #{purchase.saleId} ·{' '}
+            {mode === 0 ? 'Suscripción' : typeLabel(purchase.type)} · venta #{purchase.saleId} ·{' '}
             {purchase.items.length} {purchase.items.length === 1 ? 'concepto' : 'conceptos'}
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <span className="text-[14.5px] font-extrabold" style={{ ...MONO, color: 'var(--ink-900)' }}>
-            {formatMXN(amount)}
+            {formatMXN(pagado)}
           </span>
           <ChevronDown
             size={16}
@@ -103,6 +123,30 @@ function PurchaseRow({ purchase }: { purchase: AccountPurchase }) {
           {purchase.items.map((item) => (
             <PurchaseItem key={item.saleItemId} item={item} />
           ))}
+          {(credits > 0 || subDiscount > 0) && (
+            <div className="rounded-2xl px-3.5 py-3 text-[12.5px]" style={{ background: 'var(--hero-brand-soft)', color: 'var(--ink-700)' }}>
+              <div className="flex items-center justify-between gap-3">
+                <span>Total de la compra</span>
+                <span style={MONO}>{formatMXN(subtotal)}</span>
+              </div>
+              {subDiscount > 0 && (
+                <div className="flex items-center justify-between gap-3 mt-1" style={{ color: 'var(--brand-700)' }}>
+                  <span>Descuento por suscripción ({SUBSCRIPTION_DISCOUNT_PERCENT} % adicional)</span>
+                  <span style={MONO}>−{formatMXN(subDiscount)}</span>
+                </div>
+              )}
+              {credits > 0 && (
+                <div className="flex items-center justify-between gap-3 mt-1" style={{ color: 'var(--brand-700)' }}>
+                  <span>Créditos de referidos aplicados</span>
+                  <span style={MONO}>−{formatMXN(credits)}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between gap-3 mt-1 font-extrabold" style={{ color: 'var(--ink-900)' }}>
+                <span>Pagado</span>
+                <span style={MONO}>{formatMXN(pagado)}</span>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -117,7 +161,7 @@ export function PurchaseHistory({ compras }: Props) {
   const paidCompras = compras.filter(
     (c) => c.statusId === PAID_STATUS_ID || c.status?.toLowerCase() === 'pagada'
   )
-  const total = paidCompras.reduce((sum, c) => sum + c.amount, 0)
+  const total = paidCompras.reduce((sum, c) => sum + desglose(c).pagado, 0)
 
   return (
     <div>
