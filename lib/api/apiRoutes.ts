@@ -641,6 +641,12 @@ export const API_ROUTES = {
     ACTIVE_PLAN: (rfc: string) =>
       `/active-plan?rfc=${encodeURIComponent(rfc)}`,
   },
+  /** Programa de referidos entre clientes (Procedures `api/referrals`). */
+  REFERRALS: {
+    ME: "/me",
+    /** Saldo de créditos disponible (lo consulta el carrito antes de pagar). */
+    BALANCE: "/balance",
+  },
   TIMBRAME: {
     PORTAL_ACCESS: "/portal-access",
   },

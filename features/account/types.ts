@@ -224,12 +224,16 @@ export interface RegisterSaleNewRequest {
   rfc: string;
   discountCode: string | null;
   items: RegisterSaleItem[];
+  /** Descontar los créditos de referidos del usuario (después del cupón, hasta el total). */
+  useReferralCredits?: boolean;
 }
 
 export interface RegisterSaleNewResponse {
   success: boolean;
   discountApplied: boolean;
   discountMessage: string | null;
+  /** Créditos de referidos descontados en la venta (pesos). */
+  referralCreditsApplied?: number;
 }
 
 /**
