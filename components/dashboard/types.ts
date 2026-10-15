@@ -14,6 +14,8 @@ export type Screen =
   | 'ayuda'
   | 'manual'
   | 'cuenta'
+  // Programa de referidos del cliente (desde Mi cuenta)
+  | 'referidos'
   | 'estatussat'
   // Pantalla para conectar el SAT (SatConnectScreen); distinta de 'estatussat' (monitoreo)
   | 'estatus-sat'

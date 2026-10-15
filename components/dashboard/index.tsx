@@ -10,6 +10,7 @@ import NotificationCenterPage from '@/app/dashboard/notificaciones/page'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { PushNotificationPrompt } from './PushNotificationPrompt'
 import { FloatingContadorButton } from './FloatingContadorButton'
+import { FloatingReferidosButton } from './FloatingReferidosButton'
 import { DISPLAY, TITLES, normalizeRole } from './constants'
 import { PermissionsProvider } from './permissions'
 import { Sidebar } from './sidebar'
@@ -51,6 +52,7 @@ import {
   PermisosScreen,
   PlaceholderScreen,
   PlanScreen,
+  ReferidosScreen,
   ProximamenteScreen,
   ReglasDeducibilidadScreen,
   ActividadesPendientesScreen,
@@ -250,6 +252,7 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
 
           <PushNotificationPrompt userId={userId} />
           {isClient && <FloatingContadorButton />}
+          {isClient && <FloatingReferidosButton go={go} hidden={screen === 'referidos'} />}
 
           <ScreenRouter
             screen={screen}
@@ -505,6 +508,8 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
           onAutoOpenHandled={onPlanPickerHandled}
         />
       );
+    case 'referidos':
+      return <ReferidosScreen go={go} />;
     case 'centro-notificaciones':
       return <NotificationCenterPage />;
     case 'ayuda':

@@ -224,12 +224,16 @@ export interface RegisterSaleNewRequest {
   rfc: string;
   discountCode: string | null;
   items: RegisterSaleItem[];
+  /** Descontar los créditos de referidos del usuario (después del cupón, hasta el total). */
+  useReferralCredits?: boolean;
 }
 
 export interface RegisterSaleNewResponse {
   success: boolean;
   discountApplied: boolean;
   discountMessage: string | null;
+  /** Créditos de referidos descontados en la venta (pesos). */
+  referralCreditsApplied?: number;
 }
 
 /**
@@ -320,6 +324,8 @@ export interface AccountPurchaseItem {
   quantity: number;
   unitAmount: number;
   amount: number;
+  /** 0 = Suscripción, 1 = Pago único, según el price de Stripe registrado en la línea. */
+  paymentMode?: number;
   regularizationDeclarations: number;
   futureDeclarations: number;
   taxRegimeId: number | null;
@@ -336,6 +342,8 @@ export interface AccountPurchase {
   checkoutId: string | null;
   paymentIntentId: string | null;
   stripeSubscriptionId: string | null;
+  /** Créditos de referidos descontados en la venta (pesos); `amount` ya viene neto. */
+  referralCreditsApplied?: number;
   items: AccountPurchaseItem[];
 }
 

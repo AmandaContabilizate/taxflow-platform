@@ -27,6 +27,7 @@ export async function createPaymentSheet(
   rfc: string,
   items: RegisterSaleItem[],
   discountCode?: string | null,
+  useReferralCredits = false,
 ): Promise<Result<PaymentSheetParams, PaymentSheetError>> {
   try {
     const cookieStore = await cookies();
@@ -45,7 +46,7 @@ export async function createPaymentSheet(
 
     const data = await fetchPost<PaymentSheetParams>(
       API_ROUTES.STRIPE.PAYMENT_SHEET,
-      { rfc, email, items, discountCode: discountCode?.trim() || null },
+      { rfc, email, items, discountCode: discountCode?.trim() || null, useReferralCredits },
       "stripe",
     );
 

@@ -7,6 +7,7 @@ import { DISPLAY } from '../constants'
 import { FiscalCredibility } from '../fiscal-credibility'
 import { FiscalScore } from '../fiscal-score'
 import { FinancialSummary } from '../financial-summary'
+import { ReferidosPromo } from '../referidos-promo'
 import type { GoFn } from '../types'
 import { Btn, CiecWarningBanner, VideoSlot } from '../ui'
 import { UpcomingDates } from '../upcoming-dates'
@@ -40,6 +41,9 @@ export function HomeScreen({ go }: Props) {
       {ciecBlock === 'unverified' && <CiecWarningBanner go={go} variant="unverified" />}
       {isConnectedByEfirmaOnly(selectedRfcInfo) && <CiecWarningBanner go={go} variant="efirma" />}
       <FiscalScore go={go} />
+
+      {/* Programa de referidos: gancho (o saldo, si ya tiene) con entrada suave una vez por sesión. */}
+      <ReferidosPromo go={go} />
 
       <FiscalCredibility go={go} />
 

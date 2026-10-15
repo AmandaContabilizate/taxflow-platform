@@ -2,8 +2,8 @@
 
 import { Elements } from '@stripe/react-stripe-js'
 import type { Stripe } from '@stripe/stripe-js'
-import { Check, CheckCircle2, Gift, Loader2, Minus, Plus, TicketPercent } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { Check, CheckCircle2, Coins, Gift, Loader2, Minus, Plus, TicketPercent } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -15,6 +15,7 @@ import { createPaymentSheet } from '@/features/account/actions/createPaymentShee
 import { getStripePublishableKey } from '@/features/account/actions/getStripePublishableKey.action'
 import { previewDiscountCode } from '@/features/account/actions/previewDiscountCode.action'
 import { registerSaleNew } from '@/features/account/actions/registerSaleNew.action'
+import { getReferralCreditBalance } from '@/features/referrals/actions/getReferralCreditBalance.action'
 import {
   formatMXN,
   isAvailableForMode,
@@ -82,6 +83,13 @@ export function PlanPickerModal({
   const [error, setError] = useState<string | null>(null)
   const [discountNotice, setDiscountNotice] = useState<string | null>(null)
   const [processing, setProcessing] = useState(false)
+  // Créditos de referidos: saldo vigente del usuario y si quiere descontarlo en esta compra.
+  const [creditBalance, setCreditBalance] = useState(0)
+  const [creditsLoading, setCreditsLoading] = useState(false)
+  const [useCredits, setUseCredits] = useState(true)
+  // Promesa del saldo en curso: "Continuar al pago" la espera para no cobrar sin descontar los créditos
+  // cuando el backend tarda (p. ej. base de staging dormida).
+  const balancePromiseRef = useRef<Promise<number>>(Promise.resolve(0))
 
   const planList = catalog.futurePlans
   // Los tramites no se venden dentro de una suscripcion: son cargos de una sola vez y
@@ -133,6 +141,19 @@ export function PlanPickerModal({
     setClientSecret(null)
     setError(null)
     setDiscountNotice(null)
+    setUseCredits(true)
+    // Saldo de créditos de referidos (se descuenta en el cobro si el cliente lo deja marcado).
+    setCreditBalance(0)
+    setCreditsLoading(true)
+    const p = getReferralCreditBalance()
+      .then((res) => (res.success ? res.value.available : 0))
+      .catch(() => 0)
+      .then((available) => {
+        setCreditBalance(available)
+        setCreditsLoading(false)
+        return available
+      })
+    balancePromiseRef.current = p
     setProcessing(false)
   }, [open])
 
@@ -211,6 +232,10 @@ export function PlanPickerModal({
       ? total - total * (appliedDiscount.discountPercent / 100)
       : total
 
+  // Créditos de referidos: después del cupón, hasta el total (misma cuenta que el backend).
+  const creditsApplied = useCredits && creditBalance > 0 ? Math.min(creditBalance, discountedTotal) : 0
+  const finalTotal = Math.max(0, discountedTotal - creditsApplied)
+
   async function applyCode() {
     const code = discountCode.trim()
     if (!code || applyingCode) return
@@ -247,32 +272,53 @@ export function PlanPickerModal({
     return items
   }
 
+  // Si una server action falla al invocarse (p. ej. el bundle del navegador quedó viejo tras reiniciar
+  // el dev server), que el botón no se quede en "Preparando pago…" para siempre.
   async function handlePay() {
+    try {
+      await handlePayInner()
+    } catch (e) {
+      console.error('[plan-picker] fallo al preparar el pago:', e)
+      setError('No pudimos preparar el pago. Recarga la página e intenta de nuevo.')
+      setProcessing(false)
+    }
+  }
+
+  async function handlePayInner() {
     if (!hasSomethingToPay) return
     setProcessing(true)
     setError(null)
 
     const items = buildItems()
 
-    // Venta gratis (código de 100%): Stripe no acepta cobros de $0, así que se
-    // salta por completo — la venta se registra directo (el backend la marca
-    // PAGADA y dispara el cumplimiento: declaraciones, contador, trámites).
-    if (total > 0 && discountedTotal <= 0) {
+    // Si el saldo de créditos todavía no llegó, se espera: así el cobro sale descontado aunque el
+    // cliente haya dado clic antes de que apareciera la fila de créditos.
+    const balance = await balancePromiseRef.current
+    const credits = useCredits && balance > 0 ? Math.min(balance, discountedTotal) : 0
+    const finalTotal = Math.max(0, discountedTotal - credits)
+    const creditsApplied = credits
+
+    // Venta gratis (código de 100% o créditos que cubren todo): Stripe no acepta cobros
+    // de $0, así que se salta por completo — la venta se registra directo (el backend la
+    // marca PAGADA y dispara el cumplimiento: declaraciones, contador, trámites).
+    if (total > 0 && finalTotal <= 0) {
       const freeSale = await registerSaleNew({
         checkoutId: `free_${Date.now()}`,
         rfc,
         discountCode: discountCode.trim() || null,
         items,
+        useReferralCredits: creditsApplied > 0,
       })
       if (!freeSale.success) {
         setError(freeSale.error.message)
         setProcessing(false)
         return
       }
-      // El backend revalida el código (activo, usos, 1 vez por RFC): si NO aplicó,
-      // la compra no es gratis — no mostrar éxito, el cliente debe corregir el código.
-      if (!freeSale.value.discountApplied) {
-        setError(freeSale.value.discountMessage ?? 'El código de descuento ya no es válido.')
+      // El backend revalida el código y el saldo de créditos: si la venta NO quedó en $0,
+      // la compra no es gratis — no mostrar éxito, el cliente debe revisar.
+      const quedoGratis = freeSale.value.discountApplied || (freeSale.value.referralCreditsApplied ?? 0) >= discountedTotal
+      if (!quedoGratis) {
+        setError(freeSale.value.discountMessage ?? 'Tus créditos ya no alcanzan para cubrir la compra. Revisa el total.')
         setProcessing(false)
         return
       }
@@ -282,8 +328,8 @@ export function PlanPickerModal({
       return
     }
 
-    // 1) Pedir parámetros de pago a Stripe (con el código: el cobro sale descontado).
-    const sheet = await createPaymentSheet(rfc, items, discountCode)
+    // 1) Pedir parámetros de pago a Stripe (con el código y los créditos: el cobro sale descontado).
+    const sheet = await createPaymentSheet(rfc, items, discountCode, creditsApplied > 0)
     if (!sheet.success) {
       setError(sheet.error.message)
       setProcessing(false)
@@ -297,6 +343,7 @@ export function PlanPickerModal({
       rfc,
       discountCode: discountCode.trim() || null,
       items,
+      useReferralCredits: creditsApplied > 0,
     })
     if (!sale.success) {
       // Registro falló → abortar el cobro, no presentar el formulario.
@@ -667,6 +714,35 @@ export function PlanPickerModal({
                 </div>
               )}
 
+              {creditsLoading && (
+                <div
+                  className="flex items-center gap-2 text-[12.5px] font-semibold px-3 py-2 rounded-xl"
+                  style={{ background: 'var(--card-muted)', color: 'var(--ink-500)' }}
+                >
+                  <Loader2 size={14} className="animate-spin flex-shrink-0" /> Consultando tus créditos de referidos…
+                </div>
+              )}
+              {!creditsLoading && creditBalance > 0 && (
+                <label
+                  className="flex items-center justify-between gap-3 text-[12.5px] font-semibold px-3 py-2 rounded-xl cursor-pointer select-none"
+                  style={{ background: 'var(--hero-brand-soft)', color: 'var(--ink-700)' }}
+                >
+                  <span className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={useCredits}
+                      onChange={(e) => setUseCredits(e.target.checked)}
+                      className="h-4 w-4 accent-[var(--brand-600)]"
+                    />
+                    <Coins size={14} style={{ color: 'var(--brand-700)' }} className="flex-shrink-0" />
+                    <span>
+                      Usar mis créditos de referidos: tienes <b>{formatMXN(creditBalance)}</b>
+                    </span>
+                  </span>
+                  {creditsApplied > 0 && <b style={{ color: 'var(--brand-700)' }}>−{formatMXN(creditsApplied)}</b>}
+                </label>
+              )}
+
               <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                 <div className="flex gap-2 sm:flex-1">
                   <input
@@ -701,7 +777,7 @@ export function PlanPickerModal({
                   <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
                     Total
                   </span>
-                  {discountedTotal !== total ? (
+                  {finalTotal !== total ? (
                     <span className="text-[24px] font-extrabold mt-0.5" style={{ ...DISPLAY, color: 'var(--brand-700)' }}>
                       <span
                         className="text-[14px] font-semibold mr-2 line-through"
@@ -709,7 +785,7 @@ export function PlanPickerModal({
                       >
                         {formatMXN(total)}
                       </span>
-                      {formatMXN(discountedTotal)} <span className="text-[12px]" style={{ color: 'var(--ink-500)' }}>MXN</span>
+                      {formatMXN(finalTotal)} <span className="text-[12px]" style={{ color: 'var(--ink-500)' }}>MXN</span>
                     </span>
                   ) : (
                     <span className="text-[24px] font-extrabold mt-0.5" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
@@ -746,7 +822,7 @@ export function PlanPickerModal({
               }}
             >
               <PaymentForm
-                payLabel={`Pagar ${formatMXN(discountedTotal)}`}
+                payLabel={`Pagar ${formatMXN(finalTotal)}`}
                 onSuccess={() => setStep('success')}
                 onCancel={() => setStep('cart')}
               />

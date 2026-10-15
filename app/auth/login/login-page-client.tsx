@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -96,6 +96,14 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
   const [error, setError] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Liga de referido (?ref=CBX-XXXXXX): prellena el código y abre el registro.
+  useEffect(() => {
+    const ref = params.get("ref");
+    if (!ref) return;
+    setReferralCode(ref.trim().toUpperCase());
+    setMode("register");
+  }, [params]);
 
   function switchMode(next: Mode) {
     setMode(next);

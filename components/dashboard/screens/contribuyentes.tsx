@@ -1,9 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Info, Loader2, Stethoscope } from 'lucide-react'
+import { Download, Info, Loader2, Stethoscope } from 'lucide-react'
+import { exportTaxpayers } from '@/features/taxpayers/actions/exportTaxpayers.action'
 import { getTaxpayers } from '@/features/taxpayers/actions/getTaxpayers.action'
 import type { TaxpayerListItem } from '@/features/taxpayers/types'
+import { downloadFile } from '@/lib/common/downloadFile'
 import { MONO } from '../constants'
 import { Card, ErrorState, HelpBox } from '../ui'
 import { DiagnosticoHistorialModal } from '../clientes/diagnostico-historial-modal'
@@ -30,6 +32,26 @@ export function ContribuyentesScreen({ permissions = [] }: { permissions?: strin
   const canExpediente = permissions.includes(EXPEDIENTE_PERMISSION)
   const [diagTarget, setDiagTarget] = useState<TaxpayerListItem | null>(null)
   const [expedienteId, setExpedienteId] = useState<number | null>(null)
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
+
+  /** Excel con los mismos filtros que la tabla (todas las páginas). */
+  const handleExport = async () => {
+    if (exporting) return
+    setExporting(true)
+    setExportError(null)
+    const res = await exportTaxpayers({
+      rfc: list.rfc.trim() || undefined,
+      regimeId: list.regimeId === '' ? undefined : Number(list.regimeId),
+      minSales: list.minSales === '' ? undefined : Number(list.minSales),
+    })
+    setExporting(false)
+    if (!res.success) {
+      setExportError(res.error.message)
+      return
+    }
+    downloadFile(res.value)
+  }
 
   // Clic en el nombre → el mismo expediente que en Clientes. Aquí es la única entrada para un
   // contribuyente SIN ventas (Clientes solo lista quien ya compró): primera venta desde el
@@ -74,6 +96,22 @@ export function ContribuyentesScreen({ permissions = [] }: { permissions?: strin
         >
           <div className="text-[15px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
             {list.loading ? 'Cargando…' : `${list.total} contribuyentes`}
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            {exportError && (
+              <span className="text-[12px] font-semibold" style={{ color: 'var(--danger)' }}>{exportError}</span>
+            )}
+            <button
+              type="button"
+              onClick={() => void handleExport()}
+              disabled={exporting || list.loading || list.total === 0}
+              title="Descarga en Excel los contribuyentes que coinciden con los filtros actuales, todas las páginas"
+              className="cursor-pointer inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-[12.5px] font-bold transition-[transform,opacity] duration-150 ease-out active:scale-[0.97] disabled:opacity-50 disabled:cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+              style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--ink-700)' }}
+            >
+              {exporting ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+              {exporting ? 'Generando Excel…' : 'Descargar Excel'}
+            </button>
           </div>
         </div>
 

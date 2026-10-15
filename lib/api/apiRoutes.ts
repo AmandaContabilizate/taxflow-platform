@@ -448,6 +448,23 @@ export const API_ROUTES = {
       }${minSales ? `&minSales=${minSales}` : ""}`,
     WITH_PAID_SALES: (skip = 0, take = 100, rfc?: string, minSales?: number) =>
       `/with-paid-sales?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${minSales ? `&minSales=${minSales}` : ""}`,
+    // Excel del padrón de contribuyentes, mismos filtros que LIST, sin paginar.
+    LIST_EXPORT: (rfc?: string, regimeId?: number, minSales?: number) => {
+      const qs = new URLSearchParams()
+      if (rfc) qs.set("rfc", rfc)
+      if (regimeId) qs.set("regimeId", String(regimeId))
+      if (minSales) qs.set("minSales", String(minSales))
+      const s = qs.toString()
+      return `/export${s ? `?${s}` : ""}`
+    },
+    // Excel del padrón de clientes con compras, mismos filtros que WITH_PAID_SALES, sin paginar.
+    WITH_PAID_SALES_EXPORT: (rfc?: string, minSales?: number) => {
+      const qs = new URLSearchParams()
+      if (rfc) qs.set("rfc", rfc)
+      if (minSales) qs.set("minSales", String(minSales))
+      const s = qs.toString()
+      return `/with-paid-sales/export${s ? `?${s}` : ""}`
+    },
     MY_CLIENTS: (skip = 0, take = 100, rfc?: string, accountantUserId?: string, minSales?: number) =>
       `/my-clients?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${accountantUserId ? `&accountantUserId=${encodeURIComponent(accountantUserId)}` : ""
       }${minSales ? `&minSales=${minSales}` : ""}`,
@@ -468,6 +485,25 @@ export const API_ROUTES = {
     ) =>
       `?skip=${skip}&take=${take}${search ? `&search=${encodeURIComponent(search)}` : ""}${role ? `&role=${encodeURIComponent(role)}` : ""
       }${emailConfirmed === undefined ? "" : `&emailConfirmed=${emailConfirmed}`}${estatus ? `&estatus=${encodeURIComponent(estatus)}` : ""}${roleExclusive ? "&roleExclusive=true" : ""}${origins ? `&origins=${encodeURIComponent(origins)}` : ""}`,
+    // GET users_reports — Excel del padrón con los mismos filtros que LIST (sin paginar).
+    EXPORT: (
+      search?: string,
+      role?: string,
+      emailConfirmed?: boolean,
+      estatus?: string,
+      roleExclusive?: boolean,
+      origins?: string,
+    ) => {
+      const qs = new URLSearchParams()
+      if (search) qs.set("search", search)
+      if (role) qs.set("role", role)
+      if (emailConfirmed !== undefined) qs.set("emailConfirmed", String(emailConfirmed))
+      if (estatus) qs.set("estatus", estatus)
+      if (roleExclusive) qs.set("roleExclusive", "true")
+      if (origins) qs.set("origins", origins)
+      const s = qs.toString()
+      return `/export${s ? `?${s}` : ""}`
+    },
     // GET users_reports — panel comercial: embudo, altas recientes y clientes con RFC.
     SELLER_DASHBOARD: "/seller-dashboard",
   },
@@ -640,6 +676,12 @@ export const API_ROUTES = {
     SUBSCRIPTION_CANCEL: "/subscription/cancel",
     ACTIVE_PLAN: (rfc: string) =>
       `/active-plan?rfc=${encodeURIComponent(rfc)}`,
+  },
+  /** Programa de referidos entre clientes (Procedures `api/referrals`). */
+  REFERRALS: {
+    ME: "/me",
+    /** Saldo de créditos disponible (lo consulta el carrito antes de pagar). */
+    BALANCE: "/balance",
   },
   TIMBRAME: {
     PORTAL_ACCESS: "/portal-access",

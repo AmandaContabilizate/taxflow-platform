@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell, ChevronDown, ChevronRight, FilePlus2, Gem, HelpCircle, IdCard, LogOut, Receipt, ShieldCheck, Trash2, UserRound } from 'lucide-react';
+import { Bell, ChevronDown, ChevronRight, FilePlus2, Gem, Gift, HelpCircle, IdCard, LogOut, Receipt, ShieldCheck, Trash2, UserRound } from 'lucide-react';
 import { useEffect, useState, type ComponentType } from 'react';
 import { useTheme } from 'next-themes';
 import { getActivePlan } from '@/features/account/actions/getActivePlan.action';
@@ -320,6 +320,16 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
               iconColor='#7339FD'
               title='Tu contador asignado'
               subtitle={accountantLabel}
+            />
+            <Divider />
+            <AccountRow
+              Icon={Gift}
+              iconBg='var(--brand-50)'
+              iconColor='var(--brand-700)'
+              title='Referidos'
+              subtitle='Comparte tu código y gana créditos por cada cliente que compre'
+              onClick={() => go('referidos')}
+              right={<ChevronRight size={16} style={{ color: 'var(--ink-300)' }} />}
             />
             <Divider />
             <AccountRow

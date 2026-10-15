@@ -66,6 +66,7 @@ export const TITLES: Record<Screen, [string, string]> = {
   ayuda: ['Ayuda y tutoriales', 'Aprende a tu ritmo, paso a paso'],
   manual: ['Manual de usuario', 'Guía completa de cómo usar Contabilízate'],
   cuenta: ['Mi cuenta', 'Tus datos y preferencias'],
+  referidos: ['Referidos', 'Comparte tu código y gana créditos por cada cliente que compre'],
   permisos: ['Modificador de permisos', 'Edita los permisos asignados a tu rol'],
   // Roles operativos
   usuarios: ['Usuarios', 'Todas las cuentas registradas en la plataforma'],

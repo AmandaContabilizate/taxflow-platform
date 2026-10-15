@@ -1,9 +1,11 @@
 'use client'
 
-import { Database, Globe, Lock, MailCheck, MailWarning, Smartphone, Users } from 'lucide-react'
+import { Database, Download, Globe, Loader2, Lock, MailCheck, MailWarning, Smartphone, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { exportUsers } from '@/features/users/actions/exportUsers.action'
 import { getUsers } from '@/features/users/actions/getUsers.action'
 import type { EstatusConteo, UserListItem, UserTaxpayer } from '@/features/users/types'
+import { downloadFile } from '@/lib/common/downloadFile'
 import { MONO } from '../constants'
 import { Card, ErrorState, HelpBox } from '../ui'
 import { Pagination, SearchBar } from '../clientes/parts'
@@ -43,6 +45,29 @@ export function UsuariosScreen({ scopedToSeller = false }: { scopedToSeller?: bo
   const [estatusCounts, setEstatusCounts] = useState<EstatusConteo[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
+
+  /** Excel con los mismos filtros que la tabla (todas las páginas), igual alcance que el listado. */
+  const handleExport = async () => {
+    if (exporting) return
+    setExporting(true)
+    setExportError(null)
+    const res = await exportUsers({
+      search: search.trim() || undefined,
+      role: ROLE_CLIENTE,
+      roleExclusive: true,
+      origins: ORIGENES_VISIBLES,
+      emailConfirmed: confirmed === '' ? undefined : confirmed === 'true',
+      estatus: estatus || undefined,
+    })
+    setExporting(false)
+    if (!res.success) {
+      setExportError(res.error.message)
+      return
+    }
+    downloadFile(res.value)
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -125,7 +150,7 @@ export function UsuariosScreen({ scopedToSeller = false }: { scopedToSeller?: bo
             <SearchBar
               value={search}
               onChange={setSearch}
-              placeholder="Buscar por RFC, correo, teléfono o nombre…"
+              placeholder="Buscar por RFC, correo, teléfono, nombre o código (referido, vendedor, descuento)…"
             />
           </div>
           <select
@@ -207,6 +232,22 @@ export function UsuariosScreen({ scopedToSeller = false }: { scopedToSeller?: bo
         >
           <div className="text-[15px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
             {loading ? 'Cargando…' : `${total} clientes registrados`}
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            {exportError && (
+              <span className="text-[12px] font-semibold" style={{ color: 'var(--danger)' }}>{exportError}</span>
+            )}
+            <button
+              type="button"
+              onClick={() => void handleExport()}
+              disabled={exporting || loading || total === 0}
+              title="Descarga en Excel los usuarios que coinciden con los filtros actuales, todas las páginas"
+              className="cursor-pointer inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-[12.5px] font-bold transition-[transform,opacity] duration-150 ease-out active:scale-[0.97] disabled:opacity-50 disabled:cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+              style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--ink-700)' }}
+            >
+              {exporting ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+              {exporting ? 'Generando Excel…' : 'Descargar Excel'}
+            </button>
           </div>
         </div>
 
