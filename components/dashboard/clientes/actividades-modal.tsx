@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { AlertCircle, Check, Loader2 } from 'lucide-react'
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import {
   Dialog,
   DialogContent,
@@ -9,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { getRegimeActivities } from '@/features/taxpayers/actions/regimeActivities.action'
 import { setRegimeActivityActive } from '@/features/taxpayers/actions/regimeActivities.action'
 import type { RegimeActivityMatrixItem } from '@/features/taxpayers/types'
@@ -32,6 +34,9 @@ function shortRegimeName(name: string): string {
   const words = stripped.split(' ').filter(Boolean)
   return words.length <= 2 ? stripped : words.slice(0, 2).join(' ') + '…'
 }
+
+const fecha = (iso: string) =>
+  new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
 
 interface ActividadesModalProps {
   open: boolean
@@ -81,7 +86,9 @@ export function ActividadesModal({ open, onOpenChange, client, initialTab = 'vig
   // Matriz volteada: una fila por ACTIVIDAD, una columna por régimen. Con pocos regímenes y
   // varias actividades es la orientación compacta — y deja ver de un vistazo cuáles actividades
   // no cuentan en ningún régimen (van primero: son las que requieren decisión).
-  const { regimeCols, activityRows, unassignedCount } = useMemo(() => {
+  // Las históricas (ya no vienen en la CSF vigente) salen de la matriz: solo se listan aparte,
+  // sin casillas, y no cuentan como "sin asignar" — la CSF manda.
+  const { regimeCols, activityRows, historicalRows, unassignedCount } = useMemo(() => {
     const regimes = new Map<number, string>()
     const acts = new Map<
       number,
@@ -100,20 +107,34 @@ export function ActividadesModal({ open, onOpenChange, client, initialTab = 'vig
       regimeId,
       regimeName,
     }))
-    const activityRows = Array.from(acts.entries()).map(([activityId, r]) => ({
-      activityId,
-      description: r.description,
-      cells: r.cells,
-      assigned: Array.from(r.cells.values()).some((c) => c.isActive),
-    }))
+    const allRows = Array.from(acts.entries()).map(([activityId, r]) => {
+      const cells = Array.from(r.cells.values())
+      return {
+        activityId,
+        description: r.description,
+        cells: r.cells,
+        assigned: cells.some((c) => c.isActive),
+        historical: cells.some((c) => c.isHistorical),
+        since: cells.find((c) => c.historicalSince)?.historicalSince ?? null,
+        // Regímenes donde alguna vez estuvo vinculada (para el tooltip de las históricas).
+        formerRegimes: cells
+          .filter((c) => c.taxPayerTaxRegimeActivityId != null)
+          .map((c) => shortRegimeName(c.regimeName)),
+      }
+    })
+    const activityRows = allRows.filter((r) => !r.historical)
     activityRows.sort(
       (a, b) =>
         Number(a.assigned) - Number(b.assigned) ||
         a.description.localeCompare(b.description, 'es'),
     )
+    const historicalRows = allRows
+      .filter((r) => r.historical)
+      .sort((a, b) => a.description.localeCompare(b.description, 'es'))
     return {
       regimeCols,
       activityRows,
+      historicalRows,
       unassignedCount: activityRows.filter((r) => !r.assigned).length,
     }
   }, [matrix])
@@ -221,104 +242,146 @@ export function ActividadesModal({ open, onOpenChange, client, initialTab = 'vig
                 <AlertCircle size={18} style={{ color: 'var(--violet-ink)' }} />
                 <div className="text-[13px]" style={{ color: 'var(--ink-700)' }}>{error}</div>
               </div>
-            ) : activityRows.length === 0 ? (
+            ) : activityRows.length === 0 && historicalRows.length === 0 ? (
               <div className="py-8 text-center text-[13px]" style={{ color: 'var(--ink-500)' }}>
                 Este contribuyente no tiene regímenes con actividades registradas.
               </div>
             ) : (
               <div className="max-h-[46vh] overflow-y-auto overflow-x-auto pr-1">
-                <div style={{ minWidth: regimeCols.length > 3 ? 320 + regimeCols.length * 92 : undefined }}>
-                  {/* Encabezado: actividad + una columna por régimen (nombre completo en tooltip) */}
-                  <div
-                    className="grid items-end gap-x-2 pb-1.5 sticky top-0 z-10"
-                    style={{
-                      gridTemplateColumns: `minmax(0, 1fr) repeat(${regimeCols.length}, 84px)`,
-                      background: 'var(--card)',
-                      borderBottom: '1px solid var(--border)',
-                    }}
-                  >
+                {activityRows.length > 0 && (
+                  <div style={{ minWidth: regimeCols.length > 3 ? 320 + regimeCols.length * 92 : undefined }}>
+                    {/* Encabezado: actividad + una columna por régimen (nombre completo en tooltip) */}
                     <div
-                      className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-wider"
-                      style={{ color: 'var(--ink-400)' }}
-                    >
-                      Actividad
-                      {unassignedCount > 0 && (
-                        <span
-                          className="px-1.5 py-px rounded-full text-[10.5px] font-bold normal-case tracking-normal"
-                          style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
-                        >
-                          {unassignedCount} sin asignar
-                        </span>
-                      )}
-                    </div>
-                    {regimeCols.map((rc) => (
-                      <div
-                        key={rc.regimeId}
-                        title={rc.regimeName}
-                        className="text-center text-[11px] font-extrabold uppercase tracking-wider leading-tight cursor-default"
-                        style={{ color: 'var(--ink-400)' }}
-                      >
-                        {shortRegimeName(rc.regimeName)}
-                      </div>
-                    ))}
-                  </div>
-
-                  {activityRows.map((row) => (
-                    <div
-                      key={row.activityId}
-                      className="grid items-center gap-x-2 py-1.5"
+                      className="grid items-end gap-x-2 pb-1.5 sticky top-0 z-10"
                       style={{
                         gridTemplateColumns: `minmax(0, 1fr) repeat(${regimeCols.length}, 84px)`,
+                        background: 'var(--card)',
                         borderBottom: '1px solid var(--border)',
                       }}
                     >
-                      <div className="text-[13px] leading-snug py-1" style={{ color: 'var(--ink-900)' }}>
-                        {row.description}
-                        {!row.assigned && (
+                      <div
+                        className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-wider"
+                        style={{ color: 'var(--ink-400)' }}
+                      >
+                        Actividad
+                        {unassignedCount > 0 && (
                           <span
-                            className="ml-2 px-1.5 py-px rounded-full text-[10.5px] font-bold align-middle whitespace-nowrap"
+                            className="px-1.5 py-px rounded-full text-[10.5px] font-bold normal-case tracking-normal"
                             style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
                           >
-                            Sin asignar
+                            {unassignedCount} sin asignar
                           </span>
                         )}
                       </div>
-                      {regimeCols.map((rc) => {
-                        const item = row.cells.get(rc.regimeId)
-                        if (!item) return <div key={rc.regimeId} />
-                        const key = `${item.regimeId}-${item.activityId}`
-                        const busy = saving === key
-                        return (
-                          <div key={rc.regimeId} className="flex justify-center">
-                            <button
-                              type="button"
-                              onClick={() => toggle(item)}
-                              disabled={busy || saving !== null}
-                              role="switch"
-                              aria-checked={item.isActive}
-                              aria-label={`${row.description} — ${rc.regimeName}`}
-                              className={`flex h-8 w-8 items-center justify-center rounded-full cursor-pointer active:scale-[0.92] disabled:cursor-wait ${
-                                item.isActive ? 'text-white' : 'text-transparent hover:text-[var(--ink-300)]'
-                              }`}
-                              style={{
-                                background: item.isActive ? 'var(--brand-500)' : 'var(--card)',
-                                border: `1px solid ${item.isActive ? 'var(--brand-500)' : 'var(--border)'}`,
-                                transition:
-                                  'background-color 150ms ease, border-color 150ms ease, color 150ms ease, transform 140ms cubic-bezier(0.23, 1, 0.32, 1)',
-                              }}
-                            >
-                              {busy ? (
-                                <Loader2 size={13} className="animate-spin" style={{ color: 'var(--ink-500)' }} />
-                              ) : (
-                                <Check size={14} strokeWidth={3} />
-                              )}
-                            </button>
-                          </div>
-                        )
-                      })}
+                      {regimeCols.map((rc) => (
+                        <div
+                          key={rc.regimeId}
+                          title={rc.regimeName}
+                          className="text-center text-[11px] font-extrabold uppercase tracking-wider leading-tight cursor-default"
+                          style={{ color: 'var(--ink-400)' }}
+                        >
+                          {shortRegimeName(rc.regimeName)}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+
+                    {activityRows.map((row) => (
+                      <div
+                        key={row.activityId}
+                        className="grid items-center gap-x-2 py-1.5"
+                        style={{
+                          gridTemplateColumns: `minmax(0, 1fr) repeat(${regimeCols.length}, 84px)`,
+                          borderBottom: '1px solid var(--border)',
+                        }}
+                      >
+                        <div className="text-[13px] leading-snug py-1" style={{ color: 'var(--ink-900)' }}>
+                          {row.description}
+                          {!row.assigned && (
+                            <span
+                              className="ml-2 px-1.5 py-px rounded-full text-[10.5px] font-bold align-middle whitespace-nowrap"
+                              style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
+                            >
+                              Sin asignar
+                            </span>
+                          )}
+                        </div>
+                        {regimeCols.map((rc) => {
+                          const item = row.cells.get(rc.regimeId)
+                          if (!item) return <div key={rc.regimeId} />
+                          const key = `${item.regimeId}-${item.activityId}`
+                          const busy = saving === key
+                          return (
+                            <div key={rc.regimeId} className="flex justify-center">
+                              <button
+                                type="button"
+                                onClick={() => toggle(item)}
+                                disabled={busy || saving !== null}
+                                role="switch"
+                                aria-checked={item.isActive}
+                                aria-label={`${row.description} — ${rc.regimeName}`}
+                                className={`flex h-8 w-8 items-center justify-center rounded-full cursor-pointer active:scale-[0.92] disabled:cursor-wait ${
+                                  item.isActive ? 'text-white' : 'text-transparent hover:text-[var(--ink-300)]'
+                                }`}
+                                style={{
+                                  background: item.isActive ? 'var(--brand-500)' : 'var(--card)',
+                                  border: `1px solid ${item.isActive ? 'var(--brand-500)' : 'var(--border)'}`,
+                                  transition:
+                                    'background-color 150ms ease, border-color 150ms ease, color 150ms ease, transform 140ms cubic-bezier(0.23, 1, 0.32, 1)',
+                                }}
+                              >
+                                {busy ? (
+                                  <Loader2 size={13} className="animate-spin" style={{ color: 'var(--ink-500)' }} />
+                                ) : (
+                                  <Check size={14} strokeWidth={3} />
+                                )}
+                              </button>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {historicalRows.length > 0 && (
+                  <Accordion type="single" collapsible className="mt-1">
+                    <AccordionItem value="historicas" className="border-b-0">
+                      <AccordionTrigger
+                        className="py-2.5 text-[11px] font-extrabold uppercase tracking-wider hover:no-underline"
+                        style={{ color: 'var(--ink-400)' }}
+                      >
+                        Ya no vigentes ({historicalRows.length})
+                      </AccordionTrigger>
+                      <AccordionContent className="pb-1">
+                        <ul>
+                          {historicalRows.map((row) => (
+                            <li
+                              key={row.activityId}
+                              className="py-1.5"
+                              style={{ borderBottom: '1px solid var(--border)' }}
+                            >
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span
+                                    className="text-[13px] leading-snug line-through cursor-default"
+                                    style={{ color: 'var(--ink-400)' }}
+                                  >
+                                    {row.description}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-[340px] text-left">
+                                  Ya no aparece en la CSF vigente
+                                  {row.since ? ` (desde ${fecha(row.since)})` : ''}.
+                                  {row.formerRegimes.length > 0 && ` Antes en: ${row.formerRegimes.join(', ')}.`}
+                                </TooltipContent>
+                              </Tooltip>
+                            </li>
+                          ))}
+                        </ul>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                )}
               </div>
             )}
 

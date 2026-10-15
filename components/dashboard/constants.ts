@@ -8,6 +8,7 @@ import {
   CheckSquare,
   Ban,
   ClipboardList,
+  CloudDownload,
   DollarSign,
   FilePlus,
   FilePlus2,
@@ -104,6 +105,10 @@ export const TITLES: Record<Screen, [string, string]> = {
     'Overrides de deducibilidad por clave producto/servicio: quién los puso, para quién y por qué',
   ],
   marketing: ['Marketing & Difusión', 'Envío masivo de notificaciones Push'],
+  'monitor-descargas': [
+    'Monitor de descargas',
+    'Descargas SAT en curso y las que cerraron en las últimas 24 horas, por estatus',
+  ],
   'actividades-pendientes': [
     'Actividades pendientes',
     'Contribuyentes con regímenes de baja sin actividades o actividades sin régimen',
@@ -331,6 +336,12 @@ const ACTIVIDADES_PENDIENTES_ITEM: NavDef = {
   Icon: ClipboardList,
   hint: 'Actividades sin régimen asignado',
 }
+const MONITOR_DESCARGAS_ITEM: NavDef = {
+  id: 'monitor-descargas',
+  label: 'Monitor de descargas',
+  Icon: CloudDownload,
+  hint: 'Descargas SAT por estatus',
+}
 const MARKETING_ITEM: NavDef = NOTIFICACIONES_ITEM
 
 export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
@@ -347,6 +358,7 @@ export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
     CLIENTES_ITEM,
     ASIGNACIONES_ITEM,
     ROLES_ITEM,
+    MONITOR_DESCARGAS_ITEM,
   ],
   // Administración del negocio: ve TODOS los módulos del sistema.
   // Se llena debajo de MASTER_NAV_SECTIONS para derivarse del mapa maestro
@@ -506,7 +518,7 @@ export const MASTER_NAV_SECTIONS: NavSection[] = [
   },
   {
     section: 'SISTEMA',
-    items: [ROLES_ITEM, CATALOGOS_ITEM, CONFIGURACION_ITEM, PARTNERSHIP_ITEM],
+    items: [ROLES_ITEM, CATALOGOS_ITEM, CONFIGURACION_ITEM, PARTNERSHIP_ITEM, MONITOR_DESCARGAS_ITEM],
   },
 ]
 
@@ -581,6 +593,8 @@ export const MODULE_CLAIMS: Record<string, string[]> = {
   // Bandeja global (sin alcance de cartera) del Gerente de Operaciones. Asignar desde ahí abre el modal
   // de Mis clientes, que además exige AccountingManager.GetRegimeActivities.
   'actividades-pendientes': ['Operaciones.ReadActividadesPendientes'],
+  // Monitor de descargas SAT: claim sembrado SOLO al rol Developer (ni Administrator lo trae).
+  'monitor-descargas': ['Developer.ReadDownloadMonitor'],
   // Carga y avance por contador; solo gerencia de contabilidad (y superusuarios).
   'equipo-operaciones': ['GerenciaContable.ReadEquipoOperaciones'],
   // Hub de configuración: el menú abre con cualquiera; cada card/tab exige el suyo.

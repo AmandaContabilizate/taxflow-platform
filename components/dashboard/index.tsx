@@ -27,6 +27,7 @@ import {
   DeclaracionesScreen,
   DeclaracionesRechazadasScreen,
   DeclaracionesPorPresentarScreen,
+  MonitorDescargasScreen,
   AsignacionesScreen,
   CodigosDescuentoScreen,
   ComisionesScreen,
@@ -71,6 +72,7 @@ const WIDE_SCREENS = new Set<Screen>([
   'operaciones',
   'declaraciones-rechazadas',
   'declaraciones-por-presentar',
+  'monitor-descargas',
   'declaraciones-futuras',
   'ventas-por-activar',
   'regularizaciones',
@@ -365,6 +367,9 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
     }
     if (screen === 'declaraciones-por-presentar') {
       return <DeclaracionesPorPresentarScreen currentUser={{ userId: userId ?? '', fullName }} />
+    }
+    if (screen === 'monitor-descargas') {
+      return <MonitorDescargasScreen />
     }
     if (screen === 'declaraciones-futuras') {
       return <DeclaracionesFuturasScreen currentUser={{ userId: userId ?? '', fullName }} permissions={permissions} />

@@ -47,6 +47,8 @@ export const API_BASE_URLS = {
   assignments: `${BASE_PROCEDURES}/assignments`,
   notification_prefs: `${BASE_PROCEDURES}/Notification${DbOrigin}`,
   user_notifications: `${BASE_PROCEDURES}/v1/user-notifications`,
+  // Monitor de descargas SAT (solo Developer). Sin /SQLServer.
+  download_monitor: `${BASE_PROCEDURES}/download-monitor`,
 } as const;
 
 export type ApiType = keyof typeof API_BASE_URLS;

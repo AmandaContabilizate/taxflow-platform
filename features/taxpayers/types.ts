@@ -173,6 +173,10 @@ export interface RegimeActivityMatrixItem {
   activityDescription: string;
   taxPayerTaxRegimeActivityId: number | null;
   isActive: boolean;
+  /** Ya no aparece en la CSF vigente y no tiene vínculos activos: solo referencia, no se reasigna. */
+  isHistorical: boolean;
+  /** Cuándo una lectura de la CSF la dio de baja (ISO); null si se desconoce. */
+  historicalSince: string | null;
 }
 
 /** Actividad asignada a un régimen dado de baja. */

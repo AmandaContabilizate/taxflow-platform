@@ -658,6 +658,14 @@ export const API_ROUTES = {
     TICKETS: "/george/tickets",
     PURCHASE_TICKETS: "/george/purchase-tickets",
   },
+  // apiType "download_monitor". Policy Developer.ReadDownloadMonitor. `query` ya viene armado
+  // (rfc, email, from, to) con URLSearchParams; vacío = sin filtros.
+  DOWNLOAD_MONITOR: {
+    LIST: (query: string) => (query ? `?${query}` : ""),
+    // .xlsx binario, una hoja por estatus; sin resultados el back manda 400 EXPORT_NO_RESULTS.
+    EXPORT: (query: string) => `/export${query ? `?${query}` : ""}`,
+    HISTORY: (id: number) => `/${id}/history`,
+  },
   USER_NOTIFICATIONS: {
     ROOT: "",
     UNREAD_COUNT: "/unread-count",

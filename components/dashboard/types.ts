@@ -61,6 +61,8 @@ export type Screen =
   | 'reglas-deducibilidad'
   // Bandeja global de actividades sin régimen (Gerente de Operaciones)
   | 'actividades-pendientes'
+  // Monitor de solicitudes de descarga SAT/Fispal (solo Developer)
+  | 'monitor-descargas'
 
 export type RoleKey =
   | 'guest'
