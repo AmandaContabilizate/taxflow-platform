@@ -1,9 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Info, Loader2, UserCog } from 'lucide-react'
+import { Download, Info, Loader2, UserCog } from 'lucide-react'
+import { exportClientsWithPaidSales } from '@/features/taxpayers/actions/exportClientsWithPaidSales.action'
 import { getClientsWithPaidSales } from '@/features/taxpayers/actions/getClientsWithPaidSales.action'
 import type { ClientListItem } from '@/features/taxpayers/types'
+import { downloadFile } from '@/lib/common/downloadFile'
 import { MONO } from '../constants'
 import { Card, ErrorState, HelpBox } from '../ui'
 import {
@@ -28,6 +30,25 @@ export function ClientesScreen({ permissions = [] }: { permissions?: string[] })
   const canExpediente = permissions.includes(EXPEDIENTE_PERMISSION)
   const [target, setTarget] = useState<ClientListItem | null>(null)
   const [expedienteId, setExpedienteId] = useState<number | null>(null)
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
+
+  /** Excel con los mismos filtros que la tabla (todas las páginas). */
+  const handleExport = async () => {
+    if (exporting) return
+    setExporting(true)
+    setExportError(null)
+    const res = await exportClientsWithPaidSales({
+      rfc: list.rfc.trim() || undefined,
+      minSales: list.minSales === '' ? undefined : Number(list.minSales),
+    })
+    setExporting(false)
+    if (!res.success) {
+      setExportError(res.error.message)
+      return
+    }
+    downloadFile(res.value)
+  }
 
   // Clic en el nombre del cliente → expediente (Resumen / Credenciales / Productos)
   if (expedienteId !== null) {
@@ -69,6 +90,22 @@ export function ClientesScreen({ permissions = [] }: { permissions?: string[] })
         >
           <div className="text-[15px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
             {list.loading ? 'Cargando…' : `${list.total} clientes`}
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            {exportError && (
+              <span className="text-[12px] font-semibold" style={{ color: 'var(--danger)' }}>{exportError}</span>
+            )}
+            <button
+              type="button"
+              onClick={() => void handleExport()}
+              disabled={exporting || list.loading || list.total === 0}
+              title="Descarga en Excel los clientes que coinciden con los filtros actuales, todas las páginas"
+              className="cursor-pointer inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-[12.5px] font-bold transition-[transform,opacity] duration-150 ease-out active:scale-[0.97] disabled:opacity-50 disabled:cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+              style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--ink-700)' }}
+            >
+              {exporting ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+              {exporting ? 'Generando Excel…' : 'Descargar Excel'}
+            </button>
           </div>
         </div>
 
