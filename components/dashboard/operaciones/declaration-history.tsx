@@ -1,6 +1,7 @@
 'use client'
 
 import { History } from 'lucide-react'
+import { memo, useMemo } from 'react'
 import type { DeclarationLog } from '@/features/operations/types'
 import { declarationStatusLabelById, fmtDate } from '../declaraciones/parts'
 import { Card } from '../ui'
@@ -28,8 +29,17 @@ const NOTE_LABEL: Record<string, string> = {
  * quién lo hizo y su nota. Aquí es donde el contador ve el motivo de una reapertura y el
  * mensaje que escribió al reenviar, que el cliente nunca ve.
  */
-export function DeclarationHistory({ logs, loading }: { logs: DeclarationLog[]; loading: boolean }) {
-  const ordered = [...logs].sort((a, b) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime())
+export const DeclarationHistory = memo(function DeclarationHistory({
+  logs,
+  loading,
+}: {
+  logs: DeclarationLog[]
+  loading: boolean
+}) {
+  const ordered = useMemo(
+    () => [...logs].sort((a, b) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime()),
+    [logs],
+  )
 
   return (
     <Card>
@@ -95,4 +105,4 @@ export function DeclarationHistory({ logs, loading }: { logs: DeclarationLog[]; 
       </div>
     </Card>
   )
-}
+})

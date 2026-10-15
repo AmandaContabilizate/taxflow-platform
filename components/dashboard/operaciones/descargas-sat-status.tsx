@@ -1,9 +1,8 @@
 'use client'
 
 import { CheckCircle2, Loader2, RefreshCw } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
-import { getPeriodDownloadStatus } from '@/features/declarations/actions/getPeriodDownloadStatus.action'
-import type { PeriodDownloadStatus } from '@/features/declarations/types'
+import { memo } from 'react'
+import { useDownloadStatus } from '@/features/declarations/hooks/useDeclarationQueries'
 
 interface Props {
   declarationId: number
@@ -13,8 +12,6 @@ interface Props {
    * lo valida (DOWNLOAD_NOT_MONTHLY).
    */
   periodValueId: number | null
-  /** Cambia cuando el contador encola una descarga: fuerza re-consulta. */
-  refreshKey?: number
 }
 
 type ComboKey = 'issuedInvoices' | 'receivedInvoices' | 'issuedRetentions' | 'receivedRetentions'
@@ -46,27 +43,17 @@ const COMBO_LABEL: Record<number, string> = {
  * Chip "Descargas del periodo: N/4" junto al botón Descargar archivos SAT.
  * Dice si los 4 combos de descarga del mes ya quedaron completos, con el
  * detalle de cuál falta en el tooltip. Lee la copia sincronizada: tras encolar
- * una descarga puede tardar unos minutos en reflejarse.
+ * una descarga puede tardar unos minutos en reflejarse (el botón invalida esta
+ * consulta al encolar; el ↻ la vuelve a pedir a mano).
  */
-export function DescargasSatStatus({ declarationId, periodValueId, refreshKey = 0 }: Props) {
-  const [status, setStatus] = useState<PeriodDownloadStatus | null>(null)
-  const [loading, setLoading] = useState(false)
-
+export const DescargasSatStatus = memo(function DescargasSatStatus({ declarationId, periodValueId }: Props) {
   const esMensual = periodValueId !== null && periodValueId >= 101 && periodValueId <= 112
-
-  const consultar = useCallback(async () => {
-    if (!esMensual || !declarationId) return
-    setLoading(true)
-    const res = await getPeriodDownloadStatus(declarationId)
-    setStatus(res.success ? res.value : null)
-    setLoading(false)
-  }, [esMensual, declarationId])
-
-  useEffect(() => {
-    void consultar()
-  }, [consultar, refreshKey])
+  const statusQ = useDownloadStatus(declarationId, esMensual && !!declarationId)
 
   if (!esMensual) return null
+
+  const loading = statusQ.isFetching
+  const status = statusQ.isError ? null : (statusQ.data ?? null)
 
   if (loading && !status) {
     return (
@@ -119,7 +106,7 @@ export function DescargasSatStatus({ declarationId, periodValueId, refreshKey = 
       </span>
       <button
         type="button"
-        onClick={() => void consultar()}
+        onClick={() => void statusQ.refetch()}
         disabled={loading}
         title="Volver a consultar"
         aria-label="Volver a consultar descargas"
@@ -135,4 +122,4 @@ export function DescargasSatStatus({ declarationId, periodValueId, refreshKey = 
       </button>
     </span>
   )
-}
+})

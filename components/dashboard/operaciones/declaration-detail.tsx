@@ -15,39 +15,66 @@ import {
   FileCheck2,
   Loader2,
   LockOpen,
-  Mail,
-  MessageSquarePlus,
   RotateCcw,
   Send,
   TrendingUp,
   XCircle,
 } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
-import { DeclarationComments } from '@/components/dashboard/declaraciones/declaration-comments'
+import dynamic from 'next/dynamic'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { DECLARATION_STATUS } from '@/features/declaration-report/types'
+import { useDeclaration, useInvalidateDownloadStatus } from '@/features/declarations/hooks/useDeclarationQueries'
 import { useRecalculation } from '@/features/declarations/hooks/useRecalculation'
-import { getDeclarationGeneral } from '@/features/operations/actions/getDeclarationGeneral.action'
-import { getDeclarationLogs } from '@/features/operations/actions/getDeclarationLogs.action'
-import { getDeclarationReportLink } from '@/features/operations/actions/getDeclarationReportLink.action'
-import { reopenDeclaration } from '@/features/operations/actions/reopenDeclaration.action'
-import { resendDeclarationToClient } from '@/features/operations/actions/resendDeclarationToClient.action'
-import { REOPEN_REASON_MAX_LENGTH } from '@/features/operations/schemas/reopenDeclaration.schema'
-import type { DeclarationActivity, DeclarationGeneral, DeclarationLog, DeclarationSubject } from '@/features/operations/types'
+import type { DeclarationActivity, DeclarationGeneral, DeclarationSubject } from '@/features/operations/types'
 import { getSatPassword } from '@/features/taxpayers/actions/getSatPassword.action'
 import { toNumber } from './calc-read'
-import { CalculosTab } from './calculos-tab'
+import { ComprobantesTab } from './comprobantes-tab'
+import { DeclarationHistory } from './declaration-history'
+import type { ResendMessage } from './declaration-modals'
 import { DescargarArchivosSatBtn } from './descargar-archivos-sat-btn'
 import { DescargasSatStatus } from './descargas-sat-status'
-import { ComprobantesTab } from './comprobantes-tab'
-import { DeclarationDocumentsModal } from './declaration-documents-modal'
-import { DeclarationHistory } from './declaration-history'
-import { RecalculoTab } from './recalculo-tab'
-import { ResumenDeclaracion } from './resumen-declaracion'
+import { RecalcSeconds } from './recalc-seconds'
 import { declarationStatusBadge, fmtDate } from '../declaraciones/parts'
 import { DISPLAY, MONO } from '../constants'
 import { useHasPermission } from '../permissions'
-import { Modal } from '../modal'
 import { Badge, Card, CiecUpdateModal, CiecValidationBadge } from '../ui'
+
+/* -------------------------------------------------------------------------- */
+/*  Carga diferida                                                            */
+/* -------------------------------------------------------------------------- */
+
+// El dashboard es un solo bundle cliente: las pestañas pesadas (Recálculo con su
+// universo completo, Cálculos, Resumen) y los modales salen a su propio chunk y se
+// bajan la primera vez que se pintan. Comprobantes queda estático: es la pestaña
+// inicial y además exporta las celdas que Recálculo reutiliza.
+const CalculosTab = dynamic(() => import('./calculos-tab').then((m) => m.CalculosTab), {
+  loading: () => <TabLoading />,
+})
+const RecalculoTab = dynamic(() => import('./recalculo-tab').then((m) => m.RecalculoTab), {
+  loading: () => <TabLoading />,
+})
+// Clasificación y Reporte Cliente comparten `ResumenDeclaracion`: viaja en este chunk.
+const ClasificacionTab = dynamic(() => import('./resumen-tabs').then((m) => m.ClasificacionTab), {
+  loading: () => <TabLoading />,
+})
+const ReporteClienteTab = dynamic(() => import('./resumen-tabs').then((m) => m.ReporteClienteTab), {
+  loading: () => <TabLoading />,
+})
+const DeclarationComments = dynamic(
+  () => import('@/components/dashboard/declaraciones/declaration-comments').then((m) => m.DeclarationComments),
+  { loading: () => <TabLoading /> },
+)
+// Los modales pintan null cerrados: mientras baja el chunk no hay nada que mostrar.
+const DeclarationDocumentsModal = dynamic(
+  () => import('./declaration-documents-modal').then((m) => m.DeclarationDocumentsModal),
+  { loading: () => null },
+)
+const ReopenModal = dynamic(() => import('./declaration-modals').then((m) => m.ReopenModal), {
+  loading: () => null,
+})
+const ResendModal = dynamic(() => import('./declaration-modals').then((m) => m.ResendModal), {
+  loading: () => null,
+})
 
 /**
  * Estatus que se pueden reabrir: Presentada, Por autorizar y Por presentar. Pasan a
@@ -249,15 +276,14 @@ interface Props {
  * Detalle de la declaración para el contador. El contribuyente tiene su propia
  * pantalla (`ClientDeclarationDetail`): aquí viven el recálculo y la
  * clasificación, que el cliente no debe ver.
+ *
+ * Los datos salen de la caché por declaración (`useDeclarationQueries`): cada
+ * pestaña pide lo suyo con su propia clave, los duplicados se comparten, y cuando
+ * el back escribe (recálculo, reenvío, reapertura, acuse) `refreshDeclaration`
+ * invalida todo lo de esta declaración en vez de pasar un `refreshKey` a mano.
  */
 export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props) {
   const [tab, setTab] = useState(0)
-  const [general, setGeneral] = useState<DeclarationGeneral | null>(null)
-  const [generalError, setGeneralError] = useState<string | null>(null)
-  const [logs, setLogs] = useState<DeclarationLog[]>([])
-  const [logsLoading, setLogsLoading] = useState(false)
-  // Sube cuando el botón encola una descarga: obliga al chip de estatus a re-consultar.
-  const [descargasRefreshKey, setDescargasRefreshKey] = useState(0)
 
   // Modo solo consulta (SAC / atención a cliente): con ConsultaDeclaraciones y
   // SIN el claim completo, la pantalla queda en Comprobantes + Cálculos sin
@@ -268,78 +294,56 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
   const canConsulta = useHasPermission('Contador.ConsultaDeclaraciones')
   const soloConsulta = canConsulta && !canFull
 
-  const loadGeneral = useCallback(async () => {
-    const res = await getDeclarationGeneral(d.declarationId, soloConsulta)
-    if (res.success) {
-      setGeneral(res.value)
-      setGeneralError(null)
-      return res.value
-    }
-    setGeneralError(res.error.message)
-    return null
-  }, [d.declarationId, soloConsulta])
+  // /general y la bitácora van en paralelo. La bitácora alimenta el banner de rechazo y
+  // el Historial (motivos de reapertura y mensajes de reenvío), así que se pide siempre,
+  // no solo en estatus 10. El perfil de consulta no tiene ReadDeclaracionLogs: va por
+  // la ruta espejo `/consulta/logs`.
+  const { general, generalError, logs, logsLoading, refresh } = useDeclaration(d.declarationId, soloConsulta)
 
-  // La bitácora alimenta el banner de rechazo y el Historial (motivos de reapertura y
-  // mensajes de reenvío), así que se pide siempre, no solo en estatus 10. El perfil de
-  // consulta no tiene ReadDeclaracionLogs: va por la ruta espejo `/consulta/logs`.
-  const loadLogs = useCallback(async () => {
-    setLogsLoading(true)
-    const logsRes = await getDeclarationLogs(d.declarationId, 0, 100, soloConsulta)
-    setLogsLoading(false)
-    if (logsRes.success) setLogs(logsRes.value)
-  }, [d.declarationId, soloConsulta])
+  // Sube cada vez que algo cambia la declaración en el back: la vista previa del
+  // modal de envío recarga su iframe sin volver a pedir `report-link`.
+  const [previewVersion, setPreviewVersion] = useState(0)
 
-  useEffect(() => {
-    let cancelled = false
-    setGeneral(null)
-    setGeneralError(null)
-    setLogs([])
-    void (async () => {
-      const value = await loadGeneral()
-      if (cancelled || !value) return
-      await loadLogs()
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [d.declarationId, loadGeneral, loadLogs])
-
-  // Sube cada vez que algo cambia la declaración en el back (recálculo, reapertura,
-  // reenvío, documentos): las pestañas lo reciben como `refreshKey` y vuelven a pedir
-  // sus datos. Antes solo se recargaba /general y el resumen, los cálculos y los
-  // comprobantes se quedaban con lo de antes de recalcular.
-  const [dataVersion, setDataVersion] = useState(0)
-
-  /** Recarga /general y la bitácora, y avisa a las pestañas que vuelvan a consultar. */
+  /** El back escribió: se invalida general, bitácora, cálculos y comprobantes de esta declaración. */
   const refreshDeclaration = useCallback(async () => {
-    await loadGeneral()
-    void loadLogs()
-    setDataVersion((v) => v + 1)
-  }, [loadGeneral, loadLogs])
+    setPreviewVersion((v) => v + 1)
+    await refresh()
+  }, [refresh])
 
   // Fila más reciente con NewStatusId = 10: es el rechazo vigente del cliente.
-  const rejection = logs
-    .filter((l) => l.newStatusId === DECLARATION_STATUS.CLIENT_REJECTED)
-    .sort((a, b) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime())[0]
+  const rejection = useMemo(
+    () =>
+      logs
+        .filter((l) => l.newStatusId === DECLARATION_STATUS.CLIENT_REJECTED)
+        .sort((a, b) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime())[0],
+    [logs],
+  )
 
   /* ------------------------------------------------------------------ */
   /*  "Documentos SAT" (Acuse y Línea de Captura)                       */
   /* ------------------------------------------------------------------ */
   const [documentsOpen, setDocumentsOpen] = useState(false)
+  const closeDocuments = useCallback(() => setDocumentsOpen(false), [])
+  const handleDocumentUploaded = useCallback(() => {
+    void refreshDeclaration()
+  }, [refreshDeclaration])
 
   /* ------------------------------------------------------------------ */
   /*  "Enviar Predeclaración"                                            */
   /* ------------------------------------------------------------------ */
   const [resendOpen, setResendOpen] = useState(false)
-  const [resendNote, setResendNote] = useState('')
-  const [resendLoading, setResendLoading] = useState(false)
-  const [resendMessage, setResendMessage] = useState<
-    { kind: 'success' | 'warning' | 'error'; text: string } | null
-  >(null)
-
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [previewLoading, setPreviewLoading] = useState(false)
-  const [previewFailed, setPreviewFailed] = useState(false)
+  const [resendMessage, setResendMessage] = useState<ResendMessage | null>(null)
+  const closeResend = useCallback(() => setResendOpen(false), [])
+  // El modal ya resolvió el texto (éxito, correo fallido, CALCULATION_CHANGED, estatus
+  // inválido…); aquí solo se cierra, se pinta el aviso y se refresca si el back escribió.
+  const handleResendDone = useCallback(
+    (message: ResendMessage, opts: { refresh: boolean }) => {
+      setResendOpen(false)
+      setResendMessage(message)
+      if (opts.refresh) void refreshDeclaration()
+    },
+    [refreshDeclaration],
+  )
 
   // Siempre activo en cuanto carga la declaración: el back decide si el estatus lo permite y
   // el mensaje de error dice qué hacer (p. ej. reabrir una presentada).
@@ -349,94 +353,28 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
   /*  "Reabrir declaración"                                              */
   /* ------------------------------------------------------------------ */
   const [reopenOpen, setReopenOpen] = useState(false)
-  const [reopenReason, setReopenReason] = useState('')
-  const [reopenLoading, setReopenLoading] = useState(false)
-  const [reopenError, setReopenError] = useState<string | null>(null)
+  const closeReopen = useCallback(() => setReopenOpen(false), [])
 
   const canReopen = general != null && REOPENABLE_STATUSES.has(general.statusId)
   const reopenFromSubmitted = general?.statusId === DECLARATION_STATUS.SUBMITTED
 
-  const handleReopenConfirm = async () => {
-    setReopenLoading(true)
-    setReopenError(null)
-    const res = await reopenDeclaration(d.declarationId, reopenReason)
-    setReopenLoading(false)
-    if (res.success) {
+  const handleReopened = useCallback(
+    (wasSubmitted: boolean) => {
       setReopenOpen(false)
-      setReopenReason('')
       setResendMessage({
         kind: 'success',
-        text: res.value.wasSubmitted
+        text: wasSubmitted
           ? 'Declaración reabierta. Como ya estaba presentada, la siguiente presentación irá como complementaria.'
           : 'Declaración reabierta: ya puedes corregirla y reenviarla al cliente.',
       })
       void refreshDeclaration()
-    } else {
-      // El catálogo de errores trae textos pensados para el cliente: aquí se le habla al contador.
-      setReopenError(
-        res.error.code === 'INVALID_STATUS_TRANSITION'
-          ? 'Solo se puede reabrir una declaración Presentada, Por autorizar o Por presentar.'
-          : res.error.message,
-      )
-    }
-  }
+    },
+    [refreshDeclaration],
+  )
 
-  // La vista previa es el mismo `/reporte` del cliente en modo solo lectura. El
-  // `url` que devuelve el back apunta al FrontendUrl configurado y no trae
-  // `preview`, por eso se arma local con el token.
-  useEffect(() => {
-    if (!resendOpen) return
-    let cancelled = false
-    setPreviewLoading(true)
-    setPreviewFailed(false)
-    void getDeclarationReportLink(d.declarationId).then((res) => {
-      if (cancelled) return
-      setPreviewLoading(false)
-      if (res.success && res.value.token) {
-        setPreviewUrl(`/reporte?t=${encodeURIComponent(res.value.token)}&preview=1`)
-      } else {
-        setPreviewUrl(null)
-        setPreviewFailed(true)
-      }
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [resendOpen, d.declarationId, dataVersion])
-
-  const handleResendConfirm = async () => {
-    setResendLoading(true)
-    const res = await resendDeclarationToClient(d.declarationId, resendNote.trim() || undefined)
-    setResendLoading(false)
-    if (res.success) {
-      setResendOpen(false)
-      setResendNote('')
-      setResendMessage(
-        res.value.emailSent
-          ? { kind: 'success', text: 'Correo enviado al cliente, declaración en revisión.' }
-          : { kind: 'warning', text: 'Estatus actualizado pero el correo falló; reintenta.' },
-      )
-      void refreshDeclaration()
-    } else if (res.error.code === 'CALCULATION_CHANGED') {
-      // Llegaron comprobantes después del último cálculo y al recalcular cambiaron las cifras: el
-      // back no envió. El texto trae qué cambió; se refresca para que el contador vea lo nuevo y,
-      // ya revisado, vuelva a darle a Enviar (el cálculo ya está al día y pasa).
-      setResendOpen(false)
-      setResendMessage({ kind: 'warning', text: res.error.message })
-      void refreshDeclaration()
-    } else {
-      // El catálogo de errores trae textos pensados para el cliente: aquí se le habla al contador.
-      const presentada = general?.statusId === DECLARATION_STATUS.SUBMITTED
-      const text =
-        res.error.code === 'INVALID_STATUS_TRANSITION'
-          ? presentada
-            ? 'Esta declaración ya está presentada. Reábrela para poder corregirla y reenviarla al cliente.'
-            : 'Con su estatus actual esta declaración no se puede reenviar al cliente.'
-          : res.error.message
-      setResendOpen(false)
-      setResendMessage({ kind: 'error', text })
-    }
-  }
+  const goToComments = useCallback(() => setTab(COMMENTS_TAB_INDEX), [])
+  // El botón encoló una descarga: el chip de estatus del periodo se re-consulta.
+  const invalidateDownloadStatus = useInvalidateDownloadStatus(d.declarationId)
 
   // El régimen y el ejercicio son la referencia del contador: salen de /general
   // y caen a lo que traía el listado mientras carga.
@@ -461,6 +399,11 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
     },
     () => void refreshDeclaration(),
   )
+
+  const startRecalc = useCallback(() => {
+    setTab(RECALCULO_TAB_INDEX)
+    void recalc.run()
+  }, [recalc])
 
   // Entrada por URL directa: sin el listado detrás no hay nada que pintar hasta
   // que /general responda (las tabs necesitan ejercicio y periodo reales).
@@ -594,7 +537,15 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
               icon={
                 recalc.running ? <Loader2 size={15} className="animate-spin" /> : <RotateCcw size={15} />
               }
-              label={recalc.running ? `Calculando… ${recalc.seconds}s` : 'Recalcular'}
+              label={
+                recalc.running ? (
+                  <>
+                    Calculando… <RecalcSeconds startedAt={recalc.startedAt} />s
+                  </>
+                ) : (
+                  'Recalcular'
+                )
+              }
               kind="ghost"
               disabled={recalc.running || !recalc.ready}
               title={
@@ -602,10 +553,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
                   ? 'Vuelve a calcular ISR/IVA con los comprobantes del período'
                   : 'La declaración no tiene período o régimen asignado'
               }
-              onClick={() => {
-                setTab(RECALCULO_TAB_INDEX)
-                void recalc.run()
-              }}
+              onClick={startRecalc}
             />
           )}
           {!soloConsulta && (
@@ -618,16 +566,18 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
             />
           )}
           <HeaderBtn icon={<Download size={15} />} label="Exportar PDF" kind="ghost" />
-          {!soloConsulta && general && (
+          {/* Ya no espera a /general: el botón consulta `puede-ejecutar` en paralelo y el chip
+              se pinta solo cuando llega el periodo y es mensual. Si /general falló, se oculta
+              igual que antes. */}
+          {!soloConsulta && !(general == null && generalError) && (
             <div className="flex flex-col gap-1">
               <DescargarArchivosSatBtn
                 declarationId={d.declarationId}
-                onEncolada={() => setDescargasRefreshKey((k) => k + 1)}
+                onEncolada={invalidateDownloadStatus}
               />
               <DescargasSatStatus
                 declarationId={d.declarationId}
                 periodValueId={general?.periodValueId ?? null}
-                refreshKey={descargasRefreshKey}
               />
             </div>
           )}
@@ -637,10 +587,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
               label="Reabrir declaración"
               kind="ghost"
               title="Regresa la declaración a tus manos para corregirla. Queda en estatus Reabierta."
-              onClick={() => {
-                setReopenError(null)
-                setReopenOpen(true)
-              }}
+              onClick={() => setReopenOpen(true)}
             />
           )}
           {!soloConsulta && (
@@ -739,14 +686,15 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
         ))}
       </div>
 
-      {/* Tab content */}
+      {/* Tab content. Las pestañas se desmontan al cambiar (su estado local se reinicia,
+          como antes); sus datos viven en la caché, así que volver no vuelve a pedir nada
+          mientras estén frescos. */}
       {tab === 0 && (
         <ComprobantesTab
           declarationId={d.declarationId}
           periodo={`${periodo} ${ejercicio}`}
           regimeSatCode={general?.regimeSatCode ?? null}
           consulta={soloConsulta}
-          refreshKey={dataVersion}
         />
       )}
       {tab === 1 &&
@@ -756,11 +704,11 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
             regimeSatCode={general?.regimeSatCode ?? null}
             readOnly={soloConsulta}
             consulta={soloConsulta}
-            refreshKey={dataVersion}
           />,
         )}
       {tab === RECALCULO_TAB_INDEX && (
         <RecalculoTab
+          declarationId={d.declarationId}
           rfc={rfc}
           fiscalYear={ejercicio}
           periodValueId={general?.periodValueId ?? null}
@@ -776,7 +724,6 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
             general={general}
             periodo={periodo}
             fiscalYear={ejercicio}
-            refreshKey={dataVersion}
           />,
         )}
       {tab === 4 &&
@@ -787,8 +734,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
             general={general}
             periodo={periodo}
             fiscalYear={ejercicio}
-            refreshKey={dataVersion}
-            onGoToComments={() => setTab(COMMENTS_TAB_INDEX)}
+            onGoToComments={goToComments}
           />,
         )}
       {tab === COMMENTS_TAB_INDEX && (
@@ -797,174 +743,37 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
 
       <DeclarationHistory logs={logs} loading={logsLoading} />
 
-      <Modal
-        isOpen={reopenOpen}
-        onClose={() => !reopenLoading && setReopenOpen(false)}
-        title="Reabrir declaración"
-        maxWidth={560}
-      >
-        <div className="flex flex-col gap-4">
-          <p className="text-[13.5px]" style={{ color: 'var(--foreground)' }}>
-            La declaración de <strong>{legalName}</strong> ({periodo} {ejercicio}) regresará a tus manos
-            en estatus <strong>Reabierta</strong> para que la corrijas. Después podrás reenviarla al cliente.
-          </p>
-          {reopenFromSubmitted && (
-            <div
-              className="rounded-xl px-3.5 py-3 flex items-start gap-2 text-[12.5px] font-semibold"
-              style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)', border: '1px solid var(--hero-amber-border, var(--border))' }}
-            >
-              <AlertTriangle size={15} className="mt-0.5 shrink-0" />
-              <span>
-                Esta declaración ya se presentó ante el SAT. Al reabrirla, la corrección se tendrá que
-                presentar como complementaria.
-              </span>
-            </div>
-          )}
-          <div>
-            <label className="text-[12px] font-bold" style={{ color: 'var(--ink-500)' }}>
-              Motivo de la reapertura (obligatorio, no lo ve el cliente)
-            </label>
-            <textarea
-              value={reopenReason}
-              onChange={(e) => setReopenReason(e.target.value.slice(0, REOPEN_REASON_MAX_LENGTH))}
-              rows={4}
-              placeholder="Qué hay que corregir y por qué…"
-              className="w-full mt-1.5 px-3 py-2 rounded-lg text-[13px]"
-              style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
-            />
-            <div className="text-[11px] text-right mt-1" style={{ color: 'var(--ink-500)' }}>
-              {reopenReason.length}/{REOPEN_REASON_MAX_LENGTH}
-            </div>
-          </div>
-          {reopenError && (
-            <div
-              className="rounded-xl px-3.5 py-3 flex items-start gap-2 text-[12.5px] font-semibold"
-              style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)', border: '1px solid var(--border)' }}
-            >
-              <AlertTriangle size={15} className="mt-0.5 shrink-0" />
-              <span>{reopenError}</span>
-            </div>
-          )}
-          <div className="flex justify-end gap-2">
-            <button
-              onClick={() => setReopenOpen(false)}
-              disabled={reopenLoading}
-              className="px-4 py-2.5 rounded-xl text-[13px] font-bold disabled:opacity-60"
-              style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={() => void handleReopenConfirm()}
-              disabled={reopenLoading || reopenReason.trim().length === 0}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold disabled:opacity-60"
-              style={{ background: 'linear-gradient(135deg,#00D3A1 0%,#00AD87 100%)', color: '#fff' }}
-            >
-              {reopenLoading && <Loader2 size={14} className="animate-spin" />}
-              Reabrir
-            </button>
-          </div>
-        </div>
-      </Modal>
+      <ReopenModal
+        open={reopenOpen}
+        onClose={closeReopen}
+        declarationId={d.declarationId}
+        legalName={legalName}
+        periodo={periodo}
+        ejercicio={ejercicio}
+        fromSubmitted={reopenFromSubmitted}
+        onReopened={handleReopened}
+      />
 
-      <Modal
-        isOpen={resendOpen}
-        onClose={() => !resendLoading && setResendOpen(false)}
-        title="Enviar Predeclaración"
-        maxWidth={980}
-      >
-        <div className="grid gap-5 md:grid-cols-2">
-          <div className="flex flex-col gap-4">
-            <p className="text-[13.5px]" style={{ color: 'var(--foreground)' }}>
-              Se reenviará la declaración corregida a <strong>{legalName}</strong> para que la vuelva
-              a revisar. No presenta nada ante el SAT.
-            </p>
-            <div>
-              <label className="text-[12px] font-bold" style={{ color: 'var(--ink-500)' }}>
-                Mensaje del reenvío (opcional, no lo ve el cliente)
-              </label>
-              <textarea
-                value={resendNote}
-                onChange={(e) => setResendNote(e.target.value.slice(0, 500))}
-                rows={3}
-                placeholder="Qué corregiste. Queda en el historial y en tu correo de confirmación…"
-                className="w-full mt-1.5 px-3 py-2 rounded-lg text-[13px]"
-                style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
-              />
-              <div className="text-[11px] text-right mt-1" style={{ color: 'var(--ink-500)' }}>
-                {resendNote.length}/500
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setResendOpen(false)}
-                disabled={resendLoading}
-                className="px-4 py-2.5 rounded-xl text-[13px] font-bold disabled:opacity-60"
-                style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => void handleResendConfirm()}
-                disabled={resendLoading}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold disabled:opacity-60"
-                style={{ background: 'linear-gradient(135deg,#00D3A1 0%,#00AD87 100%)', color: '#fff' }}
-              >
-                {resendLoading && <Loader2 size={14} className="animate-spin" />}
-                {/* Si llegaron comprobantes después del último cálculo, el back recalcula antes de enviar. */}
-                {resendLoading ? 'Revisando cálculo y enviando…' : 'Confirmar envío'}
-              </button>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <div className="text-[12px] font-bold" style={{ color: 'var(--ink-500)' }}>
-              Lo que verá el cliente
-            </div>
-            <div
-              className="rounded-xl overflow-hidden h-[460px]"
-              style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
-            >
-              {previewLoading && (
-                <div
-                  className="h-full flex items-center justify-center gap-2 text-[13px]"
-                  style={{ color: 'var(--ink-500)' }}
-                >
-                  <Loader2 size={16} className="animate-spin" /> Cargando vista previa…
-                </div>
-              )}
-              {!previewLoading && previewFailed && (
-                <div
-                  className="h-full flex items-center justify-center px-5 text-center text-[13px]"
-                  style={{ color: 'var(--ink-500)' }}
-                >
-                  No pudimos cargar la vista previa. Puedes enviar la predeclaración de todos modos.
-                </div>
-              )}
-              {!previewLoading && previewUrl && (
-                <iframe
-                  src={previewUrl}
-                  title="Vista previa del reporte del cliente"
-                  className="w-full h-full border-0"
-                />
-              )}
-            </div>
-          </div>
-          </div>
-      </Modal>
+      <ResendModal
+        open={resendOpen}
+        onClose={closeResend}
+        declarationId={d.declarationId}
+        legalName={legalName}
+        statusId={general?.statusId ?? null}
+        previewVersion={previewVersion}
+        onDone={handleResendDone}
+      />
 
       {/* Modal de Carga y Descarga de Documentos SAT (Acuse y Línea de Captura) */}
       <DeclarationDocumentsModal
         open={documentsOpen}
-        onClose={() => setDocumentsOpen(false)}
+        onClose={closeDocuments}
         declarationId={d.declarationId}
         periodo={periodo}
         ejercicio={ejercicio}
         rfc={rfc}
         legalName={legalName}
-        onDocumentUploaded={(statusId, statusLabel) => {
-          void refreshDeclaration()
-        }}
+        onDocumentUploaded={handleDocumentUploaded}
       />
     </div>
   )
@@ -979,6 +788,17 @@ function LoadingCard() {
     <Card>
       <div className="flex items-center gap-2 px-5 py-8 text-[14px]" style={{ color: 'var(--ink-500)' }}>
         <Loader2 size={18} className="animate-spin" /> Cargando declaración…
+      </div>
+    </Card>
+  )
+}
+
+/** Mientras baja el chunk de una pestaña diferida. Sin texto: la pestaña pone el suyo al montar. */
+function TabLoading() {
+  return (
+    <Card>
+      <div className="flex items-center justify-center px-5 py-8" style={{ color: 'var(--ink-500)' }}>
+        <Loader2 size={18} className="animate-spin" />
       </div>
     </Card>
   )
@@ -1087,7 +907,7 @@ function HeaderBtn({
   title,
 }: {
   icon: React.ReactNode
-  label: string
+  label: React.ReactNode
   kind: 'ghost' | 'info' | 'brand'
   onClick?: () => void
   disabled?: boolean
@@ -1142,128 +962,3 @@ function StatCard({
     </Card>
   )
 }
-
-/* -------------------------------------------------------------------------- */
-/*  Props compartidas por Clasificación y Reporte Cliente                      */
-/* -------------------------------------------------------------------------- */
-
-interface ResumenProps {
-  declarationId: number
-  general: DeclarationGeneral | null
-  periodo: string
-  fiscalYear: number
-  refreshKey: number
-}
-
-/* -------------------------------------------------------------------------- */
-/*  Tab: Clasificación                                                        */
-/* -------------------------------------------------------------------------- */
-
-function ClasificacionTab({ declarationId, general, periodo, fiscalYear, refreshKey }: ResumenProps) {
-  return (
-    <ResumenDeclaracion
-      declarationId={declarationId}
-      general={general}
-      periodo={periodo}
-      fiscalYear={fiscalYear}
-      refreshKey={refreshKey}
-    />
-  )
-}
-
-/* -------------------------------------------------------------------------- */
-/*  Tab: Reporte Cliente                                                      */
-/* -------------------------------------------------------------------------- */
-
-function ReporteClienteTab({
-  d,
-  declarationId,
-  general,
-  periodo,
-  fiscalYear,
-  refreshKey,
-  onGoToComments,
-}: ResumenProps & { d: DeclarationSubject; onGoToComments: () => void }) {
-  const initials =
-    d.legalName
-      .split(' ')
-      .slice(0, 2)
-      .map((w) => w[0]?.toUpperCase())
-      .join('') || 'C'
-
-  return (
-    <div className="flex flex-col gap-5">
-      {/* Report header card */}
-      <div className="rounded-3xl p-5" style={{ background: 'var(--hero-info)', border: '1px solid var(--hero-info-border)' }}>
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-4">
-            <div
-              className="w-12 h-12 rounded-full flex items-center justify-center text-[15px] font-extrabold flex-shrink-0"
-              style={{ background: 'var(--violet)', color: '#fff' }}
-            >
-              {initials}
-            </div>
-            <div>
-              <h3 className="text-[18px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
-                Reporte Fiscal — {d.periodo}
-              </h3>
-              <div className="flex gap-2 mt-2 flex-wrap">
-                <MiniField label="Cliente" value={d.legalName} />
-                <MiniField label="RFC" value={d.rfc} mono />
-                <MiniField label="Ejercicio" value={String(d.fiscalYear)} />
-              </div>
-            </div>
-          </div>
-          <div className="text-right">
-            {general ? (
-              <Badge kind={declarationStatusBadge(general.statusCode, general.statusDescription).kind}>
-                {declarationStatusBadge(general.statusCode, general.statusDescription).label}
-              </Badge>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-bold" style={{ background: 'var(--ink-50)', color: 'var(--ink-500)' }}>
-                Cargando estatus…
-              </span>
-            )}
-            <div className="text-[11.5px] mt-1" style={{ color: 'var(--ink-500)' }}>
-              {d.accountantName ? `Revisado por ${d.accountantName}` : 'Revisado por contador certificado'}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex gap-2 mt-4 flex-wrap">
-          <button className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12.5px] font-bold" style={{ background: 'var(--sky)', color: '#fff' }}>
-            <Download size={15} /> Descargar Reporte PDF
-          </button>
-          <button className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12.5px] font-bold" style={{ background: 'linear-gradient(135deg,#00D3A1 0%,#00AD87 100%)', color: '#fff' }}>
-            <Mail size={15} /> Enviar por Email
-          </button>
-          <button
-            onClick={onGoToComments}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12.5px] font-bold"
-            style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
-          >
-            <MessageSquarePlus size={15} /> Agregar Comentario
-          </button>
-        </div>
-      </div>
-      {/* Resumen y desglose del periodo, con los datos del EP de cálculos */}
-      <ResumenDeclaracion
-        declarationId={declarationId}
-        general={general}
-        periodo={periodo}
-        fiscalYear={fiscalYear}
-        refreshKey={refreshKey}
-      />
-    </div>
-  )
-}
-
-function MiniField({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
-  return (
-    <div className="rounded-lg px-3 py-1.5" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
-      <div className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--ink-500)' }}>{label}</div>
-      <div className="text-[12.5px] font-bold" style={{ ...(mono ? MONO : {}), color: 'var(--ink-900)' }}>{value}</div>
-    </div>
-  )
-}
-

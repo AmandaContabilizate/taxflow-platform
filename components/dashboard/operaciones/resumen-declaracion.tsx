@@ -10,10 +10,12 @@ import {
   Send,
   Table2,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import { isIvaDefinitiva } from '@/features/declaration-report/lib/reportDetail'
-import { getDeclarationCalculations } from '@/features/operations/actions/getDeclarationCalculations.action'
-import { getDeclarationInvoices } from '@/features/operations/actions/getDeclarationInvoices.action'
+import {
+  useDeclarationCalculations,
+  useDeclarationInvoiceCount,
+} from '@/features/declarations/hooks/useDeclarationQueries'
 import type { DeclarationCalculations, DeclarationGeneral, Money } from '@/features/operations/types'
 import { DISPLAY, MONO } from '../constants'
 import { Card } from '../ui'
@@ -402,40 +404,25 @@ interface Props {
   general: DeclarationGeneral | null
   periodo: string
   fiscalYear: number
-  /** Sube cuando el detalle recarga la declaración (recálculo, reapertura…): vuelve a pedir los cálculos. */
-  refreshKey?: number
 }
 
-export function ResumenDeclaracion({ declarationId, general, periodo, fiscalYear, refreshKey = 0 }: Props) {
-  const [calc, setCalc] = useState<DeclarationCalculations | null>(null)
-  const [cfdis, setCfdis] = useState<number | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+export const ResumenDeclaracion = memo(function ResumenDeclaracion({ declarationId, general, periodo, fiscalYear }: Props) {
+  // Las dos consultas salen de la caché por declaración: `/calculations` es la misma
+  // entrada que usa la pestaña Cálculos, y el conteo (`take=1`, universo combinado) se
+  // comparte entre Clasificación y Reporte Cliente. Se invalidan cuando el detalle
+  // recarga la declaración (recálculo, reapertura…).
+  const calcQ = useDeclarationCalculations(declarationId, false)
+  const countQ = useDeclarationInvoiceCount(declarationId, false)
+  const calc = calcQ.data ?? null
+  const cfdis = countQ.isError ? null : (countQ.data ?? null)
+  const loading = calcQ.isPending || countQ.isPending
+  const error = calcQ.isError ? calcQ.error.message : null
   const [detalle, setDetalle] = useState(true)
-
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    void (async () => {
-      const [calcRes, invRes] = await Promise.all([
-        getDeclarationCalculations(declarationId),
-        getDeclarationInvoices({ declarationId, skip: 0, take: 1 }),
-      ])
-      if (cancelled) return
-      if (calcRes.success) setCalc(calcRes.value)
-      else setError(calcRes.error.message)
-      setCfdis(invRes.success ? invRes.value.total : null)
-      setLoading(false)
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [declarationId, refreshKey])
 
   // Fuente única del régimen: `/calculations` (E3); `/general` solo como fallback.
   const satCode = calc?.regimeSatCode ?? general?.regimeSatCode ?? null
-  const r = readResumen(calc, general?.totalDeclaration ?? null, satCode)
+  const generalTotal = general?.totalDeclaration ?? null
+  const r = useMemo(() => readResumen(calc, generalTotal, satCode), [calc, generalTotal, satCode])
   const status = readStatus(general)
   const range = periodRange(general?.periodValueId, general?.fiscalYear ?? fiscalYear)
   const presentadaHace = daysAgo(general?.submittedAt ?? null)
@@ -593,4 +580,4 @@ export function ResumenDeclaracion({ declarationId, general, periodo, fiscalYear
       </div>
     </Card>
   )
-}
+})
