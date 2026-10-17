@@ -2,6 +2,7 @@
 
 import { ApiError, fetchPost } from '@/lib/api'
 import { API_ROUTES } from '@/lib/api/apiRoutes'
+import { toCalc612Error } from '@/lib/api/problemDetail'
 import { type Result, err, ok } from '@/lib/common'
 import {
   type CreateIvaFavorBalanceSchemaInput,
@@ -21,7 +22,7 @@ export async function createIvaFavorBalance(
     const data = await fetchPost<IvaFavorBalance>(API_ROUTES.IVA_FAVOR_BALANCES.CREATE, parsed.data, 'iva_favor_balances')
     return ok(data)
   } catch (e) {
-    if (e instanceof ApiError) return err({ statusCode: e.status, message: e.message, code: e.errorCode })
+    if (e instanceof ApiError) return err(toCalc612Error(e))
     console.error('[createIvaFavorBalance] Error:', e)
     return err({ statusCode: 500, message: 'No pudimos guardar el saldo a favor.' })
   }

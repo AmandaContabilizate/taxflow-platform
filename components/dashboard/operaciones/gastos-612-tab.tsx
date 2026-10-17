@@ -9,7 +9,7 @@ import { updateFixedAsset } from '@/features/fixed-assets/actions/updateFixedAss
 import { useFixedAssetTypes, useFixedAssets } from '@/features/fixed-assets/hooks/useFixedAssets'
 import {
   type FixedAsset,
-  type FixedAssetStatus,
+  type FixedAssetDecision,
   type FixedAssetType,
   fixedAssetStatusIs,
 } from '@/features/fixed-assets/types'
@@ -43,9 +43,15 @@ const RECIBIDAS: InvoiceFilterKey = {
 
 const upper = (s: string | null | undefined) => (s ?? '').trim().toUpperCase()
 
-/** Solo facturas de ingreso del proveedor (I) y pagos (P): son las que originan capas. */
+/** El back recorta la descripción a 500 caracteres. */
+const DESCRIPCION_MAX = 500
+
+/** Facturas de ingreso del proveedor (I) y pagos (P): son las que originan capas. */
 const esGasto = (inv: DeclarationInvoice) =>
   (inv.invoiceTypeId === 1 || inv.invoiceTypeId === 4) && !inv.esNomina && !inv.esRetencion
+
+/** `POST /api/FixedAssets` solo acepta facturas I recibidas (un P → FIXED_ASSET_INVOICE_NOT_EXPENSE). */
+const esFacturaI = (inv: DeclarationInvoice) => inv.invoiceTypeId === 1
 
 function typeLabel(t: FixedAssetType) {
   const tope = t.deductibleCap ? ` · tope ${fmtMoney(t.deductibleCap)}` : ''
@@ -149,13 +155,30 @@ export const Gastos612Tab = memo(function Gastos612Tab({
   const page = invQ.data
   const gastos = useMemo(() => (page?.items ?? []).filter(esGasto), [page])
 
+  // `GET /api/FixedAssets` trae todos los activos del contribuyente en todos los estados;
+  // `declarationId` solo valida que la declaración sea del RFC. Lo "de esta declaración" se
+  // filtra aquí con `suggestedInDeclarationId`.
   const assets = useMemo(() => assetsQ.data ?? [], [assetsQ.data])
-  const sugeridos = useMemo(() => assets.filter((a) => fixedAssetStatusIs(a, 'Sugerido')), [assets])
+  const sugeridosTodos = useMemo(() => assets.filter((a) => fixedAssetStatusIs(a, 'Sugerido')), [assets])
+  const sugeridosAqui = useMemo(
+    () => sugeridosTodos.filter((a) => a.suggestedInDeclarationId === declarationId),
+    [sugeridosTodos, declarationId],
+  )
+  const [verOtrasSugerencias, setVerOtrasSugerencias] = useState(false)
+  const sugeridos = verOtrasSugerencias ? sugeridosTodos : sugeridosAqui
+  const otrasSugerencias = sugeridosTodos.length - sugeridosAqui.length
   const confirmados = useMemo(() => assets.filter((a) => fixedAssetStatusIs(a, 'Confirmado')), [assets])
-  // Un descartado no bloquea volver a marcar la factura.
+  // Un UUID tiene a lo más un activo por contribuyente, en cualquier estado: un Descartado se
+  // vuelve a marcar con PUT (el POST respondería FIXED_ASSET_ALREADY_EXISTS).
   const assetByUuid = useMemo(() => {
     const m = new Map<string, FixedAsset>()
-    for (const a of assets) if (!fixedAssetStatusIs(a, 'Descartado')) m.set(upper(a.originUuid), a)
+    for (const a of assets) m.set(upper(a.originUuid), a)
+    return m
+  }, [assets])
+  // Pagos (P) que ya son capa de un activo.
+  const assetByLayerUuid = useMemo(() => {
+    const m = new Map<string, FixedAsset>()
+    for (const a of assets) for (const l of a.layers) m.set(upper(l.uuid), a)
     return m
   }, [assets])
 
@@ -175,7 +198,7 @@ export const Gastos612Tab = memo(function Gastos612Tab({
 
   const actualizar = async (
     asset: FixedAsset,
-    cambios: { status?: FixedAssetStatus; assetTypeCode?: string },
+    cambios: { status?: FixedAssetDecision; assetTypeCode?: string; description?: string },
     texto: string,
   ) => {
     setBusy(`a-${asset.id}`)
@@ -211,13 +234,22 @@ export const Gastos612Tab = memo(function Gastos612Tab({
     }
     setBusy(`m-${marcando.uuid}`)
     setError(null)
-    const res = await createFixedAsset({
-      rfc,
-      declarationId,
-      invoiceUuid: marcando.uuid,
-      assetTypeCode: marcando.tipo,
-      description: marcando.descripcion,
-    })
+    const descripcion = marcando.descripcion.trim()
+    const descartado = assetByUuid.get(upper(marcando.uuid))
+    const res =
+      descartado && fixedAssetStatusIs(descartado, 'Descartado')
+        ? await updateFixedAsset(descartado.id, {
+            status: 'Confirmado',
+            ...(marcando.tipo !== descartado.assetTypeCode ? { assetTypeCode: marcando.tipo } : {}),
+            ...(descripcion ? { description: descripcion } : {}),
+          })
+        : await createFixedAsset({
+            rfc,
+            declarationId,
+            invoiceUuid: marcando.uuid,
+            assetTypeCode: marcando.tipo,
+            ...(descripcion ? { description: descripcion } : {}),
+          })
     setBusy(null)
     if (!res.success) {
       setError(res.error.message)
@@ -248,6 +280,15 @@ export const Gastos612Tab = memo(function Gastos612Tab({
         <PanelHeader612
           title="Sugerencias de activo fijo"
           subtitle="Las detecta el cálculo por la clave de producto y, si es candidata, con la IA. Confirma, cambia el tipo o descarta."
+          right={
+            otrasSugerencias > 0 && (
+              <SmallBtn onClick={() => setVerOtrasSugerencias((v) => !v)}>
+                {verOtrasSugerencias
+                  ? 'Solo las de esta declaración'
+                  : `Ver ${otrasSugerencias} de otros meses`}
+              </SmallBtn>
+            )
+          }
         />
         {assetsLoading ? (
           <Cargando texto="Cargando activos fijos…" />
@@ -256,7 +297,13 @@ export const Gastos612Tab = memo(function Gastos612Tab({
             <InlineNotice kind="error">{assetsError}</InlineNotice>
           </div>
         ) : sugeridos.length === 0 ? (
-          <Vacio texto="No hay sugerencias pendientes." />
+          <Vacio
+            texto={
+              otrasSugerencias > 0
+                ? 'Esta declaración no tiene sugerencias pendientes; hay pendientes de otros meses.'
+                : 'No hay sugerencias pendientes.'
+            }
+          />
         ) : (
           <SimpleTable headers={['Gasto', 'Origen', 'Monto a depreciar', 'Tipo', '']} align={new Set([2])}>
             {sugeridos.map((a) => {
@@ -276,10 +323,15 @@ export const Gastos612Tab = memo(function Gastos612Tab({
                   <td className={cellClass}>
                     <div className="flex flex-col gap-1 items-start">
                       <UuidShort uuid={a.originUuid} />
-                      {a.source && (
-                        <Badge kind={upper(a.source) === 'IA' ? 'sky' : 'default'}>
-                          {upper(a.source) === 'IA' && <Sparkles size={10} />} {a.source}
-                        </Badge>
+                      <Badge kind={a.source === 'IA' ? 'sky' : 'default'}>
+                        {a.source === 'IA' && <Sparkles size={10} />} {a.source}
+                      </Badge>
+                      {a.suggestedInDeclarationId !== declarationId && (
+                        <span className="text-[11px]" style={{ color: 'var(--ink-500)' }}>
+                          {a.suggestedInDeclarationId != null
+                            ? `Sugerido en la declaración #${a.suggestedInDeclarationId}`
+                            : 'De otra declaración'}
+                        </span>
                       )}
                     </div>
                   </td>
@@ -418,6 +470,8 @@ export const Gastos612Tab = memo(function Gastos612Tab({
           <SimpleTable headers={['Fecha', 'Proveedor', 'Concepto', 'Subtotal o pagado', 'IVA', 'Deducible', '']} align={new Set([3, 4])}>
             {gastos.map((inv) => {
               const asset = assetByUuid.get(upper(inv.uuid))
+              const descartado = asset != null && fixedAssetStatusIs(asset, 'Descartado')
+              const capaDe = assetByLayerUuid.get(upper(inv.uuid))
               const enEdicion = marcando?.uuid === inv.uuid
               const ocupado = busy === `m-${inv.uuid}`
               return (
@@ -456,10 +510,20 @@ export const Gastos612Tab = memo(function Gastos612Tab({
                     )}
                   </td>
                   <td className={cellClass}>
-                    {asset ? (
+                    {asset && !descartado ? (
                       <Badge kind={fixedAssetStatusIs(asset, 'Confirmado') ? 'brand' : 'amber'}>
-                        Activo fijo · {String(asset.status)}
+                        Activo fijo · {asset.status}
                       </Badge>
+                    ) : !esFacturaI(inv) ? (
+                      capaDe ? (
+                        <Badge kind={fixedAssetStatusIs(capaDe, 'Confirmado') ? 'brand' : 'default'}>
+                          Capa de activo fijo
+                        </Badge>
+                      ) : (
+                        <span className="text-[11.5px]" style={{ color: 'var(--ink-500)' }}>
+                          Un pago no se marca: marca su factura (I)
+                        </span>
+                      )
                     ) : enEdicion && marcando ? (
                       <div className="flex flex-col gap-1.5 min-w-[260px]">
                         <TypeSelect
@@ -472,7 +536,7 @@ export const Gastos612Tab = memo(function Gastos612Tab({
                           value={marcando.descripcion}
                           onChange={(e) => setMarcando({ ...marcando, descripcion: e.target.value })}
                           placeholder="Descripción (p. ej. Laptop Dell)"
-                          maxLength={250}
+                          maxLength={DESCRIPCION_MAX}
                           className="px-2.5 py-2 rounded-lg text-[12.5px]"
                           style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
                         />
@@ -489,12 +553,22 @@ export const Gastos612Tab = memo(function Gastos612Tab({
                       <SmallBtn
                         onClick={() => {
                           setError(null)
-                          setMarcando({ uuid: inv.uuid, tipo: '', descripcion: inv.conceptosResumen ?? '' })
+                          setMarcando({
+                            uuid: inv.uuid,
+                            tipo: descartado ? asset.assetTypeCode : '',
+                            descripcion: (descartado ? asset.description : null) ?? inv.conceptosResumen ?? '',
+                          })
                         }}
                         disabled={busy != null || types.length === 0}
-                        title={types.length === 0 ? 'No se pudo cargar el catálogo de tipos' : undefined}
+                        title={
+                          types.length === 0
+                            ? 'No se pudo cargar el catálogo de tipos'
+                            : descartado
+                              ? 'Se descartó antes; vuelve a quedar Confirmado'
+                              : undefined
+                        }
                       >
-                        <PackagePlus size={12} /> Marcar como activo fijo
+                        <PackagePlus size={12} /> {descartado ? 'Volver a marcar como activo fijo' : 'Marcar como activo fijo'}
                       </SmallBtn>
                     )}
                   </td>

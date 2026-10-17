@@ -305,6 +305,35 @@ export interface RecalculationResult {
    * de ingreso pendientes de emitir. `[]`/`null`/ausente = sin avisos.
    */
   invoicingWarnings?: InvoicingWarning[] | null
+  /**
+   * 626/612: bloque `TotalesImpuestos` del clasificador tal cual (llaves en PascalCase: `TotalIvaJson`,
+   * `TotalIsrJSon`, `Depreciaciones`…). `null` en los demás regímenes.
+   */
+  totalesImpuestos?: Record<string, unknown> | null
+  /** 612: sugerencias de esta corrida. El back guarda como Sugerido solo las de UUID sin activo (uno descartado se ignora). */
+  fixedAssetSuggestions?: RecalcFixedAssetSuggestion[] | null
+  /** 612: capas nuevas de activos Confirmados que calculó esta corrida. */
+  newFixedAssetLayers?: RecalcFixedAssetLayer[] | null
+  /** 612: avisos del clasificador para el contador. */
+  warnings?: string[] | null
+}
+
+/** `FixedAssetSuggestionDto` del back (camelCase). `fuente`: "Regla" o "IA". */
+export interface RecalcFixedAssetSuggestion {
+  uuid: string | null
+  assetTypeCode: string | null
+  amount: number | null
+  motivo: string | null
+  fuente: string | null
+}
+
+/** `NewFixedAssetLayerDto` del back. `amount` sin IVA y antes del tope. */
+export interface RecalcFixedAssetLayer {
+  fixedAssetId: number
+  uuid: string | null
+  amount: number | null
+  startFiscalYear: number
+  startMonth: number
 }
 
 export interface InvoicingWarning {

@@ -2,6 +2,7 @@
 
 import { ApiError, fetchGet } from '@/lib/api'
 import { API_ROUTES } from '@/lib/api/apiRoutes'
+import { toCalc612Error } from '@/lib/api/problemDetail'
 import { type Result, err, ok } from '@/lib/common'
 import type { FixedAsset, FixedAssetsError } from '../types'
 import { asList } from '@/lib/common/asList'
@@ -18,7 +19,7 @@ export async function getFixedAssets(
     const data = await fetchGet<unknown>(API_ROUTES.FIXED_ASSETS.LIST(rfc, declarationId), 'fixed_assets')
     return ok(asList<FixedAsset>(data))
   } catch (e) {
-    if (e instanceof ApiError) return err({ statusCode: e.status, message: e.message, code: e.errorCode })
+    if (e instanceof ApiError) return err(toCalc612Error(e))
     console.error('[getFixedAssets] Error:', e)
     return err({ statusCode: 500, message: 'No pudimos obtener los activos fijos.' })
   }

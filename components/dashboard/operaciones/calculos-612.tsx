@@ -8,6 +8,7 @@ import { Card } from '../ui'
 import { read612 } from './calc-612'
 import {
   AmountRow,
+  InlineNotice,
   PanelHeader612,
   SectionLabel,
   SimpleTable,
@@ -43,8 +44,9 @@ export const Calculos612 = memo(function Calculos612({
   const c = useMemo(() => read612(calc), [calc])
   const { iva, isr } = c
 
-  // El origen de cada saldo y el nombre de cada activo viven en sus propios EP. En modo
-  // consulta no se piden: la pantalla muestra los montos sin el detalle.
+  // `SaldosAFavorAplicados` ya trae el origen de cada saldo; el historial solo completa lo que
+  // falte (folio o fecha que se capturaron después del cálculo). El nombre de cada activo vive
+  // en su EP. En modo consulta no se piden: la pantalla muestra lo que trae el cálculo.
   const balancesQ = useIvaFavorBalances(declarationId, rfc, !consulta && iva.saldosAplicados.length > 0)
   const { query: assetsQ } = useFixedAssets(declarationId, consulta || c.depreciaciones.length === 0 ? '' : rfc)
   const balanceById = useMemo(
@@ -62,6 +64,16 @@ export const Calculos612 = memo(function Calculos612({
 
   return (
     <div className="flex flex-col gap-4">
+      {c.warnings.length > 0 && (
+        <InlineNotice>
+          <div className="font-bold mb-1">Avisos del cálculo</div>
+          <ul className="list-disc pl-5 flex flex-col gap-0.5">
+            {c.warnings.map((w, i) => (
+              <li key={i}>{w}</li>
+            ))}
+          </ul>
+        </InlineNotice>
+      )}
       <div className="grid gap-4 lg:grid-cols-2 items-start">
         <Card>
           <PanelHeader612 title="IVA" subtitle={nameMonth} />
@@ -99,7 +111,11 @@ export const Calculos612 = memo(function Calculos612({
             hint="De meses anteriores, del más antiguo al más reciente, sin pasar del IVA a cargo"
             value={fmtMoney(iva.saldoAplicadoTotal)}
           />
-          <AmountRow label="Remanente de los saldos aplicados" value={fmtMoney(iva.remanente)} />
+          <AmountRow
+            label="Remanente de saldos a favor"
+            hint="Lo que queda de todos los saldos anteriores después de esta declaración"
+            value={fmtMoney(iva.remanente)}
+          />
           <AmountRow
             label="Saldo a favor generado este mes"
             hint="Se guarda como saldo nuevo con origen en esta declaración"
@@ -122,7 +138,15 @@ export const Calculos612 = memo(function Calculos612({
           <AmountRow label="Gastos del mes" value={fmtMoney(isr.gastosMes)} />
           <AmountRow label="Gastos acumulados" value={fmtMoney(isr.gastosAcumulados)} />
           <AmountRow label="Depreciación del mes" value={fmtMoney(isr.depreciacionMes)} />
-          <AmountRow label="Depreciación acumulada del ejercicio" value={fmtMoney(isr.depreciacionAcumulada)} />
+          <AmountRow
+            label="Depreciación acumulada del ejercicio"
+            hint={
+              isr.depreciacionCapturada
+                ? `Incluye ${fmtMoney(isr.depreciacionCapturada)} capturados fuera del sistema`
+                : undefined
+            }
+            value={fmtMoney(isr.depreciacionAcumulada)}
+          />
           <AmountRow label="Pérdidas fiscales" value={fmtMoney(isr.perdidasFiscales)} last />
 
           <SectionLabel>Tarifa</SectionLabel>
@@ -155,7 +179,7 @@ export const Calculos612 = memo(function Calculos612({
         <Card>
           <PanelHeader612
             title="Saldos a favor aplicados en esta declaración"
-            subtitle="El origen sale del historial de la pestaña Saldos a favor"
+            subtitle="Del más antiguo al más reciente; el remanente es lo que le queda a cada saldo después de esta declaración"
           />
           <SimpleTable
             headers={['Periodo de origen', 'Folio de operación', 'Tipo', 'Presentada', 'Monto original', 'Aplicado', 'Remanente']}
@@ -163,15 +187,21 @@ export const Calculos612 = memo(function Calculos612({
           >
             {iva.saldosAplicados.map((s, i) => {
               const b = s.id != null ? balanceById.get(s.id) : undefined
+              const year = s.originFiscalYear ?? b?.originFiscalYear
+              const month = s.originMonth ?? b?.originMonth
               return (
                 <tr key={s.id ?? `s-${i}`} style={{ borderBottom: '1px solid var(--border)' }}>
                   <td className={cellClass} style={{ color: 'var(--ink-900)' }}>
-                    {b ? periodoLabel(b.originFiscalYear, b.originMonth) : s.id != null ? `Saldo #${s.id}` : '—'}
+                    {year && month ? periodoLabel(year, month) : s.id != null ? `Saldo #${s.id}` : '—'}
                   </td>
-                  <td className={cellClass} style={cellMoneyStyle}>{b?.operationNumber || '—'}</td>
-                  <td className={cellClass} style={{ color: 'var(--ink-700)' }}>{b?.declarationType || '—'}</td>
-                  <td className={cellClass} style={{ color: 'var(--ink-700)' }}>{fmtFecha(b?.presentedDate)}</td>
-                  <td className={cellMoneyClass} style={cellMoneyStyle}>{fmtMoney(b?.originalAmount)}</td>
+                  <td className={cellClass} style={cellMoneyStyle}>{s.operationNumber || b?.operationNumber || '—'}</td>
+                  <td className={cellClass} style={{ color: 'var(--ink-700)' }}>
+                    {s.declarationType || b?.declarationType || '—'}
+                  </td>
+                  <td className={cellClass} style={{ color: 'var(--ink-700)' }}>
+                    {fmtFecha(s.presentedDate || b?.presentedDate)}
+                  </td>
+                  <td className={cellMoneyClass} style={cellMoneyStyle}>{fmtMoney(s.originalAmount ?? b?.originalAmount)}</td>
                   <td className={`${cellMoneyClass} font-bold`} style={cellMoneyStyle}>{fmtMoney(s.aplicado)}</td>
                   <td className={cellMoneyClass} style={cellMoneyStyle}>{fmtMoney(s.remanente)}</td>
                 </tr>
@@ -196,7 +226,10 @@ export const Calculos612 = memo(function Calculos612({
               return (
                 <tr key={d.fixedAssetId ?? `d-${i}`} style={{ borderBottom: '1px solid var(--border)' }}>
                   <td className={cellClass} style={{ color: 'var(--ink-900)' }}>
-                    {a?.description || a?.assetTypeName || (d.fixedAssetId != null ? `Activo #${d.fixedAssetId}` : '—')}
+                    {a?.description ||
+                      a?.assetTypeName ||
+                      d.assetTypeCode ||
+                      (d.fixedAssetId != null ? `Activo #${d.fixedAssetId}` : '—')}
                   </td>
                   <td className={cellMoneyClass} style={cellMoneyStyle}>{fmtMoney(d.montoDeducible)}</td>
                   <td className={cellMoneyClass} style={cellMoneyStyle}>{fmtPercent(d.tasa)}</td>

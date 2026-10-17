@@ -10,10 +10,12 @@ import {
   createIvaFavorBalanceSchema,
   updateIvaFavorBalanceSchema,
 } from '@/features/iva-favor-balances/schemas/ivaFavorBalance.schema'
-import type {
-  IvaFavorBalance,
-  IvaFavorDeclarationType,
-  UpdateIvaFavorBalanceInput,
+import {
+  type IvaFavorBalance,
+  type IvaFavorBalanceSource,
+  type IvaFavorDeclarationType,
+  type UpdateIvaFavorBalanceInput,
+  appliedInSystem,
 } from '@/features/iva-favor-balances/types'
 import { MONO } from '../constants'
 import { Badge, Card } from '../ui'
@@ -32,9 +34,17 @@ import {
 
 const MONTO_COLS = new Set([5, 6])
 
-/** Capturado a mano = no salió de una declaración del sistema. */
-const esManual = (b: IvaFavorBalance) =>
-  (b.source ?? '').trim().toLowerCase() === 'manual' || (b.source == null && b.originDeclarationId == null)
+/**
+ * `source` del back: Clasificador (lo generó el cálculo de una declaración), Manual (captura
+ * del contador) o Robot. Solo en los Manual se corrigen periodo y montos.
+ */
+const esManual = (b: IvaFavorBalance) => b.source === 'Manual'
+
+const SOURCE_LABEL: Record<IvaFavorBalanceSource, string> = {
+  Clasificador: 'Cálculo',
+  Manual: 'Captura manual',
+  Robot: 'Robot',
+}
 
 interface Draft {
   originFiscalYear: string
@@ -186,7 +196,8 @@ export const SaldosFavorIvaTab = memo(function SaldosFavorIvaTab({
     } else {
       const b = form.balance
       const original = draftFrom(b)
-      // Solo viaja lo que cambió; en un saldo del sistema, nunca el periodo ni los montos.
+      // Solo viaja lo que cambió; en un saldo del sistema, nunca el periodo ni los montos (el
+      // back responde INVALID_INPUT).
       const cambios: UpdateIvaFavorBalanceInput = {}
       if (draft.operationNumber !== original.operationNumber) cambios.operationNumber = valores.operationNumber
       if (draft.declarationType !== original.declarationType) cambios.declarationType = valores.declarationType
@@ -195,7 +206,25 @@ export const SaldosFavorIvaTab = memo(function SaldosFavorIvaTab({
         if (draft.originFiscalYear !== original.originFiscalYear) cambios.originFiscalYear = valores.originFiscalYear
         if (draft.originMonth !== original.originMonth) cambios.originMonth = valores.originMonth
         if (draft.originalAmount !== original.originalAmount) cambios.originalAmount = valores.originalAmount
-        if (draft.remainingAmount !== original.remainingAmount) cambios.remainingAmount = valores.remainingAmount
+        // Sin `remainingAmount` el back conserva lo acreditado fuera del sistema y mueve el
+        // remanente con el original; el contador ve el remanente del formulario, así que viaja
+        // también cuando cambia el original.
+        if (draft.remainingAmount !== original.remainingAmount || cambios.originalAmount !== undefined)
+          cambios.remainingAmount = valores.remainingAmount
+      }
+      // El remanente no puede pasar de lo que el sistema todavía no acreditó.
+      const yaAcreditado = appliedInSystem(b)
+      if (
+        !soloAcuse &&
+        yaAcreditado > 0 &&
+        valores.originalAmount != null &&
+        valores.remainingAmount != null &&
+        valores.remainingAmount > valores.originalAmount - yaAcreditado + 1e-9
+      ) {
+        setErrors({
+          remainingAmount: `No puede pasar de ${fmtMoney(valores.originalAmount - yaAcreditado)}: ya se acreditaron ${fmtMoney(yaAcreditado)} en el sistema.`,
+        })
+        return
       }
       if (Object.keys(cambios).length === 0) {
         cerrar()
@@ -401,6 +430,8 @@ export const SaldosFavorIvaTab = memo(function SaldosFavorIvaTab({
           >
             {saldos.map((b) => {
               const apps = b.applications ?? []
+              const fuera = Number(b.appliedOutsideAmount) || 0
+              const conDetalle = apps.length > 0 || fuera > 0
               const abierto = abiertos.has(b.id)
               const enEsta = apps.some((a) => a.declarationId === declarationId)
               return (
@@ -410,8 +441,8 @@ export const SaldosFavorIvaTab = memo(function SaldosFavorIvaTab({
                       <button
                         type="button"
                         onClick={() => toggle(b.id)}
-                        disabled={apps.length === 0}
-                        title={apps.length === 0 ? 'Todavía no se ha aplicado' : 'Ver en qué declaraciones se aplicó'}
+                        disabled={!conDetalle}
+                        title={!conDetalle ? 'Todavía no se ha aplicado' : 'Ver en qué declaraciones se aplicó'}
                         className="p-1 rounded disabled:opacity-40"
                         style={{ color: 'var(--ink-700)' }}
                       >
@@ -422,7 +453,9 @@ export const SaldosFavorIvaTab = memo(function SaldosFavorIvaTab({
                       <div className="font-semibold">{periodoLabel(b.originFiscalYear, b.originMonth)}</div>
                       <div className="text-[11.5px]" style={{ color: 'var(--ink-500)' }}>
                         {apps.length === 0
-                          ? 'Sin aplicar'
+                          ? fuera > 0
+                            ? 'Acreditado fuera del sistema'
+                            : 'Sin aplicar'
                           : `Aplicado en ${apps.length} declaración${apps.length === 1 ? '' : 'es'}`}
                         {enEsta && ' · incluye esta'}
                       </div>
@@ -436,11 +469,16 @@ export const SaldosFavorIvaTab = memo(function SaldosFavorIvaTab({
                     <td className={`${cellMoneyClass} font-bold`} style={cellMoneyStyle}>{fmtMoney(b.remainingAmount)}</td>
                     <td className={cellClass}>
                       {esManual(b) ? (
-                        <Badge>Captura manual</Badge>
+                        <Badge>{SOURCE_LABEL.Manual}</Badge>
                       ) : (
-                        <Badge kind="brand">
-                          {b.originDeclarationId ? `Declaración #${b.originDeclarationId}` : 'Sistema'}
-                        </Badge>
+                        <div className="flex flex-col gap-1 items-start">
+                          <Badge kind="brand">{SOURCE_LABEL[b.source] ?? b.source}</Badge>
+                          {b.originDeclarationId != null && (
+                            <span className="text-[11px]" style={{ color: 'var(--ink-500)' }}>
+                              Declaración #{b.originDeclarationId}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </td>
                     <td className={cellClass}>
@@ -455,21 +493,28 @@ export const SaldosFavorIvaTab = memo(function SaldosFavorIvaTab({
                       </button>
                     </td>
                   </tr>
-                  {abierto && apps.length > 0 && (
+                  {abierto && conDetalle && (
                     <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}>
                       <td />
                       <td colSpan={8} className="px-3 py-2.5">
                         <div className="flex flex-col gap-1">
+                          {fuera > 0 && (
+                            <div className="flex items-center gap-3 text-[12px] flex-wrap">
+                              <span className="font-semibold" style={{ color: 'var(--ink-900)' }}>
+                                Acreditado en declaraciones fuera del sistema
+                              </span>
+                              <span style={cellMoneyStyle}>{fmtMoney(fuera)}</span>
+                            </div>
+                          )}
                           {apps.map((a, i) => (
-                            <div key={a.id ?? `${a.declarationId}-${i}`} className="flex items-center gap-3 text-[12px] flex-wrap">
+                            <div key={`${a.declarationId}-${i}`} className="flex items-center gap-3 text-[12px] flex-wrap">
                               <span className="font-semibold" style={{ color: 'var(--ink-900)' }}>
                                 {a.fiscalYear && a.month ? periodoLabel(a.fiscalYear, a.month) : `Declaración #${a.declarationId}`}
                               </span>
                               {a.fiscalYear && a.month && (
                                 <span style={{ color: 'var(--ink-500)' }}>Declaración #{a.declarationId}</span>
                               )}
-                              <span style={cellMoneyStyle}>{fmtMoney(a.amount)}</span>
-                              {a.appliedAt && <span style={{ color: 'var(--ink-500)' }}>{fmtFecha(a.appliedAt)}</span>}
+                              <span style={cellMoneyStyle}>{fmtMoney(a.appliedAmount)}</span>
                               {a.declarationId === declarationId && <Badge kind="sky">Esta declaración</Badge>}
                             </div>
                           ))}

@@ -1118,6 +1118,38 @@ const ResultadoRecalculo = memo(function ResultadoRecalculo({
             ))}
           </div>
         )}
+
+        {/* 612: avisos del clasificador y lo que la corrida dejó en Gastos. */}
+        {((result.warnings?.length ?? 0) > 0 ||
+          (result.fixedAssetSuggestions?.length ?? 0) > 0 ||
+          (result.newFixedAssetLayers?.length ?? 0) > 0) && (
+          <div
+            className="rounded-2xl px-4 py-3 flex items-start gap-2.5 text-[13px]"
+            style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)', border: '1px solid var(--border)' }}
+          >
+            <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+            <div className="flex flex-col gap-1">
+              {(result.fixedAssetSuggestions?.length ?? 0) > 0 && (
+                <span>
+                  <strong>{result.fixedAssetSuggestions!.length}</strong> gasto
+                  {result.fixedAssetSuggestions!.length === 1 ? '' : 's'} sugerido
+                  {result.fixedAssetSuggestions!.length === 1 ? '' : 's'} como activo fijo (los que ya revisaste no cambian): revísalos en la pestaña
+                  Gastos.
+                </span>
+              )}
+              {(result.newFixedAssetLayers?.length ?? 0) > 0 && (
+                <span>
+                  <strong>{result.newFixedAssetLayers!.length}</strong> capa
+                  {result.newFixedAssetLayers!.length === 1 ? '' : 's'} nueva
+                  {result.newFixedAssetLayers!.length === 1 ? '' : 's'} de activos fijos confirmados.
+                </span>
+              )}
+              {(result.warnings ?? []).map((w, i) => (
+                <span key={i}>{w}</span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </Card>
   )

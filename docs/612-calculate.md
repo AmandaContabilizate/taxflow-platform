@@ -28,11 +28,12 @@ Todos en `components/dashboard/operaciones/`.
 
 | Archivo | Qué es |
 |---|---|
-| `calc-612.ts` | `read612(calc)`: lector tolerante del JSON del 612. Acepta las llaves en español del clasificador (`ActividadesGravadasALaTasaDel16`, `TotalISR`…) y, como respaldo, las del estilo 626 (`subtotalIncome16`, `ISR.retentionToPay`) por si el back traduce. Lo que no venga queda `null` → "—" |
-| `calculos-612.tsx` | Pestaña **Cálculos** del 612: tarjeta de IVA (actividades 16/8/0 %/exentas, IVA cobrado, IVA de gastos, proporción, no acreditable, acreditable, retenido, saldos aplicados, remanente, saldo generado, a cargo o a favor) y de ISR (ingresos y gastos del mes y acumulados, depreciación del mes y acumulada, pérdidas, base, límite inferior, excedente, %, cuota fija, causado, retenido del mes y anterior, pagos provisionales, a cargo). Debajo, la tabla de saldos aplicados con su origen y la de depreciación por activo |
-| `gastos-612-tab.tsx` | Pestaña **Gastos**: sugerencias (Confirmar, cambio de tipo, Descartar), activos confirmados con sus capas (cambiar tipo, Quitar) y gastos recibidos del periodo con "Marcar como activo fijo" (tipo + descripción) |
-| `saldos-favor-iva-tab.tsx` | Pestaña **Saldos a favor**: historial (periodo de origen, folio, tipo, fecha, monto original, remanente, origen, declaraciones donde se aplicó) y formulario de captura y edición |
+| `calc-612.ts` | `read612(calc)`: lector del JSON del 612 con las llaves exactas del clasificador (§ "Cálculo: llaves que se leen"). Lo que no venga queda `null` → "—" |
+| `calculos-612.tsx` | Pestaña **Cálculos** del 612: avisos del clasificador (`Warnings`); tarjeta de IVA (actividades 16/8/0 %/exentas, IVA cobrado, IVA de gastos, proporción, no acreditable, acreditable, retenido, saldos aplicados, remanente, saldo generado, a cargo o a favor) y de ISR (ingresos y gastos del mes y acumulados, depreciación del mes y acumulada, pérdidas, base, límite inferior, excedente, %, cuota fija, causado, retenido del mes y anterior, pagos provisionales, a cargo). Debajo, la tabla de saldos aplicados con su origen y la de depreciación por activo |
+| `gastos-612-tab.tsx` | Pestaña **Gastos**: sugerencias de esta declaración (con botón para ver las de otros meses), activos confirmados con sus capas (cambiar tipo, Quitar) y gastos recibidos del periodo con "Marcar como activo fijo" (solo facturas I) |
+| `saldos-favor-iva-tab.tsx` | Pestaña **Saldos a favor**: historial (periodo de origen, folio, tipo, fecha, monto original, remanente, origen, acreditado fuera del sistema y declaraciones donde se aplicó) y formulario de captura y edición |
 | `parts-612.tsx` | Piezas comunes (filas, encabezados, tabla, avisos, `periodoLabel`, `REGIMEN_612`) |
+| `recalculo-tab.tsx` | Tras recalcular un 612 muestra `warnings` y cuántas `fixedAssetSuggestions` / `newFixedAssetLayers` dejó la corrida |
 
 ### Aviso de Recalcular
 
@@ -44,60 +45,125 @@ el cálculo. Cada acción avisa al detalle (`onRequiereRecalculo`) y aparece una
 ### Validaciones de la captura manual
 
 `features/iva-favor-balances/schemas/ivaFavorBalance.schema.ts` (se usa en el formulario y otra vez
-en la server action):
+en la server action). El front es más estricto que el back en folio, tipo, fecha y ejercicio; el
+resto replica `IvaFavorBalanceRules.Validate`:
 
-- ejercicio de 2014 en adelante; mes 1–12; el periodo de origen no puede ser futuro;
-- folio de operación: solo dígitos, de 6 a 20;
-- tipo: Normal o Complementaria;
-- fecha de presentación: no futura y posterior al fin del mes de origen;
-- monto original > 0, remanente ≥ 0 y ≤ monto original, máximo dos decimales.
+- ejercicio de 2014 en adelante (back: 2000); mes 1–12; el periodo de origen no puede ser futuro;
+- folio de operación: solo dígitos, de 6 a 20 (back: opcional, hasta 50);
+- tipo: Normal o Complementaria (back: opcional);
+- fecha de presentación: no futura y posterior al fin del mes de origen (back: opcional);
+- monto original > 0, remanente ≥ 0, máximo dos decimales;
+- remanente ≤ monto original − lo ya acreditado en el sistema (Σ `applications.appliedAmount`; en
+  la edición, en el formulario).
 
-En un saldo generado por el sistema solo se editan folio, tipo y fecha (el periodo y los montos los
-lleva el cálculo).
+En la edición solo viaja lo que cambió. En un saldo que no es `Manual` solo se editan folio, tipo y
+fecha (el back rechaza periodo y montos con `INVALID_INPUT`). En uno `Manual`, si cambia el monto
+original también viaja `remainingAmount`: sin él, el back conserva lo acreditado fuera del sistema y
+mueve el remanente.
 
 ## Endpoints que consume
 
-Base: microservicio Procedures (`API_BASE_PROCEDURES`). Rutas en `lib/api/apiRoutes.ts`
-(`FIXED_ASSETS`, `IVA_FAVOR_BALANCES`) y `apiType` en `lib/api/apiUrls.ts` (`fixed_assets`,
-`iva_favor_balances`). Server actions en `features/fixed-assets/actions/` y
-`features/iva-favor-balances/actions/`.
+Base: microservicio Procedures (`API_BASE_PROCEDURES`, ya termina en `/api`). Rutas en
+`lib/api/apiRoutes.ts` (`FIXED_ASSETS`, `IVA_FAVOR_BALANCES`) y `apiType` en `lib/api/apiUrls.ts`
+(`fixed_assets` = `/FixedAssets`, `iva_favor_balances` = `/IvaFavorBalances`, sin `/SQLServer`).
+Server actions en `features/fixed-assets/actions/` y `features/iva-favor-balances/actions/`.
+Contrato del back: `contaboxpro-backend-core/docs/612-calculate.md` §3 y `Features/FixedAssets/*`,
+`Features/IvaFavorBalances/IvaFavorBalanceFeature.cs`.
 
-| Método | Ruta | Action | Uso |
+JSON de System.Text.Json por omisión: camelCase, montos y tasas como número (`annualRate` 0.25),
+`status`/`source` como string, `DateOnly` como `"yyyy-MM-dd"`, `DateTimeOffset` ISO. Las listas
+son arreglos. UUID en mayúsculas.
+
+| Método | Ruta | Cuerpo / query | Respuesta (200) |
 |---|---|---|---|
-| GET | `/api/FixedAssets/types` | `getFixedAssetTypes` | Catálogo de tipos (`code`, `name`, `annualRate`, `deductibleCap`) |
-| GET | `/api/FixedAssets?rfc=&declarationId=` | `getFixedAssets` | Activos del contribuyente con `status`, `layers` |
-| POST | `/api/FixedAssets` | `createFixedAsset` | `{ rfc, declarationId, invoiceUuid, assetTypeCode, description }` |
-| PUT | `/api/FixedAssets/{id}` | `updateFixedAsset` | `{ assetTypeCode?, status?, description? }` |
-| GET | `/api/IvaFavorBalances?rfc=` | `getIvaFavorBalances` | Historial con `applications` |
-| POST | `/api/IvaFavorBalances` | `createIvaFavorBalance` | Captura manual |
-| PUT | `/api/IvaFavorBalances/{id}` | `updateIvaFavorBalance` | Solo los campos que cambiaron |
+| GET | `/api/FixedAssets/types` | — | `[{ id, code, name, annualRate, deductibleCap }]` (solo activos) |
+| GET | `/api/FixedAssets?rfc=&declarationId=` | `declarationId` **no filtra**: solo valida que sea del RFC | `FixedAsset[]`, todos los estados |
+| POST | `/api/FixedAssets` | `{ rfc, declarationId?, invoiceUuid, assetTypeCode, description? }` | `FixedAsset`, `Confirmado`, `source = "Contador"` |
+| PUT | `/api/FixedAssets/{id}` | `{ assetTypeCode?, status?, description? }`; `status` ∈ `Confirmado`/`Descartado` | `FixedAsset` |
+| GET | `/api/IvaFavorBalances?rfc=` | — | `IvaFavorBalance[]` por periodo de origen |
+| POST | `/api/IvaFavorBalances` | `{ rfc, originFiscalYear, originMonth, operationNumber?, declarationType?, presentedDate?, originalAmount, remainingAmount? }` | `IvaFavorBalance`, `source = "Manual"` |
+| PUT | `/api/IvaFavorBalances/{id}` | mismos campos, todos opcionales | `IvaFavorBalance` |
 
-Ya existentes: `GET declarations/{id}/calculations` (Reports), `GET declarations/{id}/invoices`
-(Reports, recibidas) y `POST declaration/recalculate` (Procedures).
+- `FixedAsset` = `{ id, originUuid, description, assetTypeCode, assetTypeName, annualRate,
+  deductibleCap, status, source, suggestedInDeclarationId, confirmedAt, amount, motivo, layers: [{
+  id, uuid, amount, startFiscalYear, startMonth }] }`. `amount` y `motivo` son las columnas
+  `SuggestedAmount` y `SuggestionReason` (null en altas del contador).
+- `status` ∈ `Sugerido` | `Confirmado` | `Descartado`; `source` ∈ `IA` | `Regla` | `Contador`.
+- `IvaFavorBalance` = `{ id, originDeclarationId, originFiscalYear, originMonth, operationNumber,
+  declarationType, presentedDate, originalAmount, appliedOutsideAmount, remainingAmount, source,
+  applications: [{ declarationId, fiscalYear, month, appliedAmount }] }`; `source` ∈ `Clasificador`
+  | `Manual` | `Robot`. Remanente = original − `appliedOutsideAmount` − Σ `appliedAmount`.
+
+Cómo los usa la pantalla:
+
+- **Sugerencias de esta declaración**: `status === 'Sugerido' && suggestedInDeclarationId ===
+  declarationId`; las de otros meses se ven con un botón.
+- **Marcar como activo fijo**: solo facturas I recibidas (un P responde
+  `FIXED_ASSET_INVOICE_NOT_EXPENSE`; un P que ya es capa se marca "Capa de activo fijo"). Un UUID
+  tiene un solo activo en cualquier estado: si está `Descartado`, "Volver a marcar" hace PUT
+  `{ status: 'Confirmado', assetTypeCode?, description? }` (el POST respondería
+  `FIXED_ASSET_ALREADY_EXISTS`).
+- Descripción: hasta 500 caracteres (el back recorta ahí); vacía no viaja.
+
+### Errores
+
+Siempre **400** con `ProblemDetails` y `extensions.errorCode` (no hay 404): `FIXED_ASSET_NOT_FOUND`,
+`FIXED_ASSET_TYPE_NOT_FOUND`, `FIXED_ASSET_INVOICE_NOT_EXPENSE`, `FIXED_ASSET_ALREADY_EXISTS`,
+`IVA_FAVOR_BALANCE_NOT_FOUND`, `TAXPAYER_NOT_FOUND`, `DECLARATION_NOT_FOUND`, `INVALID_INPUT`. El
+`detail` trae el motivo concreto en español; las actions del 612 lo prefieren sobre el texto del
+catálogo (`lib/api/problemDetail.ts`, `toCalc612Error`), porque para `INVALID_INPUT` el catálogo
+dice "Entrada inválida…" y esconde qué corregir. Un JSON mal formado (p. ej. una fecha inválida)
+llega como `ValidationProblemDetails` sin `errorCode`; ahí se usa el mensaje de `fetchClient`. Los
+códigos nuevos están en `lib/api/errorCatalog.json`.
+
+### Ya existentes
+
+- `GET declarations/{id}/calculations` (Reports): `{ declarationId, iva, isr, taxRegimeId,
+  regimeSatCode, regimeName }`; sin `DeclarationSummary` → `DECLARATION_NOT_FOUND`.
+- `GET declarations/{id}/invoices` (Reports, recibidas).
+- `POST declaration/recalculate` (Procedures): además de lo de siempre, en el 612 trae
+  `totalesImpuestos` (crudo, PascalCase), `fixedAssetSuggestions: [{ uuid, assetTypeCode, amount,
+  motivo, fuente }]`, `newFixedAssetLayers: [{ fixedAssetId, uuid, amount, startFiscalYear,
+  startMonth }]` y `warnings: string[]` (`RecalculationResult` en `features/declarations/types.ts`).
 
 Caché (TanStack Query): `['decl', id, 'fixed-assets', rfc]` y `['decl', id, 'iva-favor', rfc]`
 están en `DATA_SEGMENTS`, así que el recálculo los refresca junto con los cálculos (el back crea
 sugerencias, capas, aplicaciones y el saldo generado). El catálogo de tipos va en
 `['catalog', 'fixed-asset-types']`.
 
-### Supuestos sobre el back (confirmar al integrar)
+## Cálculo: llaves que se leen
 
-El back se implementa en paralelo; si nombra algo distinto, el ajuste es en `features/*/types.ts`
-o en `calc-612.ts`:
+`/calculations.iva` = `TotalIvaJson` del clasificador completo; `/calculations.isr` =
+`TotalIsrJSon` completo + `Depreciaciones` + `Warnings`. En los dos el back agrega las llaves de
+compatibilidad del 626 solo donde el 612 no trae la suya. Contrato:
+`clasificador-python/docs/calculo_612.md`. Algunos montos vienen como string (`TotalIva`,
+`IngresosAcumulados`, `DeduccionesAcumuladas`, `BaseGravable`, `ImpuestosAntesDeRetenciones`).
 
-- Respuestas en camelCase como en §6: activo `{ id, originUuid, assetTypeCode, assetTypeName?,
-  annualRate?, deductibleCap?, description, status, source?, amount?, motivo?, layers: [{ uuid,
-  amount, startFiscalYear, startMonth }] }`; saldo `{ id, originFiscalYear, originMonth,
-  operationNumber, declarationType, presentedDate, originalAmount, remainingAmount,
-  originDeclarationId?, source?, applications: [{ declarationId, fiscalYear?, month?, amount,
-  appliedAt? }] }`. Las listas se aceptan como arreglo o envueltas en `{ items }`.
-- `status` en español: `Sugerido`, `Confirmado`, `Descartado` (se compara sin casing).
-- `TotalesImpuestos.Depreciaciones` se busca en el JSON de ISR, en el de IVA o en la raíz de
-  `/calculations`, porque hoy `/calculations` solo devuelve `RawIvaJson` y `RawIsrJson`.
-- `SaldosAFavorAplicados`, `SaldoAFavorGenerado` e `IvaNoAcreditable` dentro del JSON de IVA. Si no
-  viene `IvaNoAcreditable`, se muestra IVA de gastos − IVA acreditable.
-- ISR retenido de meses anteriores: `IsrRetenidoAnterior` o `IsrRetenidoPreviosAcumulados`; si no
-  viene, `IsrDeRetenciones − IsrRetenidoDelPeriodo`.
+| Pantalla | Llave |
+|---|---|
+| Actividades 16 / 8 / 0 % / exentas | `ActividadesGravadasALaTasaDel16`, `…Del8`, `…Del0`, `ActividadesExentas` |
+| IVA cobrado | `TotalIvaCobradoDelPeriodo` |
+| IVA de los gastos | `IvaAcreditableAntesDeProporcion` |
+| Proporción (D3) | `ProporcionIva` (fracción) |
+| IVA no acreditable | `IvaNoAcreditable` |
+| IVA acreditable / retenido | `IVAAcreditableDelPeriodo`, `IvaRetenido` |
+| Saldos aplicados (total) | `SaldoAFavorAplicado` |
+| Saldos aplicados (tabla) | `SaldosAFavorAplicados[]` = `{ Id, Aplicado, RemanenteDespues, OriginFiscalYear, OriginMonth, OperationNumber, DeclarationType, PresentedDate, OriginalAmount }`; el historial solo completa lo que falte |
+| Remanente de saldos | `SaldoAFavorPendiente` |
+| Saldo generado | `SaldoAFavorGenerado` |
+| IVA a cargo / a favor | `TotalIva` (absoluto) + `IsAFavor`. `totalIVA` de la compatibilidad normaliza igual y trae signo: se usa el absoluto |
+| Ingresos del mes / acumulados | `IngresosDelPeriodo`, `IngresosAcumulados` |
+| Gastos del mes / acumulados | `ComprasYGastosDelPeriodo`, `DeduccionesAcumuladas` (sin activos y con el IVA no acreditable) |
+| Depreciación del mes | `isr.Depreciaciones.DelMes` |
+| Depreciación acumulada | `DepreciacionAcumulada` (= `Depreciaciones.AcumuladaEjercicio` + `AcumuladaCapturada`) |
+| Depreciación por activo | `isr.Depreciaciones.Detalle[]` = `{ FixedAssetId, AssetTypeCode, MontoDeducible, Tasa, DelMes, AcumuladaEjercicio, AcumuladaTotal, Pendiente, Capas }` |
+| Pérdidas, base, límite, excedente, cuota | `PerdidasFiscales`, `BaseGravable`, `LimiteInferior`, `Excedente`, `CuotaFija` |
+| % sobre el excedente | `Porcentaje` (fracción). `ISR.porcentage` de la compatibilidad sale en 0 en el 612 |
+| ISR causado | `ImpuestosAntesDeRetenciones` |
+| ISR retenido del mes / total | `IsrRetenidoDelPeriodo`, `IsrDeRetenciones` (acumulado); de meses anteriores = total − del mes |
+| Pagos provisionales | `PagosProvisionalesAnteriores` |
+| ISR a cargo | `TotalISR` |
+| Avisos | `isr.Warnings` |
 
 ## Pendientes
 

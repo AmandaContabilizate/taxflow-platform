@@ -2,22 +2,39 @@ import type { DeclarationCalculations } from '@/features/operations/types'
 import { type Json, indexOf, norm, num, pick } from './calc-read'
 
 /**
- * Lectura del cálculo del 612 (Actividad empresarial y profesional). El clasificador responde
- * `TotalesImpuestos.TotalIvaJson` / `TotalIsrJSon` con llaves en español; el back puede
- * guardarlas tal cual o traducirlas a las llaves en inglés del 626 (`subtotalIncome16`,
- * `ISR.retentionToPay`…). Se aceptan las dos: la primera que exista gana. Ningún campo es
- * obligatorio — lo que no venga queda `null` y la pantalla pinta "—".
+ * Lectura del cálculo del 612 (Actividad empresarial y profesional) desde
+ * `GET declarations/{id}/calculations` (Reports):
+ *
+ * - `iva` = `TotalesImpuestos.TotalIvaJson` del clasificador COMPLETO (llaves en español:
+ *   `ProporcionIva`, `IvaNoAcreditable`, `SaldosAFavorAplicados`, `SaldoAFavorGenerado`…) más las
+ *   llaves de compatibilidad del 626 (`totalIVA` con signo, `subtotalIncome16`…) que el back solo
+ *   agrega si el 612 no trae la suya.
+ * - `isr` = `TotalesImpuestos.TotalIsrJSon` completo + `Depreciaciones` + `Warnings` (el back los
+ *   injerta en este bloque) + compatibilidad del 626 (`incomesSubtotalAutorized`, `ISR.*`).
+ *
+ * Contrato del clasificador: `clasificador-python/docs/calculo_612.md`. Algunos montos llegan
+ * como string ("1234.50"): `num` los convierte. Lo que no venga queda `null` → "—".
  */
 
+/** `TotalIvaJson.SaldosAFavorAplicados[]`: solo los que se aplicaron, en el orden en que se aplicaron. */
 export interface SaldoAplicado612 {
-  /** Id del `IvaFavorBalance`; con él se busca el origen en el historial de saldos. */
+  /** Id del `IvaFavorBalance`. */
   id: number | null
   aplicado: number | null
+  /** `RemanenteDespues`: lo que le queda al saldo después de esta declaración. */
   remanente: number | null
+  originFiscalYear: number | null
+  originMonth: number | null
+  operationNumber: string | null
+  declarationType: string | null
+  presentedDate: string | null
+  originalAmount: number | null
 }
 
+/** `TotalesImpuestos.Depreciaciones.Detalle[]`. */
 export interface DepreciacionActivo612 {
   fixedAssetId: number | null
+  assetTypeCode: string | null
   montoDeducible: number | null
   tasa: number | null
   delMes: number | null
@@ -38,9 +55,9 @@ export interface Calc612 {
     ivaNoAcreditable: number | null
     ivaAcreditable: number | null
     ivaRetenido: number | null
-    /** Lista con su origen cuando el back manda `SaldosAFavorAplicados`; si no, solo el total. */
     saldosAplicados: SaldoAplicado612[]
     saldoAplicadoTotal: number | null
+    /** `SaldoAFavorPendiente`: remanente de todos los saldos después de aplicar. */
     remanente: number | null
     saldoGenerado: number | null
     ivaCargo: number | null
@@ -52,7 +69,10 @@ export interface Calc612 {
     gastosMes: number | null
     gastosAcumulados: number | null
     depreciacionMes: number | null
+    /** `TotalIsrJSon.DepreciacionAcumulada` = la del ejercicio de los activos + la capturada. */
     depreciacionAcumulada: number | null
+    /** `Depreciaciones.AcumuladaCapturada`: depreciación que el sistema no tiene. */
+    depreciacionCapturada: number | null
     perdidasFiscales: number | null
     baseGravable: number | null
     limiteInferior: number | null
@@ -67,6 +87,8 @@ export interface Calc612 {
     isrCargo: number | null
   }
   depreciaciones: DepreciacionActivo612[]
+  /** `Warnings` del clasificador (IA que falló o no se consultó, activo sin tasa). */
+  warnings: string[]
 }
 
 const asObject = (v: unknown): Json | null =>
@@ -75,21 +97,14 @@ const asObject = (v: unknown): Json | null =>
 const asArray = (v: unknown): Json[] =>
   Array.isArray(v) ? v.filter((x): x is Json => !!x && typeof x === 'object' && !Array.isArray(x)) : []
 
+const str = (data: Json | null, keys: string[]): string | null => {
+  const v = pick(data, keys)
+  return typeof v === 'string' && v.trim() ? v.trim() : null
+}
+
 function sumOrNull(...values: (number | null)[]): number | null {
   const present = values.filter((n): n is number => n != null)
   return present.length > 0 ? present.reduce((a, b) => a + b, 0) : null
-}
-
-/**
- * `TotalesImpuestos.Depreciaciones` no vive en el JSON de IVA ni en el de ISR: el back puede
- * injertarlo en cualquiera de los dos o mandarlo en la raíz de `/calculations`.
- */
-function findDepreciaciones(calc: DeclarationCalculations | null, iva: Json | null, isr: Json | null): Json | null {
-  for (const source of [isr, iva, calc as unknown as Json | null]) {
-    const v = asObject(indexOf(source).get(norm('Depreciaciones')))
-    if (v) return v
-  }
-  return null
 }
 
 function readBool(data: Json | null, keys: string[]): boolean | null {
@@ -108,7 +123,7 @@ export function read612(calc: DeclarationCalculations | null): Calc612 {
   const isr = (calc?.isr ?? null) as Json | null
 
   const ivaCobrado =
-    num(iva, ['TotalIvaCobradoDelPeriodo', 'ivaCobrado']) ??
+    num(iva, ['TotalIvaCobradoDelPeriodo']) ??
     sumOrNull(
       num(iva, ['IVACobradoDelPeriodoALaTasaDel16', 'totalTaxe16']),
       num(iva, ['IVACobradoDelPeriodoALaTasaDel8', 'totalTaxe8']),
@@ -120,22 +135,29 @@ export function read612(calc: DeclarationCalculations | null): Calc612 {
     (ivaGastos != null && ivaAcreditable != null && ivaGastos >= ivaAcreditable ? ivaGastos - ivaAcreditable : null)
 
   const saldosAplicados: SaldoAplicado612[] = asArray(pick(iva, ['SaldosAFavorAplicados'])).map((s) => ({
-    id: num(s, ['Id', 'IvaFavorBalanceId', 'BalanceId']),
-    aplicado: num(s, ['Aplicado', 'Amount', 'AppliedAmount']),
-    remanente: num(s, ['Remanente', 'RemainingAmount']),
+    id: num(s, ['Id']),
+    aplicado: num(s, ['Aplicado']),
+    remanente: num(s, ['RemanenteDespues']),
+    originFiscalYear: num(s, ['OriginFiscalYear']),
+    originMonth: num(s, ['OriginMonth']),
+    operationNumber: str(s, ['OperationNumber']),
+    declarationType: str(s, ['DeclarationType']),
+    presentedDate: str(s, ['PresentedDate']),
+    originalAmount: num(s, ['OriginalAmount']),
   }))
+  // `SaldoAFavorAplicado` = Σ SaldosAFavorAplicados[].Aplicado. Sin historial de saldos
+  // (`IvaFavorBalances` = null en el payload) es lo acreditado de meses anteriores.
   const saldoAplicadoTotal =
-    saldosAplicados.length > 0
+    num(iva, ['SaldoAFavorAplicado']) ??
+    (saldosAplicados.length > 0
       ? sumOrNull(...saldosAplicados.map((s) => s.aplicado))
-      : num(iva, ['SaldoAFavorAplicado', 'IvaAFavorDePeriodosAnteriores', 'IVAMonthsPrev'])
-  const remanente =
-    saldosAplicados.length > 0 && saldosAplicados.some((s) => s.remanente != null)
-      ? sumOrNull(...saldosAplicados.map((s) => s.remanente))
-      : num(iva, ['SaldoAFavorPendiente'])
+      : num(iva, ['IvaAFavorDePeriodosAnteriores', 'IVAMonthsPrev']))
+  const remanente = num(iva, ['SaldoAFavorPendiente'])
 
-  // El clasificador manda el total en valor absoluto y el signo en `IsAFavor`; la traducción
-  // del back al estilo 626 lo guarda con signo (negativo = a favor).
-  const totalIva = num(iva, ['TotalIva', 'totalIVA'])
+  // El clasificador manda `TotalIva` en valor absoluto (string) y el signo en `IsAFavor`; la
+  // compatibilidad del 626 (`totalIVA`) lo trae con signo (negativo = a favor). Las dos llaves
+  // normalizan igual, así que se toma el valor absoluto y el signo sale de `IsAFavor`.
+  const totalIva = num(iva, ['TotalIva'])
   const ivaEsFavor = readBool(iva, ['IsAFavor'])
   let ivaCargo: number | null = null
   let ivaFavor: number | null = null
@@ -149,9 +171,10 @@ export function read612(calc: DeclarationCalculations | null): Calc612 {
     }
   }
 
-  const deps = findDepreciaciones(calc, iva, isr)
+  const deps = asObject(indexOf(isr).get(norm('Depreciaciones')))
   const depreciaciones: DepreciacionActivo612[] = asArray(pick(deps, ['Detalle'])).map((d) => ({
-    fixedAssetId: num(d, ['FixedAssetId', 'Id']),
+    fixedAssetId: num(d, ['FixedAssetId']),
+    assetTypeCode: str(d, ['AssetTypeCode']),
     montoDeducible: num(d, ['MontoDeducible']),
     tasa: num(d, ['Tasa']),
     delMes: num(d, ['DelMes']),
@@ -160,11 +183,17 @@ export function read612(calc: DeclarationCalculations | null): Calc612 {
     pendiente: num(d, ['Pendiente']),
   }))
 
+  // El 612 no manda el retenido de meses anteriores por separado: `IsrDeRetenciones` es el
+  // acumulado (previos + del periodo).
   const isrRetenidoMes = num(isr, ['IsrRetenidoDelPeriodo'])
-  const isrRetenidoTotal = num(isr, ['IsrDeRetenciones', 'ISR.isrRetentions'])
+  const isrRetenidoTotal = num(isr, ['IsrDeRetenciones'])
   const isrRetenidoAnterior =
-    num(isr, ['IsrRetenidoAnterior', 'IsrRetenidoPreviosAcumulados', 'IsrRetenidoDePeriodosAnteriores']) ??
-    (isrRetenidoTotal != null && isrRetenidoMes != null ? isrRetenidoTotal - isrRetenidoMes : null)
+    isrRetenidoTotal != null && isrRetenidoMes != null ? isrRetenidoTotal - isrRetenidoMes : null
+
+  const rawWarnings = pick(isr, ['Warnings'])
+  const warnings = (Array.isArray(rawWarnings) ? rawWarnings : []).filter(
+    (w): w is string => typeof w === 'string' && w.trim() !== '',
+  )
 
   return {
     iva: {
@@ -186,25 +215,33 @@ export function read612(calc: DeclarationCalculations | null): Calc612 {
       ivaFavor,
     },
     isr: {
-      ingresosMes: num(isr, ['IngresosDelPeriodo', 'IngresosDelMes', 'incomesSubtotalAutorized']),
-      ingresosAcumulados: num(isr, ['IngresosAcumulados', 'incomesAccumulatedsTotal']),
-      gastosMes: num(isr, ['ComprasYGastosDelPeriodo', 'expensesSubtotalAutorized']),
-      gastosAcumulados: num(isr, ['DeduccionesAcumuladas', 'expensesAccumulatedsTotal']),
-      depreciacionMes: num(deps, ['DelMes']) ?? num(isr, ['DepreciacionDelMes']),
-      depreciacionAcumulada: num(deps, ['AcumuladaEjercicio']) ?? num(isr, ['DepreciacionAcumulada']),
+      ingresosMes: num(isr, ['IngresosDelPeriodo', 'incomesSubtotalAutorized']),
+      ingresosAcumulados: num(isr, ['IngresosAcumulados']),
+      // Sin los activos fijos y con el IVA no acreditable. La compatibilidad
+      // `expensesSubtotalAutorized` es `TotalesExpensesJson.Subtotal`, que no lleva el IVA no
+      // acreditable: no sirve de respaldo.
+      gastosMes: num(isr, ['ComprasYGastosDelPeriodo']),
+      gastosAcumulados: num(isr, ['DeduccionesAcumuladas']),
+      depreciacionMes: num(deps, ['DelMes']),
+      depreciacionAcumulada:
+        num(isr, ['DepreciacionAcumulada']) ??
+        sumOrNull(num(deps, ['AcumuladaEjercicio']), num(deps, ['AcumuladaCapturada'])),
+      depreciacionCapturada: num(deps, ['AcumuladaCapturada']),
       perdidasFiscales: num(isr, ['PerdidasFiscales']),
       baseGravable: num(isr, ['BaseGravable']),
-      limiteInferior: num(isr, ['LimiteInferior', 'ISR.lowerLimit']),
+      limiteInferior: num(isr, ['LimiteInferior']),
       excedente: num(isr, ['Excedente']),
-      porcentaje: num(isr, ['Porcentaje', 'Tasa', 'ISR.porcentage']),
-      cuotaFija: num(isr, ['CuotaFija', 'ISR.fixedFee']),
-      isrCausado: num(isr, ['ImpuestosAntesDeRetenciones', 'IsrCausado', 'ISR.taxeBeforeRetentions']),
+      // Fracción (0.3 = 30 %). `ISR.porcentage` de la compatibilidad sale en 0 en el 612.
+      porcentaje: num(isr, ['Porcentaje']),
+      cuotaFija: num(isr, ['CuotaFija']),
+      isrCausado: num(isr, ['ImpuestosAntesDeRetenciones', 'ISR.taxeBeforeRetentions']),
       isrRetenidoMes,
       isrRetenidoAnterior,
       isrRetenidoTotal,
-      pagosProvisionales: num(isr, ['PagosProvisionalesAnteriores', 'PagosProvisionalesPrevios']),
+      pagosProvisionales: num(isr, ['PagosProvisionalesAnteriores']),
       isrCargo: num(isr, ['TotalISR', 'ISR.retentionToPay']),
     },
     depreciaciones,
+    warnings,
   }
 }
