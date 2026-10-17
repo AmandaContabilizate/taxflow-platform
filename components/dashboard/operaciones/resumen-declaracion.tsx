@@ -19,7 +19,9 @@ import {
 import type { DeclarationCalculations, DeclarationGeneral, Money } from '@/features/operations/types'
 import { DISPLAY, MONO } from '../constants'
 import { Card } from '../ui'
+import { read612 } from './calc-612'
 import { type Json, money, num, percent, subObject } from './calc-read'
+import { REGIMEN_612 } from './parts-612'
 
 /* -------------------------------------------------------------------------- */
 /*  Lectura de los cálculos                                                    */
@@ -72,6 +74,14 @@ interface Resumen {
   ivaPagar: number | null
   tasaIsr: number | null
   total: number | null
+  /** 612: la base sale de los acumulados, no de ingresos − egresos del mes. */
+  baseGravable?: number | null
+  /** 612: acumulados que forman la base, en el orden de la fórmula. */
+  baseOperandos?: (number | null)[]
+  /** 612: los pagos provisionales anteriores también se restan del ISR causado. */
+  isrPagosPrevios?: number | null
+  /** Cómo se llama el IVA retenido en la fórmula ("retenido por plataforma" en el 625). */
+  etiquetaRetenido?: string
 }
 
 /**
@@ -88,7 +98,7 @@ interface Resumen {
 function ivaFormula(r: Resumen): string {
   if (r.ivaDefinitiva) return 'Suma del IVA de cada servicio (sin acreditamiento)'
   if (r.ivaRetenido == null && r.ivaSaldoPrevio == null) return 'IVA trasladado − IVA acreditable'
-  return 'IVA trasladado − retenido por plataforma − IVA acreditable − saldo a favor previo'
+  return `IVA trasladado − ${r.etiquetaRetenido ?? 'retenido por plataforma'} − IVA acreditable − saldo a favor previo`
 }
 
 function ivaOperands(r: Resumen, fmt: (n: number | null) => string): string {
@@ -186,16 +196,41 @@ function readResumen625(calc: DeclarationCalculations | null, generalTotal: Mone
   }
 }
 
+/** 612 (Actividad empresarial y profesional): mismo lector que la pestaña Cálculos. */
+function readResumen612(calc: DeclarationCalculations | null, generalTotal: Money): Resumen {
+  const { iva, isr } = read612(calc)
+  return {
+    ingresos: isr.ingresosMes,
+    egresos: isr.gastosMes,
+    ivaTrasladado: iva.ivaCobrado,
+    ivaAcreditable: iva.ivaAcreditable,
+    ivaRetenido: iva.ivaRetenido,
+    ivaSaldoPrevio: iva.saldoAplicadoTotal,
+    ivaDefinitiva: false,
+    isrCausado: isr.isrCausado,
+    isrRetenciones: isr.isrRetenidoTotal,
+    isrCargo: isr.isrCargo,
+    ivaPagar: iva.ivaCargo,
+    tasaIsr: isr.porcentaje,
+    total: totalAPagar(generalTotal, isr.isrCargo, iva.ivaCargo),
+    baseGravable: isr.baseGravable,
+    baseOperandos: [isr.ingresosAcumulados, isr.gastosAcumulados, isr.depreciacionAcumulada, isr.perdidasFiscales],
+    isrPagosPrevios: isr.pagosProvisionales,
+    etiquetaRetenido: 'IVA retenido',
+  }
+}
+
 /**
  * Elige el parser por régimen. Prohibido cruzarlos: el JSON del 626 con el
  * parser del 625 (o al revés) pinta cifras equivocadas, no "—". Los regímenes
- * distintos de 625/626 nunca llegan aquí — los bloquea el gate del detalle.
+ * distintos de 612/625/626 nunca llegan aquí — los bloquea el gate del detalle.
  */
 function readResumen(
   calc: DeclarationCalculations | null,
   generalTotal: Money,
   satCode: string | null,
 ): Resumen {
+  if (satCode === REGIMEN_612) return readResumen612(calc, generalTotal)
   return satCode === '626' ? readResumen626(calc, generalTotal) : readResumen625(calc, generalTotal)
 }
 
@@ -545,16 +580,34 @@ export const ResumenDeclaracion = memo(function ResumenDeclaracion({ declaration
               <StepRow
                 index={1}
                 title="Base gravable"
-                formula="Ingresos − Egresos deducibles"
-                operands={`${fmt(r.ingresos)} − ${fmt(r.egresos)}`}
-                value={r.ingresos == null && r.egresos == null ? '—' : fmt((r.ingresos ?? 0) - (r.egresos ?? 0))}
+                formula={
+                  r.baseGravable !== undefined
+                    ? 'Ingresos acumulados − gastos acumulados − depreciación − pérdidas fiscales'
+                    : 'Ingresos − Egresos deducibles'
+                }
+                operands={
+                  r.baseOperandos
+                    ? r.baseOperandos.map(fmt).join(' − ')
+                    : `${fmt(r.ingresos)} − ${fmt(r.egresos)}`
+                }
+                value={
+                  r.baseGravable !== undefined
+                    ? fmt(r.baseGravable)
+                    : r.ingresos == null && r.egresos == null
+                      ? '—'
+                      : fmt((r.ingresos ?? 0) - (r.egresos ?? 0))
+                }
                 last={false}
               />
               <StepRow
                 index={2}
                 title="ISR a cargo"
-                formula={`ISR causado − retenciones${r.tasaIsr != null ? ` · tasa ${percent(r.tasaIsr)}` : ''}`}
-                operands={`${fmt(r.isrCausado)} − ${fmt(r.isrRetenciones)}`}
+                formula={`ISR causado${r.isrPagosPrevios !== undefined ? ' − pagos provisionales anteriores' : ''} − retenciones${r.tasaIsr != null ? ` · tasa ${percent(r.tasaIsr)}` : ''}`}
+                operands={
+                  r.isrPagosPrevios !== undefined
+                    ? `${fmt(r.isrCausado)} − ${fmt(r.isrPagosPrevios)} − ${fmt(r.isrRetenciones)}`
+                    : `${fmt(r.isrCausado)} − ${fmt(r.isrRetenciones)}`
+                }
                 value={fmt(r.isrCargo)}
                 last={false}
               />

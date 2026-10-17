@@ -33,6 +33,7 @@ import { DeclarationHistory } from './declaration-history'
 import type { ResendMessage } from './declaration-modals'
 import { DescargarArchivosSatBtn } from './descargar-archivos-sat-btn'
 import { DescargasSatStatus } from './descargas-sat-status'
+import { REGIMEN_612 } from './parts-612'
 import { RecalcSeconds } from './recalc-seconds'
 import { declarationStatusBadge, fmtDate } from '../declaraciones/parts'
 import { DISPLAY, MONO } from '../constants'
@@ -58,6 +59,12 @@ const ClasificacionTab = dynamic(() => import('./resumen-tabs').then((m) => m.Cl
   loading: () => <TabLoading />,
 })
 const ReporteClienteTab = dynamic(() => import('./resumen-tabs').then((m) => m.ReporteClienteTab), {
+  loading: () => <TabLoading />,
+})
+const Gastos612Tab = dynamic(() => import('./gastos-612-tab').then((m) => m.Gastos612Tab), {
+  loading: () => <TabLoading />,
+})
+const SaldosFavorIvaTab = dynamic(() => import('./saldos-favor-iva-tab').then((m) => m.SaldosFavorIvaTab), {
   loading: () => <TabLoading />,
 })
 const DeclarationComments = dynamic(
@@ -248,7 +255,7 @@ function CiecInline({ rfc, ciecState: initialCiecState }: { rfc: string; ciecSta
  * gate de "estamos trabajando en esto" en Cálculos/Clasificación/Reporte Cliente:
  * sus JSON tienen otra forma y pintarían cifras equivocadas.
  */
-const REGIMES_CON_PANTALLAS = new Set(['625', '626'])
+const REGIMES_CON_PANTALLAS = new Set(['612', '625', '626'])
 
 const TAB_ITEMS = [
   'Comprobantes',
@@ -256,9 +263,14 @@ const TAB_ITEMS = [
   'Recálculo',
   'Clasificación',
   'Reporte Cliente',
+  'Gastos',
+  'Saldos a favor',
   'Comentarios',
 ] as const
 const RECALCULO_TAB_INDEX = 2
+/** Solo 612: activos fijos y saldos a favor de IVA. */
+const GASTOS_TAB_INDEX = 5
+const SALDOS_TAB_INDEX = 6
 const COMMENTS_TAB_INDEX = TAB_ITEMS.length - 1
 
 interface CurrentUser {
@@ -389,6 +401,11 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
   // El recálculo vive aquí y no en la pestaña: el botón del header y la pestaña
   // "Recálculo" comparten estado, y las tarjetas de arriba se repintan con el
   // resultado. Al terminar se recarga todo: el back ya escribió los totales nuevos.
+  // 612: confirmar/descartar/marcar activos o capturar saldos no cambia el cálculo hasta
+  // recalcular. El aviso vive aquí para que siga visible al cambiar de pestaña.
+  const [pendienteRecalculo, setPendienteRecalculo] = useState<string | null>(null)
+  useEffect(() => setPendienteRecalculo(null), [d.declarationId])
+
   const recalc = useRecalculation(
     {
       declarationId: d.declarationId,
@@ -397,7 +414,10 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
       periodValueId: general?.periodValueId,
       regimeSatCode: general?.regimeSatCode,
     },
-    () => void refreshDeclaration(),
+    () => {
+      setPendienteRecalculo(null)
+      void refreshDeclaration()
+    },
   )
 
   const startRecalc = useCallback(() => {
@@ -468,6 +488,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
   const regimeResuelto = general != null
   const regimeSoportado =
     !regimeResuelto || REGIMES_CON_PANTALLAS.has(general?.regimeSatCode ?? '')
+  const es612 = general?.regimeSatCode === REGIMEN_612
 
   /** Envuelve las tabs de cálculo: loading → gate → contenido. */
   const conPantallasDeCalculo = (contenido: React.ReactNode) => {
@@ -630,6 +651,28 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
         </div>
       )}
 
+      {es612 && pendienteRecalculo && !soloConsulta && (
+        <div
+          className="rounded-2xl px-4 py-3 flex items-center gap-3 flex-wrap text-[13px]"
+          style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)', border: '1px solid var(--border)' }}
+        >
+          <AlertTriangle size={16} className="shrink-0" />
+          <span className="flex-1 min-w-[220px]">
+            <span className="font-semibold">{pendienteRecalculo}</span> El cálculo todavía no lo refleja:
+            recalcula la declaración.
+          </span>
+          <button
+            type="button"
+            onClick={startRecalc}
+            disabled={recalc.running || !recalc.ready}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12.5px] font-bold transition hover:opacity-90 disabled:opacity-60"
+            style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+          >
+            {recalc.running ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />} Recalcular
+          </button>
+        </div>
+      )}
+
       {general?.statusId === DECLARATION_STATUS.CLIENT_REJECTED && rejection && (
         <div
           className="rounded-2xl px-5 py-4 flex items-start gap-3"
@@ -670,6 +713,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
             trabajo del contador. Se conservan los índices originales de TAB_ITEMS. */}
         {TAB_ITEMS.map((t, i) => ({ t, i }))
           .filter(({ i }) => !soloConsulta || i <= 1 || i === COMMENTS_TAB_INDEX)
+          .filter(({ i }) => (i !== GASTOS_TAB_INDEX && i !== SALDOS_TAB_INDEX) || (es612 && !soloConsulta))
           .map(({ t, i }) => (
           <button
             key={t}
@@ -701,6 +745,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
         conPantallasDeCalculo(
           <CalculosTab
             declarationId={d.declarationId}
+            rfc={rfc}
             regimeSatCode={general?.regimeSatCode ?? null}
             readOnly={soloConsulta}
             consulta={soloConsulta}
@@ -737,6 +782,12 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
             onGoToComments={goToComments}
           />,
         )}
+      {tab === GASTOS_TAB_INDEX && es612 && !soloConsulta && (
+        <Gastos612Tab declarationId={d.declarationId} rfc={rfc} onRequiereRecalculo={setPendienteRecalculo} />
+      )}
+      {tab === SALDOS_TAB_INDEX && es612 && !soloConsulta && (
+        <SaldosFavorIvaTab declarationId={d.declarationId} rfc={rfc} onRequiereRecalculo={setPendienteRecalculo} />
+      )}
       {tab === COMMENTS_TAB_INDEX && (
         <DeclarationComments declarationId={d.declarationId} currentUser={currentUser} readOnly={soloConsulta} />
       )}
