@@ -1,6 +1,5 @@
 "use server";
 
-import { decodeJwt } from "jose";
 import { cookies } from "next/headers";
 import { MAX_TOKEN_CHUNKS, splitAuthToken } from "@/lib/api/tokenCookie";
 
@@ -25,8 +24,6 @@ interface SetSessionCookiesOptions {
   embedded?: boolean;
 }
 
-const RESERVED_CLAIMS = new Set(["iat", "nbf", "exp", "iss", "aud", "jti"]);
-
 const TOKEN_COOKIE_NAMES = [
   "auth_token",
   "refresh_token",
@@ -34,7 +31,6 @@ const TOKEN_COOKIE_NAMES = [
   "email",
   "fullName",
   "rfc",
-  "token_claims",
 ] as const;
 
 export async function setSessionCookies(
@@ -93,45 +89,21 @@ export async function setSessionCookies(
   if (sessionData.fullName) cookieStore.set("fullName", sessionData.fullName, baseCookie);
   if (sessionData.rfc) cookieStore.set("rfc", sessionData.rfc, baseCookie);
 
-  const dynamicCookies: string[] = [];
-  try {
-    const claims = decodeJwt(sessionData.token) as Record<string, unknown>;
+  // Los claims (rol, permisos, email) se leen del propio JWT con readSessionClaims.
+  // Antes se copiaban a cookies claim_* + token_claims: triplicaban el peso del
+  // token en el header Cookie y, sumado al JWT en la query del callback SSO,
+  // rebasaban el límite de headers de Node (431). Se purgan las que queden.
+  deleteLegacyClaimCookies(cookieStore);
+}
 
-    for (const [rawKey, value] of Object.entries(claims)) {
-      if (value === null || value === undefined) continue;
-      if (RESERVED_CLAIMS.has(rawKey)) continue;
+type CookieStore = Awaited<ReturnType<typeof cookies>>;
 
-      const key = sanitizeClaimKey(rawKey);
-      if (!key) continue;
-
-      const serialized =
-        typeof value === "string"
-          ? value
-          : typeof value === "number" || typeof value === "boolean"
-            ? String(value)
-            : JSON.stringify(value);
-
-      cookieStore.set(`claim_${key}`, serialized, {
-        ...baseCookie,
-        maxAge: sessionMaxAge,
-      });
-      dynamicCookies.push(`claim_${key}`);
-    }
-
-    cookieStore.set("token_claims", JSON.stringify(claims), {
-      ...baseCookie,
-      maxAge: sessionMaxAge,
-    });
-  } catch (e) {
-    console.error("[setSessionCookies] No se pudo decodificar el JWT:", e);
+function deleteLegacyClaimCookies(cookieStore: CookieStore): void {
+  for (const c of cookieStore.getAll()) {
+    if (c.name.startsWith("claim_")) cookieStore.delete(c.name);
   }
-
-  if (dynamicCookies.length > 0) {
-    cookieStore.set("token_claim_keys", dynamicCookies.join(","), {
-      ...baseCookie,
-      maxAge: sessionMaxAge,
-    });
-  }
+  cookieStore.delete("token_claims");
+  cookieStore.delete("token_claim_keys");
 }
 
 export async function clearSessionCookies(): Promise<void> {
@@ -146,15 +118,5 @@ export async function clearSessionCookies(): Promise<void> {
     cookieStore.delete(`auth_token_${i}`);
   }
 
-  const claimKeys = cookieStore.get("token_claim_keys")?.value;
-  if (claimKeys) {
-    for (const key of claimKeys.split(",").filter(Boolean)) {
-      cookieStore.delete(key);
-    }
-    cookieStore.delete("token_claim_keys");
-  }
-}
-
-function sanitizeClaimKey(raw: string): string {
-  return raw.replace(/[^a-zA-Z0-9_]/g, "_");
+  deleteLegacyClaimCookies(cookieStore);
 }

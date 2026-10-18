@@ -20,6 +20,12 @@ export interface ProviderKeyItem {
   providerName: string | null;
 }
 
+/** Llave activa (null si no hay) + nombre del partnership, que llega aun sin llave. */
+export interface ActiveKeyResult {
+  key: ProviderKeyItem | null;
+  providerName: string | null;
+}
+
 export interface NewKeyResponse {
   providerKeyId: number;
   privateKeyPrefijo: string | null;

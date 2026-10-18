@@ -29,7 +29,7 @@ export async function forcePostDeclaration(
       const message =
         e.status === 401 || e.status === 403
           ? 'No tienes permiso para autorizar presentaciones.'
-          : e.status === 404
+          : e.status === 404 && e.errorCode === 'DECLARATION_NOT_FOUND'
             ? 'La declaración ya no existe.'
             : e.message || 'No pudimos enviar la declaración.'
       return err({ statusCode: e.status, message, code: e.errorCode })

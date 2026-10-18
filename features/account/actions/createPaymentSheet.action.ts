@@ -3,6 +3,7 @@
 import { cookies } from "next/headers";
 import { ApiError, fetchPost } from "@/lib/api";
 import { API_ROUTES } from "@/lib/api/apiRoutes";
+import { readSessionClaims } from "@/lib/api/auth";
 import { type Result, err, ok } from "@/lib/common";
 import type { PaymentSheetParams, RegisterSaleItem } from "../types";
 
@@ -33,7 +34,7 @@ export async function createPaymentSheet(
     const cookieStore = await cookies();
     const email = (
       cookieStore.get("email")?.value ||
-      cookieStore.get("claim_email")?.value ||
+      (await readSessionClaims()).email ||
       ""
     ).trim();
 

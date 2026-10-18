@@ -90,6 +90,14 @@
   --danger-soft: #FCDCDC;
   /* Texto rojo sobre --danger-soft: --danger no da contraste suficiente en claro. */
   --danger-ink: #8B1E1E;
+  /* Tintas para distinguir texto (p. ej. la parte que cambia entre actividades parecidas).
+     Misma luminosidad que --brand-700 / --violet-ink / --danger-ink, legibles sobre --card. */
+  --diff-1: #00876B;
+  --diff-2: #4B21B8;
+  --diff-3: #8B1E1E;
+  --diff-4: #8A5A00;
+  --diff-5: #1F5FAD;
+  --diff-6: #9C1F74;
   --card-muted: #F7F6FB;
   --border-strong: rgba(34,17,88,0.12);
   --sh-1: 0 1px 2px rgba(34,17,88,0.04), 0 1px 3px rgba(34,17,88,0.04);
@@ -184,6 +192,12 @@
   --violet-ink: #CBB4FF;
   --danger-soft: rgba(232,77,77,0.20);
   --danger-ink: #FFB4B4;
+  --diff-1: #5FE3C2;
+  --diff-2: #CBB4FF;
+  --diff-3: #FFB4B4;
+  --diff-4: #F5C77A;
+  --diff-5: #9CC3FF;
+  --diff-6: #F5A3D6;
   --card-muted: #2A1C64;
   --border-strong: rgba(255,255,255,0.14);
 

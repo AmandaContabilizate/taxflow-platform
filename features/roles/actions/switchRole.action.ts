@@ -11,7 +11,7 @@ import type { RolesError, SwitchRoleResponse } from "../types";
 /**
  * Cambia el rol activo del usuario autenticado. El backend devuelve un JWT
  * nuevo (con el rol/claims actualizados); refrescamos las cookies de sesión
- * para que `claim_role` y `claim_permission` reflejen el rol activo.
+ * para que el rol y permisos que se leen del token reflejen el rol activo.
  * El caller debe recargar/refrescar la vista tras un ok.
  */
 export async function switchRole(

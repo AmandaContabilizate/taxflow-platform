@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowRight, Loader2, Search } from 'lucide-react'
+import { ArrowRight, ChevronUp, Loader2, Search } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { getDeclarationsByTaxpayer } from '@/features/declarations/actions/getDeclarationsByTaxpayer.action'
 import type { PagedDeclarations, TaxpayerDeclarationItem } from '@/features/declarations/types'
@@ -95,6 +95,8 @@ export function DeclaracionesPorPresentarScreen({ currentUser }: { currentUser: 
   const [subject, setSubject] = useState<DeclarationSubject | null>(null)
   const [regimes, setRegimes] = useState<TaxRegime[]>([])
   const [rfcInput, setRfcInput] = useState(rfcParam ?? '')
+  // Descripción + filtros plegables para darle alto a la tabla; cada visita arranca desplegado.
+  const [headerOpen, setHeaderOpen] = useState(true)
   // El menú ya la oculta sin el claim, pero la URL directa (`?s=declaraciones-por-presentar`) no:
   // sin esto cualquier empleado con sesión vería todas las PorPresentar de todos los contribuyentes.
   const canView = useHasPermission(FORCE_POST_CLAIM)
@@ -193,147 +195,185 @@ export function DeclaracionesPorPresentarScreen({ currentUser }: { currentUser: 
 
   const totalPages = Math.max(1, Math.ceil(page.total / TAKE))
   const rfcInvalid = rfcParam != null && rfcParam !== '' && !RFC_PATTERN.test(rfcParam)
-  const filtering = Boolean(rfcParam || regimeId || year || month || estado || ciec != null || presentacion)
+  const activeFilters = [rfcParam, regimeId, year || month, estado, ciec != null, presentacion].filter(Boolean).length
+  const filtering = activeFilters > 0
 
   return (
-    <div className="flex flex-col gap-5 max-w-full h-[calc(100dvh-8.5rem)]">
-      <HelpBox>
-        Todas las declaraciones listas para presentar. Las que tienen ⚠️ ámbar no las tomará el robot
-        (sin pago, descargas incompletas…), pero puedes autorizarlas con &quot;Enviar&quot;. Las de ⚠️
-        rojo no se pueden presentar hasta corregir lo que indica el aviso. &quot;Enviar&quot; en una sin
-        aviso la manda a la cola sin esperar al robot. En todos los casos queda registrado quién la autorizó.
-      </HelpBox>
-
-      <Card className="shrink-0">
-        <div className="p-4 flex items-center gap-2 flex-wrap">
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ink-500)' }} />
-            <input
-              value={rfcInput}
-              onChange={(e) => setRfcInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && applyRfc()}
-              onBlur={applyRfc}
-              placeholder="RFC completo"
-              className="pl-8 pr-3 py-2 rounded-lg text-[12.5px] font-semibold uppercase"
-              style={selectStyle}
-            />
-          </div>
-
-          <select
-            value={regimeId ?? ''}
-            onChange={(e) => setParams({ regimen: e.target.value || null, skip: null }, { replace: true })}
-            className="px-3 py-2 rounded-lg text-[12.5px] font-semibold"
-            style={selectStyle}
-          >
-            <option value="">Todos los regímenes</option>
-            {regimes.map((r) => (
-              <option key={r.id} value={r.id}>{[r.satCode, r.name].filter(Boolean).join(' · ')}</option>
-            ))}
-          </select>
-
-          <select
-            value={year ?? ''}
-            onChange={(e) => setParams({ year: e.target.value || null, skip: null }, { replace: true })}
-            className="px-3 py-2 rounded-lg text-[12.5px] font-semibold"
-            style={selectStyle}
-          >
-            <option value="">Todos los ejercicios</option>
-            {yearOptions.map((y) => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
-
-          <select
-            value={month ?? ''}
-            onChange={(e) => setParams({ month: e.target.value || null, skip: null }, { replace: true })}
-            className="px-3 py-2 rounded-lg text-[12.5px] font-semibold"
-            style={selectStyle}
-          >
-            <option value="">Todos los meses</option>
-            {MESES.map((m, i) => (
-              <option key={m} value={i + 1}>{m}</option>
-            ))}
-          </select>
-
-          <select
-            value={estado ?? ''}
-            onChange={(e) => setEstado(esSemaforo(e.target.value) ? e.target.value : null)}
-            className="px-3 py-2 rounded-lg text-[12.5px] font-semibold"
-            style={selectStyle}
-            aria-label="Semáforo"
-          >
-            <option value="">Todos los semáforos</option>
-            {SEMAFORO.map((s) => (
-              <option key={s.value} value={s.value}>{capitalize(s.label)}</option>
-            ))}
-          </select>
-
-          <select
-            value={ciec ?? ''}
-            onChange={(e) => setParams({ ciec: e.target.value || null, skip: null }, { replace: true })}
-            className="px-3 py-2 rounded-lg text-[12.5px] font-semibold"
-            style={selectStyle}
-            aria-label="CIEC"
-          >
-            <option value="">Cualquier CIEC</option>
-            {CIEC.map((c) => (
-              <option key={c.value} value={c.value}>{c.label}</option>
-            ))}
-          </select>
-
-          <select
-            value={presentacion ?? ''}
-            onChange={(e) => setParams({ presentacion: e.target.value || null, skip: null }, { replace: true })}
-            className="px-3 py-2 rounded-lg text-[12.5px] font-semibold"
-            style={selectStyle}
-            aria-label="Presentación"
-          >
-            <option value="">Normales y complementarias</option>
-            <option value="normal">Solo normales</option>
-            <option value="complementaria">Solo complementarias</option>
-          </select>
-
-          {filtering && (
-            <button
-              type="button"
-              onClick={() => {
-                setRfcInput('')
-                setParams(
-                  { rfc: null, regimen: null, year: null, month: null, estado: null, ciec: null, presentacion: null, skip: null },
-                  { replace: true },
-                )
-              }}
-              className="px-3 py-2 rounded-lg text-[12.5px] font-bold"
-              style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--ink-700)' }}
-            >
-              Limpiar filtros
-            </button>
-          )}
-
-          {rfcInvalid && (
-            <span className="text-[12px] font-semibold" style={{ color: 'var(--danger)' }}>
-              Escribe el RFC completo (12 o 13 caracteres).
-            </span>
-          )}
-          {(year != null) !== (month != null) && (
-            <span className="text-[12px] font-semibold" style={{ color: 'var(--ink-500)' }}>
-              Elige ejercicio y mes para filtrar por periodo.
-            </span>
-          )}
+    // Alto fijo (tabla con scroll propio) solo en pantallas anchas y altas; en móvil o con poco alto la
+    // página fluye y la tabla conserva un mínimo, si no los filtros envueltos la dejaban en 0 px.
+    <div className="flex flex-col max-w-full lg:[@media(min-height:640px)]:h-[calc(100dvh-8.5rem)]">
+      <div
+        id="dpp-header"
+        className="grid shrink-0 transition-[grid-template-rows,margin] duration-200 ease-out motion-reduce:transition-none"
+        style={{ gridTemplateRows: headerOpen ? '1fr' : '0fr', marginBottom: headerOpen ? '1.25rem' : 0 }}
+        aria-hidden={!headerOpen}
+        inert={!headerOpen}
+      >
+        <div className="min-h-0 overflow-hidden flex flex-col gap-5">
+          <HelpBox>
+            Todas las declaraciones listas para presentar. Las que tienen ⚠️ ámbar no las tomará el robot
+            (sin pago, descargas incompletas…), pero puedes autorizarlas con &quot;Enviar&quot;. Las de ⚠️
+            rojo no se pueden presentar hasta corregir lo que indica el aviso. &quot;Enviar&quot; en una sin
+            aviso la manda a la cola sin esperar al robot. En todos los casos queda registrado quién la autorizó.
+          </HelpBox>
+    
+          <Card className="shrink-0">
+            <div className="p-4 flex items-center gap-2 flex-wrap">
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ink-500)' }} />
+                <input
+                  value={rfcInput}
+                  onChange={(e) => setRfcInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && applyRfc()}
+                  onBlur={applyRfc}
+                  placeholder="RFC completo"
+                  className="pl-8 pr-3 py-2 rounded-lg text-[12.5px] font-semibold uppercase"
+                  style={selectStyle}
+                />
+              </div>
+    
+              <select
+                value={regimeId ?? ''}
+                onChange={(e) => setParams({ regimen: e.target.value || null, skip: null }, { replace: true })}
+                className="px-3 py-2 rounded-lg text-[12.5px] font-semibold"
+                style={selectStyle}
+              >
+                <option value="">Todos los regímenes</option>
+                {regimes.map((r) => (
+                  <option key={r.id} value={r.id}>{[r.satCode, r.name].filter(Boolean).join(' · ')}</option>
+                ))}
+              </select>
+    
+              <select
+                value={year ?? ''}
+                onChange={(e) => setParams({ year: e.target.value || null, skip: null }, { replace: true })}
+                className="px-3 py-2 rounded-lg text-[12.5px] font-semibold"
+                style={selectStyle}
+              >
+                <option value="">Todos los ejercicios</option>
+                {yearOptions.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+    
+              <select
+                value={month ?? ''}
+                onChange={(e) => setParams({ month: e.target.value || null, skip: null }, { replace: true })}
+                className="px-3 py-2 rounded-lg text-[12.5px] font-semibold"
+                style={selectStyle}
+              >
+                <option value="">Todos los meses</option>
+                {MESES.map((m, i) => (
+                  <option key={m} value={i + 1}>{m}</option>
+                ))}
+              </select>
+    
+              <select
+                value={estado ?? ''}
+                onChange={(e) => setEstado(esSemaforo(e.target.value) ? e.target.value : null)}
+                className="px-3 py-2 rounded-lg text-[12.5px] font-semibold"
+                style={selectStyle}
+                aria-label="Semáforo"
+              >
+                <option value="">Todos los semáforos</option>
+                {SEMAFORO.map((s) => (
+                  <option key={s.value} value={s.value}>{capitalize(s.label)}</option>
+                ))}
+              </select>
+    
+              <select
+                value={ciec ?? ''}
+                onChange={(e) => setParams({ ciec: e.target.value || null, skip: null }, { replace: true })}
+                className="px-3 py-2 rounded-lg text-[12.5px] font-semibold"
+                style={selectStyle}
+                aria-label="CIEC"
+              >
+                <option value="">Cualquier CIEC</option>
+                {CIEC.map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </select>
+    
+              <select
+                value={presentacion ?? ''}
+                onChange={(e) => setParams({ presentacion: e.target.value || null, skip: null }, { replace: true })}
+                className="px-3 py-2 rounded-lg text-[12.5px] font-semibold"
+                style={selectStyle}
+                aria-label="Presentación"
+              >
+                <option value="">Normales y complementarias</option>
+                <option value="normal">Solo normales</option>
+                <option value="complementaria">Solo complementarias</option>
+              </select>
+    
+              {filtering && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRfcInput('')
+                    setParams(
+                      { rfc: null, regimen: null, year: null, month: null, estado: null, ciec: null, presentacion: null, skip: null },
+                      { replace: true },
+                    )
+                  }}
+                  className="px-3 py-2 rounded-lg text-[12.5px] font-bold"
+                  style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--ink-700)' }}
+                >
+                  Limpiar filtros
+                </button>
+              )}
+    
+              {rfcInvalid && (
+                <span className="text-[12px] font-semibold" style={{ color: 'var(--danger)' }}>
+                  Escribe el RFC completo (12 o 13 caracteres).
+                </span>
+              )}
+              {(year != null) !== (month != null) && (
+                <span className="text-[12px] font-semibold" style={{ color: 'var(--ink-500)' }}>
+                  Elige ejercicio y mes para filtrar por periodo.
+                </span>
+              )}
+            </div>
+          </Card>
         </div>
-      </Card>
+      </div>
 
-      <Card className="flex-1 min-h-0 flex flex-col">
+      <Card className="flex-1 min-h-[70dvh] lg:[@media(min-height:640px)]:min-h-0 flex flex-col">
         <div
           className="px-5 py-4 flex items-center justify-between flex-wrap gap-2 border-b shrink-0"
           style={{ borderColor: 'var(--border)' }}
         >
-          <div className="text-[15px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
-            {loading
-              ? 'Cargando…'
-              : `${page.total} ${page.total === 1 ? 'declaración' : 'declaraciones'} ${
-                  estado ? SEMAFORO.find((s) => s.value === estado)!.titulo : 'por presentar'
-                }`}
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setHeaderOpen((o) => !o)}
+              aria-expanded={headerOpen}
+              aria-controls="dpp-header"
+              title={headerOpen ? 'Ocultar descripción y filtros' : 'Mostrar descripción y filtros'}
+              className="w-8 h-8 shrink-0 rounded-lg flex items-center justify-center"
+              style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--ink-700)' }}
+            >
+              <ChevronUp
+                size={16}
+                className="transition-transform duration-200 motion-reduce:transition-none"
+                style={{ transform: headerOpen ? 'none' : 'rotate(180deg)' }}
+              />
+            </button>
+            <div className="text-[15px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
+              {loading
+                ? 'Cargando…'
+                : `${page.total} ${page.total === 1 ? 'declaración' : 'declaraciones'} ${
+                    estado ? SEMAFORO.find((s) => s.value === estado)!.titulo : 'por presentar'
+                  }`}
+            </div>
+            {/* Plegado, que no se olvide que la lista está filtrada. */}
+            {!headerOpen && filtering && (
+              <button type="button" onClick={() => setHeaderOpen(true)} title="Mostrar filtros">
+                <Badge kind="sky">
+                  {activeFilters} {activeFilters === 1 ? 'filtro activo' : 'filtros activos'}
+                </Badge>
+              </button>
+            )}
           </div>
           {!loading && (page.items.length > 0 || estado) && (
             <div className="flex items-center gap-2 text-[12px] font-bold">
@@ -379,7 +419,7 @@ export function DeclaracionesPorPresentarScreen({ currentUser }: { currentUser: 
         ) : (
           <>
             <div className="flex-1 min-h-0 overflow-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[900px] text-sm">
                 <thead className="sticky top-0 z-10">
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
                     {['Contribuyente', 'RFC', 'Ejercicio', 'Periodo', 'Régimen', 'Tipo', 'Presentación', 'Estatus', ''].map((h) => (

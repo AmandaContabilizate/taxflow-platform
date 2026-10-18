@@ -13,6 +13,7 @@ import { KeysSignOutExamples } from './keys-signout-examples'
 
 export function KeysTab() {
   const [activeKey, setActiveKey] = useState<ProviderKeyItem | null>(null)
+  const [providerName, setProviderName] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [identityBaseUrl, setIdentityBaseUrl] = useState<string>('')
@@ -22,8 +23,10 @@ export function KeysTab() {
     setLoading(true)
     setError(null)
     const res = await getActiveKey()
-    if (res.success) setActiveKey(res.value)
-    else setError(res.error.message)
+    if (res.success) {
+      setActiveKey(res.value.key)
+      setProviderName(res.value.providerName)
+    } else setError(res.error.message)
     setLoading(false)
   }, [])
 
@@ -41,6 +44,7 @@ export function KeysTab() {
       isActive: true,
       providerName: result.providerName,
     })
+    if (result.providerName) setProviderName(result.providerName)
   }
 
   return (
@@ -88,8 +92,8 @@ export function KeysTab() {
 
       <GenerateKeyModal open={modalOpen} onOpenChange={setModalOpen} onGenerated={handleGenerated} />
 
-      <KeysCodeExamples providerName={activeKey?.providerName ?? null} identityBaseUrl={identityBaseUrl} />
-      <KeysSignOutExamples providerName={activeKey?.providerName ?? null} identityBaseUrl={identityBaseUrl} />
+      <KeysCodeExamples providerName={providerName} identityBaseUrl={identityBaseUrl} />
+      <KeysSignOutExamples providerName={providerName} identityBaseUrl={identityBaseUrl} />
     </div>
   )
 }

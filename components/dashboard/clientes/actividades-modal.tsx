@@ -15,6 +15,7 @@ import { getRegimeActivities } from '@/features/taxpayers/actions/regimeActiviti
 import { setRegimeActivityActive } from '@/features/taxpayers/actions/regimeActivities.action'
 import type { RegimeActivityMatrixItem } from '@/features/taxpayers/types'
 import { DISPLAY, MONO } from '../constants'
+import { highlightDiffs, type DiffSegment } from './activity-diff'
 import { RegimenesBajaSection } from './regimenes-baja-section'
 
 /** Etiqueta corta para el encabezado de columna; el nombre completo del régimen va en el tooltip. */
@@ -37,6 +38,43 @@ function shortRegimeName(name: string): string {
 
 const fecha = (iso: string) =>
   new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
+
+/**
+ * Número de actividad + descripción con la parte que la distingue de otra parecida en negritas
+ * y color (ver activity-diff.ts). El número deja claro de entrada que son actividades distintas.
+ */
+function ActivityLabel({
+  id,
+  segments,
+  children,
+}: {
+  id: number
+  segments: DiffSegment[]
+  children?: React.ReactNode
+}) {
+  return (
+    <span className="flex gap-2">
+      <span
+        className="flex-shrink-0 w-7 text-right text-[12px] leading-snug pt-px"
+        style={{ ...MONO, color: 'var(--ink-400)' }}
+      >
+        {id}
+      </span>
+      <span>
+        {segments.map((s, i) =>
+          s.diff ? (
+            <b key={i} style={{ color: s.color }}>
+              {s.text}
+            </b>
+          ) : (
+            <span key={i}>{s.text}</span>
+          ),
+        )}
+        {children}
+      </span>
+    </span>
+  )
+}
 
 interface ActividadesModalProps {
   open: boolean
@@ -107,11 +145,16 @@ export function ActividadesModal({ open, onOpenChange, client, initialTab = 'vig
       regimeId,
       regimeName,
     }))
+    // Se compara contra todas (vigentes + históricas) para que también se distingan entre sí.
+    const diffs = highlightDiffs(
+      Array.from(acts.entries()).map(([id, r]) => ({ id, description: r.description })),
+    )
     const allRows = Array.from(acts.entries()).map(([activityId, r]) => {
       const cells = Array.from(r.cells.values())
       return {
         activityId,
         description: r.description,
+        segments: diffs.get(activityId) ?? [{ text: r.description, diff: false }],
         cells: r.cells,
         assigned: cells.some((c) => c.isActive),
         historical: cells.some((c) => c.isHistorical),
@@ -295,15 +338,16 @@ export function ActividadesModal({ open, onOpenChange, client, initialTab = 'vig
                         }}
                       >
                         <div className="text-[13px] leading-snug py-1" style={{ color: 'var(--ink-900)' }}>
-                          {row.description}
-                          {!row.assigned && (
-                            <span
-                              className="ml-2 px-1.5 py-px rounded-full text-[10.5px] font-bold align-middle whitespace-nowrap"
-                              style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
-                            >
-                              Sin asignar
-                            </span>
-                          )}
+                          <ActivityLabel id={row.activityId} segments={row.segments}>
+                            {!row.assigned && (
+                              <span
+                                className="ml-2 px-1.5 py-px rounded-full text-[10.5px] font-bold align-middle whitespace-nowrap"
+                                style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
+                              >
+                                Sin asignar
+                              </span>
+                            )}
+                          </ActivityLabel>
                         </div>
                         {regimeCols.map((rc) => {
                           const item = row.cells.get(rc.regimeId)
@@ -363,10 +407,13 @@ export function ActividadesModal({ open, onOpenChange, client, initialTab = 'vig
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <span
-                                    className="text-[13px] leading-snug line-through cursor-default"
+                                    className="block text-[13px] leading-snug line-through cursor-default"
                                     style={{ color: 'var(--ink-400)' }}
                                   >
-                                    {row.description}
+                                    {/* Opacidad: el color de la diferencia se conserva pero sin competir con la matriz. */}
+                                    <span className="block opacity-80">
+                                      <ActivityLabel id={row.activityId} segments={row.segments} />
+                                    </span>
                                   </span>
                                 </TooltipTrigger>
                                 <TooltipContent side="top" className="max-w-[340px] text-left">

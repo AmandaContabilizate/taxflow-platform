@@ -31,7 +31,11 @@ import { getDeclarationLogs } from '@/features/operations/actions/getDeclaration
 import { getDeclarationReportLink } from '@/features/operations/actions/getDeclarationReportLink.action'
 import { reopenDeclaration } from '@/features/operations/actions/reopenDeclaration.action'
 import { resendDeclarationToClient } from '@/features/operations/actions/resendDeclarationToClient.action'
-import { REOPEN_REASON_MAX_LENGTH } from '@/features/operations/schemas/reopenDeclaration.schema'
+import {
+  REOPEN_COMPLEMENTARY_REASON,
+  REOPEN_REASON_MAX_LENGTH,
+  type ReopenComplementaryReasonId,
+} from '@/features/operations/schemas/reopenDeclaration.schema'
 import type { DeclarationActivity, DeclarationGeneral, DeclarationLog, DeclarationSubject } from '@/features/operations/types'
 import { getSatPassword } from '@/features/taxpayers/actions/getSatPassword.action'
 import { toNumber } from './calc-read'
@@ -48,6 +52,7 @@ import { DISPLAY, MONO } from '../constants'
 import { useHasPermission } from '../permissions'
 import { Modal } from '../modal'
 import { Badge, Card, CiecUpdateModal, CiecValidationBadge } from '../ui'
+import { useUrlState } from '../url-state'
 
 /**
  * Estatus que se pueden reabrir: Presentada, Por autorizar y Por presentar. Pasan a
@@ -352,31 +357,49 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
   const [reopenReason, setReopenReason] = useState('')
   const [reopenLoading, setReopenLoading] = useState(false)
   const [reopenError, setReopenError] = useState<string | null>(null)
+  // Solo al reabrir una Presentada: de quién es el error que obliga a la complementaria.
+  const [reopenComplementReason, setReopenComplementReason] = useState<ReopenComplementaryReasonId | null>(null)
+  const { setParams } = useUrlState()
 
   const canReopen = general != null && REOPENABLE_STATUSES.has(general.statusId)
   const reopenFromSubmitted = general?.statusId === DECLARATION_STATUS.SUBMITTED
+  const reopenReady =
+    reopenReason.trim().length > 0 && (!reopenFromSubmitted || reopenComplementReason != null)
 
   const handleReopenConfirm = async () => {
     setReopenLoading(true)
     setReopenError(null)
-    const res = await reopenDeclaration(d.declarationId, reopenReason)
+    const res = await reopenDeclaration(
+      d.declarationId,
+      reopenReason,
+      reopenFromSubmitted ? (reopenComplementReason ?? undefined) : undefined,
+    )
     setReopenLoading(false)
     if (res.success) {
       setReopenOpen(false)
       setReopenReason('')
+      setReopenComplementReason(null)
+      // De una Presentada sale una complementaria nueva: esa es la que se trabaja, la
+      // original se queda presentada. Se abre su detalle (el padre lo monta de cero por `key`).
+      if (res.value.complementDeclarationId != null) {
+        setParams({ decl: res.value.complementDeclarationId })
+        return
+      }
       setResendMessage({
         kind: 'success',
-        text: res.value.wasSubmitted
-          ? 'Declaración reabierta. Como ya estaba presentada, la siguiente presentación irá como complementaria.'
-          : 'Declaración reabierta: ya puedes corregirla y reenviarla al cliente.',
+        text: 'Declaración reabierta: ya puedes corregirla y reenviarla al cliente.',
       })
       void refreshDeclaration()
     } else {
       // El catálogo de errores trae textos pensados para el cliente: aquí se le habla al contador.
       setReopenError(
         res.error.code === 'INVALID_STATUS_TRANSITION'
-          ? 'Solo se puede reabrir una declaración Presentada, Por autorizar o Por presentar.'
-          : res.error.message,
+          ? reopenFromSubmitted
+            ? 'Ya existe una complementaria más reciente de este periodo; reabre esa.'
+            : 'Solo se puede reabrir una declaración Presentada, Por autorizar o Por presentar.'
+          : res.error.code === 'SALE_NOT_PAID'
+            ? 'El periodo no tiene una venta pagada ligada; no se puede reabrir como complementaria.'
+            : res.error.message,
       )
     }
   }
@@ -804,10 +827,18 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
         maxWidth={560}
       >
         <div className="flex flex-col gap-4">
-          <p className="text-[13.5px]" style={{ color: 'var(--foreground)' }}>
-            La declaración de <strong>{legalName}</strong> ({periodo} {ejercicio}) regresará a tus manos
-            en estatus <strong>Reabierta</strong> para que la corrijas. Después podrás reenviarla al cliente.
-          </p>
+          {reopenFromSubmitted ? (
+            <p className="text-[13.5px]" style={{ color: 'var(--foreground)' }}>
+              Se creará la <strong>complementaria</strong> de <strong>{legalName}</strong> ({periodo} {ejercicio})
+              en estatus <strong>En proceso</strong> para que la corrijas. La declaración original se conserva
+              presentada, con su acuse y línea de captura.
+            </p>
+          ) : (
+            <p className="text-[13.5px]" style={{ color: 'var(--foreground)' }}>
+              La declaración de <strong>{legalName}</strong> ({periodo} {ejercicio}) regresará a tus manos
+              en estatus <strong>Reabierta</strong> para que la corrijas. Después podrás reenviarla al cliente.
+            </p>
+          )}
           {reopenFromSubmitted && (
             <div
               className="rounded-xl px-3.5 py-3 flex items-start gap-2 text-[12.5px] font-semibold"
@@ -815,10 +846,33 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
             >
               <AlertTriangle size={15} className="mt-0.5 shrink-0" />
               <span>
-                Esta declaración ya se presentó ante el SAT. Al reabrirla, la corrección se tendrá que
-                presentar como complementaria.
+                Esta declaración ya se presentó ante el SAT: la corrección se presentará como complementaria.
               </span>
             </div>
+          )}
+          {reopenFromSubmitted && (
+            <fieldset>
+              <legend className="text-[12px] font-bold" style={{ color: 'var(--ink-500)' }}>
+                ¿De quién es el error? (obligatorio)
+              </legend>
+              <div className="flex flex-col gap-1.5 mt-1.5">
+                {[
+                  { id: REOPEN_COMPLEMENTARY_REASON.OWN_ERROR, label: 'Error nuestro (Contabilízate)' },
+                  { id: REOPEN_COMPLEMENTARY_REASON.TAXPAYER_ERROR, label: 'Error atribuible al contribuyente' },
+                ].map((opt) => (
+                  <label key={opt.id} className="flex items-center gap-2 text-[13px]" style={{ color: 'var(--foreground)' }}>
+                    <input
+                      type="radio"
+                      name="reopen-complement-reason"
+                      checked={reopenComplementReason === opt.id}
+                      onChange={() => setReopenComplementReason(opt.id)}
+                      disabled={reopenLoading}
+                    />
+                    {opt.label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
           )}
           <div>
             <label className="text-[12px] font-bold" style={{ color: 'var(--ink-500)' }}>
@@ -856,7 +910,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
             </button>
             <button
               onClick={() => void handleReopenConfirm()}
-              disabled={reopenLoading || reopenReason.trim().length === 0}
+              disabled={reopenLoading || !reopenReady}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold disabled:opacity-60"
               style={{ background: 'linear-gradient(135deg,#00D3A1 0%,#00AD87 100%)', color: '#fff' }}
             >
