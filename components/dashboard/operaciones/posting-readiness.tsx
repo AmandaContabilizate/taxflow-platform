@@ -14,6 +14,12 @@ export const FORCE_POST_CLAIM = 'Operaciones.ForcePostDeclaration'
 
 const READY_TO_SUBMIT = 11
 
+/** Etiqueta del intento de posteo vivo (queueState del back). Sin intento vivo se muestra "Enviar". */
+const QUEUE_LABEL: Record<NonNullable<PostingReadiness['queueState']>, string> = {
+  queued: 'Encolado',
+  processing: 'En proceso',
+}
+
 /**
  * ⚠️ junto al estatus de una declaración en PorPresentar que el robot no va a presentar.
  * Rojo: no se puede presentar ni autorizándola. Ámbar: el GO puede autorizarla.
@@ -91,7 +97,8 @@ export function ForcePostButton({
     const res = await forcePostDeclaration(declarationId)
     setSending(false)
     if (res.success) {
-      setSentTo(res.value.enqueued ? `En cola (${res.value.task})` : 'Ya estaba en cola')
+      // Mismo texto que trae el server en queueState, para que no cambie al recargar.
+      setSentTo(QUEUE_LABEL.queued)
     } else {
       setError(res.error.message)
     }
@@ -102,13 +109,14 @@ export function ForcePostButton({
     else void handleSend()
   }
 
-  if (sentTo) {
+  const queueLabel = sentTo ?? (readiness?.queueState ? QUEUE_LABEL[readiness.queueState] : null)
+  if (queueLabel) {
     return (
       <span
         className="inline-flex items-center gap-1.5 px-3 py-2 text-[12.5px] font-bold whitespace-nowrap"
         style={{ color: 'var(--ink-700)' }}
       >
-        <CheckCircle2 size={14} style={{ color: 'var(--brand, #00AD87)' }} /> {sentTo}
+        <CheckCircle2 size={14} style={{ color: 'var(--brand, #00AD87)' }} /> {queueLabel}
       </span>
     )
   }
