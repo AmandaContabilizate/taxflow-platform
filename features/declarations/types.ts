@@ -592,6 +592,11 @@ export interface PostingReadiness {
   level: 'ok' | 'warning' | 'blocked'
   blockers: string[]
   warnings: string[]
+  /**
+   * Último intento de posteo en la cola: `queued` (en espera o reintentando), `processing` (el robot
+   * la está presentando o espera acuse) o null (sin intento vivo: se puede enviar).
+   */
+  queueState?: 'queued' | 'processing' | null
 }
 
 /** Respuesta de `POST /Declaration/{id}/force-post`. */
