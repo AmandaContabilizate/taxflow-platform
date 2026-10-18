@@ -335,6 +335,10 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
   }
 
   if (!isGuest) {
+    // El proveedor externo solo administra su integración: su inicio es Partnership.
+    if (screen === 'home' && roleKey === 'external-provider') {
+      return <PartnershipScreen />;
+    }
     if (screen === 'home') {
       // Cada dashboard tiene su propio permiso (Dashboard.*), administrable por rol.
       // Orden de especificidad: gerencia (embudo global) > ventas (embudo propio) >

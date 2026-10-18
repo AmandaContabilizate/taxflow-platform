@@ -116,9 +116,19 @@ export function ForcePostButton({
   return (
     <>
       <span className="inline-flex flex-col items-end gap-1">
-        <Btn kind="ghost" size="sm" onClick={handleClick} disabled={sending}>
-          {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Enviar
-        </Btn>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex">
+              <Btn kind="ghost" size="sm" onClick={handleClick} disabled={sending}>
+                {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Enviar
+              </Btn>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-[280px] text-left">
+            Presenta la declaración ante el SAT a nombre del cliente. No envía predeclaración al
+            cliente y no se puede deshacer.
+          </TooltipContent>
+        </Tooltip>
         {error && (
           <span className="text-[11.5px] font-semibold max-w-[260px] text-right" style={{ color: 'var(--danger)' }}>
             {error}

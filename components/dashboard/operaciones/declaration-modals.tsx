@@ -6,7 +6,12 @@ import { DECLARATION_STATUS } from '@/features/declaration-report/types'
 import { useDeclarationReportLink } from '@/features/declarations/hooks/useDeclarationQueries'
 import { reopenDeclaration } from '@/features/operations/actions/reopenDeclaration.action'
 import { resendDeclarationToClient } from '@/features/operations/actions/resendDeclarationToClient.action'
-import { REOPEN_REASON_MAX_LENGTH } from '@/features/operations/schemas/reopenDeclaration.schema'
+import {
+  REOPEN_COMPLEMENTARY_REASON,
+  REOPEN_REASON_MAX_LENGTH,
+  type ReopenComplementaryReasonId,
+} from '@/features/operations/schemas/reopenDeclaration.schema'
+import type { ReopenDeclarationResult } from '@/features/operations/types'
 import { Modal } from '../modal'
 
 /**
@@ -30,10 +35,10 @@ interface ReopenModalProps {
   legalName: string
   periodo: string
   ejercicio: number
-  /** Estaba Presentada: la siguiente presentación irá como complementaria. */
+  /** Estaba Presentada: se crea su complementaria y se exige de quién es el error. */
   fromSubmitted: boolean
-  /** Reabierta con éxito: el padre cierra el modal, muestra el aviso y refresca. */
-  onReopened: (wasSubmitted: boolean) => void
+  /** Reabierta con éxito: el padre cierra el modal y abre la complementaria o muestra el aviso y refresca. */
+  onReopened: (result: ReopenDeclarationResult) => void
 }
 
 export const ReopenModal = memo(function ReopenModal({
@@ -49,6 +54,10 @@ export const ReopenModal = memo(function ReopenModal({
   const [reason, setReason] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Solo al reabrir una Presentada: de quién es el error que obliga a la complementaria.
+  const [complementReason, setComplementReason] = useState<ReopenComplementaryReasonId | null>(null)
+
+  const ready = reason.trim().length > 0 && (!fromSubmitted || complementReason != null)
 
   // Al abrir se limpia el error del intento anterior (el motivo se conserva).
   useEffect(() => {
@@ -58,17 +67,26 @@ export const ReopenModal = memo(function ReopenModal({
   const handleConfirm = async () => {
     setLoading(true)
     setError(null)
-    const res = await reopenDeclaration(declarationId, reason)
+    const res = await reopenDeclaration(
+      declarationId,
+      reason,
+      fromSubmitted ? (complementReason ?? undefined) : undefined,
+    )
     setLoading(false)
     if (res.success) {
       setReason('')
-      onReopened(res.value.wasSubmitted)
+      setComplementReason(null)
+      onReopened(res.value)
     } else {
       // El catálogo de errores trae textos pensados para el cliente: aquí se le habla al contador.
       setError(
         res.error.code === 'INVALID_STATUS_TRANSITION'
-          ? 'Solo se puede reabrir una declaración Presentada, Por autorizar o Por presentar.'
-          : res.error.message,
+          ? fromSubmitted
+            ? 'Ya existe una complementaria más reciente de este periodo; reabre esa.'
+            : 'Solo se puede reabrir una declaración Presentada, Por autorizar o Por presentar.'
+          : res.error.code === 'SALE_NOT_PAID'
+            ? 'El periodo no tiene una venta pagada ligada; no se puede reabrir como complementaria.'
+            : res.error.message,
       )
     }
   }
@@ -76,10 +94,18 @@ export const ReopenModal = memo(function ReopenModal({
   return (
     <Modal isOpen={open} onClose={() => !loading && onClose()} title="Reabrir declaración" maxWidth={560}>
       <div className="flex flex-col gap-4">
-        <p className="text-[13.5px]" style={{ color: 'var(--foreground)' }}>
-          La declaración de <strong>{legalName}</strong> ({periodo} {ejercicio}) regresará a tus manos
-          en estatus <strong>Reabierta</strong> para que la corrijas. Después podrás reenviarla al cliente.
-        </p>
+        {fromSubmitted ? (
+          <p className="text-[13.5px]" style={{ color: 'var(--foreground)' }}>
+            Se creará la <strong>complementaria</strong> de <strong>{legalName}</strong> ({periodo} {ejercicio})
+            en estatus <strong>En proceso</strong> para que la corrijas. La declaración original se conserva
+            presentada, con su acuse y línea de captura.
+          </p>
+        ) : (
+          <p className="text-[13.5px]" style={{ color: 'var(--foreground)' }}>
+            La declaración de <strong>{legalName}</strong> ({periodo} {ejercicio}) regresará a tus manos
+            en estatus <strong>Reabierta</strong> para que la corrijas. Después podrás reenviarla al cliente.
+          </p>
+        )}
         {fromSubmitted && (
           <div
             className="rounded-xl px-3.5 py-3 flex items-start gap-2 text-[12.5px] font-semibold"
@@ -87,10 +113,33 @@ export const ReopenModal = memo(function ReopenModal({
           >
             <AlertTriangle size={15} className="mt-0.5 shrink-0" />
             <span>
-              Esta declaración ya se presentó ante el SAT. Al reabrirla, la corrección se tendrá que
-              presentar como complementaria.
+              Esta declaración ya se presentó ante el SAT: la corrección se presentará como complementaria.
             </span>
           </div>
+        )}
+        {fromSubmitted && (
+          <fieldset>
+            <legend className="text-[12px] font-bold" style={{ color: 'var(--ink-500)' }}>
+              ¿De quién es el error? (obligatorio)
+            </legend>
+            <div className="flex flex-col gap-1.5 mt-1.5">
+              {[
+                { id: REOPEN_COMPLEMENTARY_REASON.OWN_ERROR, label: 'Error nuestro (Contabilízate)' },
+                { id: REOPEN_COMPLEMENTARY_REASON.TAXPAYER_ERROR, label: 'Error atribuible al contribuyente' },
+              ].map((opt) => (
+                <label key={opt.id} className="flex items-center gap-2 text-[13px]" style={{ color: 'var(--foreground)' }}>
+                  <input
+                    type="radio"
+                    name="reopen-complement-reason"
+                    checked={complementReason === opt.id}
+                    onChange={() => setComplementReason(opt.id)}
+                    disabled={loading}
+                  />
+                  {opt.label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
         )}
         <div>
           <label className="text-[12px] font-bold" style={{ color: 'var(--ink-500)' }}>
@@ -128,7 +177,7 @@ export const ReopenModal = memo(function ReopenModal({
           </button>
           <button
             onClick={() => void handleConfirm()}
-            disabled={loading || reason.trim().length === 0}
+            disabled={loading || !ready}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold disabled:opacity-60"
             style={{ background: 'linear-gradient(135deg,#00D3A1 0%,#00AD87 100%)', color: '#fff' }}
           >

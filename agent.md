@@ -92,8 +92,9 @@ y por último la action en `features/<dominio>/actions/`.
 
 ### Roles y permisos
 
-Vienen del backend como claims en cookies (`claim_role`, `claim_permission`,
-`userId`) y se parsean en `app/dashboard/page.tsx` (`parsePermissions`). Se
+Vienen del backend como claims del JWT (`role`, `permission`) y se leen en
+`app/dashboard/page.tsx` con `readSessionClaims` (`lib/api/auth.ts`); no se
+copian a cookies propias (inflaban el header Cookie → 431). Se
 propagan por props a `Dashboard` → `Sidebar`/screens, que ocultan opciones de
 navegación según rol/permiso. `features/roles/` maneja la administración de
 roles (CRUD) contra el microservicio Identity (`apiType: "roles"`).

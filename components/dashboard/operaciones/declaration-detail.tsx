@@ -25,7 +25,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { DECLARATION_STATUS } from '@/features/declaration-report/types'
 import { useDeclaration, useInvalidateDownloadStatus } from '@/features/declarations/hooks/useDeclarationQueries'
 import { useRecalculation } from '@/features/declarations/hooks/useRecalculation'
-import type { DeclarationActivity, DeclarationGeneral, DeclarationSubject } from '@/features/operations/types'
+import type {
+  DeclarationActivity,
+  DeclarationGeneral,
+  DeclarationSubject,
+  ReopenDeclarationResult,
+} from '@/features/operations/types'
 import { getSatPassword } from '@/features/taxpayers/actions/getSatPassword.action'
 import { toNumber } from './calc-read'
 import { ComprobantesTab } from './comprobantes-tab'
@@ -39,6 +44,7 @@ import { declarationStatusBadge, fmtDate } from '../declaraciones/parts'
 import { DISPLAY, MONO } from '../constants'
 import { useHasPermission } from '../permissions'
 import { Badge, Card, CiecUpdateModal, CiecValidationBadge } from '../ui'
+import { useUrlState } from '../url-state'
 
 /* -------------------------------------------------------------------------- */
 /*  Carga diferida                                                            */
@@ -370,18 +376,24 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
   const canReopen = general != null && REOPENABLE_STATUSES.has(general.statusId)
   const reopenFromSubmitted = general?.statusId === DECLARATION_STATUS.SUBMITTED
 
+  const { setParams } = useUrlState()
+
   const handleReopened = useCallback(
-    (wasSubmitted: boolean) => {
+    (result: ReopenDeclarationResult) => {
       setReopenOpen(false)
+      // De una Presentada sale una complementaria nueva: esa es la que se trabaja, la
+      // original se queda presentada. Se abre su detalle (el padre lo monta de cero por `key`).
+      if (result.complementDeclarationId != null) {
+        setParams({ decl: result.complementDeclarationId })
+        return
+      }
       setResendMessage({
         kind: 'success',
-        text: wasSubmitted
-          ? 'Declaración reabierta. Como ya estaba presentada, la siguiente presentación irá como complementaria.'
-          : 'Declaración reabierta: ya puedes corregirla y reenviarla al cliente.',
+        text: 'Declaración reabierta: ya puedes corregirla y reenviarla al cliente.',
       })
       void refreshDeclaration()
     },
-    [refreshDeclaration],
+    [refreshDeclaration, setParams],
   )
 
   const goToComments = useCallback(() => setTab(COMMENTS_TAB_INDEX), [])

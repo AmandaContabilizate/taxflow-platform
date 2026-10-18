@@ -70,7 +70,10 @@ Console.WriteLine(jwt);`,
     <artifactId>jjwt-jackson</artifactId>
     <version>0.12.6</version>
     <scope>runtime</scope>
-</dependency>`,
+</dependency>
+
+# La llave se entrega en PKCS#1 (BEGIN RSA PRIVATE KEY); Java requiere PKCS#8:
+openssl pkcs8 -topk8 -nocrypt -in private_key.pem -out private_key_pkcs8.pem`,
     code: `import io.jsonwebtoken.Jwts;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -83,11 +86,11 @@ import java.util.Date;
 
 public class TokenGenerator {
     public static void main(String[] args) throws Exception {
-        // 1. Cargar la llave privada RSA desde archivo PEM
-        String pemContent = new String(Files.readAllBytes(Paths.get("private_key.pem")));
+        // 1. Cargar la llave privada RSA (convertida a PKCS#8, ver Instalación)
+        String pemContent = new String(Files.readAllBytes(Paths.get("private_key_pkcs8.pem")));
         String privateKeyBase64 = pemContent
-            .replace("-----BEGIN RSA PRIVATE KEY-----", "")
-            .replace("-----END RSA PRIVATE KEY-----", "")
+            .replace("-----BEGIN PRIVATE KEY-----", "")
+            .replace("-----END PRIVATE KEY-----", "")
             .replaceAll("\\\\s", "");
 
         byte[] keyBytes = Base64.getDecoder().decode(privateKeyBase64);
@@ -288,7 +291,7 @@ export function KeysCodeExamples({ providerName, identityBaseUrl }: KeysCodeExam
       const { token } = await response.json();
 
       const iframe = document.querySelector('iframe');
-      iframe.src = \`${identityBaseUrl}/external-auth/validate?token=\${token}\`;
+      iframe.src = \`${identityBaseUrl}/public/validate?token=\${token}\`;
     }
 
     // Descomentar para cargar dinámicamente:

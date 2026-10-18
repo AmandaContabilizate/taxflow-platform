@@ -74,11 +74,14 @@ export interface ReopenDeclarationResult {
   declarationId: number;
   /** Con el que estaba antes: 3, 9 u 11. */
   previousStatusId: number;
-  /** Siempre 17 (Reabierta) en un 200. */
+  /** La fila que queda en manos del contador: 15 en la complementaria (venía de 3), 17 si venía de 9 u 11. */
   statusId: number;
   statusCode: string | null;
   /** true si venía de Presentada: la siguiente presentación será complementaria. */
   wasSubmitted: boolean;
+  /** Complementaria creada al reabrir una Presentada: es la que se trabaja. null si venía de 9 u 11. */
+  complementDeclarationId: number | null;
+  complementNumber: number | null;
 }
 
 /** Respuesta de `POST declarations/{id}/resend-to-client` (E2). */
