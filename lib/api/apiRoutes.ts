@@ -322,6 +322,12 @@ export const API_ROUTES = {
       includeConcepts?: boolean
       esRetencion?: boolean
       consulta?: boolean
+      /**
+       * `false` = el back omite `totales`/`cuadre` (responde null) y solo manda
+       * `total` y las filas. Solo se manda cuando es false: omitido = true en el
+       * back, y un back viejo ignora el parámetro.
+       */
+      includeTotals?: boolean
     }) => {
       const qs = new URLSearchParams()
       if (params.isIssued != null) qs.set("isIssued", String(params.isIssued))
@@ -333,6 +339,7 @@ export const API_ROUTES = {
       if (params.sortDir) qs.set("sortDir", params.sortDir)
       if (params.includeConcepts) qs.set("includeConcepts", "true")
       if (params.esRetencion != null) qs.set("esRetencion", String(params.esRetencion))
+      if (params.includeTotals === false) qs.set("includeTotals", "false")
       return `/${params.declarationId}${params.consulta ? "/consulta" : ""}/invoices?${qs.toString()}`
     },
     // SOLO las constancias de retención del periodo, paginadas sobre su propio
@@ -349,6 +356,8 @@ export const API_ROUTES = {
       sortBy?: "invoiceDate" | "total"
       sortDir?: "asc" | "desc"
       consulta?: boolean
+      /** Igual que en INVOICES: solo viaja cuando es false. */
+      includeTotals?: boolean
     }) => {
       const qs = new URLSearchParams()
       if (params.isIssued != null) qs.set("isIssued", String(params.isIssued))
@@ -357,6 +366,7 @@ export const API_ROUTES = {
       qs.set("take", String(params.take ?? 100))
       if (params.sortBy) qs.set("sortBy", params.sortBy)
       if (params.sortDir) qs.set("sortDir", params.sortDir)
+      if (params.includeTotals === false) qs.set("includeTotals", "false")
       return `/${params.declarationId}${params.consulta ? "/consulta" : ""}/invoices/retenciones?${qs.toString()}`
     },
     GENERAL: (declarationId: number, consulta = false) =>

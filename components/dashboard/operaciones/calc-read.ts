@@ -14,11 +14,21 @@ export const norm = (s: string) =>
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '')
 
+/**
+ * Índices ya calculados, por objeto. El JSON de cálculos no se muta después de
+ * llegar, así que el índice de un objeto se puede reutilizar entre renders en vez
+ * de reconstruir un `Map` en cada `pick`.
+ */
+const INDEX_CACHE = new WeakMap<object, Map<string, unknown>>()
+
 /** Índice normalizado de las llaves del objeto, para buscar sin adivinar casing. */
 export function indexOf(obj: Json | null | undefined): Map<string, unknown> {
+  if (!obj) return new Map<string, unknown>()
+  const cached = INDEX_CACHE.get(obj)
+  if (cached) return cached
   const map = new Map<string, unknown>()
-  if (!obj) return map
   for (const [k, v] of Object.entries(obj)) map.set(norm(k), v)
+  INDEX_CACHE.set(obj, map)
   return map
 }
 

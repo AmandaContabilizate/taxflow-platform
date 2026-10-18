@@ -51,6 +51,12 @@ export async function getDeclarationInvoices(params: {
   esRetencion?: boolean;
   /** true = ruta espejo de solo consulta (claim Contador.ConsultaDeclaraciones). */
   consulta?: boolean;
+  /**
+   * `false` = el back no calcula `totales`/`cuadre` (vienen null): sirve para las
+   * páginas siguientes cuando la pantalla ya tiene los totales de ese filtro, y para
+   * la llamada de conteo (`take=1`) que solo usa `total`. Omitido = true en el back.
+   */
+  includeTotals?: boolean;
 }): Promise<Result<PagedConTotales<DeclarationInvoice>, OpsError>> {
   const {
     declarationId,
@@ -64,6 +70,7 @@ export async function getDeclarationInvoices(params: {
     includeConcepts,
     esRetencion,
     consulta,
+    includeTotals,
   } = params;
   if (!declarationId || declarationId <= 0) {
     return err({ statusCode: 400, message: "Declaración inválida." });
@@ -90,6 +97,7 @@ export async function getDeclarationInvoices(params: {
         includeConcepts,
         esRetencion,
         consulta,
+        includeTotals,
       }),
       "declarations_reports",
     );

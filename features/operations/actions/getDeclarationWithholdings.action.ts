@@ -48,9 +48,20 @@ export async function getDeclarationWithholdings(params: {
   sortDir?: InvoiceSortDir;
   /** true = ruta espejo de solo consulta (claim Contador.ConsultaDeclaraciones). */
   consulta?: boolean;
+  /** `false` = sin `totales` (ver `getDeclarationInvoices`). Omitido = true en el back. */
+  includeTotals?: boolean;
 }): Promise<Result<PagedConTotales<DeclarationInvoice>, OpsError>> {
-  const { declarationId, isIssued, clasificada, skip = 0, take = 100, sortBy, sortDir, consulta } =
-    params;
+  const {
+    declarationId,
+    isIssued,
+    clasificada,
+    skip = 0,
+    take = 100,
+    sortBy,
+    sortDir,
+    consulta,
+    includeTotals,
+  } = params;
   if (!declarationId || declarationId <= 0) {
     return err({ statusCode: 400, message: "Declaración inválida." });
   }
@@ -70,6 +81,7 @@ export async function getDeclarationWithholdings(params: {
         sortBy,
         sortDir,
         consulta,
+        includeTotals,
       }),
       "declarations_reports",
     );

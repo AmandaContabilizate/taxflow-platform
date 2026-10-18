@@ -13,6 +13,7 @@ import { FloatingContadorButton } from './FloatingContadorButton'
 import { FloatingReferidosButton } from './FloatingReferidosButton'
 import { DISPLAY, TITLES, normalizeRole } from './constants'
 import { PermissionsProvider } from './permissions'
+import { DashboardQueryProvider } from './query-provider'
 import { Sidebar } from './sidebar'
 import type { DashboardProps, Screen } from './types'
 import { useUrlState } from './url-state'
@@ -171,6 +172,7 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
   };
 
   return (
+    <DashboardQueryProvider>
     <PermissionsProvider permissions={permissions}>
     <RfcProvider>
       <div
@@ -276,6 +278,7 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
       </div>
     </RfcProvider>
     </PermissionsProvider>
+    </DashboardQueryProvider>
   );
 }
 

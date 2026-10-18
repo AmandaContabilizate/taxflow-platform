@@ -33,10 +33,6 @@ export async function getDeclarationCalculations(
       endpoint,
       "declarations_reports",
     );
-    console.log(
-      "[getDeclarationCalculations] respuesta:",
-      JSON.stringify(data),
-    );
     return ok(data);
   } catch (e) {
     if (e instanceof ApiError) {

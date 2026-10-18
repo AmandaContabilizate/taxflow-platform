@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { recalculateDeclaration } from '../actions/recalculateDeclaration.action'
 import type { ClassificationAdjustment, RecalcScopeState, RecalculationResult } from '../types'
 
@@ -21,6 +21,11 @@ interface Target {
  * Estado del botón "Recalcular". El cálculo baja y parsea los XML del blob, así
  * que puede tardar minutos: se lleva un contador de segundos para que el spinner
  * no parezca colgado.
+ *
+ * El contador NO vive aquí como estado: este hook lo usa el detalle completo y
+ * cada tick re-renderizaba la pantalla entera (con la pestaña Recálculo y todas sus
+ * filas). Se expone `startedAt` y `<RecalcSeconds>` lleva el intervalo en su propio
+ * componente; lo único que se repinta cada segundo es ese número.
  */
 export function useRecalculation(
   target: Target,
@@ -28,11 +33,10 @@ export function useRecalculation(
   onSuccess?: (result: RecalculationResult) => void,
 ) {
   const [running, setRunning] = useState(false)
+  /** Instante en que arrancó la corrida en curso (ms). `null` si nunca ha corrido. */
+  const [startedAt, setStartedAt] = useState<number | null>(null)
   const [result, setResult] = useState<RecalculationResult | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [seconds, setSeconds] = useState(0)
-  /** Sube en cada recálculo exitoso: las listas que dependen del cálculo se recargan. */
-  const [version, setVersion] = useState(0)
   const runningRef = useRef(false)
   // Ajustes pendientes y su alcance, por UUID. Viven aquí y no en la pestaña: la pestaña se
   // desmonta al cambiar de tab y el contador perdía lo que había corregido sin mandarlo.
@@ -54,13 +58,6 @@ export function useRecalculation(
 
   const ready = Boolean(target.rfc && target.periodValueId && target.regimeSatCode)
 
-  useEffect(() => {
-    if (!running) return
-    setSeconds(0)
-    const id = setInterval(() => setSeconds((s) => s + 1), 1000)
-    return () => clearInterval(id)
-  }, [running])
-
   const run = useCallback(
     async (adjustments: ClassificationAdjustment[] = []) => {
       if (runningRef.current) return
@@ -70,6 +67,7 @@ export function useRecalculation(
       }
 
       runningRef.current = true
+      setStartedAt(Date.now())
       setRunning(true)
       setError(null)
 
@@ -87,7 +85,6 @@ export function useRecalculation(
         })
         if (res.success) {
           setResult(res.value)
-          setVersion((v) => v + 1)
           // Solo dejan de estar pendientes los ajustes que el back confirmó. El recálculo sin
           // ajustes (botón del encabezado) ya no borra lo que el contador tenía por mandar.
           const applied = new Set(res.value.appliedAdjustments.map((u) => u.toUpperCase()))
@@ -113,19 +110,22 @@ export function useRecalculation(
     [ready, target.declarationId, target.rfc, target.fiscalYear, target.periodValueId, target.regimeSatCode],
   )
 
-  return {
-    running,
-    seconds,
-    result,
-    error,
-    version,
-    ready,
-    run,
-    adjustments,
-    setAdjustments,
-    scopeByUuid,
-    setScopeByUuid,
-  }
+  // Identidad estable: `RecalculoTab` va con `React.memo` y recibe este objeto entero.
+  return useMemo(
+    () => ({
+      running,
+      startedAt,
+      result,
+      error,
+      ready,
+      run,
+      adjustments,
+      setAdjustments,
+      scopeByUuid,
+      setScopeByUuid,
+    }),
+    [running, startedAt, result, error, ready, run, adjustments, scopeByUuid],
+  )
 }
 
 export type Recalculation = ReturnType<typeof useRecalculation>

@@ -1,10 +1,9 @@
 'use client'
 
 import { Download, Loader2 } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
-import { canRunDeclarationDownload } from '@/features/declarations/actions/canRunDeclarationDownload.action'
+import { memo, useEffect, useState } from 'react'
 import { runDeclarationDownload } from '@/features/declarations/actions/runDeclarationDownload.action'
-import type { CanRunDeclarationDownload } from '@/features/declarations/types'
+import { useDownloadCanRun } from '@/features/declarations/hooks/useDeclarationQueries'
 import { useHasPermission } from '../permissions'
 
 interface Props {
@@ -53,47 +52,43 @@ function ventanaLabel(iso: string): string {
  * Botón "Descargar archivos SAT" del detalle de declaración (contador). Re-encola la descarga de
  * los 4 tipos de archivo del periodo. Reglas (todas del backend, aquí solo se pinta el estado):
  * declaración mensual, periodo ya cerrado, CIEC válida, máximo 1 corrida por día calendario (MX).
- * Sin el claim `Contador.RunDeclarationDownload` no se pinta nada.
+ * Sin el claim `Contador.RunDeclarationDownload` no se pinta nada (ni se consulta).
  */
-export function DescargarArchivosSatBtn({ declarationId, onEncolada }: Props) {
+export const DescargarArchivosSatBtn = memo(function DescargarArchivosSatBtn({ declarationId, onEncolada }: Props) {
   const puede = useHasPermission('Contador.RunDeclarationDownload')
-  const [canRun, setCanRun] = useState<CanRunDeclarationDownload | null>(null)
-  const [loading, setLoading] = useState(true)
+  // `puede-ejecutar` sale al montar, sin esperar a /general; se vuelve a consultar
+  // después de cada intento de encolar, como antes.
+  const canRunQ = useDownloadCanRun(declarationId, puede)
   const [running, setRunning] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  const check = useCallback(async () => {
-    const res = await canRunDeclarationDownload(declarationId)
-    setCanRun(res.success ? res.value : null)
-    if (!res.success) setError(res.error.message)
-    setLoading(false)
-  }, [declarationId])
+  const [runError, setRunError] = useState<string | null>(null)
 
   useEffect(() => {
-    setLoading(true)
     setNotice(null)
-    setError(null)
-    void check()
-  }, [check])
+    setRunError(null)
+  }, [declarationId])
 
   if (!puede) return null
+
+  const loading = canRunQ.isPending
+  const canRun = canRunQ.isError ? null : (canRunQ.data ?? null)
+  const error = runError ?? (canRunQ.isError ? canRunQ.error.message : null)
 
   async function ejecutar() {
     if (running || !canRun?.puedeDescargar) return
     setRunning(true)
     setNotice(null)
-    setError(null)
+    setRunError(null)
     const res = await runDeclarationDownload(declarationId)
     setRunning(false)
     if (!res.success) {
-      setError(res.error.message)
-      await check()
+      setRunError(res.error.message)
+      await canRunQ.refetch()
       return
     }
     setNotice('Descarga encolada — los archivos llegan en unos minutos.')
     onEncolada?.()
-    await check()
+    await canRunQ.refetch()
   }
 
   // Precedencia del motivo de bloqueo (espejo de tab-diagnostico.razon). La ventana del día 7
@@ -133,4 +128,4 @@ export function DescargarArchivosSatBtn({ declarationId, onEncolada }: Props) {
       )}
     </div>
   )
-}
+})

@@ -19,7 +19,12 @@ export type ColumnKey =
   | 'regimenReceptor'
   | 'usoCfdi'
 
-export const COLUMN_DEFS: { key: ColumnKey; label: string }[] = [
+export interface ColumnDef {
+  key: ColumnKey
+  label: string
+}
+
+export const COLUMN_DEFS: ColumnDef[] = [
   { key: 'tipo', label: 'Tipo' },
   { key: 'comprobante', label: 'Comprobante' },
   { key: 'emisor', label: 'Emisor' },

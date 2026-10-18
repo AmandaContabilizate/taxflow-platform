@@ -1,9 +1,8 @@
 'use client'
 
 import { Loader2 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
-import { getDeclarationCalculations } from '@/features/operations/actions/getDeclarationCalculations.action'
-import type { DeclarationCalculations } from '@/features/operations/types'
+import { memo, useCallback, useMemo, useState } from 'react'
+import { useDeclarationCalculations } from '@/features/declarations/hooks/useDeclarationQueries'
 import { DISPLAY, MONO } from '../constants'
 import { Card } from '../ui'
 import { type Json, money, percent, pick, subObject, toNumber } from './calc-read'
@@ -312,7 +311,7 @@ function ServiceTabBar({
   )
 }
 
-function RowList({
+const RowList = memo(function RowList({
   rows,
   data,
   drafts,
@@ -325,11 +324,22 @@ function RowList({
   setDraft: (id: string, v: string) => void
   readOnly?: boolean
 }) {
+  // La lectura tolerante (`pick`) solo se rehace cuando cambian las filas o el JSON,
+  // no en cada tecla de un borrador.
+  const values = useMemo(
+    () =>
+      rows.map((row) => {
+        const raw = toNumber(pick(data, row.keys))
+        const value = raw == null ? '—' : row.kind === 'percent' ? percent(raw) : money(raw)
+        return { raw, value }
+      }),
+    [rows, data],
+  )
+
   return (
     <div>
       {rows.map((row, i) => {
-        const raw = toNumber(pick(data, row.keys))
-        const value = raw == null ? '—' : row.kind === 'percent' ? percent(raw) : money(raw)
+        const { raw, value } = values[i]
         return (
           <ValueRow
             key={row.id}
@@ -345,18 +355,17 @@ function RowList({
       })}
     </div>
   )
-}
+})
 
 /* -------------------------------------------------------------------------- */
 /*  Tab principal                                                              */
 /* -------------------------------------------------------------------------- */
 
-export function CalculosTab({
+export const CalculosTab = memo(function CalculosTab({
   declarationId,
   readOnly,
   regimeSatCode,
   consulta = false,
-  refreshKey = 0,
 }: {
   declarationId: number
   readOnly?: boolean
@@ -364,37 +373,20 @@ export function CalculosTab({
   regimeSatCode?: string | null
   /** true = perfil de solo consulta: usa la ruta espejo bajo Contador.ConsultaDeclaraciones. */
   consulta?: boolean
-  /** Sube cuando el detalle recarga la declaración (recálculo, reapertura…): vuelve a pedir los cálculos. */
-  refreshKey?: number
 }) {
-  const [calc, setCalc] = useState<DeclarationCalculations | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // Misma entrada de caché que Clasificación y Reporte Cliente; se invalida cuando el
+  // detalle recarga la declaración (recálculo, reapertura…).
+  const calcQ = useDeclarationCalculations(declarationId, consulta)
+  const calc = calcQ.data ?? null
+  const loading = calcQ.isPending
   // El back responde DECLARATION_NOT_FOUND cuando no hay DeclarationSummary: la declaración
   // existe pero nunca se ha calculado. No es un error del enlace.
-  const [sinCalculos, setSinCalculos] = useState(false)
+  const sinCalculos = calcQ.isError && calcQ.error.code === 'DECLARATION_NOT_FOUND'
+  const error = calcQ.isError && !sinCalculos ? calcQ.error.message : null
   const [isrTab, setIsrTab] = useState(0)
   const [drafts, setDrafts] = useState<Record<string, string>>({})
 
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    setSinCalculos(false)
-    void (async () => {
-      const res = await getDeclarationCalculations(declarationId, consulta)
-      if (cancelled) return
-      if (res.success) setCalc(res.value)
-      else if (res.error.code === 'DECLARATION_NOT_FOUND') setSinCalculos(true)
-      else setError(res.error.message)
-      setLoading(false)
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [declarationId, consulta, refreshKey])
-
-  const setDraft = (id: string, v: string) => setDrafts((prev) => ({ ...prev, [id]: v }))
+  const setDraft = useCallback((id: string, v: string) => setDrafts((prev) => ({ ...prev, [id]: v })), [])
 
   const iva = (calc?.iva ?? null) as Json | null
   const isr = (calc?.isr ?? null) as Json | null
@@ -405,7 +397,7 @@ export function CalculosTab({
   const rawMonth = pick(isr, ['nameMonth'])
   const nameMonth = typeof rawMonth === 'string' && rawMonth.trim() ? rawMonth : null
   const activeIsr = ISR_TABS[isrTab]
-  const isrSection = subObject(isr, activeIsr.section)
+  const isrSection = useMemo(() => subObject(isr, activeIsr.section), [isr, activeIsr])
 
   // El back guarda `ivaModality`/`ivaDefinitiva` DENTRO de `iva`. Cualquier valor
   // distinto de "definitiva" (incluida su ausencia, declaraciones ya guardadas)
@@ -418,7 +410,10 @@ export function CalculosTab({
       ? (ivaDefinitivaRaw as Json)
       : null
   const activeIvaDefinitiva = IVA_DEFINITIVA_TABS[isrTab]
-  const ivaDefinitivaSection = subObject(ivaDefinitiva, activeIvaDefinitiva.section)
+  const ivaDefinitivaSection = useMemo(
+    () => subObject(ivaDefinitiva, activeIvaDefinitiva.section),
+    [ivaDefinitiva, activeIvaDefinitiva],
+  )
 
   // El objeto `iva` no trae los ingresos del periodo; viven en la raíz de `isr`
   // (totalIncomes / totalForIntermediaries / totalForUsers). Se fusionan para
@@ -432,6 +427,8 @@ export function CalculosTab({
       ...(iva ?? {}),
     }
   }, [iva, isr])
+
+  const isr626 = useMemo(() => (is626 ? isr626Rows(isr) : []), [is626, isr])
 
   if (loading) {
     return (
@@ -503,7 +500,7 @@ export function CalculosTab({
           {/* ISR · RESICO (626): tarifa única, sin las sub-tabs del 625. */}
           <Card>
             <PanelHeader title="ISR" subtitle={nameMonth} />
-            <RowList rows={isr626Rows(isr)} data={isr} drafts={drafts} setDraft={setDraft} readOnly />
+            <RowList rows={isr626} data={isr} drafts={drafts} setDraft={setDraft} readOnly />
           </Card>
         </div>
       ) : (
@@ -532,4 +529,4 @@ export function CalculosTab({
       )}
     </div>
   )
-}
+})

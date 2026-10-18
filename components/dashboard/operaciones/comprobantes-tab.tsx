@@ -12,10 +12,14 @@ import {
   Loader2,
   Search,
 } from 'lucide-react'
-import { type ReactNode, useEffect, useMemo, useState } from 'react'
+import { type ReactNode, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import type { InvoiceFilterKey, WithholdingFilterKey } from '@/features/declarations/hooks/declarationQueryKeys'
+import {
+  useDeclarationInvoices,
+  useDeclarationWithholdings,
+} from '@/features/declarations/hooks/useDeclarationQueries'
 import { getDeclarationInvoices } from '@/features/operations/actions/getDeclarationInvoices.action'
-import { getDeclarationWithholdings } from '@/features/operations/actions/getDeclarationWithholdings.action'
 import type {
   DeclarationInvoice,
   DeclarationInvoiceConcepto,
@@ -29,10 +33,13 @@ import { Pagination } from '../clientes/parts'
 import { MONO } from '../constants'
 import { Card } from '../ui'
 import { useUrlState } from '../url-state'
-import { type ColumnKey, COLUMN_DEFS } from './column-defs'
+import { type ColumnKey, COLUMN_DEFS, type ColumnDef } from './column-defs'
 import { ColumnsModal, FilterSelect } from './filter-columns'
 
 const TAKE = 100
+
+/** Página vacía con identidad estable (no se reconstruye en cada render). */
+const EMPTY_PAGE: PagedConTotales<DeclarationInvoice> = { items: [], total: 0, skip: 0, take: TAKE }
 
 /**
  * Alto máximo del cuerpo de la tabla. El scroll vertical vive DENTRO de la
@@ -469,20 +476,207 @@ const REGIMEN_PLATAFORMAS = '625'
 const esEgreso = (inv: DeclarationInvoice) => inv.tipoComprobante === 'Egreso'
 const signo = (inv: DeclarationInvoice) => (esEgreso(inv) ? -1 : 1)
 
-export function ComprobantesTab({
+/* -------------------------------------------------------------------------- */
+/*  Filas (memoizadas: escribir en el buscador no las repinta)                */
+/* -------------------------------------------------------------------------- */
+
+const RetencionRow = memo(function RetencionRow({ inv }: { inv: DeclarationInvoice }) {
+  return (
+    <tr style={{ borderBottom: '1px solid var(--border)' }}>
+      <td className="px-3 py-3 whitespace-nowrap align-top" style={{ color: 'var(--ink-900)' }}>
+        {fmtDate(inv.invoiceDate)}
+      </td>
+      <td className="px-3 py-3 align-top">
+        <FolioCell inv={inv} />
+      </td>
+      <td className="px-3 py-3 align-top">
+        <Chip
+          bg={inv.isIssued ? 'var(--sky-soft)' : 'var(--ink-50)'}
+          fg={inv.isIssued ? 'var(--sky)' : 'var(--ink-700)'}
+        >
+          {inv.isIssued ? 'Emitida' : 'Recibida'}
+        </Chip>
+      </td>
+      <td className="px-3 py-3 align-top">
+        <div style={{ color: 'var(--ink-900)' }}>{inv.emitterName}</div>
+        <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-500)' }}>{inv.emitterRfc}</code>
+      </td>
+      <td className="px-3 py-3 align-top">
+        <div style={{ color: 'var(--ink-900)' }}>{inv.receiverName}</div>
+        <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-500)' }}>{inv.receivedRfc}</code>
+      </td>
+      <td className="px-3 py-3 align-top min-w-[260px]">
+        <div className="flex flex-col gap-2.5">
+          {(inv.retenciones ?? []).map((r, i) => (
+            <RetencionBlock key={`${inv.invoiceId}-${i}`} r={r} />
+          ))}
+        </div>
+      </td>
+      <td
+        className="px-3 py-3 whitespace-nowrap align-top font-semibold"
+        style={{ ...MONO, color: 'var(--ink-900)' }}
+      >
+        {money(inv.totalRetenido ?? null)}
+      </td>
+    </tr>
+  )
+})
+
+const InvoiceRow = memo(function InvoiceRow({
+  inv,
+  visibleColumns,
+  concepts,
+  conceptsLoading,
+  conceptsError,
+  onLoadConcepts,
+}: {
+  inv: DeclarationInvoice
+  visibleColumns: ColumnDef[]
+  concepts: DeclarationInvoiceConcepto[] | undefined
+  conceptsLoading: boolean
+  conceptsError: string | null
+  onLoadConcepts: (invoiceId: number) => void
+}) {
+  const desfasada = inv.esNomina && inv.fechaPagoNomina
+  return (
+    <tr
+      style={{
+        borderBottom: '1px solid var(--border)',
+        background: inv.esOtroRegimen || inv.esPpdSinComplemento ? 'var(--muted)' : undefined,
+      }}
+    >
+      <td className="px-3 py-3 whitespace-nowrap align-top">
+        <div style={{ color: 'var(--ink-900)' }}>{fmtDate(periodDate(inv))}</div>
+        {desfasada && (
+          <div className="text-[11px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
+            CFDI {fmtDate(inv.invoiceDate)}
+          </div>
+        )}
+      </td>
+      <td className="px-3 py-3 align-top">
+        <FolioCell inv={inv} />
+      </td>
+      {visibleColumns.map((col) => (
+        <td key={col.key} className="px-3 py-3 align-top">
+          {col.key === 'tipo' && (
+            <Chip
+              bg={inv.isIssued ? 'var(--sky-soft)' : 'var(--ink-50)'}
+              fg={inv.isIssued ? 'var(--sky)' : 'var(--ink-700)'}
+            >
+              {inv.isIssued ? 'Emitida' : 'Recibida'}
+            </Chip>
+          )}
+          {col.key === 'comprobante' && (
+            <div className="flex flex-col gap-1 items-start">
+              <span style={{ color: 'var(--ink-700)' }}>{inv.tipoComprobante}</span>
+              {inv.esNomina && (
+                <Chip bg="var(--violet-soft)" fg="var(--violet)">Nómina</Chip>
+              )}
+              {inv.isValid === false && (
+                <Chip
+                  bg="var(--coral-soft)"
+                  fg="var(--violet-ink)"
+                  title="La factura entró a esta declaración marcada como no válida"
+                >
+                  No válida
+                </Chip>
+              )}
+              {inv.isValid === true && (
+                <Chip
+                  bg="var(--muted)"
+                  fg="var(--ink-500)"
+                  title="Válida en el cálculo de esta declaración"
+                >
+                  Válida
+                </Chip>
+              )}
+            </div>
+          )}
+          {col.key === 'emisor' && (
+            <>
+              <div style={{ color: 'var(--ink-900)' }}>{inv.emitterName}</div>
+              <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-500)' }}>{inv.emitterRfc}</code>
+            </>
+          )}
+          {col.key === 'receptor' && (
+            <>
+              <div style={{ color: 'var(--ink-900)' }}>{inv.receiverName}</div>
+              <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-500)' }}>{inv.receivedRfc}</code>
+            </>
+          )}
+          {col.key === 'subtotal' && (
+            <span className="whitespace-nowrap" style={{ ...MONO, color: 'var(--ink-900)' }}>
+              {money(inv.subTotal)}
+            </span>
+          )}
+          {col.key === 'iva' && (
+            <span className="whitespace-nowrap font-semibold" style={{ ...MONO, color: 'var(--ink-900)' }}>
+              {money(inv.ivaAmount)}
+            </span>
+          )}
+          {col.key === 'total' && (
+            <div className="flex flex-col gap-1 items-start">
+              <span className="whitespace-nowrap font-semibold" style={{ ...MONO, color: 'var(--ink-900)' }}>
+                {money(inv.paidAmount ?? inv.total)}
+              </span>
+              {inv.paidAmount != null && (
+                <Chip
+                  bg="var(--violet-soft)"
+                  fg="var(--violet)"
+                  title="Importe del complemento de pago; el total del comprobante es 0 por regla del SAT"
+                >
+                  Pago
+                </Chip>
+              )}
+              {inv.invoiceTypeId === 4 && (
+                <FacturasPadre uuids={inv.parentInvoiceUuids} />
+              )}
+            </div>
+          )}
+          {col.key === 'metodoPago' && (
+            <CatalogCell name={inv.paymentMethodName} id={inv.paymentMethodId} />
+          )}
+          {col.key === 'formaPago' && (
+            <CatalogCell name={inv.wayOfPaymentName} id={inv.wayOfPaymentId} />
+          )}
+          {col.key === 'conceptos' && (
+            <ConceptosCell
+              resumen={inv.conceptosResumen}
+              count={inv.conceptosCount}
+              concepts={concepts}
+              loading={conceptsLoading}
+              error={conceptsError}
+              onOpen={() => onLoadConcepts(inv.invoiceId)}
+            />
+          )}
+          {col.key === 'clasificacion' && <ClasificacionCell inv={inv} />}
+          {col.key === 'regimenReceptor' && (
+            <CatalogCell name={inv.receiverRegimeName} id={inv.receiverRegimeCode} />
+          )}
+          {col.key === 'usoCfdi' && (
+            <CatalogCell name={inv.cfdiUsageName} id={inv.cfdiUsageCode ?? inv.cfdiUsageId} />
+          )}
+        </td>
+      ))}
+    </tr>
+  )
+})
+
+/* -------------------------------------------------------------------------- */
+/*  Pestaña                                                                   */
+/* -------------------------------------------------------------------------- */
+
+export const ComprobantesTab = memo(function ComprobantesTab({
   declarationId,
   periodo,
   regimeSatCode,
   consulta = false,
-  refreshKey = 0,
 }: {
   declarationId: number
   periodo: string
   regimeSatCode?: string | null
   /** true = perfil de solo consulta: usa la ruta espejo bajo Contador.ConsultaDeclaraciones. */
   consulta?: boolean
-  /** Sube cuando el detalle recarga la declaración (p. ej. tras recalcular): la clasificación pudo cambiar. */
-  refreshKey?: number
 }) {
   const { params, setParams } = useUrlState()
 
@@ -492,14 +686,8 @@ export function ComprobantesTab({
   // sub-pestaña decía "(0)". En el 625 pasaba siempre que el periodo rebasaba el
   // take, porque la constancia de un mes se timbra al inicio del siguiente y es
   // la fecha más alta del periodo.
-  const [page, setPage] = useState<PagedConTotales<DeclarationInvoice>>({ items: [], total: 0, skip: 0, take: TAKE })
   const [skip, setSkip] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [retPage, setRetPage] = useState<PagedConTotales<DeclarationInvoice>>({ items: [], total: 0, skip: 0, take: TAKE })
   const [retSkip, setRetSkip] = useState(0)
-  const [retLoading, setRetLoading] = useState(true)
-  const [retError, setRetError] = useState<string | null>(null)
   const [subTab, setSubTab] = useState(0)
   const [query, setQuery] = useState('')
   // '' = sin filtro (el EP los trae todos cuando el query param se omite).
@@ -542,48 +730,63 @@ export function ComprobantesTab({
     if (tipo === '2') set.add('iva')
     return set
   }, [selectedCols, tipo])
-  const visibleColumns = COLUMN_DEFS.filter((d) => effectiveColSet.has(d.key))
+  const visibleColumns = useMemo(() => COLUMN_DEFS.filter((d) => effectiveColSet.has(d.key)), [effectiveColSet])
+
+  // Filtros del EP (sin paginación): son la clave de caché de cada universo. Cambiar
+  // uno reinicia la página de los DOS (ver `onFilter`), porque el `total` cambia en ambos.
+  const invoiceFilters = useMemo<InvoiceFilterKey>(
+    () => ({
+      isIssued: origen === '' ? null : origen === 'true',
+      invoiceTypeId: tipo === '' ? null : Number(tipo),
+      clasificada: clasificada === '' ? null : clasificada === 'true',
+      sortBy,
+      sortDir,
+    }),
+    [origen, tipo, clasificada, sortBy, sortDir],
+  )
+  // Las constancias van por su propio endpoint. `tipo` NO entra: los CFDI de
+  // retención no tienen TipoDeComprobante, así que ese filtro no les aplica y
+  // volver a pedirlas al cambiarlo sería una llamada de más.
+  const retFilters = useMemo<WithholdingFilterKey>(
+    () => ({
+      isIssued: origen === '' ? null : origen === 'true',
+      clasificada: clasificada === '' ? null : clasificada === 'true',
+      sortBy,
+      sortDir,
+    }),
+    [origen, clasificada, sortBy, sortDir],
+  )
+
+  // Cada página es una entrada de caché; volver a la pestaña no vuelve a pedirla
+  // mientras esté fresca. Las páginas siguientes se piden sin `totales` cuando los
+  // de este filtro ya llegaron (`cachedTotales`); la franja los sigue usando.
+  const { query: invQ, cachedTotales } = useDeclarationInvoices(declarationId, consulta, invoiceFilters, skip)
+  const { query: retQ, cachedTotales: cachedRetTotales } = useDeclarationWithholdings(
+    declarationId,
+    consulta,
+    retFilters,
+    retSkip,
+  )
+  const page = invQ.isError ? EMPTY_PAGE : (invQ.data ?? EMPTY_PAGE)
+  const loading = invQ.isPending
+  const error = invQ.error?.message ?? null
+  const retPage = retQ.isError ? EMPTY_PAGE : (retQ.data ?? EMPTY_PAGE)
+  const retLoading = retQ.isPending
+  const retError = retQ.error?.message ?? null
 
   // Conceptos completos: solo se piden bajo demanda (`includeConcepts=true`),
   // cacheados por invoiceId para no repetir la llamada al reabrir el popover.
   const [conceptsCache, setConceptsCache] = useState<Record<number, DeclarationInvoiceConcepto[]>>({})
+  const conceptsCacheRef = useRef(conceptsCache)
+  conceptsCacheRef.current = conceptsCache
   const [conceptsLoadingId, setConceptsLoadingId] = useState<number | null>(null)
   const [conceptsError, setConceptsError] = useState<string | null>(null)
 
-  const loadConcepts = async (invoiceId: number) => {
-    if (conceptsCache[invoiceId]) return
-    setConceptsLoadingId(invoiceId)
-    setConceptsError(null)
-    const res = await getDeclarationInvoices({
-      declarationId,
-      isIssued: origen === '' ? undefined : origen === 'true',
-      invoiceTypeId: tipo === '' ? undefined : Number(tipo),
-      clasificada: clasificada === '' ? undefined : clasificada === 'true',
-      skip,
-      take: TAKE,
-      sortBy,
-      sortDir,
-      includeConcepts: true,
-      esRetencion: false,
-      consulta,
-    })
-    if (res.success) {
-      setConceptsCache((prev) => {
-        const next = { ...prev }
-        for (const it of res.value.items) if (it.conceptos) next[it.invoiceId] = it.conceptos
-        return next
-      })
-    } else {
-      setConceptsError(res.error.message)
-    }
-    setConceptsLoadingId(null)
-  }
-
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    void (async () => {
+  const loadConcepts = useCallback(
+    async (invoiceId: number) => {
+      if (conceptsCacheRef.current[invoiceId]) return
+      setConceptsLoadingId(invoiceId)
+      setConceptsError(null)
       const res = await getDeclarationInvoices({
         declarationId,
         isIssued: origen === '' ? undefined : origen === 'true',
@@ -593,52 +796,24 @@ export function ComprobantesTab({
         take: TAKE,
         sortBy,
         sortDir,
+        includeConcepts: true,
         esRetencion: false,
         consulta,
       })
-      if (cancelled) return
-      if (res.success) setPage(res.value)
-      else {
-        setError(res.error.message)
-        setPage({ items: [], total: 0, skip: 0, take: TAKE })
+      if (res.success) {
+        setConceptsCache((prev) => {
+          const next = { ...prev }
+          for (const it of res.value.items) if (it.conceptos) next[it.invoiceId] = it.conceptos
+          return next
+        })
+      } else {
+        setConceptsError(res.error.message)
       }
-      setLoading(false)
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [declarationId, skip, origen, tipo, clasificada, sortBy, sortDir, consulta, refreshKey])
-
-  // Las constancias van por su propio endpoint. `tipo` NO entra en las
-  // dependencias: los CFDI de retención no tienen TipoDeComprobante, así que ese
-  // filtro no les aplica y volver a pedirlas al cambiarlo sería una llamada de más.
-  useEffect(() => {
-    let cancelled = false
-    setRetLoading(true)
-    setRetError(null)
-    void (async () => {
-      const res = await getDeclarationWithholdings({
-        declarationId,
-        isIssued: origen === '' ? undefined : origen === 'true',
-        clasificada: clasificada === '' ? undefined : clasificada === 'true',
-        skip: retSkip,
-        take: TAKE,
-        sortBy,
-        sortDir,
-        consulta,
-      })
-      if (cancelled) return
-      if (res.success) setRetPage(res.value)
-      else {
-        setRetError(res.error.message)
-        setRetPage({ items: [], total: 0, skip: 0, take: TAKE })
-      }
-      setRetLoading(false)
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [declarationId, retSkip, origen, clasificada, sortBy, sortDir, consulta, refreshKey])
+      setConceptsLoadingId(null)
+    },
+    [declarationId, origen, tipo, clasificada, skip, sortBy, sortDir, consulta],
+  )
+  const onLoadConcepts = useCallback((invoiceId: number) => void loadConcepts(invoiceId), [loadConcepts])
 
   // Cambiar un filtro reinicia la paginación de los DOS universos: el `total` del
   // backend cambia en ambos.
@@ -673,6 +848,11 @@ export function ComprobantesTab({
     ? { page: retPage, skip: retSkip, setSkip: setRetSkip, loading: retLoading, error: retError }
     : { page, skip, setSkip, loading, error }
 
+  // Totales del periodo de la vista activa: los de esta página o, si se pidió sin
+  // ellos (página siguiente), los que ya llegaron para el mismo filtro. Solo cuando
+  // el back de verdad no los mandó la franja cae a la página (en ámbar).
+  const totalesPeriodo = vista.page.totales ?? (enRetenciones ? cachedRetTotales : cachedTotales)
+
   // El aviso sale del `total` que devuelve el endpoint de retenciones, NO de las
   // filas cargadas: atado a una página afirmaba "no llegó la constancia" cuando
   // simplemente estaba en la página 2, y encima con los ingresos ya calculados
@@ -687,7 +867,7 @@ export function ComprobantesTab({
     // Subtotal y Total salen del universo del PERIODO que calcula el backend, no de
     // la página: antes se sumaba `visibles` (≤ TAKE filas, y encima ya filtradas por
     // el buscador), así que la franja no servía para cuadrar contra Ingresos Brutos.
-    const periodo = vista.page.totales
+    const periodo = totalesPeriodo
     return {
       subTotal: periodo ? periodo.subTotal : visibles.reduce((acc, i) => acc + signo(i) * toNumber(i.subTotal), 0),
       total: periodo ? periodo.total : visibles.reduce((acc, i) => acc + signo(i) * toNumber(i.total), 0),
@@ -706,7 +886,7 @@ export function ComprobantesTab({
       iva: ivaResueltos.reduce((acc, i) => acc + toNumber(i.ivaAmount), 0),
       ivaResuelto: ivaResueltos.length > 0,
     }
-  }, [visibles, vista.page.totales])
+  }, [visibles, totalesPeriodo])
 
   const totalPages = Math.max(1, Math.ceil(vista.page.total / TAKE))
   const currentPage = Math.floor(vista.skip / TAKE) + 1
@@ -887,43 +1067,7 @@ export function ComprobantesTab({
                 </thead>
                 <tbody>
                   {visibles.map((inv) => (
-                    <tr key={inv.invoiceId} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td className="px-3 py-3 whitespace-nowrap align-top" style={{ color: 'var(--ink-900)' }}>
-                        {fmtDate(inv.invoiceDate)}
-                      </td>
-                      <td className="px-3 py-3 align-top">
-                        <FolioCell inv={inv} />
-                      </td>
-                      <td className="px-3 py-3 align-top">
-                        <Chip
-                          bg={inv.isIssued ? 'var(--sky-soft)' : 'var(--ink-50)'}
-                          fg={inv.isIssued ? 'var(--sky)' : 'var(--ink-700)'}
-                        >
-                          {inv.isIssued ? 'Emitida' : 'Recibida'}
-                        </Chip>
-                      </td>
-                      <td className="px-3 py-3 align-top">
-                        <div style={{ color: 'var(--ink-900)' }}>{inv.emitterName}</div>
-                        <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-500)' }}>{inv.emitterRfc}</code>
-                      </td>
-                      <td className="px-3 py-3 align-top">
-                        <div style={{ color: 'var(--ink-900)' }}>{inv.receiverName}</div>
-                        <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-500)' }}>{inv.receivedRfc}</code>
-                      </td>
-                      <td className="px-3 py-3 align-top min-w-[260px]">
-                        <div className="flex flex-col gap-2.5">
-                          {(inv.retenciones ?? []).map((r, i) => (
-                            <RetencionBlock key={`${inv.invoiceId}-${i}`} r={r} />
-                          ))}
-                        </div>
-                      </td>
-                      <td
-                        className="px-3 py-3 whitespace-nowrap align-top font-semibold"
-                        style={{ ...MONO, color: 'var(--ink-900)' }}
-                      >
-                        {money(inv.totalRetenido ?? null)}
-                      </td>
-                    </tr>
+                    <RetencionRow key={inv.invoiceId} inv={inv} />
                   ))}
                 </tbody>
               </table>
@@ -1020,132 +1164,17 @@ export function ComprobantesTab({
                   </tr>
                 </thead>
                 <tbody>
-                  {visibles.map((inv) => {
-                    const desfasada = inv.esNomina && inv.fechaPagoNomina
-                    return (
-                      <tr
-                        key={inv.invoiceId}
-                        style={{
-                          borderBottom: '1px solid var(--border)',
-                          background: inv.esOtroRegimen || inv.esPpdSinComplemento ? 'var(--muted)' : undefined,
-                        }}
-                      >
-                        <td className="px-3 py-3 whitespace-nowrap align-top">
-                          <div style={{ color: 'var(--ink-900)' }}>{fmtDate(periodDate(inv))}</div>
-                          {desfasada && (
-                            <div className="text-[11px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
-                              CFDI {fmtDate(inv.invoiceDate)}
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-3 py-3 align-top">
-                          <FolioCell inv={inv} />
-                        </td>
-                        {visibleColumns.map((col) => (
-                          <td key={col.key} className="px-3 py-3 align-top">
-                            {col.key === 'tipo' && (
-                              <Chip
-                                bg={inv.isIssued ? 'var(--sky-soft)' : 'var(--ink-50)'}
-                                fg={inv.isIssued ? 'var(--sky)' : 'var(--ink-700)'}
-                              >
-                                {inv.isIssued ? 'Emitida' : 'Recibida'}
-                              </Chip>
-                            )}
-                            {col.key === 'comprobante' && (
-                              <div className="flex flex-col gap-1 items-start">
-                                <span style={{ color: 'var(--ink-700)' }}>{inv.tipoComprobante}</span>
-                                {inv.esNomina && (
-                                  <Chip bg="var(--violet-soft)" fg="var(--violet)">Nómina</Chip>
-                                )}
-                                {inv.isValid === false && (
-                                  <Chip
-                                    bg="var(--coral-soft)"
-                                    fg="var(--violet-ink)"
-                                    title="La factura entró a esta declaración marcada como no válida"
-                                  >
-                                    No válida
-                                  </Chip>
-                                )}
-                                {inv.isValid === true && (
-                                  <Chip
-                                    bg="var(--muted)"
-                                    fg="var(--ink-500)"
-                                    title="Válida en el cálculo de esta declaración"
-                                  >
-                                    Válida
-                                  </Chip>
-                                )}
-                              </div>
-                            )}
-                            {col.key === 'emisor' && (
-                              <>
-                                <div style={{ color: 'var(--ink-900)' }}>{inv.emitterName}</div>
-                                <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-500)' }}>{inv.emitterRfc}</code>
-                              </>
-                            )}
-                            {col.key === 'receptor' && (
-                              <>
-                                <div style={{ color: 'var(--ink-900)' }}>{inv.receiverName}</div>
-                                <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-500)' }}>{inv.receivedRfc}</code>
-                              </>
-                            )}
-                            {col.key === 'subtotal' && (
-                              <span className="whitespace-nowrap" style={{ ...MONO, color: 'var(--ink-900)' }}>
-                                {money(inv.subTotal)}
-                              </span>
-                            )}
-                            {col.key === 'iva' && (
-                              <span className="whitespace-nowrap font-semibold" style={{ ...MONO, color: 'var(--ink-900)' }}>
-                                {money(inv.ivaAmount)}
-                              </span>
-                            )}
-                            {col.key === 'total' && (
-                              <div className="flex flex-col gap-1 items-start">
-                                <span className="whitespace-nowrap font-semibold" style={{ ...MONO, color: 'var(--ink-900)' }}>
-                                  {money(inv.paidAmount ?? inv.total)}
-                                </span>
-                                {inv.paidAmount != null && (
-                                  <Chip
-                                    bg="var(--violet-soft)"
-                                    fg="var(--violet)"
-                                    title="Importe del complemento de pago; el total del comprobante es 0 por regla del SAT"
-                                  >
-                                    Pago
-                                  </Chip>
-                                )}
-                                {inv.invoiceTypeId === 4 && (
-                                  <FacturasPadre uuids={inv.parentInvoiceUuids} />
-                                )}
-                              </div>
-                            )}
-                            {col.key === 'metodoPago' && (
-                              <CatalogCell name={inv.paymentMethodName} id={inv.paymentMethodId} />
-                            )}
-                            {col.key === 'formaPago' && (
-                              <CatalogCell name={inv.wayOfPaymentName} id={inv.wayOfPaymentId} />
-                            )}
-                            {col.key === 'conceptos' && (
-                              <ConceptosCell
-                                resumen={inv.conceptosResumen}
-                                count={inv.conceptosCount}
-                                concepts={conceptsCache[inv.invoiceId]}
-                                loading={conceptsLoadingId === inv.invoiceId}
-                                error={conceptsError}
-                                onOpen={() => void loadConcepts(inv.invoiceId)}
-                              />
-                            )}
-                            {col.key === 'clasificacion' && <ClasificacionCell inv={inv} />}
-                            {col.key === 'regimenReceptor' && (
-                              <CatalogCell name={inv.receiverRegimeName} id={inv.receiverRegimeCode} />
-                            )}
-                            {col.key === 'usoCfdi' && (
-                              <CatalogCell name={inv.cfdiUsageName} id={inv.cfdiUsageCode ?? inv.cfdiUsageId} />
-                            )}
-                          </td>
-                        ))}
-                      </tr>
-                    )
-                  })}
+                  {visibles.map((inv) => (
+                    <InvoiceRow
+                      key={inv.invoiceId}
+                      inv={inv}
+                      visibleColumns={visibleColumns}
+                      concepts={conceptsCache[inv.invoiceId]}
+                      conceptsLoading={conceptsLoadingId === inv.invoiceId}
+                      conceptsError={conceptsError}
+                      onLoadConcepts={onLoadConcepts}
+                    />
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -1176,7 +1205,7 @@ export function ComprobantesTab({
       />
     </Card>
   )
-}
+})
 
 /**
  * Por qué el Subtotal de la franja no iguala Ingresos Brutos del encabezado. El listado es más
