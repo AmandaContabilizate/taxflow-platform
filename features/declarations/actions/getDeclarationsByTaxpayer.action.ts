@@ -24,7 +24,7 @@ export async function getDeclarationsByTaxpayer(
 
   const {
     rfc, skip, take, kind, taxRegimeId, onlyUpcoming, upcomingExact, periodYear, periodMonth, statusId,
-    readiness, ciecState, presentacion,
+    readiness, ciecState, presentacion, includeReadinessCounts,
   } = parsed.data
 
   try {
@@ -43,10 +43,17 @@ export async function getDeclarationsByTaxpayer(
         readiness,
         ciecState,
         presentacion,
+        includeReadinessCounts,
       }),
       'declaration',
     )
-    return ok({ items: data?.items ?? [], total: data?.total ?? 0, skip, take })
+    return ok({
+      items: data?.items ?? [],
+      total: data?.total ?? 0,
+      skip,
+      take,
+      readinessCounts: data?.readinessCounts ?? null,
+    })
   } catch (e) {
     if (e instanceof ApiError) {
       return err({ statusCode: e.status, message: e.message, code: e.errorCode })

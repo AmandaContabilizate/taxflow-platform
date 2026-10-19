@@ -471,6 +471,14 @@ export interface PagedDeclarations<T> {
   total: number
   skip: number
   take: number
+  /** Conteo por nivel del semáforo sobre todo el universo filtrado; solo si se pidió `includeReadinessCounts`. */
+  readinessCounts?: ReadinessCounts | null
+}
+
+export interface ReadinessCounts {
+  ok: number
+  warning: number
+  blocked: number
 }
 
 /**

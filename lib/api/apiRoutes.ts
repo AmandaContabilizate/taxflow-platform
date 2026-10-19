@@ -43,6 +43,8 @@ interface TaxpayerListQuery {
   ciecState?: number
   /** Tipo de presentación: normal (ComplementNumber = 0) o complementaria (> 0). */
   presentacion?: "normal" | "complementaria"
+  /** Conteo por nivel del semáforo sobre todo el universo filtrado (solo declarations-by-taxpayer con `statusId: 11`). */
+  includeReadinessCounts?: boolean
 }
 
 export interface TaxpayerGroupsQuery extends TaxpayerListQuery {
@@ -70,6 +72,7 @@ function taxpayerListQuery(p: TaxpayerListQuery): URLSearchParams {
   if (p.readiness) qs.set("readiness", p.readiness)
   if (p.ciecState != null) qs.set("ciecState", String(p.ciecState))
   if (p.presentacion) qs.set("presentacion", p.presentacion)
+  if (p.includeReadinessCounts) qs.set("includeReadinessCounts", "true")
   return qs
 }
 
