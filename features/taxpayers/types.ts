@@ -116,6 +116,18 @@ export interface ExpedienteCliente {
   efirmas: Efirma[]
   /** Ventas pendientes de cobro (ligas del vendedor y checkouts a medias). */
   ventasAbiertas: ExpedienteVentaAbierta[]
+  /** Baja (ARCO): 1 activo, 2 baja (Soft), 3 baja definitiva (Hard). */
+  accountStatusId: AccountStatusId
+  deactivatedAt: string | null
+}
+
+/** Catalogs.AccountStatus. */
+export type AccountStatusId = 1 | 2 | 3
+
+export const ACCOUNT_STATUS_LABEL: Record<AccountStatusId, string> = {
+  1: 'Activo',
+  2: 'Baja',
+  3: 'Baja definitiva',
 }
 
 export interface CiecValidacion {

@@ -149,8 +149,12 @@ export const API_ROUTES = {
     REMOVE_ROLE: "/remove-role",
     ROLES: (userId: string) => `/${encodeURIComponent(userId)}/roles`,
     SWITCH_ROLE: "/switch-role",
-    /** POST users (Identity). Desactiva la cuenta del usuario autenticado (isActive = 0). */
+    /** POST users (Identity). Baja Soft de TODOS los contribuyentes y de la cuenta (flujo legado, solo contraseña). */
     DELETE_ACCOUNT: "/delete-account",
+    /** GET users (Identity). Contribuyentes activos del usuario con su saldo prepagado, para el modal de baja. */
+    MY_TAXPAYERS_DEACTIVATION_PREVIEW: "/me/taxpayers/deactivation-preview",
+    /** POST users (Identity). Baja Soft de uno, varios o todos mis contribuyentes (RFC + motivo + contraseña). */
+    MY_TAXPAYERS_DEACTIVATE: "/me/taxpayers/deactivate",
   },
   // Equipo comercial — módulo de comisiones. apiType "team" (Identity)
   TEAM: {
@@ -243,6 +247,11 @@ export const API_ROUTES = {
     UPLOAD_TAX_CERTIFICATE: "/uploadTaxCertificate",
     // Backoffice: el vendedor/gerente sube la constancia de un contribuyente ajeno (multipart: file).
     UPLOAD_TAX_CERTIFICATE_STAFF: (taxpayerId: number) => `/${taxpayerId}/uploadTaxCertificate`,
+    // Baja del contribuyente (ARCO) desde el expediente. Contador.DeactivateTaxpayer; Hard además
+    // Admin.HardDeleteTaxpayer. apiType "taxpayers"
+    DEACTIVATION_PREVIEW: (taxpayerId: number) => `/${taxpayerId}/deactivation-preview`,
+    DEACTIVATE: (taxpayerId: number) => `/${taxpayerId}/deactivate`,
+    DEACTIVATION_REASONS: "/deactivation-reasons",
     // Credenciales del contribuyente (tab Credenciales del expediente). apiType "taxpayers"
     SAT_PASSWORD: (rfc: string) => `/sat-password?rfc=${encodeURIComponent(rfc)}`,
     RFC_STATUS: (rfc: string) => `/rfc-status?rfc=${encodeURIComponent(rfc)}`,

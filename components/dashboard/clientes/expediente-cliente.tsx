@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   ShoppingCart,
   Tag,
+  UserX,
 } from 'lucide-react'
 import {
   getExpedienteCliente,
@@ -31,9 +32,15 @@ import {
   getTaxCertificateMetadata,
   type DocumentMetadata,
 } from '@/features/taxpayers/actions/getDocumentMetadata.action'
-import type { ExpedienteCliente, ExpedientePeriodo } from '@/features/taxpayers/types'
+import { ACCOUNT_STATUS_LABEL, type ExpedienteCliente, type ExpedientePeriodo } from '@/features/taxpayers/types'
+import {
+  getStaffDeactivationPreview,
+  type DeactivationResult,
+  type StaffDeactivationPreview,
+} from '@/features/taxpayers/actions/taxpayerDeactivation.action'
+import { DeactivateTaxpayerModal } from './deactivate-taxpayer-modal'
 import { DISPLAY, MONO } from '../constants'
-import { Badge, Card, CiecUpdateModal, CiecValidationBadge, ErrorState, NoAccessState, Tabs, isForbiddenError } from '../ui'
+import { Badge, Btn, Card, CiecUpdateModal, CiecValidationBadge, ErrorState, NoAccessState, Tabs, isForbiddenError } from '../ui'
 import { ArmarVentaModal } from './armar-venta-modal'
 import { VentasAbiertas } from './ventas-abiertas'
 import { TabDiagnostico } from './tab-diagnostico'
@@ -143,6 +150,8 @@ export function ExpedienteCliente({ taxpayerId, permissions, onBack, initialTab 
   const canDiagnostico = permissions.includes('GerenciaComercial.RunDiagnosticoCliente')
   // Solo gerentes (decisión 2026-09-14): lo que el cliente ve en su app, en solo lectura.
   const canVistaCliente = permissions.includes('Gerencia.VistaCliente')
+  // Baja del contribuyente (ARCO), junto a la CIEC. Hard lo decide el back (Admin.HardDeleteTaxpayer).
+  const canDeactivate = permissions.includes('Contador.DeactivateTaxpayer')
   const tabs = useMemo(() => {
     const t = [TAB_RESUMEN]
     if (canCredentials) t.push(TAB_CREDENCIALES)
@@ -232,6 +241,9 @@ export function ExpedienteCliente({ taxpayerId, permissions, onBack, initialTab 
                   setShowCiecModal(true)
                 }}
               />
+              {data.accountStatusId !== 1 && (
+                <Badge kind="danger">{ACCOUNT_STATUS_LABEL[data.accountStatusId] ?? 'Baja'}</Badge>
+              )}
             </div>
             <div className="flex items-center gap-3 flex-wrap mt-1.5 text-[12.5px]" style={{ color: 'var(--ink-500)' }}>
               <span className="inline-flex items-center gap-1.5">
@@ -272,6 +284,11 @@ export function ExpedienteCliente({ taxpayerId, permissions, onBack, initialTab 
             setUpdateCiecRfc(r)
             setShowCiecModal(true)
           }}
+          canDeactivate={canDeactivate}
+          onDeactivated={(status) => {
+            // Sin recargar todo el expediente: la tarjeta conserva el resultado (advertencias).
+            setData((prev) => (prev ? { ...prev, accountStatusId: status, passwordState: 0 } : prev))
+          }}
         />
       )}
       {activeTab === TAB_PRODUCTOS && (
@@ -311,6 +328,134 @@ export function ExpedienteCliente({ taxpayerId, permissions, onBack, initialTab 
         />
       )}
     </div>
+  )
+}
+
+/**
+ * Baja del contribuyente (ARCO), junto a la CIEC. Soft con Contador.DeactivateTaxpayer; el botón de
+ * baja definitiva solo aparece si el back dice que el usuario tiene Admin.HardDeleteTaxpayer, y se
+ * habilita cuando el contribuyente ya está en Soft con la antigüedad mínima.
+ */
+function DeactivationCard({
+  taxpayerId,
+  rfc,
+  accountStatusId,
+  onDeactivated,
+}: {
+  taxpayerId: number
+  rfc: string
+  accountStatusId: ExpedienteCliente['accountStatusId']
+  onDeactivated: (status: 2 | 3) => void
+}) {
+  const [preview, setPreview] = useState<StaffDeactivationPreview | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [mode, setMode] = useState<'soft' | 'hard' | null>(null)
+  const [result, setResult] = useState<DeactivationResult | null>(null)
+
+  const loadPreview = useCallback(async () => {
+    const res = await getStaffDeactivationPreview(taxpayerId)
+    if (res.success) setPreview(res.value)
+    else setError(res.error.message)
+  }, [taxpayerId])
+
+  useEffect(() => {
+    void loadPreview()
+  }, [loadPreview, accountStatusId])
+
+  const hardDisabledReason =
+    preview?.currentStatus === 1
+      ? `Primero da la baja; la definitiva se habilita ${preview.hardMinDaysAfterSoft} días después.`
+      : preview?.hardAllowedFrom
+        ? `Disponible a partir del ${new Date(preview.hardAllowedFrom).toLocaleDateString('es-MX')}.`
+        : null
+
+  return (
+    <Card>
+      <div className="px-5 py-4 flex items-center justify-between gap-3 flex-wrap border-b" style={{ borderColor: 'var(--border)' }}>
+        <div className="flex items-center gap-3">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center"
+            style={{ background: 'var(--danger-soft)', color: 'var(--danger)' }}
+          >
+            <UserX size={18} />
+          </div>
+          <div>
+            <div className="text-[14.5px] font-extrabold" style={DISPLAY}>Baja del contribuyente</div>
+            <div className="text-[12px]" style={{ color: 'var(--ink-500)' }}>
+              A solicitud del cliente. Se conservan ventas y declaraciones; se borran credenciales y,
+              en la baja definitiva, sus datos personales.
+            </div>
+          </div>
+        </div>
+        <Badge kind={accountStatusId === 1 ? 'default' : 'danger'}>{ACCOUNT_STATUS_LABEL[accountStatusId] ?? 'Baja'}</Badge>
+      </div>
+
+      <div className="p-5 flex flex-col gap-3">
+        {error && <ErrorState message={error} />}
+        {result && (
+          <div className="text-[12.5px] px-4 py-3 rounded-xl" style={{ background: 'var(--brand-50)', color: 'var(--brand-700)' }}>
+            Baja aplicada.{result.userDeactivated ? ' La cuenta del cliente quedó desactivada.' : ''}
+            {result.warnings.length > 0 && (
+              <ul className="list-disc pl-4 mt-1" style={{ color: 'var(--violet-ink)' }}>
+                {result.warnings.map((w) => (
+                  <li key={w}>{w}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+        {preview?.hasDeclarationInFlight && (
+          <div className="text-[12.5px] px-4 py-3 rounded-xl" style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}>
+            Tiene una declaración presentándose. Espera a que termine para darlo de baja.
+          </div>
+        )}
+        {accountStatusId !== 3 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {accountStatusId === 1 && (
+              <Btn
+                kind="ghost"
+                size="sm"
+                disabled={!preview || preview.hasDeclarationInFlight}
+                onClick={() => setMode('soft')}
+                style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }}
+              >
+                <UserX size={14} /> Dar de baja
+              </Btn>
+            )}
+            {preview?.canHardDelete && (
+              <Btn
+                kind="ghost"
+                size="sm"
+                disabled={!!hardDisabledReason || preview.hasDeclarationInFlight}
+                onClick={() => setMode('hard')}
+                style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }}
+              >
+                <ShieldAlert size={14} /> Baja definitiva
+              </Btn>
+            )}
+            {preview?.canHardDelete && hardDisabledReason && (
+              <span className="text-[12px]" style={{ color: 'var(--ink-500)' }}>{hardDisabledReason}</span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {mode && (
+        <DeactivateTaxpayerModal
+          isOpen
+          onClose={() => setMode(null)}
+          taxpayerId={taxpayerId}
+          rfc={rfc}
+          mode={mode}
+          prepaid={preview?.prepaid ?? null}
+          onDone={(r) => {
+            onDeactivated(mode === 'hard' ? 3 : 2)
+            setMode(null)
+            setResult(r)
+          }}
+        />
+      )}
+    </Card>
   )
 }
 
@@ -429,12 +574,16 @@ function TabCredenciales({
   data,
   onStateChange,
   onOpenUpdateModal,
+  canDeactivate,
+  onDeactivated,
 }: {
   rfc: string
   ciecOk: boolean
   data: ExpedienteCliente
   onStateChange?: (newState: 0 | 1 | 2) => void
   onOpenUpdateModal?: (rfc: string) => void
+  canDeactivate: boolean
+  onDeactivated: (status: 2 | 3) => void
 }) {
   const [password, setPassword] = useState<string | null>(null)
   const [tieneEfirma, setTieneEfirma] = useState<boolean | null>(null)
@@ -552,6 +701,15 @@ function TabCredenciales({
           </div>
         </div>
       </Card>
+
+      {canDeactivate && (
+        <DeactivationCard
+          taxpayerId={data.taxpayerId}
+          rfc={rfc}
+          accountStatusId={data.accountStatusId}
+          onDeactivated={onDeactivated}
+        />
+      )}
 
       {/* Histórico real: validaciones de CIEC (Users.CiecVerifications) y
           vigencias de e.firma (Users.DigitalIdentities). Solo estados y fechas. */}
