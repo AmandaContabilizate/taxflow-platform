@@ -158,6 +158,11 @@ export function ReferidosScreen({ go }: { go: GoFn }) {
                   {data.creditsExpired > 0 && ` · Vencidos: ${MXN.format(data.creditsExpired)}`}
                   {data.nextExpiryAt && ` · Vencen: ${fecha(data.nextExpiryAt)}`}
                 </div>
+                {(data.creditsReserved ?? 0) > 0 && (
+                  <div className="mt-1 text-[12px]" style={{ color: 'rgba(255,255,255,0.72)' }}>
+                    Apartados en compras pendientes: {MXN.format(data.creditsReserved ?? 0)} (ya descontados de tu saldo; vuelven si la compra se cancela o vence)
+                  </div>
+                )}
               </div>
               <div className="flex flex-col items-start sm:items-end gap-1.5">
                 <span

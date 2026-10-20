@@ -37,6 +37,7 @@ import { getStripe } from '@/lib/stripe-client'
 import { DISPLAY } from '../constants'
 import { Badge, Btn } from '../ui'
 import { PaymentForm } from './payment-form'
+import { SetupForm } from './setup-form'
 import {
   COMPLEMENT_REGULARIZATIONS_HELP,
   COMPLEMENT_REGULARIZATIONS_TITLE,
@@ -44,7 +45,10 @@ import {
   RegularizationSection,
 } from './regularization-section'
 
-type Step = 'cart' | 'paying' | 'success'
+type Step = 'cart' | 'paying' | 'setup' | 'success'
+
+/** Tope de espera del saldo de créditos: si vence, se sigue sin créditos y no se bloquea el pago. */
+const BALANCE_TIMEOUT_MS = 8000
 
 /** Identidad estable para el caso "sin tramites": un `[]` nuevo por render reabre el bucle. */
 const EMPTY_PROCEDURES: Plan[] = []
@@ -80,6 +84,13 @@ export function PlanPickerModal({
   const [applyingCode, setApplyingCode] = useState(false)
   const [codeError, setCodeError] = useState<string | null>(null)
   const [clientSecret, setClientSecret] = useState<string | null>(null)
+  // Suscripción cubierta al 100 % con créditos: SetupIntent para guardar la tarjeta de la renovación.
+  const [setupSecret, setSetupSecret] = useState<string | null>(null)
+  // Se cerró sin guardar tarjeta: el plan queda activo pero la renovación fallará.
+  const [cardPending, setCardPending] = useState(false)
+  // Lo que el back realmente descontó (puede ser menos que el saldo por el mínimo de Stripe) y su aviso.
+  const [serverCredits, setServerCredits] = useState<number | null>(null)
+  const [creditsNotice, setCreditsNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [discountNotice, setDiscountNotice] = useState<string | null>(null)
   const [processing, setProcessing] = useState(false)
@@ -139,23 +150,47 @@ export function PlanPickerModal({
     setApplyingCode(false)
     setCodeError(null)
     setClientSecret(null)
+    setSetupSecret(null)
+    setCardPending(false)
+    setServerCredits(null)
+    setCreditsNotice(null)
     setError(null)
     setDiscountNotice(null)
     setUseCredits(true)
     // Saldo de créditos de referidos (se descuenta en el cobro si el cliente lo deja marcado).
+    // Con el RFC que compra: el back no resta lo apartado en la venta Abierta de ese mismo RFC.
+    // Con tope de espera: si vence, se sigue sin créditos y "Continuar al pago" no se bloquea.
     setCreditBalance(0)
     setCreditsLoading(true)
-    const p = getReferralCreditBalance()
-      .then((res) => (res.success ? res.value.available : 0))
-      .catch(() => 0)
-      .then((available) => {
+    // `stale`: el modal se cerró o se reabrió; la respuesta (o el timeout) de esta apertura ya no
+    // debe pisar el saldo de la siguiente.
+    let settled = false
+    let stale = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const finish = (available: number) => {
+      if (settled) return 0
+      settled = true
+      clearTimeout(timer)
+      if (!stale) {
         setCreditBalance(available)
         setCreditsLoading(false)
-        return available
-      })
-    balancePromiseRef.current = p
+      }
+      return available
+    }
+    const fetched = getReferralCreditBalance(rfc)
+      .then((res) => (res.success ? res.value.available : 0))
+      .catch(() => 0)
+      .then(finish)
+    const timeout = new Promise<number>((resolve) => {
+      timer = setTimeout(() => resolve(finish(0)), BALANCE_TIMEOUT_MS)
+    })
+    balancePromiseRef.current = Promise.race([fetched, timeout])
     setProcessing(false)
-  }, [open])
+    return () => {
+      stale = true
+      clearTimeout(timer)
+    }
+  }, [open, rfc])
 
   // Al cambiar de modo, deseleccionar lo que ya no aplique.
   // Los dos updaters devuelven `prev` cuando el resultado es igual: si construyen
@@ -314,15 +349,28 @@ export function PlanPickerModal({
         setProcessing(false)
         return
       }
-      // El backend revalida el código y el saldo de créditos: si la venta NO quedó en $0,
-      // la compra no es gratis — no mostrar éxito, el cliente debe revisar.
-      const quedoGratis = freeSale.value.discountApplied || (freeSale.value.referralCreditsApplied ?? 0) >= discountedTotal
+      // El backend revalida el código y el saldo de créditos: la venta quedó gratis solo si nació
+      // Pagada (StatusSaleId 2). Si quedó Abierta no es gratis: no mostrar éxito, el cliente debe revisar
+      // (p. ej. un código del 100 % que ya no es válido y sin créditos que cubran el total).
+      const quedoGratis = freeSale.value.success !== false && freeSale.value.statusSaleId === 2
       if (!quedoGratis) {
-        setError(freeSale.value.discountMessage ?? 'Tus créditos ya no alcanzan para cubrir la compra. Revisa el total.')
+        setError(
+          freeSale.value.discountMessage ??
+            'La compra no quedó cubierta: tu código o tus créditos ya no alcanzan. Revisa el total e intenta de nuevo.',
+        )
         setProcessing(false)
         return
       }
       setDiscountNotice(freeSale.value.discountMessage)
+      setCreditsNotice(freeSale.value.referralCreditsNotice ?? null)
+      setServerCredits(freeSale.value.referralCreditsApplied ?? null)
+      // Suscripción cubierta con créditos: el plan ya está activo; falta guardar la tarjeta de la renovación.
+      if (freeSale.value.setupIntentClientSecret) {
+        setSetupSecret(freeSale.value.setupIntentClientSecret)
+        setStep('setup')
+        setProcessing(false)
+        return
+      }
       setStep('success')
       setProcessing(false)
       return
@@ -354,6 +402,9 @@ export function PlanPickerModal({
 
     // Cupón no aplicable a los productos del carrito: se avisa, pero el pago continúa sin descuento.
     setDiscountNotice(sale.value.discountMessage)
+    // Créditos realmente descontados según el back (no el cálculo local) y su aviso del mínimo de Stripe.
+    setServerCredits(sheet.value.referralCreditsApplied ?? sale.value.referralCreditsApplied ?? null)
+    setCreditsNotice(sheet.value.referralCreditsNotice ?? sale.value.referralCreditsNotice ?? null)
 
     // 3) Mostrar el formulario de pago embebido.
     setClientSecret(sheet.value.paymentIntentClientSecret)
@@ -361,11 +412,20 @@ export function PlanPickerModal({
     setProcessing(false)
   }
 
+  // Total a pagar con los créditos que el back confirmó; antes de la respuesta, el cálculo local.
+  const payTotal = serverCredits != null ? Math.max(0, discountedTotal - serverCredits) : finalTotal
+
+  // Cerrar el modal en el paso de tarjeta equivale a "Ahora no": el plan ya está activo, hay que refrescarlo.
+  function handleOpenChange(next: boolean) {
+    if (!next && step === 'setup') onPaid()
+    onOpenChange(next)
+  }
+
   const isDark =
     typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         className={
           (step === 'cart'
@@ -377,7 +437,7 @@ export function PlanPickerModal({
         <DialogHeader className="text-left">
           <div className="flex items-center gap-4">
             <DialogTitle style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
-              {step === 'success' ? '¡Listo!' : step === 'paying' ? 'Completa tu pago' : 'Arma tu plan'}
+              {step === 'success' ? '¡Listo!' : step === 'paying' ? 'Completa tu pago' : step === 'setup' ? 'Guarda tu tarjeta' : 'Arma tu plan'}
             </DialogTitle>
             {step === 'paying' && (
               <div
@@ -400,7 +460,9 @@ export function PlanPickerModal({
               ? 'Tu pago se procesó correctamente.'
               : step === 'paying'
                 ? 'Ingresa los datos de tu tarjeta de forma segura.'
-                : 'Elige tu plan y los trámites que necesites.'}
+                : step === 'setup'
+                  ? 'Tu plan ya está activo. Falta la tarjeta para la renovación.'
+                  : 'Elige tu plan y los trámites que necesites.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -410,6 +472,15 @@ export function PlanPickerModal({
             style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}
           >
             {discountNotice}
+          </div>
+        )}
+
+        {creditsNotice && (
+          <div
+            className="flex-shrink-0 text-[12.5px] font-semibold px-3 py-2 rounded-xl"
+            style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
+          >
+            {creditsNotice}
           </div>
         )}
 
@@ -822,9 +893,29 @@ export function PlanPickerModal({
               }}
             >
               <PaymentForm
-                payLabel={`Pagar ${formatMXN(finalTotal)}`}
+                payLabel={`Pagar ${formatMXN(payTotal)}`}
                 onSuccess={() => setStep('success')}
                 onCancel={() => setStep('cart')}
+              />
+            </Elements>
+          </div>
+        )}
+
+        {step === 'setup' && setupSecret && stripePromise && (
+          <div className="flex-1 min-h-0 overflow-y-auto -mx-1 px-1">
+            <Elements
+              stripe={stripePromise}
+              options={{
+                clientSecret: setupSecret,
+                appearance: { theme: isDark ? 'night' : 'stripe' },
+              }}
+            >
+              <SetupForm
+                onSuccess={() => setStep('success')}
+                onSkip={() => {
+                  setCardPending(true)
+                  setStep('success')
+                }}
               />
             </Elements>
           </div>
@@ -841,6 +932,15 @@ export function PlanPickerModal({
             <div className="text-[15px]" style={{ color: 'var(--ink-700)' }}>
               Tu plan quedó activo. Puede tardar unos segundos en reflejarse.
             </div>
+            {cardPending && (
+              <div
+                className="text-[12.5px] font-semibold px-3 py-2 rounded-xl text-left"
+                style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
+              >
+                No guardaste una tarjeta: tu plan sigue activo este periodo, pero no se renovará automáticamente.
+                Cuando termine, podrás contratarlo de nuevo desde tu plan.
+              </div>
+            )}
             <Btn
               kind="brand"
               block

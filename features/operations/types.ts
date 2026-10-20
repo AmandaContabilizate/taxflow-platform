@@ -430,6 +430,12 @@ export interface VentaPorActivar {
   constanciaVerificada: boolean;
   queFalta: VentaPorActivarMotivo;
   diasDesdePago: number;
+  /**
+   * Precio de lista del plan que lleva el cobro (el "precio anterior" de AdjustSalePlan). Ausente en un
+   * back viejo. `amount` no sirve para comparar contra la lista: va neto de cupón/créditos y, desde el
+   * 19-oct, en suscripción ya trae el 10 % menos.
+   */
+  precioLista?: number;
 }
 
 export interface VentasPorActivarPage extends Paged<VentaPorActivar> {

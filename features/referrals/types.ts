@@ -17,6 +17,8 @@ export interface ReferralsSummary {
   estimatedRewardAmount: number | null
   /** Créditos vigentes sin usar: lo que puede descontar hoy. */
   creditBalance: number
+  /** Apartado en compras pendientes (ventas Abiertas con créditos); `creditBalance` ya viene neto. */
+  creditsReserved?: number
   creditsEarned: number
   creditsRedeemed: number
   creditsExpired: number
@@ -49,7 +51,10 @@ export interface ReferralItem {
 
 /** `GET api/referrals/balance`: saldo ligero para el carrito. */
 export interface ReferralCreditBalance {
+  /** Disponible hoy: lotes vigentes menos lo apartado en ventas Abiertas. */
   available: number
+  /** Apartado en ventas Abiertas (ya descontado de `available`). */
+  reserved: number
   nextExpiryAt: string | null
 }
 

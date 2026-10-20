@@ -77,7 +77,9 @@ export function AjustarPlanModal({ isOpen, onClose, venta, onDone }: Props) {
   }, [isOpen, venta])
 
   const selected = useMemo(() => plans.find((p) => p.id === planId) ?? null, [plans, planId])
-  const diferencia = selected && venta ? selected.price - venta.amount : 0
+  // Lista contra lista, igual que la diferencia que devuelve AdjustSalePlan. Back viejo: cae a lo cobrado.
+  const base = venta ? (venta.precioLista && venta.precioLista > 0 ? venta.precioLista : venta.amount) : 0
+  const diferencia = selected && venta ? selected.price - base : 0
 
   async function handleSubmit() {
     if (!venta || !selected || submitting) return
@@ -156,7 +158,7 @@ export function AjustarPlanModal({ isOpen, onClose, venta, onDone }: Props) {
                 <div className="grid gap-3 sm:grid-cols-2">
                   {plans.map((p) => {
                     const active = planId === p.id
-                    const diff = p.price - venta.amount
+                    const diff = p.price - base
                     return (
                       <button
                         key={p.id}

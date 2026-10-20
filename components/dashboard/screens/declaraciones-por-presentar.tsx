@@ -125,6 +125,7 @@ export function DeclaracionesPorPresentarScreen({ currentUser }: { currentUser: 
         readiness: estado ?? undefined,
         ciecState: ciec ?? undefined,
         presentacion: presentacion ?? undefined,
+        includeReadinessCounts: true,
         skip,
         take: TAKE,
       })
@@ -143,7 +144,10 @@ export function DeclaracionesPorPresentarScreen({ currentUser }: { currentUser: 
 
   const setEstado = (value: Semaforo | null) => setParams({ estado: value, skip: null }, { replace: true })
 
-  const counts = useMemo(() => {
+  // Totales del back sobre todo el universo filtrado (no dependen del chip activo). Si el back no los
+  // manda (versión vieja), se cuenta la página como antes.
+  const totalCounts = page.readinessCounts ?? null
+  const pageCounts = useMemo(() => {
     const c = { blocked: 0, warning: 0, ok: 0 }
     for (const d of page.items) c[d.postingReadiness?.level ?? 'ok']++
     return c
@@ -377,11 +381,18 @@ export function DeclaracionesPorPresentarScreen({ currentUser }: { currentUser: 
           </div>
           {!loading && (page.items.length > 0 || estado) && (
             <div className="flex items-center gap-2 text-[12px] font-bold">
-              {/* Chips clicables: filtran por semáforo (mismo efecto que el select). Con filtro activo
-                  solo se conoce el total del nivel elegido; los otros dos se muestran sin número. */}
+              {/* Chips clicables: filtran por semáforo (mismo efecto que el select). Con totales del
+                  back los tres llevan número siempre; sin ellos, solo el activo (o los de la página). */}
               {SEMAFORO.map((s) => {
                 const activo = estado === s.value
                 const atenuado = estado != null && !activo
+                const numero = totalCounts
+                  ? totalCounts[s.value]
+                  : activo
+                    ? page.total
+                    : estado == null
+                      ? pageCounts[s.value]
+                      : null
                 return (
                   <button
                     key={s.value}
@@ -396,14 +407,16 @@ export function DeclaracionesPorPresentarScreen({ currentUser }: { currentUser: 
                     }}
                   >
                     <Badge kind={s.kind}>
-                      {activo ? page.total : estado == null ? counts[s.value] : null}
-                      {activo || estado == null ? ' ' : ''}
+                      {numero}
+                      {numero != null ? ' ' : ''}
                       {s.label}
                     </Badge>
                   </button>
                 )
               })}
-              <span style={{ color: 'var(--ink-500)' }}>{estado ? '(en total)' : '(en esta página)'}</span>
+              <span style={{ color: 'var(--ink-500)' }}>
+                {totalCounts || estado ? '(en total)' : '(en esta página)'}
+              </span>
             </div>
           )}
         </div>
