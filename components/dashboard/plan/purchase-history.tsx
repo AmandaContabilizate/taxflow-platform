@@ -39,7 +39,16 @@ function desglose(purchase: AccountPurchase) {
     purchase.paidAmount != null && subtotal > 0
       ? Math.max(0, Math.round((subtotal - credits - pagado) * 100) / 100)
       : 0
-  return { amount, credits, subtotal, subDiscount, pagado, mode }
+  // Solo el 10 % de suscripción (sin código): la etiqueta no menciona códigos que no hubo.
+  const soloSuscripcion =
+    mode === 0 && Math.abs(subDiscount - Math.round(subtotal * SUBSCRIPTION_DISCOUNT_PERCENT) / 100) < 0.05
+  const discountLabel =
+    mode !== 0
+      ? 'Descuento por código'
+      : soloSuscripcion
+        ? `Descuento por suscripción (${SUBSCRIPTION_DISCOUNT_PERCENT} %)`
+        : `Descuentos (suscripción ${SUBSCRIPTION_DISCOUNT_PERCENT} % y código)`
+  return { amount, credits, subtotal, subDiscount, pagado, mode, discountLabel }
 }
 
 function PurchaseItem({ item }: { item: AccountPurchaseItem }) {
@@ -74,7 +83,7 @@ function PurchaseItem({ item }: { item: AccountPurchaseItem }) {
 function PurchaseRow({ purchase }: { purchase: AccountPurchase }) {
   const [open, setOpen] = useState(false)
   const isPaid = purchase.statusId === PAID_STATUS_ID
-  const { amount, credits, subtotal, subDiscount, pagado, mode } = desglose(purchase)
+  const { amount, credits, subtotal, subDiscount, pagado, mode, discountLabel } = desglose(purchase)
 
   return (
     <div>
@@ -130,7 +139,7 @@ function PurchaseRow({ purchase }: { purchase: AccountPurchase }) {
               </div>
               {subDiscount > 0 && (
                 <div className="flex items-center justify-between gap-3 mt-1" style={{ color: 'var(--brand-700)' }}>
-                  <span>{mode === 0 ? `Descuentos (suscripción ${SUBSCRIPTION_DISCOUNT_PERCENT} % y códigos)` : 'Descuento por código'}</span>
+                  <span>{discountLabel}</span>
                   <span style={MONO}>−{formatMXN(subDiscount)}</span>
                 </div>
               )}

@@ -162,21 +162,34 @@ export function PlanPickerModal({
     // Con tope de espera: si vence, se sigue sin créditos y "Continuar al pago" no se bloquea.
     setCreditBalance(0)
     setCreditsLoading(true)
+    // `stale`: el modal se cerró o se reabrió; la respuesta (o el timeout) de esta apertura ya no
+    // debe pisar el saldo de la siguiente.
     let settled = false
+    let stale = false
+    let timer: ReturnType<typeof setTimeout> | undefined
     const finish = (available: number) => {
       if (settled) return 0
       settled = true
-      setCreditBalance(available)
-      setCreditsLoading(false)
+      clearTimeout(timer)
+      if (!stale) {
+        setCreditBalance(available)
+        setCreditsLoading(false)
+      }
       return available
     }
     const fetched = getReferralCreditBalance(rfc)
       .then((res) => (res.success ? res.value.available : 0))
       .catch(() => 0)
       .then(finish)
-    const timeout = new Promise<number>((resolve) => setTimeout(() => resolve(finish(0)), BALANCE_TIMEOUT_MS))
+    const timeout = new Promise<number>((resolve) => {
+      timer = setTimeout(() => resolve(finish(0)), BALANCE_TIMEOUT_MS)
+    })
     balancePromiseRef.current = Promise.race([fetched, timeout])
     setProcessing(false)
+    return () => {
+      stale = true
+      clearTimeout(timer)
+    }
   }, [open, rfc])
 
   // Al cambiar de modo, deseleccionar lo que ya no aplique.
@@ -924,8 +937,8 @@ export function PlanPickerModal({
                 className="text-[12.5px] font-semibold px-3 py-2 rounded-xl text-left"
                 style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
               >
-                No guardaste una tarjeta: tu plan sigue activo este periodo, pero la renovación fallará y se
-                cancelará si no registras una. Puedes agregarla después desde tu plan.
+                No guardaste una tarjeta: tu plan sigue activo este periodo, pero no se renovará automáticamente.
+                Cuando termine, podrás contratarlo de nuevo desde tu plan.
               </div>
             )}
             <Btn
