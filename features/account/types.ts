@@ -360,6 +360,8 @@ export interface AccountPurchase {
   referralCreditsApplied?: number;
   /** Lo realmente cobrado (ya sin el 10 % de suscripción, con cupón % y créditos). Es el "Pagado" a mostrar. */
   paidAmount?: number;
+  /** % del cupón tipo Porcentaje de la venta (0 sin código). Ausente en back viejo. */
+  discountPercent?: number;
   items: AccountPurchaseItem[];
 }
 

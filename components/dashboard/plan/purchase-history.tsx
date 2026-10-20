@@ -34,20 +34,35 @@ function desglose(purchase: AccountPurchase) {
   // Modo: por el price de Stripe de las líneas (el webhook no siempre alcanza a ligar el sub_ a la venta).
   const mode: 0 | 1 = purchase.items.some((it) => it.paymentMode === 0) ? 0 : modeOf(purchase.type) === 0 ? 0 : 1
   const pagado = Math.max(0, Math.round((purchase.paidAmount ?? amount) * 100) / 100)
-  // Diferencia entre el total de lista, los créditos y lo cobrado: descuento de suscripción y/o código.
+  // Diferencia entre el total de la compra, los créditos y lo cobrado: descuento de suscripción y/o código.
   const subDiscount =
     purchase.paidAmount != null && subtotal > 0
       ? Math.max(0, Math.round((subtotal - credits - pagado) * 100) / 100)
       : 0
-  // Solo el 10 % de suscripción (sin código): la etiqueta no menciona códigos que no hubo.
-  const soloSuscripcion =
-    mode === 0 && Math.abs(subDiscount - Math.round(subtotal * SUBSCRIPTION_DISCOUNT_PERCENT) / 100) < 0.05
+  // Qué hay dentro del descuento. Ventas de suscripción hasta el 18-oct (y renovaciones) traen el subtotal a
+  // lista, así que incluye el 10 %; desde el 19-oct el subtotal ya va al precio de suscripción y lo único
+  // que queda es el código. Con `discountPercent` del back se sabe si hubo código y cuánto explica; lo que
+  // sobra es el 10 % de suscripción. Back viejo (sin el campo): heurística anterior.
+  const pct = purchase.discountPercent
+  let hasCode: boolean
+  let hasSub: boolean
+  if (pct != null) {
+    const codeOnly = Math.round(subtotal * Math.min(Math.max(pct, 0), 100)) / 100
+    hasCode = pct > 0
+    hasSub = mode === 0 && subDiscount - codeOnly > 0.05
+  } else {
+    hasSub = mode === 0
+    hasCode =
+      mode !== 0 || Math.abs(subDiscount - Math.round(subtotal * SUBSCRIPTION_DISCOUNT_PERCENT) / 100) >= 0.05
+  }
   const discountLabel =
-    mode !== 0
-      ? 'Descuento por código'
-      : soloSuscripcion
+    hasSub && hasCode
+      ? `Descuentos (suscripción ${SUBSCRIPTION_DISCOUNT_PERCENT} % y código)`
+      : hasSub
         ? `Descuento por suscripción (${SUBSCRIPTION_DISCOUNT_PERCENT} %)`
-        : `Descuentos (suscripción ${SUBSCRIPTION_DISCOUNT_PERCENT} % y código)`
+        : hasCode
+          ? 'Descuento por código'
+          : 'Descuento'
   return { amount, credits, subtotal, subDiscount, pagado, mode, discountLabel }
 }
 
