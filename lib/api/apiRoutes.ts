@@ -43,6 +43,8 @@ interface TaxpayerListQuery {
   ciecState?: number
   /** Tipo de presentación: normal (ComplementNumber = 0) o complementaria (> 0). */
   presentacion?: "normal" | "complementaria"
+  /** Conteo por nivel del semáforo sobre todo el universo filtrado (solo declarations-by-taxpayer con `statusId: 11`). */
+  includeReadinessCounts?: boolean
 }
 
 export interface TaxpayerGroupsQuery extends TaxpayerListQuery {
@@ -70,6 +72,7 @@ function taxpayerListQuery(p: TaxpayerListQuery): URLSearchParams {
   if (p.readiness) qs.set("readiness", p.readiness)
   if (p.ciecState != null) qs.set("ciecState", String(p.ciecState))
   if (p.presentacion) qs.set("presentacion", p.presentacion)
+  if (p.includeReadinessCounts) qs.set("includeReadinessCounts", "true")
   return qs
 }
 
@@ -692,6 +695,10 @@ export const API_ROUTES = {
     ME: "/me",
     /** Saldo de créditos disponible (lo consulta el carrito antes de pagar). */
     BALANCE: "/balance",
+    /** Saldo disponible; con `rfc` no resta lo apartado en la venta Abierta de ese RFC (la compra nueva la reemplaza). */
+    BALANCE_FOR: (rfc: string) => `/balance?rfc=${encodeURIComponent(rfc)}`,
+    /** Anónimo: ¿existe el código de referido? Responde solo `{ valid }`. */
+    VALIDATE: (code: string) => `/validate?code=${encodeURIComponent(code)}`,
   },
   TIMBRAME: {
     PORTAL_ACCESS: "/portal-access",

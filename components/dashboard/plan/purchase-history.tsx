@@ -22,11 +22,10 @@ function fmtDate(iso: string): string {
 const PAID_STATUS_ID = 2
 
 /**
- * Desglose de una compra. Sale.Amount guarda el precio de lista menos cupón y menos créditos de
- * referidos; el 10 % de suscripción vive solo en el price recurrente de Stripe, así que en
- * suscripción se descuenta aquí para que "Pagado" coincida con el cobro. Las ventas que ya traen
- * el importe neto (renovaciones de ciclo, que se registran con el monto de la factura de Stripe)
- * se detectan porque amount + créditos no cuadra con la lista, y ahí no se vuelve a descontar.
+ * Desglose de una compra. "Pagado" es `paidAmount` del back (lo que cobró Stripe: ya sin el 10 % de
+ * suscripción, con cupón % y créditos); no se infiere de `amount`. Si el back aún no lo manda
+ * (despliegue viejo) se cae a `amount`. El descuento de suscripción del desglose es solo informativo:
+ * lo que falta entre el total de la compra, los créditos y lo pagado.
  */
 function desglose(purchase: AccountPurchase) {
   const amount = purchase.amount
@@ -34,13 +33,37 @@ function desglose(purchase: AccountPurchase) {
   const subtotal = purchase.items.reduce((sum, it) => sum + it.amount, 0)
   // Modo: por el price de Stripe de las líneas (el webhook no siempre alcanza a ligar el sub_ a la venta).
   const mode: 0 | 1 = purchase.items.some((it) => it.paymentMode === 0) ? 0 : modeOf(purchase.type) === 0 ? 0 : 1
-  const registradoALista = Math.abs(amount + credits - subtotal) < 0.05
+  const pagado = Math.max(0, Math.round((purchase.paidAmount ?? amount) * 100) / 100)
+  // Diferencia entre el total de la compra, los créditos y lo cobrado: descuento de suscripción y/o código.
   const subDiscount =
-    mode === 0 && registradoALista
-      ? Math.round(subtotal * (SUBSCRIPTION_DISCOUNT_PERCENT / 100) * 100) / 100
+    purchase.paidAmount != null && subtotal > 0
+      ? Math.max(0, Math.round((subtotal - credits - pagado) * 100) / 100)
       : 0
-  const pagado = Math.max(0, Math.round((amount - subDiscount) * 100) / 100)
-  return { amount, credits, subtotal, subDiscount, pagado, mode }
+  // Qué hay dentro del descuento. Ventas de suscripción hasta el 18-oct (y renovaciones) traen el subtotal a
+  // lista, así que incluye el 10 %; desde el 19-oct el subtotal ya va al precio de suscripción y lo único
+  // que queda es el código. Con `discountPercent` del back se sabe si hubo código y cuánto explica; lo que
+  // sobra es el 10 % de suscripción. Back viejo (sin el campo): heurística anterior.
+  const pct = purchase.discountPercent
+  let hasCode: boolean
+  let hasSub: boolean
+  if (pct != null) {
+    const codeOnly = Math.round(subtotal * Math.min(Math.max(pct, 0), 100)) / 100
+    hasCode = pct > 0
+    hasSub = mode === 0 && subDiscount - codeOnly > 0.05
+  } else {
+    hasSub = mode === 0
+    hasCode =
+      mode !== 0 || Math.abs(subDiscount - Math.round(subtotal * SUBSCRIPTION_DISCOUNT_PERCENT) / 100) >= 0.05
+  }
+  const discountLabel =
+    hasSub && hasCode
+      ? `Descuentos (suscripción ${SUBSCRIPTION_DISCOUNT_PERCENT} % y código)`
+      : hasSub
+        ? `Descuento por suscripción (${SUBSCRIPTION_DISCOUNT_PERCENT} %)`
+        : hasCode
+          ? 'Descuento por código'
+          : 'Descuento'
+  return { amount, credits, subtotal, subDiscount, pagado, mode, discountLabel }
 }
 
 function PurchaseItem({ item }: { item: AccountPurchaseItem }) {
@@ -75,7 +98,7 @@ function PurchaseItem({ item }: { item: AccountPurchaseItem }) {
 function PurchaseRow({ purchase }: { purchase: AccountPurchase }) {
   const [open, setOpen] = useState(false)
   const isPaid = purchase.statusId === PAID_STATUS_ID
-  const { amount, credits, subtotal, subDiscount, pagado, mode } = desglose(purchase)
+  const { amount, credits, subtotal, subDiscount, pagado, mode, discountLabel } = desglose(purchase)
 
   return (
     <div>
@@ -131,7 +154,7 @@ function PurchaseRow({ purchase }: { purchase: AccountPurchase }) {
               </div>
               {subDiscount > 0 && (
                 <div className="flex items-center justify-between gap-3 mt-1" style={{ color: 'var(--brand-700)' }}>
-                  <span>Descuento por suscripción ({SUBSCRIPTION_DISCOUNT_PERCENT} % adicional)</span>
+                  <span>{discountLabel}</span>
                   <span style={MONO}>−{formatMXN(subDiscount)}</span>
                 </div>
               )}

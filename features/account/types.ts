@@ -216,6 +216,10 @@ export interface PaymentSheetParams {
   ephemeralKey: string;
   customer: string; // "cus_..."
   subscriptionId: string | null; // "sub_..." en recurrente; null en pago único
+  /** Créditos de referidos realmente descontados del cobro (pesos); puede ser menos que el saldo (mínimo de Stripe). */
+  referralCreditsApplied?: number;
+  /** Aviso en español cuando se aplicaron menos créditos de los que alcanzaban; null si no aplica. */
+  referralCreditsNotice?: string | null;
   error?: string;
 }
 
@@ -234,6 +238,16 @@ export interface RegisterSaleNewResponse {
   discountMessage: string | null;
   /** Créditos de referidos descontados en la venta (pesos). */
   referralCreditsApplied?: number;
+  /** Aviso cuando se aplicaron menos créditos por el cobro mínimo de Stripe ($10 MXN). */
+  referralCreditsNotice?: string | null;
+  /** 1 Abierta (pendiente de cobro) · 2 Pagada (total $0: nace pagada y activada). */
+  statusSaleId?: number;
+  amount?: number;
+  /** Solo en suscripción cubierta al 100 % con créditos: para guardar la tarjeta de las renovaciones. */
+  stripeSubscriptionId?: string | null;
+  setupIntentClientSecret?: string | null;
+  stripeCustomerId?: string | null;
+  stripeEphemeralKey?: string | null;
 }
 
 /**
@@ -344,6 +358,10 @@ export interface AccountPurchase {
   stripeSubscriptionId: string | null;
   /** Créditos de referidos descontados en la venta (pesos); `amount` ya viene neto. */
   referralCreditsApplied?: number;
+  /** Lo realmente cobrado (ya sin el 10 % de suscripción, con cupón % y créditos). Es el "Pagado" a mostrar. */
+  paidAmount?: number;
+  /** % del cupón tipo Porcentaje de la venta (0 sin código). Ausente en back viejo. */
+  discountPercent?: number;
   items: AccountPurchaseItem[];
 }
 

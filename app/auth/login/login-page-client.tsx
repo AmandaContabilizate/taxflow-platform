@@ -12,6 +12,7 @@ import {
   completeUserProfile,
   checkEmailExists,
 } from "@/features/auth/actions";
+import { useReferralCodeCheck } from "@/hooks/use-referral-code-check";
 import { getPasswordErrors } from "@/features/auth/lib/passwordPolicy";
 import { PROTECTED_ROUTES, PUBLIC_ROUTES } from "@/lib/routes";
 
@@ -90,6 +91,7 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [referralCode, setReferralCode] = useState("");
+  const referralWarning = useReferralCodeCheck(referralCode);
   const [code, setCode] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -575,6 +577,11 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
                       color: "#221158",
                     }}
                   />
+                  {referralWarning && (
+                    <p className="mt-1.5 text-xs font-semibold" role="status" style={{ color: "#B45309" }}>
+                      {referralWarning}
+                    </p>
+                  )}
                 </div>
 
                 <div>
