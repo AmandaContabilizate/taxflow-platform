@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { completeUserProfile } from "@/features/auth/actions";
+import { useReferralCodeCheck } from "@/hooks/use-referral-code-check";
 import { PROTECTED_ROUTES } from "@/lib/routes";
 
 /**
@@ -18,6 +19,7 @@ export default function CompleteProfilePage() {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [referralCode, setReferralCode] = useState("");
+  const referralWarning = useReferralCodeCheck(referralCode);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -103,6 +105,11 @@ export default function CompleteProfilePage() {
               value={referralCode}
               onChange={(e) => setReferralCode(e.target.value)}
             />
+            {referralWarning && (
+              <p className="text-xs font-medium text-amber-700" role="status">
+                {referralWarning}
+              </p>
+            )}
           </div>
           <Button type="submit" disabled={loading} className="w-full">
             {loading ? "Guardando..." : "Continuar"}

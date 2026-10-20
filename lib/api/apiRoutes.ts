@@ -695,6 +695,10 @@ export const API_ROUTES = {
     ME: "/me",
     /** Saldo de créditos disponible (lo consulta el carrito antes de pagar). */
     BALANCE: "/balance",
+    /** Saldo disponible; con `rfc` no resta lo apartado en la venta Abierta de ese RFC (la compra nueva la reemplaza). */
+    BALANCE_FOR: (rfc: string) => `/balance?rfc=${encodeURIComponent(rfc)}`,
+    /** Anónimo: ¿existe el código de referido? Responde solo `{ valid }`. */
+    VALIDATE: (code: string) => `/validate?code=${encodeURIComponent(code)}`,
   },
   TIMBRAME: {
     PORTAL_ACCESS: "/portal-access",
