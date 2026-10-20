@@ -21,7 +21,13 @@ export type IvaFavorBalanceSource = 'Clasificador' | 'Manual' | 'Robot'
 
 export type IvaFavorDeclarationType = 'Normal' | 'Complementaria'
 
-/** `IvaFavorBalanceDto`. */
+/** Código del catálogo `Declarations.IvaFavorBalanceSource`. */
+export type IvaFavorBalanceSourceCode = 'Classifier' | 'Manual' | 'Robot'
+
+/**
+ * `IvaFavorBalanceDto`. Periodo, folio, tipo y fecha no se guardan en el saldo: el back los lee
+ * de la declaración de origen (`originDeclarationId`) o, en capturas manuales, de su origen externo.
+ */
 export interface IvaFavorBalance {
   id: number
   /** Declaración del sistema que generó el saldo. `null` = capturado a mano. */
@@ -30,6 +36,9 @@ export interface IvaFavorBalance {
   originMonth: number
   /** Folio (número de operación) del acuse. Se llena al presentar. */
   operationNumber: string | null
+  /** 0 = Normal, >0 = número de complementaria. */
+  complementNumber: number
+  /** Derivado de `complementNumber`. */
   declarationType: IvaFavorDeclarationType | null
   /** `DateOnly` → "yyyy-MM-dd". */
   presentedDate: string | null
@@ -37,7 +46,9 @@ export interface IvaFavorBalance {
   /** Acreditado en declaraciones que el sistema no tiene (capturas manuales). */
   appliedOutsideAmount: number
   remainingAmount: number
+  /** Nombre para mostrar. */
   source: IvaFavorBalanceSource
+  sourceCode: IvaFavorBalanceSourceCode
   applications: IvaFavorApplication[]
 }
 
@@ -57,8 +68,10 @@ export interface CreateIvaFavorBalanceInput {
 }
 
 /**
- * PUT: todos opcionales. En saldos que no son `Manual` el back solo acepta folio, tipo y fecha
- * (periodo o montos → INVALID_INPUT).
+ * PUT: todos opcionales. Solo saldos con origen externo (`originDeclarationId` null); uno
+ * generado por una declaración del sistema se corrige en esa declaración (→ INVALID_INPUT). En
+ * saldos que no son `Manual` solo se aceptan folio, tipo y fecha (periodo o montos → INVALID_INPUT).
+ * `declarationType` lo traduce el back a `complementNumber` (Complementaria sin número = 1).
  */
 export type UpdateIvaFavorBalanceInput = Partial<Omit<CreateIvaFavorBalanceInput, 'rfc'>>
 

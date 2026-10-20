@@ -1,15 +1,17 @@
 'use client'
 
-import { Check, Loader2, PackagePlus, Sparkles, Trash2, X } from 'lucide-react'
-import { type ReactNode, memo, useMemo, useState } from 'react'
+import { Check, Loader2, PackageMinus, PackagePlus, Sparkles, Trash2, Undo2, X } from 'lucide-react'
+import { Fragment, type ReactNode, memo, useMemo, useState } from 'react'
 import { useDeclarationInvoices } from '@/features/declarations/hooks/useDeclarationQueries'
 import type { InvoiceFilterKey } from '@/features/declarations/hooks/declarationQueryKeys'
 import { createFixedAsset } from '@/features/fixed-assets/actions/createFixedAsset.action'
+import { disposeFixedAsset, revertFixedAssetDisposal } from '@/features/fixed-assets/actions/disposeFixedAsset.action'
 import { updateFixedAsset } from '@/features/fixed-assets/actions/updateFixedAsset.action'
 import { useFixedAssetTypes, useFixedAssets } from '@/features/fixed-assets/hooks/useFixedAssets'
 import {
   type FixedAsset,
   type FixedAssetDecision,
+  type FixedAssetDisposalKind,
   type FixedAssetType,
   fixedAssetStatusIs,
 } from '@/features/fixed-assets/types'
@@ -119,6 +121,30 @@ function SmallBtn({
     >
       {children}
     </button>
+  )
+}
+
+/** Borrador de la baja (venta o pérdida) de un activo confirmado. Todo como texto del formulario. */
+interface BajaDraft {
+  id: number
+  kind: FixedAssetDisposalKind
+  disposalDate: string
+  salePrice: string
+  buyerRfc: string
+  buyerName: string
+  saleInvoiceUuid: string
+  notes: string
+}
+
+const inputStyle = { background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }
+const inputClass = 'px-2.5 py-2 rounded-lg text-[12.5px] w-full'
+
+function BajaField({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="flex flex-col gap-1 text-[11.5px] font-semibold" style={{ color: 'var(--ink-700)' }}>
+      {label}
+      {children}
+    </label>
   )
 }
 
@@ -259,6 +285,64 @@ export const Gastos612Tab = memo(function Gastos612Tab({
     await despuesDeGuardar('Marcaste un gasto como activo fijo.')
   }
 
+  // Venta o pérdida: el activo deja de depreciarse desde la fecha de baja.
+  const [baja, setBaja] = useState<BajaDraft | null>(null)
+  const setBajaCampo = (campo: keyof Omit<BajaDraft, 'id'>) => (valor: string) =>
+    setBaja((prev) => (prev ? { ...prev, [campo]: valor } : prev))
+
+  const abrirBaja = (a: FixedAsset) =>
+    setBaja({
+      id: a.id,
+      kind: 'Sold',
+      disposalDate: '',
+      salePrice: '',
+      buyerRfc: '',
+      buyerName: '',
+      saleInvoiceUuid: '',
+      notes: '',
+    })
+
+  const guardarBaja = async () => {
+    if (!baja) return
+    const venta = baja.kind === 'Sold'
+    const precio = baja.salePrice.trim() ? Number(baja.salePrice.replace(/,/g, '')) : undefined
+    setBusy(`b-${baja.id}`)
+    setError(null)
+    const res = await disposeFixedAsset(baja.id, {
+      kind: baja.kind,
+      disposalDate: baja.disposalDate,
+      ...(venta && precio !== undefined ? { salePrice: precio } : {}),
+      ...(venta && baja.buyerRfc.trim() ? { buyerRfc: baja.buyerRfc } : {}),
+      ...(venta && baja.buyerName.trim() ? { buyerName: baja.buyerName } : {}),
+      ...(venta && baja.saleInvoiceUuid.trim() ? { saleInvoiceUuid: baja.saleInvoiceUuid } : {}),
+      ...(baja.notes.trim() ? { notes: baja.notes } : {}),
+    })
+    setBusy(null)
+    if (!res.success) {
+      setError(res.error.message)
+      return
+    }
+    setBaja(null)
+    await despuesDeGuardar(venta ? 'Registraste la venta de un activo fijo.' : 'Registraste la pérdida de un activo fijo.')
+  }
+
+  const revertirBaja = async (a: FixedAsset) => {
+    setBusy(`a-${a.id}`)
+    setError(null)
+    const res = await revertFixedAssetDisposal(a.id)
+    setBusy(null)
+    if (!res.success) {
+      setError(res.error.message)
+      return
+    }
+    await despuesDeGuardar('Revertiste la baja de un activo fijo: vuelve a depreciarse.')
+  }
+
+  const dadosDeBaja = useMemo(
+    () => assets.filter((a) => fixedAssetStatusIs(a, 'Vendido') || fixedAssetStatusIs(a, 'Perdido')),
+    [assets],
+  )
+
   const assetsLoading = assetsQ.isPending
   const assetsError = assetsQ.isError ? assetsQ.error.message : null
   const typesError = typesQ.isError ? typesQ.error.message : null
@@ -383,8 +467,10 @@ export const Gastos612Tab = memo(function Gastos612Tab({
               const ocupado = busy === `a-${a.id}`
               const tasa = a.annualRate ?? t?.annualRate ?? null
               const tope = a.deductibleCap ?? t?.deductibleCap ?? null
+              const enBaja = baja?.id === a.id ? baja : null
               return (
-                <tr key={a.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                <Fragment key={a.id}>
+                <tr style={{ borderBottom: '1px solid var(--border)' }}>
                   <td className={cellClass}>
                     <div className="font-semibold" style={{ color: 'var(--ink-900)' }}>
                       {a.description || a.assetTypeName || t?.name || 'Activo fijo'}
@@ -434,10 +520,17 @@ export const Gastos612Tab = memo(function Gastos612Tab({
                     )}
                   </td>
                   <td className={cellClass}>
-                    <div className="flex justify-end">
+                    <div className="flex justify-end gap-1.5">
+                      <SmallBtn
+                        title="Se vendió o se perdió: deja de depreciarse desde esa fecha"
+                        onClick={() => abrirBaja(a)}
+                        disabled={busy != null || baja != null}
+                      >
+                        <PackageMinus size={12} /> Dar de baja
+                      </SmallBtn>
                       <SmallBtn
                         kind="danger"
-                        title="Deja de depreciarse; el gasto vuelve a deducirse completo"
+                        title="No era activo fijo: deja de depreciarse y el gasto vuelve a deducirse completo"
                         onClick={() => void actualizar(a, { status: 'Descartado' }, 'Quitaste un activo fijo.')}
                         disabled={busy != null}
                       >
@@ -446,11 +539,155 @@ export const Gastos612Tab = memo(function Gastos612Tab({
                     </div>
                   </td>
                 </tr>
+                {enBaja && (
+                  <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}>
+                    <td colSpan={5} className="px-3 py-3">
+                      <div className="flex flex-col gap-3">
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                          <BajaField label="Motivo">
+                            <select
+                              value={enBaja.kind}
+                              onChange={(e) => setBajaCampo('kind')(e.target.value)}
+                              className={inputClass}
+                              style={inputStyle}
+                            >
+                              <option value="Sold">Venta</option>
+                              <option value="Lost">Pérdida (robo, siniestro, desuso)</option>
+                            </select>
+                          </BajaField>
+                          <BajaField label={enBaja.kind === 'Sold' ? 'Fecha de la venta' : 'Fecha de la pérdida'}>
+                            <input
+                              type="date"
+                              value={enBaja.disposalDate}
+                              onChange={(e) => setBajaCampo('disposalDate')(e.target.value)}
+                              className={inputClass}
+                              style={inputStyle}
+                            />
+                          </BajaField>
+                          {enBaja.kind === 'Sold' && (
+                            <>
+                              <BajaField label="Precio de venta (sin IVA)">
+                                <input
+                                  inputMode="decimal"
+                                  value={enBaja.salePrice}
+                                  onChange={(e) => setBajaCampo('salePrice')(e.target.value)}
+                                  placeholder="0.00"
+                                  className={inputClass}
+                                  style={inputStyle}
+                                />
+                              </BajaField>
+                              <BajaField label="RFC del comprador">
+                                <input
+                                  value={enBaja.buyerRfc}
+                                  onChange={(e) => setBajaCampo('buyerRfc')(e.target.value)}
+                                  maxLength={13}
+                                  className={inputClass}
+                                  style={inputStyle}
+                                />
+                              </BajaField>
+                              <BajaField label="Nombre del comprador">
+                                <input
+                                  value={enBaja.buyerName}
+                                  onChange={(e) => setBajaCampo('buyerName')(e.target.value)}
+                                  maxLength={300}
+                                  className={inputClass}
+                                  style={inputStyle}
+                                />
+                              </BajaField>
+                              <BajaField label="UUID de la factura de venta">
+                                <input
+                                  value={enBaja.saleInvoiceUuid}
+                                  onChange={(e) => setBajaCampo('saleInvoiceUuid')(e.target.value)}
+                                  className={inputClass}
+                                  style={{ ...inputStyle, ...MONO }}
+                                />
+                              </BajaField>
+                            </>
+                          )}
+                          <BajaField label="Notas">
+                            <input
+                              value={enBaja.notes}
+                              onChange={(e) => setBajaCampo('notes')(e.target.value)}
+                              maxLength={1000}
+                              className={inputClass}
+                              style={inputStyle}
+                            />
+                          </BajaField>
+                        </div>
+                        <div className="flex items-center gap-1.5 justify-end">
+                          <SmallBtn onClick={() => setBaja(null)} disabled={busy != null}>
+                            <X size={12} /> Cancelar
+                          </SmallBtn>
+                          <SmallBtn kind="brand" onClick={() => void guardarBaja()} disabled={busy != null}>
+                            {busy === `b-${a.id}` ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}{' '}
+                            Registrar baja
+                          </SmallBtn>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               )
             })}
           </SimpleTable>
         )}
       </Card>
+
+      {/* Activos dados de baja */}
+      {dadosDeBaja.length > 0 && (
+        <Card>
+          <PanelHeader612
+            title="Activos fijos dados de baja"
+            subtitle="Vendidos o perdidos: se deprecian hasta el mes de la baja. Revertir los regresa a Confirmado."
+          />
+          <SimpleTable headers={['Activo', 'Baja', 'Detalle', '']}>
+            {dadosDeBaja.map((a) => {
+              const d = a.disposal
+              return (
+                <tr key={a.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <td className={cellClass}>
+                    <div className="font-semibold" style={{ color: 'var(--ink-900)' }}>
+                      {a.description || a.assetTypeName || 'Activo fijo'}
+                    </div>
+                    <UuidShort uuid={a.originUuid} />
+                  </td>
+                  <td className={cellClass}>
+                    <div className="flex flex-col gap-1 items-start">
+                      <Badge kind={fixedAssetStatusIs(a, 'Vendido') ? 'brand' : 'amber'}>{a.status}</Badge>
+                      <span className="text-[12px]" style={{ color: 'var(--ink-700)' }}>{fmtFecha(d?.disposalDate)}</span>
+                    </div>
+                  </td>
+                  <td className={cellClass}>
+                    {fixedAssetStatusIs(a, 'Vendido') ? (
+                      <div className="flex flex-col gap-0.5 text-[12px]">
+                        <span style={cellMoneyStyle}>{d?.salePrice != null ? fmtMoney(d.salePrice) : 'Sin precio'}</span>
+                        <span style={{ color: 'var(--ink-500)' }}>
+                          {[d?.buyerName, d?.buyerRfc].filter(Boolean).join(' · ') || 'Sin comprador'}
+                        </span>
+                        {d?.saleInvoiceUuid && <UuidShort uuid={d.saleInvoiceUuid} />}
+                      </div>
+                    ) : (
+                      <span className="text-[12px]" style={{ color: 'var(--ink-500)' }}>{d?.notes || '—'}</span>
+                    )}
+                  </td>
+                  <td className={cellClass}>
+                    <div className="flex justify-end">
+                      <SmallBtn
+                        title="Se capturó por error: vuelve a Confirmado y se sigue depreciando"
+                        onClick={() => void revertirBaja(a)}
+                        disabled={busy != null}
+                      >
+                        {busy === `a-${a.id}` ? <Loader2 size={12} className="animate-spin" /> : <Undo2 size={12} />} Revertir
+                      </SmallBtn>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
+          </SimpleTable>
+        </Card>
+      )}
 
       {/* Gastos del periodo */}
       <Card>

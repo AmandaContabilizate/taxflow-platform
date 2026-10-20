@@ -17,14 +17,26 @@ export interface FixedAssetType {
   deductibleCap: number | null
 }
 
-/** `FixedAssetStatuses` del back. `Sugerido` solo lo pone el clasificador. */
-export type FixedAssetStatus = 'Sugerido' | 'Confirmado' | 'Descartado'
+/**
+ * Nombre (español) del catálogo `Declarations.FixedAssetStatus`, el que trae `status`.
+ * `Sugerido` solo lo pone el clasificador; `Vendido`/`Perdido` salen de la baja (`/disposal`).
+ */
+export type FixedAssetStatus = 'Sugerido' | 'Confirmado' | 'Descartado' | 'Vendido' | 'Perdido'
 
-/** Lo que el contador puede mandar en el PUT. */
-export type FixedAssetDecision = Exclude<FixedAssetStatus, 'Sugerido'>
+/** Código del mismo catálogo (`statusCode`). */
+export type FixedAssetStatusCode = 'Suggested' | 'Confirmed' | 'Discarded' | 'Sold' | 'Lost'
 
-/** `FixedAssetSources` del back: quién lo sugirió o lo dio de alta. */
+/** Lo que el contador puede mandar en el PUT (el back acepta nombre o código). */
+export type FixedAssetDecision = 'Confirmado' | 'Descartado'
+
+/** Tipo de baja (`POST /disposal`). */
+export type FixedAssetDisposalKind = 'Sold' | 'Lost'
+
+/** Nombre (español) del catálogo `Declarations.FixedAssetSource`: quién lo sugirió o lo dio de alta. */
 export type FixedAssetSource = 'IA' | 'Regla' | 'Contador'
+
+/** Código del mismo catálogo (`sourceCode`). */
+export type FixedAssetSourceCode = 'AI' | 'Rule' | 'Accountant'
 
 /** `FixedAssetLayerDto`: cada monto que se deprecia (la factura I PUE o cada pago P de una PPD). */
 export interface FixedAssetLayer {
@@ -32,8 +44,23 @@ export interface FixedAssetLayer {
   uuid: string
   /** Sin IVA y antes del tope. */
   amount: number
+  /** Fecha del comprobante (mes de adquisición para el INPC). `null` si no está descargado. */
+  acquisitionDate: string | null
   startFiscalYear: number
   startMonth: number
+}
+
+/** `FixedAssetDisposalDto`: venta o pérdida. Precio, comprador y CFDI solo en ventas. */
+export interface FixedAssetDisposal {
+  /** `DateOnly` → "yyyy-MM-dd". */
+  disposalDate: string
+  salePrice: number | null
+  buyerRfc: string | null
+  buyerName: string | null
+  saleInvoiceUuid: string | null
+  /** El CFDI de venta ya descargado (I emitido por el contribuyente). */
+  saleInvoiceId: number | null
+  notes: string | null
 }
 
 /** `FixedAssetDto` (lista, alta y cambio). */
@@ -47,7 +74,9 @@ export interface FixedAsset {
   annualRate: number
   deductibleCap: number | null
   status: FixedAssetStatus
+  statusCode: FixedAssetStatusCode
   source: FixedAssetSource
+  sourceCode: FixedAssetSourceCode
   /** Declaración cuyo cálculo lo sugirió. `null` en altas del contador. */
   suggestedInDeclarationId: number | null
   /** Cuándo se confirmó o descartó por última vez. */
@@ -56,6 +85,8 @@ export interface FixedAsset {
   amount: number | null
   /** `SuggestionReason`: por qué la IA o la regla lo sugirió. */
   motivo: string | null
+  /** Detalle de la venta o pérdida; `null` mientras no se dé de baja. */
+  disposal: FixedAssetDisposal | null
   layers: FixedAssetLayer[]
 }
 
@@ -74,6 +105,17 @@ export interface UpdateFixedAssetInput {
   assetTypeCode?: string
   status?: FixedAssetDecision
   description?: string
+}
+
+/** `DisposeFixedAssetRequestDto`. En una pérdida no viajan precio, comprador ni CFDI. */
+export interface DisposeFixedAssetInput {
+  kind: FixedAssetDisposalKind
+  disposalDate: string
+  salePrice?: number
+  buyerRfc?: string
+  buyerName?: string
+  saleInvoiceUuid?: string
+  notes?: string
 }
 
 export interface FixedAssetsError {

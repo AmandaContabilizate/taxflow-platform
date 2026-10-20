@@ -27,5 +27,40 @@ export const updateFixedAssetSchema = z
     message: 'No hay cambios que guardar.',
   })
 
+const hoyIso = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+const dosDecimales = (n: number) => Math.abs(Math.round(n * 100) - n * 100) < 1e-6
+
+/** Venta o pérdida (`FixedAssetDisposalRules` del back). Una pérdida no lleva datos de venta. */
+export const disposeFixedAssetSchema = z
+  .object({
+    kind: z.enum(['Sold', 'Lost'], { errorMap: () => ({ message: 'Elige si se vendió o se perdió.' }) }),
+    disposalDate: z
+      .string()
+      .trim()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Captura la fecha de la venta o de la pérdida.')
+      .refine((d) => d >= '2000-01-01', 'La fecha no puede ser anterior a 2000.')
+      .refine((d) => d <= hoyIso(), 'La fecha no puede ser futura.'),
+    salePrice: z
+      .number({ invalid_type_error: 'Precio de venta: captura un número.' })
+      .finite()
+      .positive('El precio de venta debe ser mayor a cero.')
+      .refine(dosDecimales, 'Precio de venta: máximo dos decimales.')
+      .optional(),
+    buyerRfc: z.string().trim().toUpperCase().min(12, 'RFC del comprador inválido.').max(13, 'RFC del comprador inválido.').optional(),
+    buyerName: z.string().trim().max(300, 'El nombre admite hasta 300 caracteres.').optional(),
+    saleInvoiceUuid: z.string().trim().uuid('El UUID de la factura de venta no es válido.').optional(),
+    notes: z.string().trim().max(1000, 'Las notas admiten hasta 1000 caracteres.').optional(),
+  })
+  .superRefine((v, ctx) => {
+    if (v.kind === 'Lost' && (v.salePrice != null || v.buyerRfc || v.buyerName || v.saleInvoiceUuid)) {
+      ctx.addIssue({ code: 'custom', path: ['kind'], message: 'Una pérdida no lleva precio, comprador ni factura de venta.' })
+    }
+  })
+
 export type CreateFixedAssetSchemaInput = z.input<typeof createFixedAssetSchema>
 export type UpdateFixedAssetSchemaInput = z.input<typeof updateFixedAssetSchema>
+export type DisposeFixedAssetSchemaInput = z.input<typeof disposeFixedAssetSchema>

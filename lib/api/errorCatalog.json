@@ -362,5 +362,9 @@
   "IVA_FAVOR_BALANCE_NOT_FOUND": {
     "es": "No encontramos ese saldo a favor de IVA.",
     "en": "VAT credit balance not found."
+  },
+  "FIXED_ASSET_DISPOSAL_INVALID": {
+    "es": "La baja del activo fijo no es válida.",
+    "en": "Invalid fixed asset disposal."
   }
 }

@@ -40,6 +40,12 @@ const MONTO_COLS = new Set([5, 6])
  */
 const esManual = (b: IvaFavorBalance) => b.source === 'Manual'
 
+/**
+ * Un saldo generado por una declaración del sistema no guarda periodo, folio, tipo ni fecha:
+ * los toma de esa declaración, así que aquí no se edita (el back responde INVALID_INPUT).
+ */
+const vieneDeDeclaracion = (b: IvaFavorBalance) => b.originDeclarationId != null
+
 const SOURCE_LABEL: Record<IvaFavorBalanceSource, string> = {
   Clasificador: 'Cálculo',
   Manual: 'Captura manual',
@@ -297,7 +303,7 @@ export const SaldosFavorIvaTab = memo(function SaldosFavorIvaTab({
             </div>
             {soloAcuse && (
               <div className="text-[12px]" style={{ color: 'var(--ink-500)' }}>
-                Este saldo lo generó una declaración del sistema: el periodo y los montos los lleva el cálculo.
+                Este saldo no es una captura manual: el periodo y los montos no se corrigen a mano.
                 Aquí solo se completan los datos del acuse.
               </div>
             )}
@@ -485,7 +491,12 @@ export const SaldosFavorIvaTab = memo(function SaldosFavorIvaTab({
                       <button
                         type="button"
                         onClick={() => abrirEdicion(b)}
-                        disabled={form != null}
+                        disabled={form != null || vieneDeDeclaracion(b)}
+                        title={
+                          vieneDeDeclaracion(b)
+                            ? `Se corrige en la declaración #${b.originDeclarationId} (folio, fecha y tipo salen de ella)`
+                            : undefined
+                        }
                         className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[12px] font-bold transition hover:opacity-90 disabled:opacity-50"
                         style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
                       >

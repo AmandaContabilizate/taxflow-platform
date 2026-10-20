@@ -30,7 +30,7 @@ Todos en `components/dashboard/operaciones/`.
 |---|---|
 | `calc-612.ts` | `read612(calc)`: lector del JSON del 612 con las llaves exactas del clasificador (§ "Cálculo: llaves que se leen"). Lo que no venga queda `null` → "—" |
 | `calculos-612.tsx` | Pestaña **Cálculos** del 612: avisos del clasificador (`Warnings`); tarjeta de IVA (actividades 16/8/0 %/exentas, IVA cobrado, IVA de gastos, proporción, no acreditable, acreditable, retenido, saldos aplicados, remanente, saldo generado, a cargo o a favor) y de ISR (ingresos y gastos del mes y acumulados, depreciación del mes y acumulada, pérdidas, base, límite inferior, excedente, %, cuota fija, causado, retenido del mes y anterior, pagos provisionales, a cargo). Debajo, la tabla de saldos aplicados con su origen y la de depreciación por activo |
-| `gastos-612-tab.tsx` | Pestaña **Gastos**: sugerencias de esta declaración (con botón para ver las de otros meses), activos confirmados con sus capas (cambiar tipo, Quitar) y gastos recibidos del periodo con "Marcar como activo fijo" (solo facturas I) |
+| `gastos-612-tab.tsx` | Pestaña **Gastos**: sugerencias de esta declaración (con botón para ver las de otros meses), activos confirmados con sus capas (cambiar tipo, Quitar, **Dar de baja**: venta o pérdida con fecha, precio, comprador, UUID de la venta y notas), activos dados de baja (con **Revertir**) y gastos recibidos del periodo con "Marcar como activo fijo" (solo facturas I) |
 | `saldos-favor-iva-tab.tsx` | Pestaña **Saldos a favor**: historial (periodo de origen, folio, tipo, fecha, monto original, remanente, origen, acreditado fuera del sistema y declaraciones donde se aplicó) y formulario de captura y edición |
 | `parts-612.tsx` | Piezas comunes (filas, encabezados, tabla, avisos, `periodoLabel`, `REGIMEN_612`) |
 | `recalculo-tab.tsx` | Tras recalcular un 612 muestra `warnings` y cuántas `fixedAssetSuggestions` / `newFixedAssetLayers` dejó la corrida |
@@ -56,8 +56,11 @@ resto replica `IvaFavorBalanceRules.Validate`:
 - remanente ≤ monto original − lo ya acreditado en el sistema (Σ `applications.appliedAmount`; en
   la edición, en el formulario).
 
-En la edición solo viaja lo que cambió. En un saldo que no es `Manual` solo se editan folio, tipo y
-fecha (el back rechaza periodo y montos con `INVALID_INPUT`). En uno `Manual`, si cambia el monto
+En la edición solo viaja lo que cambió. Un saldo generado por una declaración del sistema
+(`originDeclarationId` ≠ null) **no se edita**: periodo, folio, tipo y fecha salen de esa
+declaración (el botón Editar queda deshabilitado; el back respondería `INVALID_INPUT`). En uno con
+origen externo que no es `Manual` solo se editan folio, tipo y fecha (el back rechaza periodo y
+montos con `INVALID_INPUT`). En uno `Manual`, si cambia el monto
 original también viaja `remainingAmount`: sin él, el back conserva lo acreditado fuera del sistema y
 mueve el remanente.
 
@@ -79,20 +82,30 @@ son arreglos. UUID en mayúsculas.
 | GET | `/api/FixedAssets/types` | — | `[{ id, code, name, annualRate, deductibleCap }]` (solo activos) |
 | GET | `/api/FixedAssets?rfc=&declarationId=` | `declarationId` **no filtra**: solo valida que sea del RFC | `FixedAsset[]`, todos los estados |
 | POST | `/api/FixedAssets` | `{ rfc, declarationId?, invoiceUuid, assetTypeCode, description? }` | `FixedAsset`, `Confirmado`, `source = "Contador"` |
-| PUT | `/api/FixedAssets/{id}` | `{ assetTypeCode?, status?, description? }`; `status` ∈ `Confirmado`/`Descartado` | `FixedAsset` |
+| PUT | `/api/FixedAssets/{id}` | `{ assetTypeCode?, status?, description? }`; `status` ∈ `Confirmado`/`Descartado` (o el código `Confirmed`/`Discarded`) | `FixedAsset` |
+| POST | `/api/FixedAssets/{id}/disposal` | `{ kind: 'Sold'\|'Lost', disposalDate, salePrice?, buyerRfc?, buyerName?, saleInvoiceUuid?, notes? }`; datos de venta solo con `Sold` | `FixedAsset` con `disposal`, `Vendido`/`Perdido` |
+| DELETE | `/api/FixedAssets/{id}/disposal` | — | `FixedAsset` de vuelta en `Confirmado` |
 | GET | `/api/IvaFavorBalances?rfc=` | — | `IvaFavorBalance[]` por periodo de origen |
 | POST | `/api/IvaFavorBalances` | `{ rfc, originFiscalYear, originMonth, operationNumber?, declarationType?, presentedDate?, originalAmount, remainingAmount? }` | `IvaFavorBalance`, `source = "Manual"` |
 | PUT | `/api/IvaFavorBalances/{id}` | mismos campos, todos opcionales | `IvaFavorBalance` |
 
 - `FixedAsset` = `{ id, originUuid, description, assetTypeCode, assetTypeName, annualRate,
-  deductibleCap, status, source, suggestedInDeclarationId, confirmedAt, amount, motivo, layers: [{
-  id, uuid, amount, startFiscalYear, startMonth }] }`. `amount` y `motivo` son las columnas
-  `SuggestedAmount` y `SuggestionReason` (null en altas del contador).
-- `status` ∈ `Sugerido` | `Confirmado` | `Descartado`; `source` ∈ `IA` | `Regla` | `Contador`.
+  deductibleCap, status, statusCode, source, sourceCode, suggestedInDeclarationId, confirmedAt,
+  amount, motivo, disposal, layers: [{ id, uuid, amount, acquisitionDate, startFiscalYear, startMonth }] }`.
+  `amount` y `motivo` son las columnas `SuggestedAmount` y `SuggestionReason` (null en altas del
+  contador). `disposal` = `{ disposalDate, salePrice, buyerRfc, buyerName, saleInvoiceUuid,
+  saleInvoiceId, notes }` o `null`.
+- Estatus y fuente son catálogos del back (`Declarations.FixedAssetStatus` / `FixedAssetSource`):
+  `status` trae el nombre (`Sugerido` | `Confirmado` | `Descartado` | `Vendido` | `Perdido`) y
+  `statusCode` el código (`Suggested` | `Confirmed` | `Discarded` | `Sold` | `Lost`); `source` ∈
+  `IA` | `Regla` | `Contador`, `sourceCode` ∈ `AI` | `Rule` | `Accountant`.
 - `IvaFavorBalance` = `{ id, originDeclarationId, originFiscalYear, originMonth, operationNumber,
-  declarationType, presentedDate, originalAmount, appliedOutsideAmount, remainingAmount, source,
-  applications: [{ declarationId, fiscalYear, month, appliedAmount }] }`; `source` ∈ `Clasificador`
-  | `Manual` | `Robot`. Remanente = original − `appliedOutsideAmount` − Σ `appliedAmount`.
+  complementNumber, declarationType, presentedDate, originalAmount, appliedOutsideAmount,
+  remainingAmount, source, sourceCode, applications: [{ declarationId, fiscalYear, month, appliedAmount }] }`;
+  `source` ∈ `Clasificador` | `Manual` | `Robot` (`sourceCode` ∈ `Classifier` | `Manual` | `Robot`).
+  `declarationType` se deriva de `complementNumber` (0 = Normal). Periodo, folio, tipo y fecha los
+  arma el back desde la declaración de origen o desde el origen externo de la captura manual.
+  Remanente = original − `appliedOutsideAmount` − Σ `appliedAmount`.
 
 Cómo los usa la pantalla:
 
@@ -109,7 +122,7 @@ Cómo los usa la pantalla:
 
 Siempre **400** con `ProblemDetails` y `extensions.errorCode` (no hay 404): `FIXED_ASSET_NOT_FOUND`,
 `FIXED_ASSET_TYPE_NOT_FOUND`, `FIXED_ASSET_INVOICE_NOT_EXPENSE`, `FIXED_ASSET_ALREADY_EXISTS`,
-`IVA_FAVOR_BALANCE_NOT_FOUND`, `TAXPAYER_NOT_FOUND`, `DECLARATION_NOT_FOUND`, `INVALID_INPUT`. El
+`FIXED_ASSET_DISPOSAL_INVALID`, `IVA_FAVOR_BALANCE_NOT_FOUND`, `TAXPAYER_NOT_FOUND`, `DECLARATION_NOT_FOUND`, `INVALID_INPUT`. El
 `detail` trae el motivo concreto en español; las actions del 612 lo prefieren sobre el texto del
 catálogo (`lib/api/problemDetail.ts`, `toCalc612Error`), porque para `INVALID_INPUT` el catálogo
 dice "Entrada inválida…" y esconde qué corregir. Un JSON mal formado (p. ej. una fecha inválida)

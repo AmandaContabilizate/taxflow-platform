@@ -719,13 +719,15 @@ export const API_ROUTES = {
     HISTORY: (id: number) => `/${id}/history`,
   },
   // apiType "fixed_assets" (Procedures). Activos fijos del 612: catálogo de tipos, lista del
-  // contribuyente (con su origen en la declaración), alta manual y cambios (tipo, estatus, descripción).
+  // contribuyente (con su origen en la declaración), alta manual, cambios (tipo, estatus, descripción)
+  // y baja (venta o pérdida): POST crea o corrige la baja, DELETE la revierte (vuelve a Confirmado).
   FIXED_ASSETS: {
     TYPES: "/types",
     LIST: (rfc: string, declarationId: number) =>
       `?rfc=${encodeURIComponent(rfc)}&declarationId=${declarationId}`,
     CREATE: "",
     UPDATE: (id: number) => `/${id}`,
+    DISPOSAL: (id: number) => `/${id}/disposal`,
   },
   // apiType "iva_favor_balances" (Procedures). Saldos a favor de IVA con su origen y sus
   // aplicaciones; POST = captura manual de meses que el sistema no tiene.
