@@ -1122,7 +1122,8 @@ const ResultadoRecalculo = memo(function ResultadoRecalculo({
         {/* 612: avisos del clasificador y lo que la corrida dejó en Gastos. */}
         {((result.warnings?.length ?? 0) > 0 ||
           (result.fixedAssetSuggestions?.length ?? 0) > 0 ||
-          (result.newFixedAssetLayers?.length ?? 0) > 0) && (
+          (result.newFixedAssetLayers?.length ?? 0) > 0 ||
+          (result.fixedAssetIvaCredits?.length ?? 0) > 0) && (
           <div
             className="rounded-2xl px-4 py-3 flex items-start gap-2.5 text-[13px]"
             style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)', border: '1px solid var(--border)' }}
@@ -1142,6 +1143,18 @@ const ResultadoRecalculo = memo(function ResultadoRecalculo({
                   <strong>{result.newFixedAssetLayers!.length}</strong> capa
                   {result.newFixedAssetLayers!.length === 1 ? '' : 's'} nueva
                   {result.newFixedAssetLayers!.length === 1 ? '' : 's'} de activos fijos confirmados.
+                </span>
+              )}
+              {(result.fixedAssetIvaCredits?.length ?? 0) > 0 && (
+                <span>
+                  IVA de activos fijos: <strong>{amount(result.fixedAssetIvaCredits!.reduce((t, x) => t + (x.ivaAcreditado ?? 0), 0))}</strong>{' '}
+                  acreditado en {result.fixedAssetIvaCredits!.length} CFDI
+                  {result.fixedAssetIvaCredits!.some((x) => (x.ivaExcedenteTope ?? 0) > 0) && (
+                    <>
+                      ; <strong>{amount(result.fixedAssetIvaCredits!.reduce((t, x) => t + (x.ivaExcedenteTope ?? 0), 0))}</strong> pasó del tope y no se acredita
+                    </>
+                  )}
+                  .
                 </span>
               )}
               {(result.warnings ?? []).map((w, i) => (

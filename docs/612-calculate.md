@@ -30,10 +30,11 @@ Todos en `components/dashboard/operaciones/`.
 |---|---|
 | `calc-612.ts` | `read612(calc)`: lector del JSON del 612 con las llaves exactas del clasificador (§ "Cálculo: llaves que se leen"). Lo que no venga queda `null` → "—" |
 | `calculos-612.tsx` | Pestaña **Cálculos** del 612: avisos del clasificador (`Warnings`); tarjeta de IVA (actividades 16/8/0 %/exentas, IVA cobrado, IVA de gastos, proporción, no acreditable, acreditable, retenido, saldos aplicados, remanente, saldo generado, a cargo o a favor) y de ISR (ingresos y gastos del mes y acumulados, depreciación del mes y acumulada, pérdidas, base, límite inferior, excedente, %, cuota fija, causado, retenido del mes y anterior, pagos provisionales, a cargo). Debajo, la tabla de saldos aplicados con su origen y la de depreciación por activo |
-| `gastos-612-tab.tsx` | Pestaña **Gastos**: sugerencias de esta declaración (con botón para ver las de otros meses), activos confirmados con sus capas (cambiar tipo, Quitar, **Dar de baja**: venta o pérdida con fecha, precio, comprador, UUID de la venta y notas), activos dados de baja (con **Revertir**) y gastos recibidos del periodo con "Marcar como activo fijo" (solo facturas I) |
+| `gastos-612-tab.tsx` | Pestaña **Gastos**: sugerencias de esta declaración (con botón para ver las de otros meses), activos confirmados con sus capas (cambiar tipo, Quitar, **Dar de baja**: venta o pérdida con fecha, precio, comprador, UUID de la venta y notas), botón **Agregar activo que ya se deprecia (sin factura)** y **Corregir** en los capturados, IVA acreditado contra el tope, activos dados de baja (con desde cuándo dejaron de depreciarse y **Revertir**) y gastos recibidos del periodo con "Marcar como activo fijo" (solo facturas I) |
+| `activo-capturado-form.tsx` | Formulario del activo capturado sin factura (R7), para alta y corrección, con el deducible estimado y en cuántos meses se agota (`estimarCapturado`) |
 | `saldos-favor-iva-tab.tsx` | Pestaña **Saldos a favor**: historial (periodo de origen, folio, tipo, fecha, monto original, remanente, origen, acreditado fuera del sistema y declaraciones donde se aplicó) y formulario de captura y edición |
 | `parts-612.tsx` | Piezas comunes (filas, encabezados, tabla, avisos, `periodoLabel`, `REGIMEN_612`) |
-| `recalculo-tab.tsx` | Tras recalcular un 612 muestra `warnings` y cuántas `fixedAssetSuggestions` / `newFixedAssetLayers` dejó la corrida |
+| `recalculo-tab.tsx` | Tras recalcular un 612 muestra `warnings`, cuántas `fixedAssetSuggestions` / `newFixedAssetLayers` dejó la corrida y, si viene, el total de `fixedAssetIvaCredits` (acreditado y excedente por tope) |
 
 ### Aviso de Recalcular
 
@@ -64,6 +65,30 @@ montos con `INVALID_INPUT`). En uno `Manual`, si cambia el monto
 original también viaja `remainingAmount`: sin él, el back conserva lo acreditado fuera del sistema y
 mueve el remanente.
 
+### Cambios del 21-oct (§11 de `Requerimientos/612-calculate.md`)
+
+Todos los campos nuevos son **opcionales**: con un back o un clasificador viejos no se pinta lo
+que falte y nada truena.
+
+- **R7, activo capturado sin factura.** En Gastos, botón *Agregar activo que ya se deprecia (sin
+  factura)*: tipo (catálogo `GET /types`), descripción, **monto mensual de depreciación** y **mes
+  y año en que empezó**. Validación en `capturedFixedAssetSchema` (formulario y server action):
+  monto > 0 con dos decimales, mes 1–12, año ≥ 2000 y el mes de inicio no puede ser futuro.
+  Estimación en pantalla: deducible = mensual × 12 ÷ tasa del tipo; se agota en ⌈12 ÷ tasa⌉
+  meses desde el inicio (último mes y cuántos le quedan a la fecha). Si el deducible pasa el tope
+  del tipo, avisa. En la lista llevan la etiqueta **Capturado** (en lugar del UUID) y su monto
+  mensual con el inicio en lugar de capas; **Corregir** abre el mismo formulario y manda `PUT`.
+- **Detalle del activo.** Bajo la tasa: *IVA acreditado X de un tope de Y* (`ivaCredited`,
+  `ivaCreditCap`; 28,000 auto y 40,000 eléctrico) y *tope alcanzado* cuando ya se llenó. En los
+  dados de baja: *Dejó de depreciarse desde \<mes de la baja\>; la última depreciación fue en
+  \<mes anterior\>* (R8).
+- **Cálculos.** La tabla de depreciación agrega *Meses en el ejercicio*
+  (`MesesDepreciadosEjercicio`) y las etiquetas *Capturado* y *Vendido/Perdido* (`Capturado`,
+  `DisposalKind`; si `Capturado` no viene se toma del activo). Nueva tabla **IVA de activos
+  fijos** con `FixedAssetIvaCredits` (activo, CFDI, IVA acreditado, excedente por tope, total).
+  Los `Warnings` se siguen pintando tal cual, incluido el de factura papá no encontrada. El hint
+  de *IVA no acreditable* aclara que el de activos se pierde (R4).
+
 ## Endpoints que consume
 
 Base: microservicio Procedures (`API_BASE_PROCEDURES`, ya termina en `/api`). Rutas en
@@ -85,6 +110,8 @@ son arreglos. UUID en mayúsculas.
 | PUT | `/api/FixedAssets/{id}` | `{ assetTypeCode?, status?, description? }`; `status` ∈ `Confirmado`/`Descartado` (o el código `Confirmed`/`Discarded`) | `FixedAsset` |
 | POST | `/api/FixedAssets/{id}/disposal` | `{ kind: 'Sold'\|'Lost', disposalDate, salePrice?, buyerRfc?, buyerName?, saleInvoiceUuid?, notes? }`; datos de venta solo con `Sold` | `FixedAsset` con `disposal`, `Vendido`/`Perdido` |
 | DELETE | `/api/FixedAssets/{id}/disposal` | — | `FixedAsset` de vuelta en `Confirmado` |
+| POST | `/api/FixedAssets/captured` | `{ rfc, assetTypeCode, description?, monthlyAmount, startFiscalYear, startMonth }` | `FixedAsset` con `isCaptured = true`, `capture` y `originUuid = null` (supuesto) |
+| PUT | `/api/FixedAssets/captured/{id}` | mismos campos que el POST (incluye `rfc`) | `FixedAsset` (**ruta supuesta**: el §11 solo dice "con PUT"; si el back usa otra, se cambia en `API_ROUTES.FIXED_ASSETS.CAPTURED_UPDATE`) |
 | GET | `/api/IvaFavorBalances?rfc=` | — | `IvaFavorBalance[]` por periodo de origen |
 | POST | `/api/IvaFavorBalances` | `{ rfc, originFiscalYear, originMonth, operationNumber?, declarationType?, presentedDate?, originalAmount, remainingAmount? }` | `IvaFavorBalance`, `source = "Manual"` |
 | PUT | `/api/IvaFavorBalances/{id}` | mismos campos, todos opcionales | `IvaFavorBalance` |
@@ -94,7 +121,10 @@ son arreglos. UUID en mayúsculas.
   amount, motivo, disposal, layers: [{ id, uuid, amount, acquisitionDate, startFiscalYear, startMonth }] }`.
   `amount` y `motivo` son las columnas `SuggestedAmount` y `SuggestionReason` (null en altas del
   contador). `disposal` = `{ disposalDate, salePrice, buyerRfc, buyerName, saleInvoiceUuid,
-  saleInvoiceId, notes }` o `null`.
+  saleInvoiceId, notes }` o `null`. Opcionales del 21-oct: `ivaCreditCap` (null = sin tope),
+  `ivaCredited`, `isCaptured` y `capture` = `{ monthlyAmount, startFiscalYear, startMonth }`
+  (null en activos con factura). Un capturado se reconoce por `isCaptured === true` o por traer
+  `capture` (`fixedAssetIsCaptured`). `GET /types` puede traer también `ivaCreditCap`.
 - Estatus y fuente son catálogos del back (`Declarations.FixedAssetStatus` / `FixedAssetSource`):
   `status` trae el nombre (`Sugerido` | `Confirmado` | `Descartado` | `Vendido` | `Perdido`) y
   `statusCode` el código (`Suggested` | `Confirmed` | `Discarded` | `Sold` | `Lost`); `source` ∈
@@ -169,7 +199,8 @@ compatibilidad del 626 solo donde el 612 no trae la suya. Contrato:
 | Gastos del mes / acumulados | `ComprasYGastosDelPeriodo`, `DeduccionesAcumuladas` (sin activos y con el IVA no acreditable) |
 | Depreciación del mes | `isr.Depreciaciones.DelMes` |
 | Depreciación acumulada | `DepreciacionAcumulada` (= `Depreciaciones.AcumuladaEjercicio` + `AcumuladaCapturada`) |
-| Depreciación por activo | `isr.Depreciaciones.Detalle[]` = `{ FixedAssetId, AssetTypeCode, MontoDeducible, Tasa, DelMes, AcumuladaEjercicio, AcumuladaTotal, Pendiente, Capas }` |
+| Depreciación por activo | `isr.Depreciaciones.Detalle[]` = `{ FixedAssetId, AssetTypeCode, MontoDeducible, Tasa, DelMes, AcumuladaEjercicio, AcumuladaTotal, Pendiente, Capas, Capturado?, DisposalKind?, MesesDepreciadosEjercicio? }` |
+| IVA de activos fijos | `FixedAssetIvaCredits[]` = `{ FixedAssetId, Uuid, IvaAcreditado, IvaExcedenteTope }`; se busca en `iva`, luego en `isr` y luego en `isr.Depreciaciones` (**supuesto**: el §11.3 no dice en qué bloque lo injerta el back). Sin la llave, la tabla no aparece |
 | Pérdidas, base, límite, excedente, cuota | `PerdidasFiscales`, `BaseGravable`, `LimiteInferior`, `Excedente`, `CuotaFija` |
 | % sobre el excedente | `Porcentaje` (fracción). `ISR.porcentage` de la compatibilidad sale en 0 en el 612 |
 | ISR causado | `ImpuestosAntesDeRetenciones` |
@@ -180,6 +211,8 @@ compatibilidad del 626 solo donde el 612 no trae la suya. Contrato:
 
 ## Pendientes
 
+- Confirmar con el back la ruta del `PUT` del capturado y en qué bloque de `/calculations` viaja
+  `FixedAssetIvaCredits`.
 - Probar contra el back de STG cuando estén los endpoints y la migración aplicada.
 - Las 4 declaraciones de prueba del contador (validar la proporción D3 en pantalla).
 - El listado de gastos pagina de 100 en 100 sobre las recibidas y filtra I y P en el cliente.

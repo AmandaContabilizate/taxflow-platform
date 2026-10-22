@@ -15,6 +15,8 @@ export interface FixedAssetType {
   annualRate: number
   /** Tope deducible (automóvil 175,000). `null` = sin tope. */
   deductibleCap: number | null
+  /** Tope de IVA acreditable por activo (AUTOMOVIL 28,000; AUTOMOVIL_ELECTRICO 40,000). Opcional: un back viejo no lo manda. */
+  ivaCreditCap?: number | null
 }
 
 /**
@@ -63,11 +65,21 @@ export interface FixedAssetDisposal {
   notes: string | null
 }
 
+/**
+ * `FixedAssetCaptureDto`: activo que el cliente ya venía depreciando y no tiene factura en el
+ * sistema (R7). El monto deducible lo deriva el back: mensual × 12 ÷ tasa del tipo.
+ */
+export interface FixedAssetCapture {
+  monthlyAmount: number
+  startFiscalYear: number
+  startMonth: number
+}
+
 /** `FixedAssetDto` (lista, alta y cambio). */
 export interface FixedAsset {
   id: number
-  /** UUID de la factura I que lo originó. */
-  originUuid: string
+  /** UUID de la factura I que lo originó. `null` en un activo capturado sin factura. */
+  originUuid: string | null
   description: string | null
   assetTypeCode: string
   assetTypeName: string
@@ -88,6 +100,15 @@ export interface FixedAsset {
   /** Detalle de la venta o pérdida; `null` mientras no se dé de baja. */
   disposal: FixedAssetDisposal | null
   layers: FixedAssetLayer[]
+  /** Campos del 21-oct (§11). Opcionales: con un back viejo no vienen. */
+  /** Tope de IVA acreditable del activo; `null` = sin tope. */
+  ivaCreditCap?: number | null
+  /** IVA ya acreditado de este activo (Σ `FixedAssetIvaCredits`), contra el tope. */
+  ivaCredited?: number | null
+  /** Alta sin factura (R7). */
+  isCaptured?: boolean | null
+  /** Datos de la captura; `null` en activos con factura. */
+  capture?: FixedAssetCapture | null
 }
 
 /** `CreateFixedAssetRequestDto`. Solo facturas I recibidas por el contribuyente. */
@@ -98,6 +119,16 @@ export interface CreateFixedAssetInput {
   invoiceUuid: string
   assetTypeCode: string
   description?: string
+}
+
+/** `POST /api/FixedAssets/captured` y `PUT /api/FixedAssets/captured/{id}` (mismos campos). */
+export interface CapturedFixedAssetInput {
+  rfc: string
+  assetTypeCode: string
+  description?: string
+  monthlyAmount: number
+  startFiscalYear: number
+  startMonth: number
 }
 
 /** `UpdateFixedAssetRequestDto`. Solo viaja lo que cambia. */
@@ -127,4 +158,9 @@ export interface FixedAssetsError {
 
 export function fixedAssetStatusIs(asset: Pick<FixedAsset, 'status'>, status: FixedAssetStatus): boolean {
   return asset.status === status
+}
+
+/** Activo capturado sin factura: el flag del back o, si no viene, que traiga `capture`. */
+export function fixedAssetIsCaptured(asset: Pick<FixedAsset, 'isCaptured' | 'capture'>): boolean {
+  return asset.isCaptured === true || asset.capture != null
 }

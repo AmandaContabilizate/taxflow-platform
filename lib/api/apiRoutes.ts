@@ -735,6 +735,9 @@ export const API_ROUTES = {
     CREATE: "",
     UPDATE: (id: number) => `/${id}`,
     DISPOSAL: (id: number) => `/${id}/disposal`,
+    // Activo sin factura que ya se deprecia (R7, §11 de Requerimientos/612-calculate.md).
+    CAPTURED: "/captured",
+    CAPTURED_UPDATE: (id: number) => `/captured/${id}`,
   },
   // apiType "iva_favor_balances" (Procedures). Saldos a favor de IVA con su origen y sus
   // aplicaciones; POST = captura manual de meses que el sistema no tiene.

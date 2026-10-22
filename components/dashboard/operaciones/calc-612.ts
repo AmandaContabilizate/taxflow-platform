@@ -41,6 +41,20 @@ export interface DepreciacionActivo612 {
   acumuladaEjercicio: number | null
   acumuladaTotal: number | null
   pendiente: number | null
+  /** §11 (opcionales con un clasificador viejo): activo capturado sin factura (R7). */
+  capturado: boolean | null
+  /** `Sold` | `Lost` si el activo se dio de baja (R8); se deprecia hasta el mes anterior. */
+  disposalKind: string | null
+  /** Meses que se depreció en el ejercicio. */
+  mesesEjercicio: number | null
+}
+
+/** `FixedAssetIvaCredits[]` (R3): IVA de un activo acreditado por CFDI y lo que pasó del tope. */
+export interface IvaCreditoActivo612 {
+  fixedAssetId: number | null
+  uuid: string | null
+  ivaAcreditado: number | null
+  ivaExcedenteTope: number | null
 }
 
 export interface Calc612 {
@@ -87,6 +101,8 @@ export interface Calc612 {
     isrCargo: number | null
   }
   depreciaciones: DepreciacionActivo612[]
+  /** `FixedAssetIvaCredits`; vacío si el back no lo manda. */
+  ivaCreditosActivos: IvaCreditoActivo612[]
   /** `Warnings` del clasificador (IA que falló o no se consultó, activo sin tasa). */
   warnings: string[]
 }
@@ -181,6 +197,20 @@ export function read612(calc: DeclarationCalculations | null): Calc612 {
     acumuladaEjercicio: num(d, ['AcumuladaEjercicio']),
     acumuladaTotal: num(d, ['AcumuladaTotal']),
     pendiente: num(d, ['Pendiente']),
+    capturado: readBool(d, ['Capturado']),
+    disposalKind: str(d, ['DisposalKind']),
+    mesesEjercicio: num(d, ['MesesDepreciadosEjercicio']),
+  }))
+
+  // R3: el back puede injertarlo en el bloque de IVA (lo natural), en el de ISR o dentro de
+  // `Depreciaciones`. Se busca en ese orden; si no viene, la tabla no se pinta.
+  const ivaCreditosActivos: IvaCreditoActivo612[] = asArray(
+    pick(iva, ['FixedAssetIvaCredits']) ?? pick(isr, ['FixedAssetIvaCredits']) ?? pick(deps, ['FixedAssetIvaCredits']),
+  ).map((c) => ({
+    fixedAssetId: num(c, ['FixedAssetId']),
+    uuid: str(c, ['Uuid']),
+    ivaAcreditado: num(c, ['IvaAcreditado']),
+    ivaExcedenteTope: num(c, ['IvaExcedenteTope']),
   }))
 
   // El 612 no manda el retenido de meses anteriores por separado: `IsrDeRetenciones` es el
@@ -242,6 +272,7 @@ export function read612(calc: DeclarationCalculations | null): Calc612 {
       isrCargo: num(isr, ['TotalISR', 'ISR.retentionToPay']),
     },
     depreciaciones,
+    ivaCreditosActivos,
     warnings,
   }
 }

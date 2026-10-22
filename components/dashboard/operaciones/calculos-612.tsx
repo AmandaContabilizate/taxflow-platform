@@ -4,7 +4,8 @@ import { memo, useMemo } from 'react'
 import { useFixedAssets } from '@/features/fixed-assets/hooks/useFixedAssets'
 import { useIvaFavorBalances } from '@/features/iva-favor-balances/hooks/useIvaFavorBalances'
 import type { DeclarationCalculations } from '@/features/operations/types'
-import { Card } from '../ui'
+import { MONO } from '../constants'
+import { Badge, Card } from '../ui'
 import { read612 } from './calc-612'
 import {
   AmountRow,
@@ -22,7 +23,10 @@ import {
 } from './parts-612'
 
 const MONTO_COLS = new Set([4, 5, 6])
-const DEP_COLS = new Set([1, 2, 3, 4, 5, 6])
+const DEP_COLS = new Set([1, 2, 3, 4, 5, 6, 7])
+const IVA_ACT_COLS = new Set([2, 3])
+
+const BAJA_LABEL: Record<string, string> = { Sold: 'Vendido', Lost: 'Perdido' }
 
 /**
  * Cálculo del pago provisional del 612. Solo lectura: las cifras salen del clasificador y se
@@ -48,12 +52,25 @@ export const Calculos612 = memo(function Calculos612({
   // falte (folio o fecha que se capturaron después del cálculo). El nombre de cada activo vive
   // en su EP. En modo consulta no se piden: la pantalla muestra lo que trae el cálculo.
   const balancesQ = useIvaFavorBalances(declarationId, rfc, !consulta && iva.saldosAplicados.length > 0)
-  const { query: assetsQ } = useFixedAssets(declarationId, consulta || c.depreciaciones.length === 0 ? '' : rfc)
+  const conActivos = c.depreciaciones.length > 0 || c.ivaCreditosActivos.length > 0
+  const { query: assetsQ } = useFixedAssets(declarationId, consulta || !conActivos ? '' : rfc)
   const balanceById = useMemo(
     () => new Map((balancesQ.query.data ?? []).map((b) => [b.id, b])),
     [balancesQ.query.data],
   )
   const assetById = useMemo(() => new Map((assetsQ.data ?? []).map((a) => [a.id, a])), [assetsQ.data])
+  const nombreActivo = (id: number | null, code?: string | null) => {
+    const a = id != null ? assetById.get(id) : undefined
+    return a?.description || a?.assetTypeName || code || (id != null ? `Activo #${id}` : '—')
+  }
+  const ivaActTotales = useMemo(
+    () =>
+      c.ivaCreditosActivos.reduce(
+        (acc, x) => ({ acreditado: acc.acreditado + (x.ivaAcreditado ?? 0), excedente: acc.excedente + (x.ivaExcedenteTope ?? 0) }),
+        { acreditado: 0, excedente: 0 },
+      ),
+    [c.ivaCreditosActivos],
+  )
 
   const ivaDelPeriodo =
     iva.ivaCobrado != null && iva.ivaAcreditable != null
@@ -93,7 +110,7 @@ export const Calculos612 = memo(function Calculos612({
           />
           <AmountRow
             label="IVA no acreditable"
-            hint="Se suma a las deducciones de ISR"
+            hint="El de gastos normales se suma a las deducciones de ISR; el de activos fijos se pierde"
             value={fmtMoney(iva.ivaNoAcreditable)}
           />
           <AmountRow label="IVA acreditable" value={fmtMoney(iva.ivaAcreditable)} />
@@ -215,24 +232,39 @@ export const Calculos612 = memo(function Calculos612({
         <Card>
           <PanelHeader612
             title="Depreciación de activos fijos"
-            subtitle="Activos confirmados; se dan de alta y corrigen en la pestaña Gastos"
+            subtitle="Activos confirmados, capturados sin factura y dados de baja en el ejercicio (estos, hasta el mes anterior a la baja); se dan de alta y corrigen en la pestaña Gastos"
           />
           <SimpleTable
-            headers={['Activo', 'Monto deducible', 'Tasa anual', 'Del mes', 'Acumulada del ejercicio', 'Acumulada total', 'Pendiente']}
+            headers={[
+              'Activo',
+              'Monto deducible',
+              'Tasa anual',
+              'Meses en el ejercicio',
+              'Del mes',
+              'Acumulada del ejercicio',
+              'Acumulada total',
+              'Pendiente',
+            ]}
             align={DEP_COLS}
           >
             {c.depreciaciones.map((d, i) => {
               const a = d.fixedAssetId != null ? assetById.get(d.fixedAssetId) : undefined
+              const capturado = d.capturado ?? (a ? a.isCaptured === true || a.capture != null : null)
+              const baja = d.disposalKind ? (BAJA_LABEL[d.disposalKind] ?? d.disposalKind) : null
               return (
                 <tr key={d.fixedAssetId ?? `d-${i}`} style={{ borderBottom: '1px solid var(--border)' }}>
                   <td className={cellClass} style={{ color: 'var(--ink-900)' }}>
-                    {a?.description ||
-                      a?.assetTypeName ||
-                      d.assetTypeCode ||
-                      (d.fixedAssetId != null ? `Activo #${d.fixedAssetId}` : '—')}
+                    {nombreActivo(d.fixedAssetId, d.assetTypeCode)}
+                    {(capturado || baja) && (
+                      <div className="flex gap-1 mt-1 flex-wrap">
+                        {capturado && <Badge kind="sky">Capturado</Badge>}
+                        {baja && <Badge kind={d.disposalKind === 'Sold' ? 'brand' : 'amber'}>{baja}</Badge>}
+                      </div>
+                    )}
                   </td>
                   <td className={cellMoneyClass} style={cellMoneyStyle}>{fmtMoney(d.montoDeducible)}</td>
                   <td className={cellMoneyClass} style={cellMoneyStyle}>{fmtPercent(d.tasa)}</td>
+                  <td className={cellMoneyClass} style={cellMoneyStyle}>{d.mesesEjercicio ?? '—'}</td>
                   <td className={`${cellMoneyClass} font-bold`} style={cellMoneyStyle}>{fmtMoney(d.delMes)}</td>
                   <td className={cellMoneyClass} style={cellMoneyStyle}>{fmtMoney(d.acumuladaEjercicio)}</td>
                   <td className={cellMoneyClass} style={cellMoneyStyle}>{fmtMoney(d.acumuladaTotal)}</td>
@@ -240,6 +272,49 @@ export const Calculos612 = memo(function Calculos612({
                 </tr>
               )
             })}
+          </SimpleTable>
+        </Card>
+      )}
+
+      {c.ivaCreditosActivos.length > 0 && (
+        <Card>
+          <PanelHeader612
+            title="IVA de activos fijos"
+            subtitle="IVA acreditado por CFDI (la I si es PUE; cada pago si es PPD). Lo que pasa del tope del activo (28,000 auto; 40,000 eléctrico) no se acredita y se pierde"
+          />
+          <SimpleTable headers={['Activo', 'CFDI', 'IVA acreditado', 'Excedente por tope']} align={IVA_ACT_COLS}>
+            {c.ivaCreditosActivos.map((x, i) => (
+              <tr key={`${x.fixedAssetId ?? 'a'}-${x.uuid ?? i}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                <td className={cellClass} style={{ color: 'var(--ink-900)' }}>
+                  {nombreActivo(x.fixedAssetId)}
+                </td>
+                <td className={cellClass}>
+                  {x.uuid ? (
+                    <code title={x.uuid} style={{ ...MONO, fontSize: '11px', color: 'var(--ink-500)' }}>
+                      {x.uuid.slice(0, 8)}…{x.uuid.slice(-4)}
+                    </code>
+                  ) : (
+                    '—'
+                  )}
+                </td>
+                <td className={`${cellMoneyClass} font-bold`} style={cellMoneyStyle}>{fmtMoney(x.ivaAcreditado)}</td>
+                <td
+                  className={cellMoneyClass}
+                  style={{ ...cellMoneyStyle, ...((x.ivaExcedenteTope ?? 0) > 0 ? { color: 'var(--violet-ink)' } : {}) }}
+                >
+                  {fmtMoney(x.ivaExcedenteTope)}
+                </td>
+              </tr>
+            ))}
+            {c.ivaCreditosActivos.length > 1 && (
+              <tr style={{ background: 'var(--muted)' }}>
+                <td className={`${cellClass} font-extrabold`} colSpan={2} style={{ color: 'var(--ink-900)' }}>
+                  Total
+                </td>
+                <td className={`${cellMoneyClass} font-bold`} style={cellMoneyStyle}>{fmtMoney(ivaActTotales.acreditado)}</td>
+                <td className={`${cellMoneyClass} font-bold`} style={cellMoneyStyle}>{fmtMoney(ivaActTotales.excedente)}</td>
+              </tr>
+            )}
           </SimpleTable>
         </Card>
       )}

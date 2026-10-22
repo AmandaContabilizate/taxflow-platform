@@ -1,24 +1,31 @@
 'use client'
 
-import { Check, Loader2, PackageMinus, PackagePlus, Sparkles, Trash2, Undo2, X } from 'lucide-react'
+import { Check, History, Loader2, PackageMinus, PackagePlus, Pencil, Sparkles, Trash2, Undo2, X } from 'lucide-react'
 import { Fragment, type ReactNode, memo, useMemo, useState } from 'react'
 import { useDeclarationInvoices } from '@/features/declarations/hooks/useDeclarationQueries'
 import type { InvoiceFilterKey } from '@/features/declarations/hooks/declarationQueryKeys'
 import { createFixedAsset } from '@/features/fixed-assets/actions/createFixedAsset.action'
+import {
+  createCapturedFixedAsset,
+  updateCapturedFixedAsset,
+} from '@/features/fixed-assets/actions/capturedFixedAsset.action'
 import { disposeFixedAsset, revertFixedAssetDisposal } from '@/features/fixed-assets/actions/disposeFixedAsset.action'
 import { updateFixedAsset } from '@/features/fixed-assets/actions/updateFixedAsset.action'
 import { useFixedAssetTypes, useFixedAssets } from '@/features/fixed-assets/hooks/useFixedAssets'
 import {
+  type CapturedFixedAssetInput,
   type FixedAsset,
   type FixedAssetDecision,
   type FixedAssetDisposalKind,
   type FixedAssetType,
+  fixedAssetIsCaptured,
   fixedAssetStatusIs,
 } from '@/features/fixed-assets/types'
 import type { DeclarationInvoice } from '@/features/operations/types'
 import { Pagination } from '../clientes/parts'
 import { MONO } from '../constants'
 import { Badge, Card } from '../ui'
+import { ActivoCapturadoForm } from './activo-capturado-form'
 import {
   InlineNotice,
   PanelHeader612,
@@ -157,6 +164,57 @@ function UuidShort({ uuid }: { uuid: string | null | undefined }) {
   )
 }
 
+function mesDeFecha(iso: string | null | undefined): { year: number; month: number } | null {
+  const m = /^(\d{4})-(\d{2})/.exec(iso ?? '')
+  if (!m) return null
+  return { year: Number(m[1]), month: Number(m[2]) }
+}
+
+/** Desde cuándo dejó de depreciarse un activo dado de baja: se deprecia hasta el mes anterior a la baja (R8). */
+function textoBaja(disposalDate: string | null | undefined): string | null {
+  const p = mesDeFecha(disposalDate)
+  if (!p) return null
+  const ant = p.month === 1 ? { year: p.year - 1, month: 12 } : { year: p.year, month: p.month - 1 }
+  return `Dejó de depreciarse desde ${periodoLabel(p.year, p.month)}; la última depreciación fue en ${periodoLabel(ant.year, ant.month)}.`
+}
+
+/** IVA acreditado del activo contra su tope (R3: 28,000 auto, 40,000 eléctrico). Nada si el back no lo manda. */
+function IvaTope({ asset }: { asset: FixedAsset }) {
+  const cap = asset.ivaCreditCap ?? null
+  const credited = asset.ivaCredited ?? null
+  if (cap == null && credited == null) return null
+  const alcanzado = cap != null && credited != null && credited >= cap - 0.005
+  return (
+    <div className="text-[11.5px] mt-0.5" style={{ color: alcanzado ? 'var(--violet-ink)' : 'var(--ink-500)' }}>
+      IVA acreditado {fmtMoney(credited ?? 0)}
+      {cap != null ? ` de un tope de ${fmtMoney(cap)}` : ' (sin tope)'}
+      {alcanzado ? ' · tope alcanzado: el IVA de nuevos pagos ya no se acredita' : ''}
+    </div>
+  )
+}
+
+/** Resumen de la captura: monto mensual, desde cuándo y deducible estimado. */
+function CapturaResumen({ asset }: { asset: FixedAsset }) {
+  const c = asset.capture
+  if (!c) {
+    return (
+      <span className="text-[12px]" style={{ color: 'var(--ink-500)' }}>
+        Capturado sin factura
+      </span>
+    )
+  }
+  const deducible = asset.annualRate > 0 ? (c.monthlyAmount * 12) / asset.annualRate : null
+  return (
+    <div className="flex flex-col gap-0.5 text-[12px] whitespace-nowrap">
+      <span>
+        <span style={cellMoneyStyle}>{fmtMoney(c.monthlyAmount)}</span>
+        <span style={{ color: 'var(--ink-500)' }}> al mes desde {periodoLabel(c.startFiscalYear, c.startMonth)}</span>
+      </span>
+      {deducible != null && <span style={{ color: 'var(--ink-500)' }}>Deducible estimado {fmtMoney(deducible)}</span>}
+    </div>
+  )
+}
+
 /**
  * Pestaña Gastos del 612: sugerencias de activo fijo (IA o regla por clave de producto),
  * alta manual desde cualquier gasto y lista de activos confirmados con sus capas. Nada de esto
@@ -198,13 +256,13 @@ export const Gastos612Tab = memo(function Gastos612Tab({
   // vuelve a marcar con PUT (el POST respondería FIXED_ASSET_ALREADY_EXISTS).
   const assetByUuid = useMemo(() => {
     const m = new Map<string, FixedAsset>()
-    for (const a of assets) m.set(upper(a.originUuid), a)
+    for (const a of assets) if (a.originUuid) m.set(upper(a.originUuid), a)
     return m
   }, [assets])
   // Pagos (P) que ya son capa de un activo.
   const assetByLayerUuid = useMemo(() => {
     const m = new Map<string, FixedAsset>()
-    for (const a of assets) for (const l of a.layers) m.set(upper(l.uuid), a)
+    for (const a of assets) for (const l of a.layers ?? []) m.set(upper(l.uuid), a)
     return m
   }, [assets])
 
@@ -283,6 +341,26 @@ export const Gastos612Tab = memo(function Gastos612Tab({
     }
     setMarcando(null)
     await despuesDeGuardar('Marcaste un gasto como activo fijo.')
+  }
+
+  // Activo que ya se deprecia y no tiene factura (R7): 'nuevo' = alta; un id = corrección.
+  const [capturando, setCapturando] = useState<'nuevo' | number | null>(null)
+
+  const guardarCapturado = async (input: CapturedFixedAssetInput) => {
+    const id = capturando
+    if (id == null) return
+    setBusy(id === 'nuevo' ? 'c-nuevo' : `c-${id}`)
+    setError(null)
+    const res = id === 'nuevo' ? await createCapturedFixedAsset(input) : await updateCapturedFixedAsset(id, input)
+    setBusy(null)
+    if (!res.success) {
+      setError(res.error.message)
+      return
+    }
+    setCapturando(null)
+    await despuesDeGuardar(
+      id === 'nuevo' ? 'Agregaste un activo que ya se depreciaba (sin factura).' : 'Corregiste un activo capturado.',
+    )
   }
 
   // Venta o pérdida: el activo deja de depreciarse desde la fecha de baja.
@@ -453,8 +531,35 @@ export const Gastos612Tab = memo(function Gastos612Tab({
       <Card>
         <PanelHeader612
           title="Activos fijos confirmados"
-          subtitle="Cada capa es un monto que se deprecia (la factura PUE o cada pago de una PPD); empieza el mes siguiente al pago."
+          subtitle="La capa es la factura I sin IVA: se deprecia desde el mes siguiente a su fecha, aunque sea PPD; los pagos (P) solo acreditan IVA. Los capturados sin factura se deprecian con su monto mensual desde el mes en que empezaron."
+          right={
+            <SmallBtn
+              onClick={() => {
+                setError(null)
+                setCapturando('nuevo')
+              }}
+              disabled={busy != null || capturando != null || types.length === 0}
+              title={
+                types.length === 0
+                  ? 'No se pudo cargar el catálogo de tipos'
+                  : 'Cliente que llega a medio camino: tipo, monto mensual y mes en que empezó'
+              }
+            >
+              <History size={12} /> Agregar activo que ya se deprecia (sin factura)
+            </SmallBtn>
+          }
         />
+        {capturando === 'nuevo' && (
+          <div className="px-5 py-4" style={{ background: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
+            <ActivoCapturadoForm
+              rfc={rfc}
+              types={types}
+              busy={busy === 'c-nuevo'}
+              onSubmit={(input) => void guardarCapturado(input)}
+              onCancel={() => setCapturando(null)}
+            />
+          </div>
+        )}
         {assetsLoading ? (
           <Cargando texto="Cargando activos fijos…" />
         ) : assetsError ? null : confirmados.length === 0 ? (
@@ -468,6 +573,8 @@ export const Gastos612Tab = memo(function Gastos612Tab({
               const tasa = a.annualRate ?? t?.annualRate ?? null
               const tope = a.deductibleCap ?? t?.deductibleCap ?? null
               const enBaja = baja?.id === a.id ? baja : null
+              const capturado = fixedAssetIsCaptured(a)
+              const corrigiendo = capturando === a.id
               return (
                 <Fragment key={a.id}>
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
@@ -478,6 +585,7 @@ export const Gastos612Tab = memo(function Gastos612Tab({
                     <div className="text-[11.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
                       {fmtPercent(tasa)} anual{tope ? ` · tope ${fmtMoney(tope)}` : ''}
                     </div>
+                    <IvaTope asset={a} />
                   </td>
                   <td className={cellClass}>
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -498,10 +606,12 @@ export const Gastos612Tab = memo(function Gastos612Tab({
                     </div>
                   </td>
                   <td className={cellClass}>
-                    <UuidShort uuid={a.originUuid} />
+                    {capturado ? <Badge kind="sky">Capturado</Badge> : <UuidShort uuid={a.originUuid} />}
                   </td>
                   <td className={cellClass}>
-                    {(a.layers ?? []).length === 0 ? (
+                    {capturado ? (
+                      <CapturaResumen asset={a} />
+                    ) : (a.layers ?? []).length === 0 ? (
                       <span className="text-[12px]" style={{ color: 'var(--ink-500)' }}>
                         Sin capas todavía: se crean al recalcular el mes del pago.
                       </span>
@@ -521,8 +631,20 @@ export const Gastos612Tab = memo(function Gastos612Tab({
                   </td>
                   <td className={cellClass}>
                     <div className="flex justify-end gap-1.5">
+                      {capturado && (
+                        <SmallBtn
+                          title="Corregir tipo, descripción, monto mensual o mes en que empezó"
+                          onClick={() => {
+                            setError(null)
+                            setCapturando(a.id)
+                          }}
+                          disabled={busy != null || capturando != null}
+                        >
+                          <Pencil size={12} /> Corregir
+                        </SmallBtn>
+                      )}
                       <SmallBtn
-                        title="Se vendió o se perdió: deja de depreciarse desde esa fecha"
+                        title="Se vendió o se perdió: deja de depreciarse desde el mes de la baja"
                         onClick={() => abrirBaja(a)}
                         disabled={busy != null || baja != null}
                       >
@@ -539,6 +661,20 @@ export const Gastos612Tab = memo(function Gastos612Tab({
                     </div>
                   </td>
                 </tr>
+                {corrigiendo && (
+                  <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}>
+                    <td colSpan={5} className="px-3 py-3">
+                      <ActivoCapturadoForm
+                        rfc={rfc}
+                        types={types}
+                        asset={a}
+                        busy={busy === `c-${a.id}`}
+                        onSubmit={(input) => void guardarCapturado(input)}
+                        onCancel={() => setCapturando(null)}
+                      />
+                    </td>
+                  </tr>
+                )}
                 {enBaja && (
                   <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}>
                     <td colSpan={5} className="px-3 py-3">
@@ -639,7 +775,7 @@ export const Gastos612Tab = memo(function Gastos612Tab({
         <Card>
           <PanelHeader612
             title="Activos fijos dados de baja"
-            subtitle="Vendidos o perdidos: se deprecian hasta el mes de la baja. Revertir los regresa a Confirmado."
+            subtitle="Vendidos o perdidos: se deprecian hasta el mes anterior a la baja y siguen en el cálculo del ejercicio para no perder lo acumulado. Revertir los regresa a Confirmado."
           />
           <SimpleTable headers={['Activo', 'Baja', 'Detalle', '']}>
             {dadosDeBaja.map((a) => {
@@ -650,12 +786,18 @@ export const Gastos612Tab = memo(function Gastos612Tab({
                     <div className="font-semibold" style={{ color: 'var(--ink-900)' }}>
                       {a.description || a.assetTypeName || 'Activo fijo'}
                     </div>
-                    <UuidShort uuid={a.originUuid} />
+                    {fixedAssetIsCaptured(a) ? <Badge kind="sky">Capturado</Badge> : <UuidShort uuid={a.originUuid} />}
+                    <IvaTope asset={a} />
                   </td>
                   <td className={cellClass}>
                     <div className="flex flex-col gap-1 items-start">
                       <Badge kind={fixedAssetStatusIs(a, 'Vendido') ? 'brand' : 'amber'}>{a.status}</Badge>
                       <span className="text-[12px]" style={{ color: 'var(--ink-700)' }}>{fmtFecha(d?.disposalDate)}</span>
+                      {textoBaja(d?.disposalDate) && (
+                        <span className="text-[11.5px] max-w-[260px]" style={{ color: 'var(--violet-ink)' }}>
+                          {textoBaja(d?.disposalDate)}
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className={cellClass}>

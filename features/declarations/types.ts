@@ -314,8 +314,18 @@ export interface RecalculationResult {
   fixedAssetSuggestions?: RecalcFixedAssetSuggestion[] | null
   /** 612: capas nuevas de activos Confirmados que calculó esta corrida. */
   newFixedAssetLayers?: RecalcFixedAssetLayer[] | null
-  /** 612: avisos del clasificador para el contador. */
+  /** 612: avisos del clasificador para el contador (incluye la factura papá de un P que no se encontró). */
   warnings?: string[] | null
+  /** 612 (§11, R3): IVA de activos acreditado por CFDI y excedente por tope. Opcional. */
+  fixedAssetIvaCredits?: RecalcFixedAssetIvaCredit[] | null
+}
+
+/** `FixedAssetIvaCredits[]` de la corrida (camelCase). */
+export interface RecalcFixedAssetIvaCredit {
+  fixedAssetId: number | null
+  uuid: string | null
+  ivaAcreditado: number | null
+  ivaExcedenteTope: number | null
 }
 
 /** `FixedAssetSuggestionDto` del back (camelCase). `fuente`: "Regla" o "IA". */

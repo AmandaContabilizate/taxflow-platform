@@ -61,6 +61,40 @@ export const disposeFixedAssetSchema = z
     }
   })
 
+/**
+ * Activo capturado sin factura (R7): el cliente llega a medio camino y nos da el tipo, el monto
+ * mensual que deprecia y el mes en que empezó. `POST /captured` y `PUT /captured/{id}` llevan los
+ * mismos campos.
+ */
+export const capturedFixedAssetSchema = z
+  .object({
+    rfc: z.string().trim().toUpperCase().min(12, 'RFC inválido.').max(13, 'RFC inválido.'),
+    assetTypeCode: z.string().trim().min(1, 'Elige el tipo de activo.'),
+    description: descripcion.optional(),
+    monthlyAmount: z
+      .number({ invalid_type_error: 'Monto mensual: captura un número.', required_error: 'Captura el monto mensual.' })
+      .finite('Monto mensual: captura un número.')
+      .positive('El monto mensual debe ser mayor a cero.')
+      .refine(dosDecimales, 'Monto mensual: máximo dos decimales.'),
+    startFiscalYear: z
+      .number({ invalid_type_error: 'Captura el año en que empezó.', required_error: 'Captura el año en que empezó.' })
+      .int('Año inválido.')
+      .min(2000, 'El año no puede ser anterior a 2000.'),
+    startMonth: z
+      .number({ invalid_type_error: 'Elige el mes en que empezó.', required_error: 'Elige el mes en que empezó.' })
+      .int('Mes inválido.')
+      .min(1, 'El mes va de 1 a 12.')
+      .max(12, 'El mes va de 1 a 12.'),
+  })
+  .refine(
+    (v) => {
+      const hoy = new Date()
+      return v.startFiscalYear * 12 + v.startMonth <= hoy.getFullYear() * 12 + hoy.getMonth() + 1
+    },
+    { path: ['startMonth'], message: 'El mes en que empezó no puede ser futuro.' },
+  )
+
 export type CreateFixedAssetSchemaInput = z.input<typeof createFixedAssetSchema>
+export type CapturedFixedAssetSchemaInput = z.input<typeof capturedFixedAssetSchema>
 export type UpdateFixedAssetSchemaInput = z.input<typeof updateFixedAssetSchema>
 export type DisposeFixedAssetSchemaInput = z.input<typeof disposeFixedAssetSchema>
