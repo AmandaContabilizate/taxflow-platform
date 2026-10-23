@@ -459,6 +459,7 @@ function NavItem({ id, label, Icon, active, onClick, hint, badge, collapsed = fa
   if (collapsed) {
     return (
       <button
+        data-tour={id ? `nav-${id}` : undefined}
         onClick={onClick}
         title={label}
         className="flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 mx-auto group relative"
@@ -497,6 +498,7 @@ function NavItem({ id, label, Icon, active, onClick, hint, badge, collapsed = fa
 
   return (
     <button
+      data-tour={id ? `nav-${id}` : undefined}
       onClick={onClick}
       className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left transition w-full relative group"
       style={

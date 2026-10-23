@@ -550,6 +550,8 @@ export const API_ROUTES = {
   DIAGNOSTICO: {
     RUN_CLIENTE: (rfc: string) => `/cliente?rfc=${encodeURIComponent(rfc)}`,
     CAN_RUN_CLIENTE: (rfc: string) => `/cliente/puede-ejecutar?rfc=${encodeURIComponent(rfc)}`,
+    // ¿Terminó el diagnóstico del propio cliente? Candado de compra: sin terminar solo trámites.
+    ESTADO_CLIENTE: (rfc: string) => `/cliente/estado?rfc=${encodeURIComponent(rfc)}`,
     RUN_VENDEDOR: (taxpayerId: number) => `/vendedor/${taxpayerId}`,
     CAN_RUN_VENDEDOR: (taxpayerId: number) => `/vendedor/puede-ejecutar/${taxpayerId}`,
     // Declaraciones pendientes (13/14) que el diagnóstico encontró — backoffice.

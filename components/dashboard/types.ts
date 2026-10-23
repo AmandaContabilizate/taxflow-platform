@@ -101,6 +101,8 @@ export interface DashboardProps {
   permissions: string[]
   userId?: string | null
   phoneNumber?: string | null
+  /** Tutorial de bienvenida al primer ingreso del Guest (TUTORIAL_AUTOSTART_ENABLED). */
+  tutorialAutostart?: boolean
 }
 
 export type GoFn = (s: Screen) => void

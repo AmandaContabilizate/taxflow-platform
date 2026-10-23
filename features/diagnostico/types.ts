@@ -43,6 +43,17 @@ export interface DiagnosticoResultado {
   pendientes: DiagnosticoPendiente[];
 }
 
+/** GET cliente/estado: ¿terminó el diagnóstico? (misma regla que el modal de venta del vendedor). */
+export interface DiagnosticoEstadoCliente {
+  /** 0 Sin · 1 EnCurso · 2 Terminado · 3 Abortado. */
+  estadoId: number;
+  estado: 'Sin' | 'EnCurso' | 'Terminado' | 'Abortado';
+  estadoLabel: string;
+  finishedAt: string | null;
+  porRevisar: number;
+  noPresentadas: number;
+}
+
 /** Corrida del diagnóstico registrada en DiagnosticoRun (GET vendedor/historial). */
 export interface DiagnosticoCorrida {
   id: number;
