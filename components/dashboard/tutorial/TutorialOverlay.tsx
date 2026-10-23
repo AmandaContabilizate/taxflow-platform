@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
-import { X } from 'lucide-react'
+import { Loader2, X } from 'lucide-react'
 import { DISPLAY } from '../constants'
 import { clickableOf, findTourTarget } from './tutorial-dom'
 import type { TutorialCtx, TutorialDef } from './tutorials'
@@ -12,6 +12,7 @@ const GAP = 12
 const MARGIN = 12
 const DEFAULT_WAIT_MS = 4000
 const SHEET_BREAKPOINT = 640
+const RADIUS = 12
 
 interface Rect {
   top: number
@@ -203,32 +204,51 @@ export function TutorialOverlay({ tutorial, index, ctx, onIndexChange, onFinish 
   const vh = viewport.h || (typeof window !== 'undefined' ? window.innerHeight : 0)
   const tip = placeTooltip(hole, step.placement, tipSize, vw, vh)
 
-  const backdrop: CSSProperties = { position: 'fixed', background: 'var(--tutorial-backdrop)', pointerEvents: 'auto' }
+  const blocker: CSSProperties = { position: 'fixed', pointerEvents: 'auto' }
 
   return createPortal(
     <div data-tutorial-ui="" className="fixed inset-0 z-[100]" style={{ pointerEvents: 'none' }}>
-      {/* Fondo: cuatro paneles alrededor del hueco para que el clic en el ancla llegue a la app. */}
       {hole ? (
         <>
-          <div style={{ ...backdrop, top: 0, left: 0, right: 0, height: Math.max(0, hole.top) }} />
-          <div style={{ ...backdrop, top: hole.top + hole.height, left: 0, right: 0, bottom: 0 }} />
-          <div style={{ ...backdrop, top: hole.top, left: 0, width: Math.max(0, hole.left), height: hole.height }} />
-          <div style={{ ...backdrop, top: hole.top, left: hole.left + hole.width, right: 0, height: hole.height }} />
+          {/* Sombra con hueco redondeado (mismo radio que el borde) para que no se vea descuadrado. */}
+          <svg
+            width={vw}
+            height={vh}
+            style={{ position: 'fixed', inset: 0, pointerEvents: 'none' }}
+            aria-hidden="true"
+          >
+            <path
+              fillRule="evenodd"
+              style={{ fill: 'var(--tutorial-backdrop)' }}
+              d={`M0 0H${vw}V${vh}H0Z ${roundedRectPath(hole, RADIUS)}`}
+            />
+          </svg>
+          {/* Bloqueadores transparentes alrededor del hueco: el clic en el ancla sí llega a la app. */}
+          <div style={{ ...blocker, top: 0, left: 0, right: 0, height: Math.max(0, hole.top) }} />
+          <div style={{ ...blocker, top: hole.top + hole.height, left: 0, right: 0, bottom: 0 }} />
+          <div style={{ ...blocker, top: hole.top, left: 0, width: Math.max(0, hole.left), height: hole.height }} />
+          <div style={{ ...blocker, top: hole.top, left: hole.left + hole.width, right: 0, height: hole.height }} />
           <div
-            className="tutorial-ring rounded-xl"
+            className="tutorial-ring"
             style={{
               position: 'fixed',
               top: hole.top,
               left: hole.left,
               width: hole.width,
               height: hole.height,
+              borderRadius: RADIUS,
               pointerEvents: 'none',
-              transition: 'top 180ms ease-out, left 180ms ease-out, width 180ms ease-out, height 180ms ease-out',
             }}
           />
         </>
       ) : (
-        <div style={{ ...backdrop, inset: 0 }} />
+        <div style={{ ...blocker, inset: 0, background: 'var(--tutorial-backdrop)' }} />
+      )}
+
+      {searching && (
+        <div className="fixed inset-0 flex items-center justify-center" style={{ pointerEvents: 'none' }}>
+          <Loader2 size={28} className="animate-spin" style={{ color: 'var(--tutorial-ring)' }} />
+        </div>
       )}
 
       <div
@@ -309,6 +329,25 @@ export function TutorialOverlay({ tutorial, index, ctx, onIndexChange, onFinish 
     </div>,
     document.body,
   )
+}
+
+/** Subtrazo SVG de un rectángulo redondeado (se resta del fondo con fill-rule evenodd). */
+function roundedRectPath({ top, left, width, height }: Rect, radius: number): string {
+  const r = Math.max(0, Math.min(radius, width / 2, height / 2))
+  const right = left + width
+  const bottom = top + height
+  return [
+    `M${left + r} ${top}`,
+    `H${right - r}`,
+    `A${r} ${r} 0 0 1 ${right} ${top + r}`,
+    `V${bottom - r}`,
+    `A${r} ${r} 0 0 1 ${right - r} ${bottom}`,
+    `H${left + r}`,
+    `A${r} ${r} 0 0 1 ${left} ${bottom - r}`,
+    `V${top + r}`,
+    `A${r} ${r} 0 0 1 ${left + r} ${top}`,
+    'Z',
+  ].join(' ')
 }
 
 /**

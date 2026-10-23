@@ -1,5 +1,7 @@
 'use client'
 
+import { createPortal } from 'react-dom'
+import { Loader2 } from 'lucide-react'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useDiagnosticoEstado } from '@/features/diagnostico/hooks/useDiagnosticoEstado'
 import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
@@ -12,7 +14,8 @@ import { TutorialOverlay } from './TutorialOverlay'
 import { tutorialById, type TutorialCtx, type TutorialId } from './tutorials'
 
 /** Espera tras cargar los RFCs para que la pantalla de entrada termine de pintar. */
-const AUTOSTART_DELAY_MS = 900
+const AUTOSTART_DELAY_MS = 400
+const PENDING_MAX_MS = 10000
 const MOBILE_BREAKPOINT = 1024
 
 interface TutorialContextValue {
@@ -58,6 +61,20 @@ function ActiveTutorialProvider({ children, autostart, userId, go, screen, openM
   const { hasRfc, loading: loadingRfc } = useHasRfc()
   const diagnostico = useDiagnosticoEstado(selectedRfc, activeId !== null)
   const autostartedRef = useRef(false)
+  // Va a salir la bienvenida: cubrir la pantalla mientras cargan los RFCs y se arma el primer paso,
+  // para que no se vea el dashboard "suelto" y luego aparezca el tutorial encima.
+  const [pendingAutostart, setPendingAutostart] = useState(false)
+
+  useEffect(() => {
+    if (autostart && !isTutorialDone(userId)) setPendingAutostart(true)
+  }, [autostart, userId])
+
+  useEffect(() => {
+    if (!pendingAutostart) return
+    // Red de seguridad: si algo impide arrancar, nunca dejar la pantalla bloqueada.
+    const timer = setTimeout(() => setPendingAutostart(false), PENDING_MAX_MS)
+    return () => clearTimeout(timer)
+  }, [pendingAutostart])
 
   const start = useCallback((id: TutorialId) => {
     setMenuOpen(false)
@@ -82,6 +99,7 @@ function ActiveTutorialProvider({ children, autostart, userId, go, screen, openM
     const timer = setTimeout(() => {
       autostartedRef.current = true
       start(first)
+      setPendingAutostart(false)
     }, AUTOSTART_DELAY_MS)
     return () => clearTimeout(timer)
   }, [autostart, loadingRfc, hasRfc, selectedRfcInfo, userId, start])
@@ -106,6 +124,7 @@ function ActiveTutorialProvider({ children, autostart, userId, go, screen, openM
     <TutorialContext.Provider value={value}>
       {children}
       <TutorialMenuModal open={menuOpen} onOpenChange={setMenuOpen} onSelect={start} />
+      {pendingAutostart && !activeId && <TutorialLoadingOverlay />}
       {activeId && (
         <TutorialOverlay
           key={activeId}
@@ -117,5 +136,21 @@ function ActiveTutorialProvider({ children, autostart, userId, go, screen, openM
         />
       )}
     </TutorialContext.Provider>
+  )
+}
+
+function TutorialLoadingOverlay() {
+  if (typeof document === 'undefined') return null
+  return createPortal(
+    <div
+      data-tutorial-ui=""
+      className="fixed inset-0 z-[100] flex items-center justify-center"
+      style={{ background: 'var(--tutorial-backdrop)' }}
+      aria-busy="true"
+      aria-label="Preparando tutorial"
+    >
+      <Loader2 size={28} className="animate-spin" style={{ color: 'var(--tutorial-ring)' }} />
+    </div>,
+    document.body,
   )
 }
