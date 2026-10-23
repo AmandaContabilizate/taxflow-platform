@@ -736,6 +736,27 @@ export const API_ROUTES = {
     EXPORT: (query: string) => `/export${query ? `?${query}` : ""}`,
     HISTORY: (id: number) => `/${id}/history`,
   },
+  // apiType "fixed_assets" (Procedures). Activos fijos del 612: catálogo de tipos, lista del
+  // contribuyente (con su origen en la declaración), alta manual, cambios (tipo, estatus, descripción)
+  // y baja (venta o pérdida): POST crea o corrige la baja, DELETE la revierte (vuelve a Confirmado).
+  FIXED_ASSETS: {
+    TYPES: "/types",
+    LIST: (rfc: string, declarationId: number) =>
+      `?rfc=${encodeURIComponent(rfc)}&declarationId=${declarationId}`,
+    CREATE: "",
+    UPDATE: (id: number) => `/${id}`,
+    DISPOSAL: (id: number) => `/${id}/disposal`,
+    // Activo sin factura que ya se deprecia (R7, §11 de Requerimientos/612-calculate.md).
+    CAPTURED: "/captured",
+    CAPTURED_UPDATE: (id: number) => `/captured/${id}`,
+  },
+  // apiType "iva_favor_balances" (Procedures). Saldos a favor de IVA con su origen y sus
+  // aplicaciones; POST = captura manual de meses que el sistema no tiene.
+  IVA_FAVOR_BALANCES: {
+    LIST: (rfc: string) => `?rfc=${encodeURIComponent(rfc)}`,
+    CREATE: "",
+    UPDATE: (id: number) => `/${id}`,
+  },
   USER_NOTIFICATIONS: {
     ROOT: "",
     UNREAD_COUNT: "/unread-count",

@@ -342,5 +342,29 @@
   "DOWNLOAD_TAIL_NOT_READY": {
     "es": "Todavía no. La descarga se habilita el día 7 del mes siguiente al periodo, cuando el SAT ya tiene todos los CFDIs.",
     "en": "Not yet. The download opens on the 7th of the month after the period, once the SAT has every CFDI."
+  },
+  "FIXED_ASSET_NOT_FOUND": {
+    "es": "No encontramos ese activo fijo.",
+    "en": "Fixed asset not found."
+  },
+  "FIXED_ASSET_TYPE_NOT_FOUND": {
+    "es": "Ese tipo de activo fijo no existe en el catálogo.",
+    "en": "Fixed asset type not found."
+  },
+  "FIXED_ASSET_INVOICE_NOT_EXPENSE": {
+    "es": "Solo se puede marcar como activo fijo una factura de ingreso (I) recibida por el contribuyente.",
+    "en": "Only an income (I) invoice received by the taxpayer can be a fixed asset."
+  },
+  "FIXED_ASSET_ALREADY_EXISTS": {
+    "es": "Ese comprobante ya está registrado como activo fijo del contribuyente.",
+    "en": "That invoice is already a fixed asset of the taxpayer."
+  },
+  "IVA_FAVOR_BALANCE_NOT_FOUND": {
+    "es": "No encontramos ese saldo a favor de IVA.",
+    "en": "VAT credit balance not found."
+  },
+  "FIXED_ASSET_DISPOSAL_INVALID": {
+    "es": "La baja del activo fijo no es válida.",
+    "en": "Invalid fixed asset disposal."
   }
 }

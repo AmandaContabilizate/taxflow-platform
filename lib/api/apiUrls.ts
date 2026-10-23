@@ -30,6 +30,9 @@ export const API_BASE_URLS = {
   partnership: `${BASE_PROCEDURES}/partnership`,
   classification_rules_admin: `${BASE_PROCEDURES}/classification-rules-admin`,
   timbrame: `${BASE_PROCEDURES}/timbrame${DbOrigin}`,
+  // 612: activos fijos y saldos a favor de IVA. Sin /SQLServer.
+  fixed_assets: `${BASE_PROCEDURES}/FixedAssets`,
+  iva_favor_balances: `${BASE_PROCEDURES}/IvaFavorBalances`,
   // Reports
   sales_procedures: `${BASE_PROCEDURES}/sales`,
   dashboard_reports: `${BASE_REPORTS}/dashboard${DbOrigin}`,

@@ -65,10 +65,15 @@ export const declarationKeys = {
   reportLink: (id: number) => ['decl', id, 'report-link'] as const,
   downloadCanRun: (id: number) => ['decl', id, 'download-can-run'] as const,
   downloadStatus: (id: number) => ['decl', id, 'download-status'] as const,
+  /** 612: activos del contribuyente vistos desde esta declaración. El recálculo crea sugerencias. */
+  fixedAssets: (id: number, rfc: string) => ['decl', id, 'fixed-assets', rfc] as const,
+  /** 612: saldos a favor de IVA. El recálculo registra aplicaciones y el saldo generado. */
+  ivaFavorBalances: (id: number, rfc: string) => ['decl', id, 'iva-favor', rfc] as const,
 }
 
 export const catalogKeys = {
   classifications: ['catalog', 'classifications'] as const,
+  fixedAssetTypes: ['catalog', 'fixed-asset-types'] as const,
 }
 
 /** Segmentos que se invalidan cuando el back escribió en la declaración. */
@@ -80,4 +85,6 @@ export const DATA_SEGMENTS: ReadonlySet<string> = new Set([
   'withholdings',
   'invoice-count',
   'period-invoices',
+  'fixed-assets',
+  'iva-favor',
 ])
