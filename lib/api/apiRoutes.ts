@@ -149,6 +149,8 @@ export const API_ROUTES = {
     REMOVE_ROLE: "/remove-role",
     ROLES: (userId: string) => `/${encodeURIComponent(userId)}/roles`,
     SWITCH_ROLE: "/switch-role",
+    /** GET users (Identity). Roles del propio usuario, sin AssignRole: selector "Cambiar de rol". */
+    MY_ROLES: "/me/roles",
     /** POST users (Identity). Baja Soft de TODOS los contribuyentes y de la cuenta (flujo legado, solo contraseña). */
     DELETE_ACCOUNT: "/delete-account",
     /** GET users (Identity). Contribuyentes activos del usuario con su saldo prepagado, para el modal de baja. */

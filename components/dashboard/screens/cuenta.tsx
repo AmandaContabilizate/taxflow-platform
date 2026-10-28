@@ -13,6 +13,8 @@ import { Modal } from '../modal';
 import { PaymentsPanel } from '../cuenta/payments-panel';
 import { SecurityForm } from '../cuenta/security-form';
 import { DeleteAccountForm } from '../cuenta/delete-account-form';
+import { RoleSwitcher } from '../roles/role-switcher';
+import { useMyRoles } from '@/features/roles/hooks/useMyRoles';
 import { DISPLAY, MONO } from '../constants';
 import type { GoFn } from '../types';
 import { Btn, Card, CiecUpdateModal, Divider } from '../ui';
@@ -69,6 +71,7 @@ function ciecEstadoTexto(
 }
 
 export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber, isClient = true, canSelfDeactivate = false, go, onLogout, signingOut }: Props) {
+  const myRoles = useMyRoles();
   const { theme, setTheme } = useTheme();
   const { selectedRfc, selectedRfcInfo } = useRfcStore();
   const [plan, setPlan] = useState<ActivePlan | null>(null);
@@ -270,6 +273,18 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
 
       {/* Listas */}
       <div className='flex-1 min-w-0 w-full flex flex-col gap-6'>
+        {myRoles.canSwitch && (
+          <Section title='Rol activo'>
+            <Card>
+              <div className='p-4'>
+                <p className='text-[12.5px] mb-3' style={{ color: 'var(--ink-500)' }}>
+                  Tienes varios roles. El activo define tu menú y tus permisos, y es con el que entras al iniciar sesión.
+                </p>
+                <RoleSwitcher />
+              </div>
+            </Card>
+          </Section>
+        )}
         {isClient && (
         <Section title='Gestión'>
           <Card>
