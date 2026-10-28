@@ -139,6 +139,14 @@ export interface SwitchRolePayload {
   roleId: string;
 }
 
+/** GET /me/roles — roles del usuario autenticado; el activo (isDefault) primero. */
+export interface MyRole {
+  roleId: string;
+  roleName: string;
+  displayName: string | null;
+  isDefault: boolean;
+}
+
 /** Respuesta de POST /switch-role (LoginResponse: nuevo JWT + su expiración). */
 export interface SwitchRoleResponse {
   token: string;
