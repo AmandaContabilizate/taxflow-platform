@@ -1,6 +1,6 @@
 import type { AvailableRfc } from '@/features/taxpayers/actions/getAvailableRfcs.action'
 import type { FiscalScore, Regularizations, RegularizationMonth } from '@/features/declarations/types'
-import type { CanRunDiagnostico } from '../types'
+import type { CanRunDiagnostico, DiagnosticoPasos, PasoEstatusId } from '../types'
 
 /**
  * Escenarios simulados de la pantalla Diagnóstico del cliente (screens/diagnostico.tsx) para
@@ -16,6 +16,7 @@ export interface DiagnosticoMock {
   income: number
   bills: number
   invoices: number
+  pasos: DiagnosticoPasos
 }
 
 const RFC = 'XAXX010101000'
@@ -59,6 +60,38 @@ function canRun(p: Partial<CanRunDiagnostico>): CanRunDiagnostico {
   }
 }
 
+const TITULOS = {
+  credenciales: 'Validar credenciales del SAT',
+  constancia: 'Descargar constancia de situación fiscal',
+  opinion: 'Descargar opinión de cumplimiento',
+  declaraciones: 'Diagnóstico de las declaraciones',
+  compra: 'Compra',
+} as const
+const ESTATUS: Record<PasoEstatusId, string> = { 1: 'Completado', 2: 'En espera', 3: 'Ejecutando', 4: 'Falló' }
+
+/** Estatus por paso en orden: credenciales, constancia, opinión, declaraciones, compra. */
+function pasos(
+  estado: DiagnosticoPasos['estado'],
+  [cred, csf, opi, decl, compra]: PasoEstatusId[],
+  detalles: Partial<Record<keyof typeof TITULOS, string>> = {},
+): DiagnosticoPasos {
+  const hasPurchase = compra === 1
+  const ids = { credenciales: cred, constancia: csf, opinion: opi, declaraciones: decl, compra }
+  return {
+    estadoId: { Sin: 0, EnCurso: 1, Terminado: 2, Abortado: 3 }[estado],
+    estado,
+    hasPurchase,
+    soloFaltaCompra: estado === 'Terminado' && !hasPurchase,
+    pasos: (Object.keys(TITULOS) as (keyof typeof TITULOS)[]).map((clave) => ({
+      clave,
+      titulo: TITULOS[clave],
+      estatusId: ids[clave],
+      estatus: ESTATUS[ids[clave]],
+      detalle: detalles[clave] ?? null,
+    })),
+  }
+}
+
 function mes(fiscalYear: number, month: number, statusLabel: string, i: number): RegularizationMonth {
   return {
     declarationId: 9000 + i,
@@ -96,6 +129,7 @@ export const ESCENARIOS: Record<string, DiagnosticoMock> = {
     canRun: canRun({}),
     regs: sinRegs,
     ...numeros,
+    pasos: pasos('Sin', [2, 2, 2, 2, 2]),
   },
   'ciec-invalida': {
     titulo: 'CIEC inválida (bloqueo)',
@@ -104,6 +138,7 @@ export const ESCENARIOS: Record<string, DiagnosticoMock> = {
     canRun: canRun({ credencialValida: false, puedeEjecutar: false }),
     regs: sinRegs,
     ...numeros,
+    pasos: pasos('Abortado', [4, 2, 2, 2, 2], { credenciales: 'Tu contraseña del SAT (CIEC) no es válida' }),
   },
   conectando: {
     titulo: 'Descargando constancia (CSF)',
@@ -114,6 +149,7 @@ export const ESCENARIOS: Record<string, DiagnosticoMock> = {
     income: 0,
     bills: 0,
     invoices: 0,
+    pasos: pasos('EnCurso', [1, 3, 2, 2, 2]),
   },
   'buscando-obligaciones': {
     titulo: 'CSF leída, buscando obligaciones',
@@ -122,6 +158,7 @@ export const ESCENARIOS: Record<string, DiagnosticoMock> = {
     canRun: canRun({ yaCorriendo: true, puedeEjecutar: false }),
     regs: sinRegs,
     ...numeros,
+    pasos: pasos('EnCurso', [1, 1, 1, 2, 2]),
   },
   comprobando: {
     titulo: 'Validando declaraciones (8 de 14)',
@@ -130,6 +167,7 @@ export const ESCENARIOS: Record<string, DiagnosticoMock> = {
     canRun: canRun({ yaCorriendo: true, puedeEjecutar: false }),
     regs: regs([mes(2026, 6, 'No presentada', 1), mes(2026, 7, 'No presentada', 2)]),
     ...numeros,
+    pasos: pasos('EnCurso', [1, 1, 1, 3, 2]),
   },
   'en-curso-csf': {
     titulo: 'Diagnóstico en curso (relectura de CSF)',
@@ -138,6 +176,7 @@ export const ESCENARIOS: Record<string, DiagnosticoMock> = {
     canRun: canRun({ yaCorriendo: true, puedeEjecutar: false }),
     regs: regs([mes(2026, 8, 'No presentada', 1), mes(2026, 9, 'No presentada', 2)]),
     ...numeros,
+    pasos: pasos('EnCurso', [1, 2, 1, 2, 2], { constancia: 'Reintentando' }),
   },
   'sin-declaraciones': {
     titulo: 'Conectado, sin declaraciones',
@@ -148,6 +187,7 @@ export const ESCENARIOS: Record<string, DiagnosticoMock> = {
     income: 0,
     bills: 0,
     invoices: 0,
+    pasos: pasos('Terminado', [1, 1, 1, 1, 2]),
   },
   'con-adeudos': {
     titulo: 'Diagnóstico listo con adeudos',
@@ -161,6 +201,7 @@ export const ESCENARIOS: Record<string, DiagnosticoMock> = {
       mes(2026, 9, 'No presentada', 4),
     ]),
     ...numeros,
+    pasos: pasos('Terminado', [1, 1, 4, 1, 2]),
   },
   'al-corriente': {
     titulo: 'Al corriente',
@@ -169,6 +210,7 @@ export const ESCENARIOS: Record<string, DiagnosticoMock> = {
     canRun: canRun({ tienePendientes: false, puedeEjecutar: false }),
     regs: sinRegs,
     ...numeros,
+    pasos: pasos('Terminado', [1, 1, 1, 1, 1]),
   },
   throttle: {
     titulo: 'Ya corrió hoy (throttle)',
@@ -177,6 +219,16 @@ export const ESCENARIOS: Record<string, DiagnosticoMock> = {
     canRun: canRun({ puedeEjecutar: false, proximaVentanaUtc: enDosHoras() }),
     regs: regs([mes(2026, 8, 'No presentada', 1), mes(2026, 9, 'No presentada', 2), mes(2026, 10, 'No presentada', 3)]),
     ...numeros,
+    pasos: pasos('Terminado', [1, 1, 1, 1, 1]),
+  },
+  'solo-falta-compra': {
+    titulo: 'Diagnóstico terminado, solo falta la compra',
+    rfcs: [rfcConectado],
+    score: score({ total: 12, presented: 7 }),
+    canRun: canRun({ puedeEjecutar: false, proximaVentanaUtc: enDosHoras() }),
+    regs: regs([mes(2026, 8, 'No presentada', 1), mes(2026, 9, 'No presentada', 2)]),
+    ...numeros,
+    pasos: pasos('Terminado', [1, 1, 1, 1, 2]),
   },
   'ciec-sin-verificar': {
     titulo: 'CIEC sin verificar (banner)',
@@ -185,6 +237,7 @@ export const ESCENARIOS: Record<string, DiagnosticoMock> = {
     canRun: canRun({ credencialValida: false, puedeEjecutar: false }),
     regs: regs([mes(2026, 9, 'No presentada', 1)]),
     ...numeros,
+    pasos: pasos('EnCurso', [2, 1, 1, 2, 2]),
   },
   'solo-efirma': {
     titulo: 'Conectado solo con e.firma (banner)',
@@ -193,6 +246,7 @@ export const ESCENARIOS: Record<string, DiagnosticoMock> = {
     canRun: canRun({}),
     regs: regs([mes(2026, 9, 'No presentada', 1)]),
     ...numeros,
+    pasos: pasos('Terminado', [1, 1, 1, 1, 2]),
   },
 }
 
