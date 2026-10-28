@@ -23,6 +23,11 @@ interface TutorialContextValue {
   stop: () => void
   openMenu: () => void
   activeId: TutorialId | null
+  /**
+   * Hay un tutorial en pantalla o el de bienvenida está por arrancar. Se calcula en el render (no
+   * espera al effect que prende pendingAutostart) para que nadie navegue antes de que arranque.
+   */
+  busy: boolean
 }
 
 const TutorialContext = createContext<TutorialContextValue | null>(null)
@@ -64,6 +69,8 @@ function ActiveTutorialProvider({ children, autostart, userId, go, screen, openM
   // Va a salir la bienvenida: cubrir la pantalla mientras cargan los RFCs y se arma el primer paso,
   // para que no se vea el dashboard "suelto" y luego aparezca el tutorial encima.
   const [pendingAutostart, setPendingAutostart] = useState(false)
+  // El autostart ya arrancó un tour o se dio por vencido (red de seguridad).
+  const [autostartDecided, setAutostartDecided] = useState(false)
 
   useEffect(() => {
     if (autostart && !isTutorialDone(userId)) setPendingAutostart(true)
@@ -72,7 +79,10 @@ function ActiveTutorialProvider({ children, autostart, userId, go, screen, openM
   useEffect(() => {
     if (!pendingAutostart) return
     // Red de seguridad: si algo impide arrancar, nunca dejar la pantalla bloqueada.
-    const timer = setTimeout(() => setPendingAutostart(false), PENDING_MAX_MS)
+    const timer = setTimeout(() => {
+      setPendingAutostart(false)
+      setAutostartDecided(true)
+    }, PENDING_MAX_MS)
     return () => clearTimeout(timer)
   }, [pendingAutostart])
 
@@ -100,6 +110,7 @@ function ActiveTutorialProvider({ children, autostart, userId, go, screen, openM
       autostartedRef.current = true
       start(first)
       setPendingAutostart(false)
+      setAutostartDecided(true)
     }, AUTOSTART_DELAY_MS)
     return () => clearTimeout(timer)
   }, [autostart, loadingRfc, hasRfc, selectedRfcInfo, userId, start])
@@ -118,7 +129,11 @@ function ActiveTutorialProvider({ children, autostart, userId, go, screen, openM
     diagnosticoTerminado: diagnostico.loading ? null : diagnostico.terminado,
   }
 
-  const value = useMemo(() => ({ start, stop, openMenu, activeId }), [start, stop, openMenu, activeId])
+  const busy = activeId !== null || (autostart && !autostartDecided && !isTutorialDone(userId))
+  const value = useMemo(
+    () => ({ start, stop, openMenu, activeId, busy }),
+    [start, stop, openMenu, activeId, busy],
+  )
 
   return (
     <TutorialContext.Provider value={value}>

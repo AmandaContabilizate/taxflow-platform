@@ -54,6 +54,31 @@ export interface DiagnosticoEstadoCliente {
   noPresentadas: number;
 }
 
+/** 1 Completado · 2 En espera · 3 Ejecutando · 4 Falló (solo cuando ya no se reintenta). */
+export type PasoEstatusId = 1 | 2 | 3 | 4;
+
+export type PasoClave = 'credenciales' | 'constancia' | 'opinion' | 'declaraciones' | 'compra';
+
+export interface DiagnosticoPaso {
+  clave: PasoClave;
+  titulo: string;
+  estatusId: PasoEstatusId;
+  estatus: string;
+  /** p. ej. "Reintentando" o el motivo de la falla. */
+  detalle: string | null;
+}
+
+/** GET cliente/pasos: estado de cada paso del diagnóstico del propio cliente. */
+export interface DiagnosticoPasos {
+  estadoId: number;
+  estado: DiagnosticoEstadoCliente['estado'];
+  /** Venta pagada del RFC (incluye $0). */
+  hasPurchase: boolean;
+  /** Diagnóstico terminado y sin compra: el CTA "Hacer mi compra" y el paso Compra destacado. */
+  soloFaltaCompra: boolean;
+  pasos: DiagnosticoPaso[];
+}
+
 /** Corrida del diagnóstico registrada en DiagnosticoRun (GET vendedor/historial). */
 export interface DiagnosticoCorrida {
   id: number;

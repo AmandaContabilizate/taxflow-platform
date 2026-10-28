@@ -1,6 +1,8 @@
 import { decodeJwt } from "jose";
 import { NextResponse, type NextRequest } from "next/server";
 import { clearSessionCookies, setSessionCookies } from "@/features/auth/actions";
+import { markPostLogin } from "@/features/auth/actions/markPostLogin.action";
+import { isDashboardDestination } from "@/features/auth/lib/postLoginCookie";
 import { resolveLoginDestination } from "@/features/auth/lib/resolveLoginDestination";
 import { PROTECTED_ROUTES, PUBLIC_ROUTES, resolveRedirectBase } from "@/lib/routes";
 
@@ -41,6 +43,7 @@ export async function GET(request: NextRequest) {
     fullName,
     fallback: PROTECTED_ROUTES.DASHBOARD,
   });
+  if (isDashboardDestination(destination)) await markPostLogin();
 
   return NextResponse.redirect(new URL(destination, resolveRedirectBase(request.url)));
 }

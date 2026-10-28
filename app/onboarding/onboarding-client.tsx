@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import SatCredentialsForm from '@/components/sat-credentials-form'
+import { setPostLoginCookieClient } from '@/features/auth/lib/postLoginCookie'
 
 interface Props {
   existingRfc?: string
@@ -161,7 +162,11 @@ export default function OnboardingClient({ existingRfc, hasCredentials }: Props)
         <div className="w-full max-w-lg">
           <SatCredentialsForm
             existingRfc={existingRfc}
-            onComplete={() => router.push('/dashboard')}
+            onComplete={() => {
+              // Primer diagnóstico: que el dashboard lo lleve a Diagnóstico (post-login-redirect).
+              setPostLoginCookieClient()
+              router.push('/dashboard')
+            }}
           />
         </div>
       </div>

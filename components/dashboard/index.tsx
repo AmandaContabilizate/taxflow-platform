@@ -17,6 +17,7 @@ import { DashboardQueryProvider } from './query-provider'
 import { Sidebar } from './sidebar'
 import { HelpButton } from './tutorial/HelpButton'
 import { TutorialProvider } from './tutorial/TutorialProvider'
+import { PostLoginRedirect } from './post-login-redirect'
 import type { DashboardProps, Screen } from './types'
 import { useUrlState } from './url-state'
 import {
@@ -187,6 +188,7 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
       screen={screen}
       openMobileMenu={() => setMobileOpen(true)}
     >
+      {isClient && <PostLoginRedirect go={go} />}
       <div
         className={`grid min-h-screen transition-all duration-300 ${sidebarCollapsed ? 'lg:grid-cols-[80px_1fr]' : 'lg:grid-cols-[260px_1fr]'}`}
         style={{ background: 'var(--background)', color: 'var(--foreground)' }}>
