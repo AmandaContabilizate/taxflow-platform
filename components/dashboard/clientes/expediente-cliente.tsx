@@ -33,6 +33,7 @@ import {
 } from '@/features/taxpayers/actions/getDocumentMetadata.action'
 import type { ExpedienteCliente, ExpedientePeriodo } from '@/features/taxpayers/types'
 import { DISPLAY, MONO } from '../constants'
+import { AccountStatusChip } from '../cancelaciones/parts'
 import { Badge, Card, CiecUpdateModal, CiecValidationBadge, ErrorState, NoAccessState, Tabs, isForbiddenError } from '../ui'
 import { ArmarVentaModal } from './armar-venta-modal'
 import { VentasAbiertas } from './ventas-abiertas'
@@ -220,6 +221,7 @@ export function ExpedienteCliente({ taxpayerId, permissions, onBack, initialTab 
               <span className="text-[18px] font-extrabold tracking-tight" style={DISPLAY}>
                 {data.legalName}
               </span>
+              <AccountStatusChip accountStatusId={data.accountStatusId} deactivatedAt={data.deactivatedAt} hideActive />
               <CiecValidationBadge
                 rfc={data.rfc}
                 ciecState={data.passwordState}
