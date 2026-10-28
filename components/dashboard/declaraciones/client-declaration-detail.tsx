@@ -5,12 +5,18 @@ import { useEffect, useMemo, useState } from 'react'
 import { getMyDeclarationReport } from '@/features/declaration-report/actions'
 import type { DeclarationReport } from '@/features/declaration-report/types'
 import { getClientDeclarationInvoices } from '@/features/declarations/actions/getClientDeclarationInvoices.action'
-import type { ClientDeclarationInvoice, ClientDeclarationSubject } from '@/features/declarations/types'
+import { getDeclarationFilings } from '@/features/declarations/actions/getDeclarationFilings.action'
+import type {
+  ClientDeclarationInvoice,
+  ClientDeclarationSubject,
+  DeclarationFiling,
+} from '@/features/declarations/types'
 import { DISPLAY, MONO } from '../constants'
 import { Modal } from '../modal'
 import { DeclarationReportPanel } from './declaration-report-panel'
-import { Badge, Card } from '../ui'
-import { declarationStatusBadge, fmtDate, resolvePdfUrl } from './parts'
+import { SatReadingButton } from './declaration-sat-reading'
+import { Badge, Card, Tabs } from '../ui'
+import { declarationStatusBadge, filingLabel, filingTitle, fmtDate, money, resolvePdfUrl } from './parts'
 
 interface Props {
   declaration: ClientDeclarationSubject
@@ -25,11 +31,6 @@ interface Props {
 type Origen = '' | 'true' | 'false'
 type Deducible = '' | 'si' | 'no' | 'pendiente'
 
-const money = (n: number | null | undefined) =>
-  n == null || !Number.isFinite(n)
-    ? '—'
-    : n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2 })
-
 /**
  * Detalle de una declaración para el contribuyente.
  *
@@ -37,7 +38,44 @@ const money = (n: number | null | undefined) =>
  * de sus CFDI del periodo y si cada uno quedó deducible, nunca la clasificación ni
  * las herramientas de recálculo.
  */
-export function ClientDeclarationDetail({ declaration: d, onBack, readOnly = false }: Props) {
+export function ClientDeclarationDetail({ declaration, onBack, readOnly = false }: Props) {
+  // Presentaciones del periodo (Normal + complementarias): una pestaña por cada una cuando hay
+  // más de una. El listado solo trae una fila por periodo. Si no cargan, la pantalla queda como
+  // antes, sin pestañas, con la declaración que se abrió.
+  const [filings, setFilings] = useState<DeclarationFiling[]>([])
+  const [activeId, setActiveId] = useState(declaration.declarationId)
+
+  useEffect(() => {
+    let cancelled = false
+    setActiveId(declaration.declarationId)
+    setFilings([])
+    void (async () => {
+      const res = await getDeclarationFilings(declaration.declarationId, declaration.taxpayerId)
+      if (cancelled) return
+      setFilings(res.success ? res.value.items : [])
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [declaration.declarationId, declaration.taxpayerId])
+
+  const filing = filings.find((f) => f.declarationId === activeId)
+  // La pestaña activa manda: estatus, fecha, PDFs, reporte y facturas son de ESA presentación.
+  const d: ClientDeclarationSubject = filing
+    ? {
+        ...declaration,
+        declarationId: filing.declarationId,
+        statusCode: filing.statusCode,
+        statusLabel: filing.statusLabel,
+        submittedAt: filing.submittedAt,
+        acknowledgmentPdfUrl: filing.acknowledgmentPdfUrl,
+        paymentLinePdfUrl: filing.paymentLinePdfUrl,
+        paymentAcknowledgmentPdfUrl: filing.paymentAcknowledgmentPdfUrl,
+        complementNumber: filing.complementNumber,
+      }
+    : declaration
+  const isComplement = (d.complementNumber ?? 0) > 0
+
   const [invoices, setInvoices] = useState<ClientDeclarationInvoice[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -54,6 +92,7 @@ export function ClientDeclarationDetail({ declaration: d, onBack, readOnly = fal
     // no es el dueño; pedirlo solo produciría un 403 en el log por cada apertura.
     if (readOnly) return
     let cancelled = false
+    setReport(null)
     void (async () => {
       const res = await getMyDeclarationReport(d.declarationId)
       if (cancelled) return
@@ -129,10 +168,21 @@ export function ClientDeclarationDetail({ declaration: d, onBack, readOnly = fal
           </div>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             <Badge kind={status.kind}>{status.label}</Badge>
+            {isComplement && <Badge>{filingLabel(d.complementNumber)}</Badge>}
             {d.regimeName && <Badge kind="default">{d.regimeName}</Badge>}
           </div>
         </div>
       </div>
+
+      {filings.length > 1 && (
+        <div className="overflow-x-auto">
+          <Tabs
+            items={filings.map((f) => (f.isCurrent ? `${filingLabel(f.complementNumber)} · Vigente` : filingLabel(f.complementNumber)))}
+            active={Math.max(0, filings.findIndex((f) => f.declarationId === activeId))}
+            onChange={(i) => setActiveId(filings[i].declarationId)}
+          />
+        </div>
+      )}
 
       <Card>
         <div className="p-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -140,6 +190,10 @@ export function ClientDeclarationDetail({ declaration: d, onBack, readOnly = fal
           <Dato label="Ejercicio" value={String(d.fiscalYear)} />
           <Dato label="Periodicidad" value={d.periodicity ?? 'No definida'} />
           <Dato label="Presentada el" value={d.submittedAt ? fmtDate(d.submittedAt) : 'Aún no'} />
+          {filing && <Dato label="Folio SAT" value={filing.operationNumber ?? 'Aún no'} />}
+          {filing && isComplement && (
+            <Dato label="Tipo de complementaria" value={filing.complementaryType ?? 'No definido'} />
+          )}
         </div>
         {/* Accion principal de la pantalla: el calculo completo va en un modal, no apilado
             encima del listado de facturas. */}
@@ -168,43 +222,47 @@ export function ClientDeclarationDetail({ declaration: d, onBack, readOnly = fal
         </div>
         )}
 
-        {(d.acknowledgmentPdfUrl || d.paymentLinePdfUrl || d.paymentAcknowledgmentPdfUrl) && (
-          <div className="px-5 pb-5 flex items-center gap-3 flex-wrap">
-            {d.acknowledgmentPdfUrl && (
-              <a
-                href={resolvePdfUrl(d.acknowledgmentPdfUrl) ?? d.acknowledgmentPdfUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12.5px] font-bold transition hover:opacity-90"
-                style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
-              >
-                <Download size={15} /> Descargar acuse
-              </a>
-            )}
-            {d.paymentLinePdfUrl && (
-              <a
-                href={resolvePdfUrl(d.paymentLinePdfUrl) ?? d.paymentLinePdfUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12.5px] font-bold transition hover:opacity-90"
-                style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
-              >
-                <Download size={15} /> Descargar línea de captura
-              </a>
-            )}
-            {d.paymentAcknowledgmentPdfUrl && (
-              <a
-                href={resolvePdfUrl(d.paymentAcknowledgmentPdfUrl) ?? d.paymentAcknowledgmentPdfUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12.5px] font-bold transition hover:opacity-90"
-                style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
-              >
-                <Download size={15} /> Descargar comprobante de pago
-              </a>
-            )}
-          </div>
-        )}
+        <div className="px-5 pb-5 flex items-center gap-3 flex-wrap">
+          <SatReadingButton
+            declarationId={d.declarationId}
+            taxpayerId={d.taxpayerId}
+            title={filingTitle(d.periodo, d.complementNumber)}
+            variant="detail"
+          />
+          {d.acknowledgmentPdfUrl && (
+            <a
+              href={resolvePdfUrl(d.acknowledgmentPdfUrl) ?? d.acknowledgmentPdfUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12.5px] font-bold transition hover:opacity-90"
+              style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+            >
+              <Download size={15} /> Descargar acuse
+            </a>
+          )}
+          {d.paymentLinePdfUrl && (
+            <a
+              href={resolvePdfUrl(d.paymentLinePdfUrl) ?? d.paymentLinePdfUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12.5px] font-bold transition hover:opacity-90"
+              style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+            >
+              <Download size={15} /> Descargar línea de captura
+            </a>
+          )}
+          {d.paymentAcknowledgmentPdfUrl && (
+            <a
+              href={resolvePdfUrl(d.paymentAcknowledgmentPdfUrl) ?? d.paymentAcknowledgmentPdfUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12.5px] font-bold transition hover:opacity-90"
+              style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+            >
+              <Download size={15} /> Descargar comprobante de pago
+            </a>
+          )}
+        </div>
       </Card>
 
       <Card>

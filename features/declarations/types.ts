@@ -459,6 +459,131 @@ export interface ClientDeclarationSubject {
   paymentLinePdfUrl?: string | null
   paymentAcknowledgmentPdfUrl?: string | null
   submittedAt: string | null
+  /** 0 = Normal; >0 = complementaria. */
+  complementNumber?: number
+  /** Solo en la Vista del cliente (backoffice): pide las rutas espejo con este contribuyente. */
+  taxpayerId?: number
+}
+
+/**
+ * Una presentacion del periodo (`DeclarationFilingItemDto`): la Normal o cada complementaria.
+ * Son las pestañas de la pantalla de detalle.
+ */
+export interface DeclarationFiling {
+  declarationId: number
+  /** 0 = Normal; 1..N = cada complementaria, en orden. */
+  complementNumber: number
+  /** La presentacion vigente del periodo. */
+  isCurrent: boolean
+  operationNumber: string | null
+  /** Tipo de complementaria tal como lo imprime el SAT; null en la Normal. */
+  complementaryType: string | null
+  statusId: number
+  statusCode: string
+  statusLabel: string
+  submittedAt: string | null
+  presentedDate: string | null
+  acknowledgmentPdfUrl: string | null
+  paymentLinePdfUrl: string | null
+  paymentAcknowledgmentPdfUrl: string | null
+}
+
+export interface DeclarationFilings {
+  declarationId: number
+  /** La Normal primero. */
+  items: DeclarationFiling[]
+}
+
+/**
+ * Lo que el lector externo saco de los PDFs del SAT de una declaracion (`DeclarationSatReadingDto`).
+ * Campos en ContaboxPro.Backend/docs/lectura-acuses-sat-campos-modal.md. `null` en un dato =
+ * el PDF no lo trae (no es cero). Fechas sin hora (`YYYY-MM-DD`) en los campos *On / *Date / ValidUntil.
+ */
+export interface DeclarationSatReading {
+  declarationId: number
+  operationNumber: string | null
+  hasPdfError: boolean
+  failedPdfs: number
+  pendingPdfs: number
+  acknowledgment: SatDocumentReading | null
+  paymentLine: SatDocumentReading | null
+  paymentReceipt: SatDocumentReading | null
+}
+
+export interface SatDocumentReading {
+  /** 1 = Leido, 2 = Con error. */
+  readStatusId: number
+  /** Codigo de Catalogs.DocumentReadError (OperationNumberMismatch, NoText…). */
+  errorCode: string | null
+  errorDetail: string | null
+  readAt: string
+  operationNumber: string | null
+  filingType: string | null
+  complementaryType: string | null
+  presentedAt: string | null
+  obligationDueDate: string | null
+  issuedAt: string | null
+  formVersion: number | null
+  taxes: SatDocumentTax[]
+  paymentLine: SatPaymentLine | null
+  bankPayment: SatBankPayment | null
+  determinations: SatTaxDetermination[]
+}
+
+export interface SatDocumentTax {
+  concept: string
+  /** ISR / IVA / IEPS. */
+  taxCode: string
+  amountCharged: number | null
+  updatedPart: number | null
+  surcharges: number | null
+  totalApplications: number | null
+  amountDue: number | null
+  amountToPay: number | null
+  amountInFavor: number | null
+  priorPaymentDate: string | null
+  amountPreviouslyPaid: number | null
+  priorPayments: SatPriorPayment[]
+}
+
+export interface SatPriorPayment {
+  priorOperationNumber: string
+  captureLineCode: string
+  bank: string
+  paidOn: string
+  bankOperationNumber: string
+  paymentKey: string
+  amountPaid: number
+}
+
+export interface SatPaymentLine {
+  captureLineCode: string
+  totalToPay: number
+  validUntil: string
+}
+
+export interface SatBankPayment {
+  bank: string
+  paidOn: string
+  bankOperationNumber: string
+  paymentKey: string
+}
+
+export interface SatTaxDetermination {
+  concept: string
+  taxCode: string
+  incomeCollected: number | null
+  taxableBase: number | null
+  /** Fraccion: 0.01 = 1%. */
+  rateApplied: number | null
+  monthlyTax: number | null
+  isrWithheld: number | null
+  vatTransferred: number | null
+  vatWithheld: number | null
+  vatCreditable: number | null
+  priorFavorBalanceApplied: number | null
+  pueInvoicesValid: number | null
+  pueInvoicesCancelled: number | null
 }
 
 /**
