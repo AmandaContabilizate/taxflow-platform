@@ -725,6 +725,50 @@ export const API_ROUTES = {
     EXPORT: (query: string) => `/export${query ? `?${query}` : ""}`,
     HISTORY: (id: number) => `/${id}/history`,
   },
+  // Cancelación comercial de declaraciones y clientes (módulo Cancelaciones, gerencia de ventas).
+  // Lectura en Reports (apiType "cancellations_reports"), escritura de declaraciones en Procedures
+  // (apiType "cancellations"); la baja/reactivación del contribuyente va a Identity
+  // (TAXPAYER_DEACTIVATION, apiType "taxpayer_deactivation").
+  CANCELLATIONS: {
+    // GET cancellations_reports · q ≥ 3 caracteres (RFC / nombre / correo). Cualquiera de los 3 claims.
+    TAXPAYERS_SEARCH: (q: string, skip = 0, take = 20) =>
+      `/taxpayers/search?q=${encodeURIComponent(q)}&skip=${skip}&take=${take}`,
+    // GET cancellations_reports · todas las filas del RFC (normales y complementarias) con
+    // `cancellable` / `notCancellableReason` / `inFlight` ya resueltos por el back, más el saldo prepagado.
+    TAXPAYER_DECLARATIONS: (
+      taxpayerId: number,
+      p: { taxRegimeId?: number; fiscalYear?: number; statusId?: number; onlyCancellable?: boolean } = {},
+    ) => {
+      const qs = new URLSearchParams()
+      if (p.taxRegimeId) qs.set("taxRegimeId", String(p.taxRegimeId))
+      if (p.fiscalYear) qs.set("fiscalYear", String(p.fiscalYear))
+      if (p.statusId) qs.set("statusId", String(p.statusId))
+      if (p.onlyCancellable) qs.set("onlyCancellable", "true")
+      const s = qs.toString()
+      return `/taxpayers/${taxpayerId}/declarations${s ? `?${s}` : ""}`
+    },
+    // GET cancellations · catálogo Catalogs.DeclarationCancellationReason (99 Otro exige nota). Solo sesión.
+    REASONS: "/reasons",
+    // POST cancellations · `{ declarationIds (1..100), reasonId, note }`. Resultado PARCIAL: 200 con
+    // `cancelled` y `rejected`; 400 solo si todas se rechazan. Policy GerenciaComercial.CancelDeclaraciones.
+    CANCEL_DECLARATIONS: "/declarations",
+    // POST cancellations · `{ note }`. 19 → estatus previo del log (o 15). Policy GerenciaComercial.ReactivarCancelaciones.
+    REACTIVATE_DECLARATION: (declarationId: number) => `/declarations/${declarationId}/reactivate`,
+    // GET cancellations_reports · bitácora del RFC: TaxpayerDeactivation + DeclarationLog con Source gerencia-%.
+    HISTORY: (taxpayerId: number, skip = 0, take = 100) =>
+      `/history?taxpayerId=${taxpayerId}&skip=${skip}&take=${take}`,
+  },
+  // Baja lógica de contribuyente (Identity, origin/dev) extendida para gerencia comercial.
+  // apiType "taxpayer_deactivation". Claims Contador.DeactivateTaxpayer o GerenciaComercial.CancelCliente.
+  TAXPAYER_DEACTIVATION: {
+    // GET · estatus actual, declaraciones en vuelo, saldo prepagado, suscripción encontrada.
+    PREVIEW: (taxpayerId: number) => `/${taxpayerId}/deactivation-preview`,
+    // POST · `{ hard:false, confirmRfc, reasonId, reasonNote, requestReference, password,
+    //   cancelOpenDeclarations, cancelSubscription }`. Borra CIEC, e.firma y cuentas bancarias.
+    DEACTIVATE: (taxpayerId: number) => `/${taxpayerId}/deactivate`,
+    // POST · `{ note, reactivateDeclarations }`. Policy GerenciaComercial.ReactivarCancelaciones.
+    REACTIVATE: (taxpayerId: number) => `/${taxpayerId}/reactivate`,
+  },
   USER_NOTIFICATIONS: {
     ROOT: "",
     UNREAD_COUNT: "/unread-count",

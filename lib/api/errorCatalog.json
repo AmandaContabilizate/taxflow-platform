@@ -342,5 +342,53 @@
   "DOWNLOAD_TAIL_NOT_READY": {
     "es": "Todavía no. La descarga se habilita el día 7 del mes siguiente al periodo, cuando el SAT ya tiene todos los CFDIs.",
     "en": "Not yet. The download opens on the 7th of the month after the period, once the SAT has every CFDI."
+  },
+  "DECLARATION_NOT_CANCELLABLE": {
+    "es": "Esta declaración no se puede cancelar por su estatus actual (presentada, sin servicio vendido o ya cancelada por otro motivo).",
+    "en": "This declaration cannot be cancelled in its current status (filed, no service sold, or already cancelled for another reason)."
+  },
+  "DECLARATION_ALREADY_CANCELLED": {
+    "es": "Esta declaración ya estaba cancelada.",
+    "en": "This declaration was already cancelled."
+  },
+  "DECLARATION_IN_FLIGHT": {
+    "es": "El robot está presentando esta declaración ante el SAT. Espera a que termine e inténtalo de nuevo.",
+    "en": "The robot is currently filing this declaration with the SAT. Wait for it to finish and try again."
+  },
+  "CANCELLATION_REASON_REQUIRED": {
+    "es": "Elige el motivo de la cancelación; con “Otro” la nota es obligatoria.",
+    "en": "Choose the cancellation reason; with “Other” a note is required."
+  },
+  "DECLARATION_NOT_CANCELLED": {
+    "es": "Esta declaración no está cancelada por gerencia: no hay nada que reactivar.",
+    "en": "This declaration is not cancelled by management: there is nothing to reactivate."
+  },
+  "TAXPAYER_NOT_CANCELLED": {
+    "es": "El contribuyente no está cancelado: no hay nada que reactivar.",
+    "en": "The taxpayer is not cancelled: there is nothing to reactivate."
+  },
+  "TAXPAYER_DEACTIVATED": {
+    "es": "El contribuyente está cancelado. Reactiva primero al cliente y después sus declaraciones.",
+    "en": "The taxpayer is deactivated. Reactivate the client first, then their declarations."
+  },
+  "TAXPAYER_ALREADY_DEACTIVATED": {
+    "es": "El contribuyente ya estaba dado de baja.",
+    "en": "The taxpayer was already deactivated."
+  },
+  "RFC_CONFIRMATION_MISMATCH": {
+    "es": "El RFC escrito no coincide con el del contribuyente.",
+    "en": "The RFC you typed does not match the taxpayer's RFC."
+  },
+  "TOO_MANY_PASSWORD_ATTEMPTS": {
+    "es": "Demasiados intentos de contraseña. Espera 15 minutos e inténtalo de nuevo.",
+    "en": "Too many password attempts. Wait 15 minutes and try again."
+  },
+  "DEACTIVATION_FORBIDDEN": {
+    "es": "Tu rol no puede dar de baja a este contribuyente.",
+    "en": "Your role cannot deactivate this taxpayer."
+  },
+  "HARD_DELETE_NOT_ALLOWED_YET": {
+    "es": "La baja definitiva todavía no está permitida para este contribuyente.",
+    "en": "Permanent deletion is not allowed yet for this taxpayer."
   }
 }
