@@ -5,9 +5,11 @@ import { ApiError, fetchPostPublic, getErrorMessage, hasErrorCode } from "@/lib/
 import { API_ROUTES } from "@/lib/api/apiRoutes";
 import { type Result, err, ok } from "@/lib/common";
 import { PROTECTED_ROUTES } from "@/lib/routes";
+import { isDashboardDestination } from "../lib/postLoginCookie";
 import { resolveLoginDestination } from "../lib/resolveLoginDestination";
 import type { SignInSchema } from "../schemas/signIn.schema";
 import type { LoginResponse, SignInError } from "../types";
+import { markPostLogin } from "./markPostLogin.action";
 import { setSessionCookies } from "./setSessionCookies.action";
 
 export async function signIn(
@@ -48,14 +50,14 @@ export async function signIn(
 
     const { role } = decodeJwt(response.token) as { role?: string };
 
-    return ok(
-      resolveLoginDestination({
-        role,
-        rfc: response.rfc,
-        fullName: response.fullName,
-        fallback: redirectPath,
-      }),
-    );
+    const destination = resolveLoginDestination({
+      role,
+      rfc: response.rfc,
+      fullName: response.fullName,
+      fallback: redirectPath,
+    });
+    if (isDashboardDestination(destination)) await markPostLogin();
+    return ok(destination);
   } catch (e) {
     if (e instanceof ApiError && e.status === 401) {
       // USER_INACTIVE (IsActive=0), PASSWORD_RESET_REQUIRED (migración insegura) y

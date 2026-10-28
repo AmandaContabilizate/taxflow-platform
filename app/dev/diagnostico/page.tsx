@@ -2,6 +2,7 @@
 
 import { notFound, useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect, useState } from 'react'
+import { DashboardQueryProvider } from '@/components/dashboard/query-provider'
 import { DiagnosticoScreen } from '@/components/dashboard/screens/diagnostico'
 import { DIAG_MOCK_COOKIE, ESCENARIOS } from '@/features/diagnostico/mocks/escenarios'
 import { RfcProvider } from '@/features/taxpayers/stores/rfcStore'
@@ -54,9 +55,11 @@ function Preview() {
 
       <main className="min-w-0 px-5 py-6 lg:px-10 lg:py-7 pb-20 max-w-[1280px]">
         {ready === escenario && (
-          <RfcProvider key={escenario}>
-            <DiagnosticoScreen go={() => {}} />
-          </RfcProvider>
+          <DashboardQueryProvider key={escenario}>
+            <RfcProvider>
+              <DiagnosticoScreen go={() => {}} />
+            </RfcProvider>
+          </DashboardQueryProvider>
         )}
       </main>
     </div>
