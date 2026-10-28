@@ -41,6 +41,8 @@ interface Props {
   /** Nombre del partner que administra el acceso (iframe); null si puede cambiar su correo. */
   emailChangeBlockedBy?: string | null;
   isClient?: boolean;
+  /** Dar de baja su propia contabilidad: solo roles cliente (el staff da de baja a otros desde el backoffice). */
+  canSelfDeactivate?: boolean;
   go: GoFn;
   onLogout: () => void;
   signingOut: boolean;
@@ -70,7 +72,7 @@ function ciecEstadoTexto(
   return { titulo: 'Sin CIEC capturada', detalle: 'Conecta tu SAT para activar tu información fiscal' };
 }
 
-export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber, emailChangeBlockedBy = null, isClient = true, go, onLogout, signingOut }: Props) {
+export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber, emailChangeBlockedBy = null, isClient = true, canSelfDeactivate = false, go, onLogout, signingOut }: Props) {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const { selectedRfc, selectedRfcInfo } = useRfcStore();
@@ -456,18 +458,20 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
           <LogOut size={16} /> {signingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
         </Btn>
 
-        <Section title='Zona de riesgo'>
-          <Card>
-            <AccountRow
-              Icon={Trash2}
-              iconBg='var(--danger-soft)'
-              iconColor='var(--danger)'
-              title='Eliminar mi cuenta'
-              subtitle='Desactiva tu cuenta y cierra tu acceso'
-              onClick={() => setShowDeleteModal(true)}
-            />
-          </Card>
-        </Section>
+        {canSelfDeactivate && (
+          <Section title='Zona de riesgo'>
+            <Card>
+              <AccountRow
+                Icon={Trash2}
+                iconBg='var(--danger-soft)'
+                iconColor='var(--danger)'
+                title='Dar de baja mi contabilidad'
+                subtitle='Da de baja uno o todos tus RFC'
+                onClick={() => setShowDeleteModal(true)}
+              />
+            </Card>
+          </Section>
+        )}
 
         <div
           className='text-center text-[11px] font-semibold'
@@ -521,13 +525,15 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
         <SecurityForm />
       </Modal>
 
-      {/* Modal de Eliminar cuenta */}
-      <Modal
-        isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-        title='Eliminar cuenta'>
-        <DeleteAccountForm />
-      </Modal>
+      {/* Modal de baja de la contabilidad (solo roles cliente) */}
+      {canSelfDeactivate && (
+        <Modal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          title='Dar de baja mi contabilidad'>
+          <DeleteAccountForm />
+        </Modal>
+      )}
     </div>
   );
 }
