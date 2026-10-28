@@ -4,11 +4,15 @@ import { cookies } from 'next/headers'
 import { ApiError, fetchGet } from '@/lib/api'
 import { API_ROUTES } from '@/lib/api/apiRoutes'
 import { type Result, err, ok } from '@/lib/common'
+import { getDiagnosticoMock } from '@/features/diagnostico/mocks/getDiagnosticoMock'
 import type { MonthlyBills, ReportError } from '../tools/types'
 
 export async function getMonthlyBills(
   rfc: string,
 ): Promise<Result<MonthlyBills, ReportError>> {
+  const mock = await getDiagnosticoMock()
+  if (mock) return ok(mock.bills)
+
   const cookieStore = await cookies()
   const email = cookieStore.get('email')?.value ?? ''
 

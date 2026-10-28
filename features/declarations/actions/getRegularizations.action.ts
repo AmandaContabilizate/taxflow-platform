@@ -3,11 +3,15 @@
 import { ApiError, fetchGet } from '@/lib/api'
 import { API_ROUTES } from '@/lib/api/apiRoutes'
 import { type Result, err, ok } from '@/lib/common'
+import { getDiagnosticoMock } from '@/features/diagnostico/mocks/getDiagnosticoMock'
 import type { DeclarationsError, Regularizations } from '../types'
 
 export async function getRegularizations(
   rfc: string,
 ): Promise<Result<Regularizations, DeclarationsError>> {
+  const mock = await getDiagnosticoMock()
+  if (mock) return ok(mock.regs)
+
   if (!rfc) {
     return err({ statusCode: 400, message: 'Falta el RFC.', code: 'INVALID_REQUEST' })
   }

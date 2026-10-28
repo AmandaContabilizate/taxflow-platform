@@ -4,6 +4,7 @@ import { ApiError, fetchPost } from "@/lib/api";
 import { API_ROUTES } from "@/lib/api/apiRoutes";
 import { type Result, err, ok } from "@/lib/common";
 import { diagnosticoErrorMessage, type DiagnosticoError, type RunDiagnosticoResult } from "../types";
+import { getDiagnosticoMock } from "../mocks/getDiagnosticoMock";
 
 function toError(e: unknown, fallback: string): DiagnosticoError {
   if (e instanceof ApiError) {
@@ -24,6 +25,8 @@ function toError(e: unknown, fallback: string): DiagnosticoError {
 export async function runDiagnosticoCliente(
   rfc: string,
 ): Promise<Result<RunDiagnosticoResult, DiagnosticoError>> {
+  if (await getDiagnosticoMock()) return ok({ triggered: true });
+
   try {
     const data = await fetchPost<RunDiagnosticoResult>(
       API_ROUTES.DIAGNOSTICO.RUN_CLIENTE(rfc),
