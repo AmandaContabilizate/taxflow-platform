@@ -337,6 +337,9 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
         signingOut={signingOut}
         role={null}
         isClient={isGuest}
+        // Autobaja solo para roles cliente (Guest y Employee, igual que Jwt:Session:ClientRoles del
+        // back). Employee se revisa crudo: normalizeRole lo manda a 'administrator'.
+        canSelfDeactivate={isGuest || (role ?? '').trim().toLowerCase() === 'employee'}
         go={go}
       />
     );
