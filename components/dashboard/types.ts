@@ -44,6 +44,8 @@ export type Screen =
   | 'equipo-operaciones'
   | 'renovaciones'
   | 'asignaciones'
+  // Cancelación lógica de declaraciones y clientes (gerencia comercial)
+  | 'cancelaciones'
   | 'equipo'
   // Catálogos comerciales del módulo de comisiones
   | 'partners'

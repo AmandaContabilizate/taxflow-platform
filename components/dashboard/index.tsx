@@ -22,6 +22,7 @@ import { useUrlState } from './url-state'
 import {
   AprendeScreen,
   AyudaScreen,
+  CancelacionesScreen,
   ClientesScreen,
   ContribuyentesScreen,
   PanelComercialScreen,
@@ -78,6 +79,7 @@ const WIDE_SCREENS = new Set<Screen>([
   'declaraciones-rechazadas',
   'declaraciones-por-presentar',
   'monitor-descargas',
+  'cancelaciones',
   'declaraciones-futuras',
   'ventas-por-activar',
   'regularizaciones',
@@ -397,6 +399,10 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
     }
     if (screen === 'monitor-descargas') {
       return <MonitorDescargasScreen />
+    }
+    if (screen === 'cancelaciones') {
+      // La pantalla valida los claims por dentro (NoAccessState): `?s=cancelaciones` a mano no abre nada.
+      return <CancelacionesScreen />
     }
     if (screen === 'declaraciones-futuras') {
       return <DeclaracionesFuturasScreen currentUser={{ userId: userId ?? '', fullName }} permissions={permissions} />

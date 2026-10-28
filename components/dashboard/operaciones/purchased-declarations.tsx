@@ -219,7 +219,7 @@ function periodFilterFromParams(mode: Mode, params: URLSearchParams): PeriodFilt
  * D3: subconjunto operativo, en el orden de trabajo del contador. 12 y 13
  * quedan fuera por ser estados del sistema (sembrado/migrado), no del contador.
  */
-export const STATUS_ID_WHITELIST = [15, 17, 11, 9, 10, 3, 14, 4, 7, 8, 18] as const
+export const STATUS_ID_WHITELIST = [15, 17, 11, 9, 10, 3, 14, 4, 7, 8, 18, 19] as const
 
 /** Todas las pantallas arrancan con "Todos los estatus" por default (statusId: undefined). */
 const DEFAULT_STATUS_ID: Record<Mode, number | undefined> = {

@@ -29,6 +29,9 @@ export interface TaxpayerListItem {
   regimenes: TaxpayerRegimen[];
   /** Ventas pagadas (StatusSaleId=2 con referencia de Stripe). */
   ventasPagadas: number;
+  /** `Catalogs.AccountStatus` (1 Active, 2 DeactivatedSoft, 3 DeactivatedHard); lo expone el back desde origin/dev. */
+  accountStatusId?: number | null;
+  deactivatedAt?: string | null;
 }
 
 /**

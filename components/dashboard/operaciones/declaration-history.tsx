@@ -15,6 +15,9 @@ const SOURCE_LABEL: Record<string, string> = {
   'accountant-upload': 'Acuse subido por el contador',
   'ai-poster': 'Presentada por el robot',
   'portal-scrape': 'Detectada en el portal del SAT',
+  'gerencia-cancel': 'Cancelada por gerencia comercial',
+  'gerencia-cancel-cliente': 'Cancelada junto con la baja del cliente',
+  'gerencia-reactivate': 'Reactivada por gerencia comercial',
 }
 
 /** Encabezado de la nota según quién la escribió. */
@@ -22,6 +25,9 @@ const NOTE_LABEL: Record<string, string> = {
   'contador-reopen': 'Motivo de la reapertura',
   'contador-resend': 'Mensaje del reenvío',
   'client-report': 'Comentario del cliente',
+  'gerencia-cancel': 'Motivo de la cancelación',
+  'gerencia-cancel-cliente': 'Motivo de la baja',
+  'gerencia-reactivate': 'Nota de la reactivación',
 }
 
 /**

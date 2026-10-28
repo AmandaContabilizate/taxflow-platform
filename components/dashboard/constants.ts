@@ -88,6 +88,7 @@ export const TITLES: Record<Screen, [string, string]> = {
   'equipo-operaciones': ['Equipo de operaciones', 'Carga operativa y avance por contador. Da de alta nuevos miembros desde aquí.'],
   renovaciones: ['Renovaciones', 'Planes por vencer y quién ya canceló su renovación'],
   asignaciones: ['Asignaciones de venta', 'Gestiona clientes sin vendedor y solicita reasignaciones para aprobación de Administración'],
+  cancelaciones: ['Cancelaciones', 'Baja lógica de declaraciones y clientes'],
   equipo: ['Equipo', 'Tu plantilla comercial. Da de alta nuevos miembros desde aquí.'],
   partners: ['Partners', 'Alta de partners y alianzas B2B2C, con sus códigos automáticos'],
   'codigos-descuento': ['Códigos de descuento', 'Códigos por dueño: ejecutivos, finder fees y partners'],
@@ -257,6 +258,12 @@ const ASIGNACIONES_ITEM: NavDef = {
   label: 'Asignaciones',
   Icon: ClipboardList,
   hint: 'Reparto de cartera',
+}
+const CANCELACIONES_ITEM: NavDef = {
+  id: 'cancelaciones',
+  label: 'Cancelaciones',
+  Icon: Ban,
+  hint: 'Baja lógica de declaraciones y clientes',
 }
 const EQUIPO_ITEM: NavDef = { id: 'equipo', label: 'Equipo', Icon: Users, hint: 'Tu equipo' }
 const PARTNERS_ITEM: NavDef = {
@@ -479,6 +486,7 @@ export const MASTER_NAV_SECTIONS: NavSection[] = [
       CONTRIBUYENTES_ITEM,
       VENTAS_POR_ACTIVAR_ITEM,
       ASIGNACIONES_ITEM,
+      CANCELACIONES_ITEM,
       COMISIONES_ITEM,
       RENOVACIONES_ITEM,
       UPSELL_ITEM,
@@ -552,6 +560,13 @@ export const MODULE_CLAIMS: Record<string, string[]> = {
   clientes: ['Comercial.ReadClientes'],
   contribuyentes: ['Contador.ReadPadron'],
   asignaciones: ['GerenciaComercial.ManageAssignments', 'Admin.ApproveAssignments'],
+  // Cancelación comercial: los tres claims se siembran en el departamento Clientes SIN asignarse a
+  // ningún rol (se otorgan a mano desde Roles y permisos). Hasta entonces el módulo no aparece.
+  cancelaciones: [
+    'GerenciaComercial.CancelDeclaraciones',
+    'GerenciaComercial.CancelCliente',
+    'GerenciaComercial.ReactivarCancelaciones',
+  ],
   comisiones: [
     'Comercial.ReadOwnCommissions',
     'GerenciaComercial.ReadTeamCommissions',

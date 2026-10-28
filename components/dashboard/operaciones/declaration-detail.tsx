@@ -103,6 +103,12 @@ const REOPENABLE_STATUSES = new Set<number>([
   DECLARATION_STATUS.TO_SUBMIT,
 ])
 
+/**
+ * 18 Régimen cancelado y 19 Cancelada (gerencia comercial): no se trabajan. El back rechaza
+ * recalcular/reabrir/reenviar con INVALID_STATUS_TRANSITION; aquí ni se ofrecen.
+ */
+const CANCELLED_STATUSES = new Set<number>([18, 19])
+
 /* -------------------------------------------------------------------------- */
 /*  Helpers                                                                   */
 /* -------------------------------------------------------------------------- */
@@ -373,7 +379,8 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
   const [reopenOpen, setReopenOpen] = useState(false)
   const closeReopen = useCallback(() => setReopenOpen(false), [])
 
-  const canReopen = general != null && REOPENABLE_STATUSES.has(general.statusId)
+  const cancelled = general != null && CANCELLED_STATUSES.has(general.statusId)
+  const canReopen = general != null && !cancelled && REOPENABLE_STATUSES.has(general.statusId)
   const reopenFromSubmitted = general?.statusId === DECLARATION_STATUS.SUBMITTED
 
   const { setParams } = useUrlState()
@@ -565,7 +572,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
         {/* En modo consulta las acciones no se pintan (ausencia, no disabled):
             la pantalla del perfil de consulta se ve completa para su rol. */}
         <div className="flex items-start gap-2 flex-wrap">
-          {!soloConsulta && (
+          {!soloConsulta && !cancelled && (
             <HeaderBtn
               icon={
                 recalc.running ? <Loader2 size={15} className="animate-spin" /> : <RotateCcw size={15} />
@@ -623,7 +630,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
               onClick={() => setReopenOpen(true)}
             />
           )}
-          {!soloConsulta && (
+          {!soloConsulta && !cancelled && (
             <HeaderBtn
               icon={<Send size={15} />}
               label="Enviar Predeclaración"

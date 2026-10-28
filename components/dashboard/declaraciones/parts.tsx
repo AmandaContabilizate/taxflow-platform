@@ -30,6 +30,8 @@ const STATUS_BADGE: Record<string, { kind: BadgeKind; label: string }> = {
   Reopened: { kind: 'amber', label: 'Reabierta' },
   // Paquete vendido con baja confirmada de régimen previo al periodo.
   RegimeCancelled: { kind: 'coral', label: 'Régimen cancelado' },
+  // Cancelación comercial por gerencia de ventas: no se trabaja ni se presenta; el crédito se perdió.
+  CommercialCancelled: { kind: 'coral', label: 'Cancelada' },
 }
 
 /** Etiqueta corta por Id de `Catalogs.StatusDeclaration`, para la bitácora (que solo trae Ids). */
@@ -52,6 +54,7 @@ const STATUS_LABEL_BY_ID: Record<number, string> = {
   16: 'En proceso (Legacy)',
   17: 'Reabierta',
   18: 'Régimen cancelado',
+  19: 'Cancelada',
 }
 
 export function declarationStatusLabelById(statusId: number): string {
