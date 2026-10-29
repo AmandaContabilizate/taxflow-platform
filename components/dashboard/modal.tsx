@@ -2,6 +2,7 @@
 
 import { X } from 'lucide-react'
 import { ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 
 interface ModalProps {
   isOpen: boolean
@@ -13,13 +14,15 @@ interface ModalProps {
 }
 
 export function Modal({ isOpen, onClose, title, children, maxWidth = 550 }: ModalProps) {
-  if (!isOpen) return null
+  if (!isOpen || typeof document === 'undefined') return null
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+  // Portal a <body> y z-[90]: los sidebars (z-[80], el izquierdo con translate-x) y el toggle
+  // (z-[85]) tapaban el modal en pantallas medianas. Debajo del tutorial y los toasts (z-[100]).
+  return createPortal(
+    <div className="fixed inset-0 z-[90] flex items-center justify-center p-3 sm:p-4" onClick={onClose}>
       <div className="fixed inset-0 bg-black/50" />
       <div
-        className="relative bg-white dark:bg-slate-950 rounded-2xl shadow-2xl w-full max-h-[90vh] overflow-y-auto"
+        className="relative bg-white dark:bg-slate-950 rounded-2xl shadow-2xl w-full max-h-[90dvh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
         style={{ background: 'var(--background)', maxWidth }}
       >
@@ -39,6 +42,7 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 550 }: Moda
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

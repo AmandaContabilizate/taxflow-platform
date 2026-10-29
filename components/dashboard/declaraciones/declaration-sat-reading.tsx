@@ -19,9 +19,10 @@ type Variant = 'row' | 'chip' | 'detail'
 const VARIANT_CLASS: Record<Variant, string> = {
   row: 'w-[34px] h-[34px] rounded-lg',
   chip: 'w-[26px] h-[26px] rounded-md',
-  detail: 'w-[42px] h-[42px] rounded-xl',
+  // En el detalle va con texto, al tamaño de los demás botones secundarios de la barra.
+  detail: 'h-8 px-3 gap-1.5 rounded-lg text-[12.5px] font-bold',
 }
-const VARIANT_ICON: Record<Variant, number> = { row: 15, chip: 13, detail: 17 }
+const VARIANT_ICON: Record<Variant, number> = { row: 15, chip: 13, detail: 14 }
 
 interface ButtonProps {
   declarationId: number
@@ -50,6 +51,7 @@ export function SatReadingButton({ declarationId, taxpayerId, title, variant = '
         style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
       >
         <ScanText size={VARIANT_ICON[variant]} />
+        {variant === 'detail' && 'Datos del SAT'}
       </button>
       <Modal isOpen={open} onClose={() => setOpen(false)} title={`Datos del SAT — ${title}`} maxWidth={900}>
         {open && <SatReadingPanel declarationId={declarationId} taxpayerId={taxpayerId} />}
@@ -99,7 +101,7 @@ function SatReadingPanel({ declarationId, taxpayerId }: { declarationId: number;
 
   const r = state.data
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <Rubro title="Resumen">
         <Grid>
           <Dato label="Folio de la declaración" value={r.operationNumber && <code style={MONO}>{r.operationNumber}</code>} />
@@ -161,14 +163,14 @@ function Documento({
   rubros: RubroKey[]
 }) {
   return (
-    <section className="flex flex-col gap-3">
-      <h3 className="text-[16px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
+    <section className="flex flex-col gap-2">
+      <h3 className="text-[14.5px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
         {title}
       </h3>
       {doc == null ? (
         <SinDatos />
       ) : (
-        <div className="flex flex-col gap-4 pl-3" style={{ borderLeft: '2px solid var(--border)' }}>
+        <div className="flex flex-col gap-3.5 pl-3" style={{ borderLeft: '2px solid var(--border)' }}>
           <Lectura doc={doc} declarationFolio={declarationFolio} />
           {rubros.includes('montos') && <Montos taxes={doc.taxes} />}
           {rubros.includes('pagosAnteriores') && <PagosAnteriores taxes={doc.taxes} />}
@@ -369,23 +371,24 @@ function Rubro({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
+/** Lista clave–valor en dos columnas: cabe el doble que en tarjetas. */
 function Grid({ children }: { children: ReactNode }) {
-  return <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">{children}</div>
+  return <dl className="grid sm:grid-cols-2 gap-x-8">{children}</dl>
 }
 
 function Dato({ label, value, tone }: { label: string; value: ReactNode; tone?: 'danger' }) {
   const empty = value == null || value === '' || value === false
   return (
-    <div className="rounded-xl p-3" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
-      <div className="text-[11.5px] font-semibold" style={{ color: 'var(--ink-500)' }}>
+    <div className="flex items-baseline justify-between gap-3 py-2" style={{ borderBottom: '1px solid var(--border)' }}>
+      <dt className="text-[12.5px] shrink-0" style={{ color: 'var(--ink-500)' }}>
         {label}
-      </div>
-      <div
-        className="text-[13.5px] font-bold mt-0.5 break-words"
+      </dt>
+      <dd
+        className="text-[13px] font-bold text-right break-words min-w-0"
         style={{ color: tone === 'danger' ? 'var(--danger)' : 'var(--ink-900)' }}
       >
         {empty ? <SinDatos /> : value}
-      </div>
+      </dd>
     </div>
   )
 }
