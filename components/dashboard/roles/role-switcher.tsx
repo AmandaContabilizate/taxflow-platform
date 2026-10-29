@@ -2,7 +2,6 @@
 
 import { ArrowLeftRight, CheckCircle2, Loader2 } from 'lucide-react'
 import { useState } from 'react'
-import { createPortal } from 'react-dom'
 import { switchRole } from '@/features/roles/actions/switchRole.action'
 import { myRoleLabel, useMyRoles } from '@/features/roles/hooks/useMyRoles'
 import { Modal } from '../modal'
@@ -97,21 +96,14 @@ export function RoleSwitcher() {
   )
 }
 
-/**
- * Modal del sidebar. Va en portal a <body> y en una capa propia: el <aside> tiene translate-x
- * (contiene a los fixed) y z-[80], que de otro modo taparía el modal (z-50).
- */
+/** Modal del sidebar ("Cambiar de rol"). `Modal` ya va en portal por encima de los sidebars. */
 export function RoleSwitcherModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  if (!isOpen || typeof document === 'undefined') return null
-  return createPortal(
-    <div style={{ position: 'relative', zIndex: 100 }}>
-      <Modal isOpen onClose={onClose} title="Cambiar de rol" maxWidth={460}>
-        <p className="text-[13px] mb-4" style={{ color: 'var(--ink-500)' }}>
-          Tienes varios roles. Elige con cuál quieres trabajar: cambia tu menú y tus permisos.
-        </p>
-        <RoleSwitcher />
-      </Modal>
-    </div>,
-    document.body,
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Cambiar de rol" maxWidth={460}>
+      <p className="text-[13px] mb-4" style={{ color: 'var(--ink-500)' }}>
+        Tienes varios roles. Elige con cuál quieres trabajar: cambia tu menú y tus permisos.
+      </p>
+      <RoleSwitcher />
+    </Modal>
   )
 }
