@@ -272,6 +272,18 @@ export function ExpedienteCliente({ taxpayerId, permissions, onBack, initialTab 
       <Tabs items={tabs} active={tab} onChange={setTab} />
 
       {activeTab === TAB_RESUMEN && <TabResumen data={data} ciecOk={ciecOk} />}
+      {/* La baja vive en Credenciales, pero esa pestaña exige Contador.GetSatPassword: quien solo
+          tiene el permiso de baja (p. ej. SAC) la encuentra aquí. */}
+      {activeTab === TAB_RESUMEN && canDeactivate && !canCredentials && (
+        <DeactivationCard
+          taxpayerId={data.taxpayerId}
+          rfc={data.rfc}
+          accountStatusId={data.accountStatusId}
+          onDeactivated={(status) => {
+            setData((prev) => (prev ? { ...prev, accountStatusId: status, passwordState: 0 } : prev))
+          }}
+        />
+      )}
       {activeTab === TAB_CREDENCIALES && canCredentials && (
         <TabCredenciales
           rfc={data.rfc}
