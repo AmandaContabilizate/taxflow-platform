@@ -7,6 +7,7 @@ import { getTaxpayers } from '@/features/taxpayers/actions/getTaxpayers.action'
 import type { TaxpayerListItem } from '@/features/taxpayers/types'
 import { downloadFile } from '@/lib/common/downloadFile'
 import { MONO } from '../constants'
+import { AccountStatusChip, isDeactivated } from '../cancelaciones/parts'
 import { Card, ErrorState, HelpBox } from '../ui'
 import { DiagnosticoHistorialModal } from '../clientes/diagnostico-historial-modal'
 import { ExpedienteCliente } from '../clientes/expediente-cliente'
@@ -180,6 +181,11 @@ export function ContribuyentesScreen({ permissions = [] }: { permissions?: strin
                       </td>
                       <td className="px-5 py-4">
                         <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-700)' }}>{t.rfc}</code>
+                        {isDeactivated(t.accountStatusId) && (
+                          <div className="mt-1">
+                            <AccountStatusChip accountStatusId={t.accountStatusId} deactivatedAt={t.deactivatedAt} hideActive />
+                          </div>
+                        )}
                       </td>
                       <td className="px-5 py-4">
                         <div className="text-sm" style={{ color: 'var(--ink-700)' }}>

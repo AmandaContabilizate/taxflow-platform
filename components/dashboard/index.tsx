@@ -20,6 +20,7 @@ import { useUrlState } from './url-state'
 import {
   AprendeScreen,
   AyudaScreen,
+  CancelacionesScreen,
   ClientesScreen,
   ContribuyentesScreen,
   PanelComercialScreen,
@@ -76,6 +77,7 @@ const WIDE_SCREENS = new Set<Screen>([
   'declaraciones-rechazadas',
   'declaraciones-por-presentar',
   'monitor-descargas',
+  'cancelaciones',
   'declaraciones-futuras',
   'ventas-por-activar',
   'regularizaciones',
@@ -109,7 +111,7 @@ const WIDE_SCREENS = new Set<Screen>([
 const isScreen = (v: string | null): v is Screen =>
   !!v && Object.prototype.hasOwnProperty.call(TITLES, v)
 
-export default function Dashboard({ fullName, email, rfc, role, permissions, userId, phoneNumber }: DashboardProps) {
+export default function Dashboard({ fullName, email, rfc, role, permissions, userId, phoneNumber, emailChangeBlockedBy }: DashboardProps) {
   const { params, setParams } = useUrlState()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -270,6 +272,7 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
             permissions={permissions}
             userId={userId}
             phoneNumber={phoneNumber}
+            emailChangeBlockedBy={emailChangeBlockedBy}
             autoOpenPlanPicker={autoOpenPlanPicker}
             onPlanPickerHandled={() => setAutoOpenPlanPicker(false)}
             goToPlanPicker={goToPlanPicker}
@@ -296,12 +299,13 @@ interface RouterProps {
   permissions: string[];
   userId?: string | null;
   phoneNumber?: string | null;
+  emailChangeBlockedBy?: string | null;
   autoOpenPlanPicker: boolean;
   onPlanPickerHandled: () => void;
   goToPlanPicker: () => void;
 }
 
-function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, onLogout, signingOut, role, permissions, userId, phoneNumber, autoOpenPlanPicker, onPlanPickerHandled, goToPlanPicker }: RouterProps) {
+function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, onLogout, signingOut, role, permissions, userId, phoneNumber, emailChangeBlockedBy, autoOpenPlanPicker, onPlanPickerHandled, goToPlanPicker }: RouterProps) {
   const roleKey = normalizeRole(role);
   const isGuest = roleKey === 'guest';
 
@@ -313,6 +317,7 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
         email={email}
         rfc={rfc}
         phoneNumber={phoneNumber ?? undefined}
+        emailChangeBlockedBy={emailChangeBlockedBy ?? null}
         initials={initials}
         onLogout={onLogout}
         signingOut={signingOut}
@@ -380,6 +385,10 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
     }
     if (screen === 'monitor-descargas') {
       return <MonitorDescargasScreen />
+    }
+    if (screen === 'cancelaciones') {
+      // La pantalla valida los claims por dentro (NoAccessState): `?s=cancelaciones` a mano no abre nada.
+      return <CancelacionesScreen />
     }
     if (screen === 'declaraciones-futuras') {
       return <DeclaracionesFuturasScreen currentUser={{ userId: userId ?? '', fullName }} permissions={permissions} />

@@ -420,6 +420,11 @@ export interface ClientDeclarationSubject {
   paymentLinePdfUrl?: string | null
   paymentAcknowledgmentPdfUrl?: string | null
   submittedAt: string | null
+  /**
+   * Solo en 19 Cancelada (gerencia comercial): fecha del último `DeclarationLog` con NewStatusId 19.
+   * El DTO de `/all` aún no la trae; cuando lo haga, la nota del detalle la pinta.
+   */
+  cancelledAt?: string | null
 }
 
 /**

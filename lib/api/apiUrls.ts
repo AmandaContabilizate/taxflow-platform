@@ -50,6 +50,13 @@ export const API_BASE_URLS = {
   user_notifications: `${BASE_PROCEDURES}/v1/user-notifications`,
   // Monitor de descargas SAT (solo Developer). Sin /SQLServer.
   download_monitor: `${BASE_PROCEDURES}/download-monitor`,
+  // Cancelación comercial (gerencia de ventas): motivos, cancelar y reactivar declaraciones
+  // viven en Procedures; búsqueda, listado del RFC e historial en Reports. Sin /SQLServer.
+  cancellations: `${BASE_PROCEDURES}/cancellations`,
+  cancellations_reports: `${BASE_REPORTS}/cancellations`,
+  // Baja/reactivación de contribuyente (Identity, TaxpayerDeactivationController): ruta base
+  // `api/taxpayers/{id}/...` sin /SQLServer, distinta del TaxpayersController (`taxpayers`).
+  taxpayer_deactivation: `${BASE_IDENTITY}/taxpayers`,
 } as const;
 
 export type ApiType = keyof typeof API_BASE_URLS;

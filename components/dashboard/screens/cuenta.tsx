@@ -2,6 +2,7 @@
 
 import { Bell, ChevronDown, ChevronRight, FilePlus2, Gem, Gift, HelpCircle, IdCard, LogOut, Receipt, ShieldCheck, Trash2, UserRound } from 'lucide-react';
 import { useEffect, useState, type ComponentType } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { getActivePlan } from '@/features/account/actions/getActivePlan.action';
 import { getSalePayments } from '@/features/account/actions/getSalePayments.action';
@@ -13,6 +14,7 @@ import { Modal } from '../modal';
 import { PaymentsPanel } from '../cuenta/payments-panel';
 import { SecurityForm } from '../cuenta/security-form';
 import { DeleteAccountForm } from '../cuenta/delete-account-form';
+import { EmailChangeForm, partnerBlockedText } from '../cuenta/email-change-form';
 import { DISPLAY, MONO } from '../constants';
 import type { GoFn } from '../types';
 import { Btn, Card, CiecUpdateModal, Divider } from '../ui';
@@ -36,6 +38,8 @@ interface Props {
   role: string | null;
   initials: string;
   phoneNumber?: string;
+  /** Nombre del partner que administra el acceso (iframe); null si puede cambiar su correo. */
+  emailChangeBlockedBy?: string | null;
   isClient?: boolean;
   go: GoFn;
   onLogout: () => void;
@@ -66,7 +70,8 @@ function ciecEstadoTexto(
   return { titulo: 'Sin CIEC capturada', detalle: 'Conecta tu SAT para activar tu información fiscal' };
 }
 
-export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber, isClient = true, go, onLogout, signingOut }: Props) {
+export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber, emailChangeBlockedBy = null, isClient = true, go, onLogout, signingOut }: Props) {
+  const router = useRouter();
   const { theme, setTheme } = useTheme();
   const { selectedRfc, selectedRfcInfo } = useRfcStore();
   const [plan, setPlan] = useState<ActivePlan | null>(null);
@@ -79,7 +84,12 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
   const [showFiscalModal, setShowFiscalModal] = useState(false);
   const [showSecurityModal, setShowSecurityModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
   const [showCiecModal, setShowCiecModal] = useState(false);
+  // El correo confirmado se pinta de inmediato; router.refresh() vuelve a resolver la cookie en /dashboard.
+  const [currentEmail, setCurrentEmail] = useState(email);
+  useEffect(() => setCurrentEmail(email), [email]);
+  const emailChangeBlocked = emailChangeBlockedBy != null;
 
   const activeRfc = selectedRfc ?? rfc;
   // Con e.firma activa está conectado sin importar la CIEC (mismo bug ya corregido en la móvil).
@@ -172,11 +182,34 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
               </div>
             </div>
 
-            <div
-              className='text-[12.5px] mt-3 truncate'
-              style={{ color: 'var(--ink-500)' }}>
-              {email}
+            <div className='flex items-center justify-between gap-3 mt-3'>
+              <div className='min-w-0'>
+                <div
+                  className='text-[11px] font-extrabold uppercase tracking-wider'
+                  style={{ color: 'var(--ink-500)' }}>
+                  Correo electrónico
+                </div>
+                <div
+                  className='text-[12.5px] mt-0.5 truncate'
+                  style={{ color: 'var(--ink-700)' }}>
+                  {currentEmail}
+                </div>
+              </div>
+              <Btn
+                size='sm'
+                kind='ghost'
+                disabled={emailChangeBlocked}
+                onClick={emailChangeBlocked ? undefined : () => setShowEmailModal(true)}>
+                Cambiar
+              </Btn>
             </div>
+            {emailChangeBlocked && (
+              <div
+                className='text-[12px] mt-2'
+                style={{ color: 'var(--ink-500)' }}>
+                {partnerBlockedText(emailChangeBlockedBy)}
+              </div>
+            )}
 
             {phoneNumber && (
               <div
@@ -464,6 +497,21 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
       {activeRfc && (
         <CiecUpdateModal isOpen={showCiecModal} onClose={() => setShowCiecModal(false)} rfc={activeRfc} />
       )}
+
+      {/* Modal de cambio de correo */}
+      <Modal
+        isOpen={showEmailModal}
+        onClose={() => setShowEmailModal(false)}
+        title='Cambiar correo'>
+        <EmailChangeForm
+          key={showEmailModal ? 'open' : 'closed'}
+          currentEmail={currentEmail}
+          onChanged={(newEmail) => {
+            setCurrentEmail(newEmail);
+            router.refresh();
+          }}
+        />
+      </Modal>
 
       {/* Modal de Seguridad */}
       <Modal

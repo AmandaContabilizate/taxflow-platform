@@ -48,11 +48,13 @@ export function ClientDeclarationDetail({ declaration: d, onBack, readOnly = fal
   // sigue sirviendo para el listado de facturas: no se bloquea por esto.
   const [report, setReport] = useState<DeclarationReport | null>(null)
   const [reportOpen, setReportOpen] = useState(false)
+  // 19 Cancelada por gerencia comercial: solo lectura, sin cálculo que autorizar ni comentar.
+  const isCancelled = d.statusCode === 'CommercialCancelled'
 
   useEffect(() => {
     // En el espejo no se pide: /my/{id} valida la pertenencia con la sesión y el gerente
     // no es el dueño; pedirlo solo produciría un 403 en el log por cada apertura.
-    if (readOnly) return
+    if (readOnly || isCancelled) return
     let cancelled = false
     void (async () => {
       const res = await getMyDeclarationReport(d.declarationId)
@@ -62,7 +64,7 @@ export function ClientDeclarationDetail({ declaration: d, onBack, readOnly = fal
     return () => {
       cancelled = true
     }
-  }, [d.declarationId, readOnly])
+  }, [d.declarationId, readOnly, isCancelled])
 
   useEffect(() => {
     let cancelled = false
@@ -143,7 +145,21 @@ export function ClientDeclarationDetail({ declaration: d, onBack, readOnly = fal
         </div>
         {/* Accion principal de la pantalla: el calculo completo va en un modal, no apilado
             encima del listado de facturas. */}
-        {readOnly ? (
+        {isCancelled ? (
+          <div className="px-5 pb-5">
+            <div
+              className="rounded-xl px-3.5 py-3 flex items-start gap-2 text-[12.5px] font-semibold"
+              style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)', border: '1px solid var(--border)' }}
+            >
+              <AlertCircle size={15} className="mt-0.5 shrink-0" />
+              <span>
+                Esta declaración fue cancelada por tu ejecutivo de ventas
+                {d.cancelledAt ? ` el ${fmtDate(d.cancelledAt)}` : ''}. No requiere ninguna acción de tu parte;
+                si tienes dudas, contacta a tu ejecutivo.
+              </span>
+            </div>
+          </div>
+        ) : readOnly ? (
           <p className="px-5 pb-5 text-[12.5px]" style={{ color: 'var(--ink-500)' }}>
             El cliente ve aquí el botón <b>Ver detalle de la declaración</b>, que abre su cálculo completo
             {' '}(con autorizar y &quot;Tengo una duda&quot;). Solo él puede abrirlo desde su cuenta.

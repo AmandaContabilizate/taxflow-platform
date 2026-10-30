@@ -155,6 +155,11 @@ export const API_ROUTES = {
     MY_TAXPAYERS_DEACTIVATION_PREVIEW: "/me/taxpayers/deactivation-preview",
     /** POST users (Identity). Baja Soft de uno, varios o todos mis contribuyentes (RFC + motivo + contraseña). */
     MY_TAXPAYERS_DEACTIVATE: "/me/taxpayers/deactivate",
+    // Cambio de correo del propio usuario (Identity, [Authorize]). Sin estado en el back:
+    // newEmail viaja en los tres porque el código TOTP está ligado a ese correo.
+    EMAIL_CHANGE_REQUEST: "/email-change/request",
+    EMAIL_CHANGE_RESEND: "/email-change/resend",
+    EMAIL_CHANGE_CONFIRM: "/email-change/confirm",
   },
   // Equipo comercial — módulo de comisiones. apiType "team" (Identity)
   TEAM: {
@@ -733,6 +738,50 @@ export const API_ROUTES = {
     // .xlsx binario, una hoja por estatus; sin resultados el back manda 400 EXPORT_NO_RESULTS.
     EXPORT: (query: string) => `/export${query ? `?${query}` : ""}`,
     HISTORY: (id: number) => `/${id}/history`,
+  },
+  // Cancelación comercial de declaraciones y clientes (módulo Cancelaciones, gerencia de ventas).
+  // Lectura en Reports (apiType "cancellations_reports"), escritura de declaraciones en Procedures
+  // (apiType "cancellations"); la baja/reactivación del contribuyente va a Identity
+  // (TAXPAYER_DEACTIVATION, apiType "taxpayer_deactivation").
+  CANCELLATIONS: {
+    // GET cancellations_reports · q ≥ 3 caracteres (RFC / nombre / correo). Cualquiera de los 3 claims.
+    TAXPAYERS_SEARCH: (q: string, skip = 0, take = 20) =>
+      `/taxpayers/search?q=${encodeURIComponent(q)}&skip=${skip}&take=${take}`,
+    // GET cancellations_reports · todas las filas del RFC (normales y complementarias) con
+    // `cancellable` / `notCancellableReason` / `inFlight` ya resueltos por el back, más el saldo prepagado.
+    TAXPAYER_DECLARATIONS: (
+      taxpayerId: number,
+      p: { taxRegimeId?: number; fiscalYear?: number; statusId?: number; onlyCancellable?: boolean } = {},
+    ) => {
+      const qs = new URLSearchParams()
+      if (p.taxRegimeId) qs.set("taxRegimeId", String(p.taxRegimeId))
+      if (p.fiscalYear) qs.set("fiscalYear", String(p.fiscalYear))
+      if (p.statusId) qs.set("statusId", String(p.statusId))
+      if (p.onlyCancellable) qs.set("onlyCancellable", "true")
+      const s = qs.toString()
+      return `/taxpayers/${taxpayerId}/declarations${s ? `?${s}` : ""}`
+    },
+    // GET cancellations · catálogo Catalogs.DeclarationCancellationReason (99 Otro exige nota). Solo sesión.
+    REASONS: "/reasons",
+    // POST cancellations · `{ declarationIds (1..100), reasonId, note }`. Resultado PARCIAL: 200 con
+    // `cancelled` y `rejected`; 400 solo si todas se rechazan. Policy GerenciaComercial.CancelDeclaraciones.
+    CANCEL_DECLARATIONS: "/declarations",
+    // POST cancellations · `{ note }`. 19 → estatus previo del log (o 15). Policy GerenciaComercial.ReactivarCancelaciones.
+    REACTIVATE_DECLARATION: (declarationId: number) => `/declarations/${declarationId}/reactivate`,
+    // GET cancellations_reports · bitácora del RFC: TaxpayerDeactivation + DeclarationLog con Source gerencia-%.
+    HISTORY: (taxpayerId: number, skip = 0, take = 100) =>
+      `/history?taxpayerId=${taxpayerId}&skip=${skip}&take=${take}`,
+  },
+  // Baja lógica de contribuyente (Identity, origin/dev) extendida para gerencia comercial.
+  // apiType "taxpayer_deactivation". Claims Contador.DeactivateTaxpayer o GerenciaComercial.CancelCliente.
+  TAXPAYER_DEACTIVATION: {
+    // GET · estatus actual, declaraciones en vuelo, saldo prepagado, suscripción encontrada.
+    PREVIEW: (taxpayerId: number) => `/${taxpayerId}/deactivation-preview`,
+    // POST · `{ hard:false, confirmRfc, reasonId, reasonNote, requestReference, password,
+    //   cancelOpenDeclarations, cancelSubscription }`. Borra CIEC, e.firma y cuentas bancarias.
+    DEACTIVATE: (taxpayerId: number) => `/${taxpayerId}/deactivate`,
+    // POST · `{ note, reactivateDeclarations }`. Policy GerenciaComercial.ReactivarCancelaciones.
+    REACTIVATE: (taxpayerId: number) => `/${taxpayerId}/reactivate`,
   },
   USER_NOTIFICATIONS: {
     ROOT: "",

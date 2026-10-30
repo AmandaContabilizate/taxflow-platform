@@ -21,6 +21,10 @@ export default async function DashboardPage() {
   const email = cookieStore.get('email')?.value ?? user.email ?? ''
   const rfc = cookieStore.get('rfc')?.value ?? user.rfc ?? null
   const phoneNumber = userInfo?.phoneMobile ?? null
+  // Sesiones anteriores a la cookie (o el puente SSO sin el dato) caen al /validate.
+  const emailChangeBlockedBy =
+    cookieStore.get('emailChangeBlockedBy')?.value ??
+    (user.emailChangeBlocked ? (user.emailChangeBlockedReason || '1') : null)
 
   return (
     <Dashboard
@@ -31,6 +35,7 @@ export default async function DashboardPage() {
       permissions={permissions}
       userId={userId}
       phoneNumber={phoneNumber}
+      emailChangeBlockedBy={emailChangeBlockedBy}
     />
   )
 }
