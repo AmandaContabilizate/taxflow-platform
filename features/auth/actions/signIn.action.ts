@@ -42,6 +42,8 @@ export async function signIn(
         userId: response.userId,
         rfc: response.rfc,
         expiresAt: response.expiresAt,
+        emailChangeBlocked: response.emailChangeBlocked,
+        emailChangeBlockedReason: response.emailChangeBlockedReason,
       },
       { rememberMe: credentials.rememberMe },
     );

@@ -11,6 +11,8 @@ interface SessionData {
   userId?: string;
   rfc?: string;
   expiresAt?: string;
+  emailChangeBlocked?: boolean;
+  emailChangeBlockedReason?: string | null;
 }
 
 interface SetSessionCookiesOptions {
@@ -24,6 +26,10 @@ interface SetSessionCookiesOptions {
   embedded?: boolean;
 }
 
+// Usuario que entró por el iframe de un partner: guarda el nombre del partner (o "1"
+// si el back no lo mandó). Ausente = puede cambiar su correo.
+const EMAIL_CHANGE_BLOCKED_COOKIE = "emailChangeBlockedBy";
+
 const TOKEN_COOKIE_NAMES = [
   "auth_token",
   "refresh_token",
@@ -31,6 +37,7 @@ const TOKEN_COOKIE_NAMES = [
   "email",
   "fullName",
   "rfc",
+  EMAIL_CHANGE_BLOCKED_COOKIE,
 ] as const;
 
 export async function setSessionCookies(
@@ -88,6 +95,13 @@ export async function setSessionCookies(
   if (sessionData.email) cookieStore.set("email", sessionData.email, baseCookie);
   if (sessionData.fullName) cookieStore.set("fullName", sessionData.fullName, baseCookie);
   if (sessionData.rfc) cookieStore.set("rfc", sessionData.rfc, baseCookie);
+  if (sessionData.emailChangeBlocked !== undefined) {
+    if (sessionData.emailChangeBlocked) {
+      cookieStore.set(EMAIL_CHANGE_BLOCKED_COOKIE, sessionData.emailChangeBlockedReason || "1", baseCookie);
+    } else {
+      cookieStore.delete(EMAIL_CHANGE_BLOCKED_COOKIE);
+    }
+  }
 
   // Los claims (rol, permisos, email) se leen del propio JWT con readSessionClaims.
   // Antes se copiaban a cookies claim_* + token_claims: triplicaban el peso del

@@ -390,5 +390,41 @@
   "HARD_DELETE_NOT_ALLOWED_YET": {
     "es": "La baja definitiva todavía no está permitida para este contribuyente.",
     "en": "Permanent deletion is not allowed yet for this taxpayer."
+  },
+  "EMAIL_INVALID": {
+    "es": "Escribe un correo electrónico válido.",
+    "en": "Enter a valid email address."
+  },
+  "EMAIL_SAME_AS_CURRENT": {
+    "es": "Es el mismo correo que tienes ahora.",
+    "en": "That is the same email you have now."
+  },
+  "PASSWORD_REQUIRED_FOR_EMAIL_CHANGE": {
+    "es": "Tu cuenta no tiene contraseña. Primero crea una desde ¿Olvidaste tu contraseña? y vuelve a intentarlo.",
+    "en": "Your account has no password. Create one from Forgot your password? first and try again."
+  },
+  "EMAIL_CHANGE_TOO_MANY_ATTEMPTS": {
+    "es": "Demasiados códigos incorrectos. Espera 15 minutos y pide uno nuevo.",
+    "en": "Too many incorrect codes. Wait 15 minutes and request a new one."
+  },
+  "EMAIL_CHANGE_TOO_MANY_REQUESTS": {
+    "es": "Pediste demasiados códigos. Espera una hora e inténtalo de nuevo.",
+    "en": "You requested too many codes. Wait an hour and try again."
+  },
+  "EMAIL_CHANGE_RESEND_TOO_SOON": {
+    "es": "Espera un minuto antes de pedir otro código.",
+    "en": "Wait a minute before requesting another code."
+  },
+  "EMAIL_CHANGE_CRM_UNAVAILABLE": {
+    "es": "No pudimos actualizar tu correo, inténtalo más tarde.",
+    "en": "We could not update your email, please try again later."
+  },
+  "EMAIL_CHANGE_BLOCKED_PARTNER_LOGIN": {
+    "es": "Tu acceso lo administra tu partner; para cambiar tu correo contáctalo.",
+    "en": "Your access is managed by your partner; contact them to change your email."
+  },
+  "EMAIL_CHANGE_REQUIRES_VERIFICATION": {
+    "es": "Para cambiar tu correo confirma el nuevo con el código que te enviamos.",
+    "en": "To change your email, confirm the new one with the code we sent you."
   }
 }

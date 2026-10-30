@@ -151,6 +151,11 @@ export const API_ROUTES = {
     SWITCH_ROLE: "/switch-role",
     /** POST users (Identity). Desactiva la cuenta del usuario autenticado (isActive = 0). */
     DELETE_ACCOUNT: "/delete-account",
+    // Cambio de correo del propio usuario (Identity, [Authorize]). Sin estado en el back:
+    // newEmail viaja en los tres porque el código TOTP está ligado a ese correo.
+    EMAIL_CHANGE_REQUEST: "/email-change/request",
+    EMAIL_CHANGE_RESEND: "/email-change/resend",
+    EMAIL_CHANGE_CONFIRM: "/email-change/confirm",
   },
   // Equipo comercial — módulo de comisiones. apiType "team" (Identity)
   TEAM: {

@@ -44,6 +44,8 @@ export async function verifyEmailCode(
       userId: response.userId,
       rfc: response.rfc,
       expiresAt: response.expiresAt,
+      emailChangeBlocked: response.emailChangeBlocked,
+      emailChangeBlockedReason: response.emailChangeBlockedReason,
     });
 
     return ok(redirectPath);

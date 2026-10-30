@@ -103,6 +103,8 @@ export interface DashboardProps {
   permissions: string[]
   userId?: string | null
   phoneNumber?: string | null
+  /** Nombre del partner que administra el acceso (iframe); null si puede cambiar su correo. */
+  emailChangeBlockedBy?: string | null
 }
 
 export type GoFn = (s: Screen) => void
