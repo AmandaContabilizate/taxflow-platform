@@ -105,6 +105,8 @@ export interface DashboardProps {
   phoneNumber?: string | null
   /** Nombre del partner que administra el acceso (iframe); null si puede cambiar su correo. */
   emailChangeBlockedBy?: string | null
+  /** Tutorial de bienvenida al primer ingreso del Guest (TUTORIAL_AUTOSTART_ENABLED). */
+  tutorialAutostart?: boolean
 }
 
 export type GoFn = (s: Screen) => void

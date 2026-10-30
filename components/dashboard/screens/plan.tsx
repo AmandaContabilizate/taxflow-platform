@@ -297,9 +297,11 @@ export function PlanScreen({ autoOpenPicker = false, onAutoOpenHandled, go }: Pl
           </div>
         )}
 
-        <Btn kind="brand" size="md" onClick={() => setPickerOpen(true)} disabled={!selectedRfc || !hasPlans}>
-          {!hasPlans ? 'Cargando planes…' : 'Ver planes y pagar'}
-        </Btn>
+        <div data-tour="plan-open-picker" className="inline-flex">
+          <Btn kind="brand" size="md" onClick={() => setPickerOpen(true)} disabled={!selectedRfc || !hasPlans}>
+            {!hasPlans ? 'Cargando planes…' : 'Ver planes y pagar'}
+          </Btn>
+        </div>
       </div>
 
       {canceled ? (

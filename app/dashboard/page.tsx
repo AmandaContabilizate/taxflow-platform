@@ -25,6 +25,8 @@ export default async function DashboardPage() {
   const emailChangeBlockedBy =
     cookieStore.get('emailChangeBlockedBy')?.value ??
     (user.emailChangeBlocked ? (user.emailChangeBlockedReason || '1') : null)
+  // Server-only (sin NEXT_PUBLIC_): se prende/apaga en App Settings sin rebuild.
+  const tutorialAutostart = process.env.TUTORIAL_AUTOSTART_ENABLED === 'true'
 
   return (
     <Dashboard
@@ -36,6 +38,7 @@ export default async function DashboardPage() {
       userId={userId}
       phoneNumber={phoneNumber}
       emailChangeBlockedBy={emailChangeBlockedBy}
+      tutorialAutostart={tutorialAutostart}
     />
   )
 }

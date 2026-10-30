@@ -185,6 +185,7 @@ export function DiagnosticoScreen({ go }: Props) {
       </HelpBox>
 
       <div
+        data-tour="diag-hero"
         className="rounded-3xl p-7 lg:p-8"
         style={{
           background:
@@ -326,7 +327,7 @@ export function DiagnosticoScreen({ go }: Props) {
               declaraciones presentadas
             </div>
             {score.pending > 0 && (
-              <div className="flex flex-wrap gap-3 mt-6">
+              <div data-tour="diag-cta" className="flex flex-wrap gap-3 mt-6">
                 <Btn kind="brand" size="lg" onClick={() => go('plan')}>
                   <Zap size={18} /> Empezar a regularizar
                 </Btn>
@@ -358,7 +359,7 @@ export function DiagnosticoScreen({ go }: Props) {
         </div>
       </div>
 
-      <div>
+      <div data-tour="diag-owed">
         <div className="text-[18px] font-bold mb-1" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
           Lo que debes al SAT
         </div>

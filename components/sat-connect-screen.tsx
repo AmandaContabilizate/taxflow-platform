@@ -150,7 +150,7 @@ export default function SatConnectScreen({
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-5 mt-5">
+          <form data-tour="sat-form" onSubmit={handleSubmit} className="flex flex-col gap-5 mt-5">
             {/* Por el momento el cliente solo conecta con CIEC (Amanda, 2026-09-21). La opción
                 e.Firma queda comentada, con su formulario y su action intactos, para reactivarla
                 agregando la tarjeta de vuelta a esta lista:

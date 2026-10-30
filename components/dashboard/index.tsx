@@ -15,6 +15,8 @@ import { DISPLAY, TITLES, normalizeRole } from './constants'
 import { PermissionsProvider } from './permissions'
 import { DashboardQueryProvider } from './query-provider'
 import { Sidebar } from './sidebar'
+import { HelpButton } from './tutorial/HelpButton'
+import { TutorialProvider } from './tutorial/TutorialProvider'
 import type { DashboardProps, Screen } from './types'
 import { useUrlState } from './url-state'
 import {
@@ -111,7 +113,7 @@ const WIDE_SCREENS = new Set<Screen>([
 const isScreen = (v: string | null): v is Screen =>
   !!v && Object.prototype.hasOwnProperty.call(TITLES, v)
 
-export default function Dashboard({ fullName, email, rfc, role, permissions, userId, phoneNumber, emailChangeBlockedBy }: DashboardProps) {
+export default function Dashboard({ fullName, email, rfc, role, permissions, userId, phoneNumber, emailChangeBlockedBy, tutorialAutostart = false }: DashboardProps) {
   const { params, setParams } = useUrlState()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -177,6 +179,14 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
     <DashboardQueryProvider>
     <PermissionsProvider permissions={permissions}>
     <RfcProvider>
+    <TutorialProvider
+      enabled={isClient}
+      autostart={tutorialAutostart}
+      userId={userId}
+      go={go}
+      screen={screen}
+      openMobileMenu={() => setMobileOpen(true)}
+    >
       <div
         className={`grid min-h-screen transition-all duration-300 ${sidebarCollapsed ? 'lg:grid-cols-[80px_1fr]' : 'lg:grid-cols-[260px_1fr]'}`}
         style={{ background: 'var(--background)', color: 'var(--foreground)' }}>
@@ -244,9 +254,15 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
               </div>
             </div>
             {isClient ? (
-              <div className='hidden lg:flex'>
-                <DashboardHeader go={go} />
-              </div>
+              <>
+                <div className='hidden lg:flex'>
+                  <DashboardHeader go={go} />
+                </div>
+                {/* En móvil el header no se pinta: el "?" de tutoriales se queda a la mano. */}
+                <div className='lg:hidden flex items-center'>
+                  <HelpButton />
+                </div>
+              </>
             ) : (
               <div className='hidden lg:flex items-center gap-2'>
                 <NotificationBell />
@@ -279,6 +295,7 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
           />
         </main>
       </div>
+    </TutorialProvider>
     </RfcProvider>
     </PermissionsProvider>
     </DashboardQueryProvider>

@@ -43,23 +43,37 @@ export function FloatingReferidosButton({ go, hidden }: { go: GoFn; hidden?: boo
   const [animar, setAnimar] = useState(false)
   const [visto, setVisto] = useState(true)
   const wrapRef = useRef<HTMLElement | null>(null)
-  // Posición: siempre encima de Conta Vic, alineado a su borde derecho, con 14 px de aire. Conta Vic se
+  // Posición: siempre encima de Conta Vic, alineado a su borde derecho, con 32 px de aire. Conta Vic se
   // puede arrastrar y recuerda su posición, así que se sigue su rect real (MutationObserver sobre su
   // style) en vez de adivinar. Si no está, esquina inferior derecha.
   const [pos, setPos] = useState<{ left: number; top: number; transition: string } | null>(null)
 
   useEffect(() => {
     if (hidden) return
-    const GAP = 14
+    const GAP = 32
     let raf = 0
-    const vic = document.querySelector<HTMLElement>('aside[aria-label="Asistencia virtual Conta Vic"]')
+    // Conta Vic se pinta un render después (espera su posición guardada): si se busca una sola vez al
+    // montar no existe todavía y este botón se quedaba en la esquina, encima de él. Se busca hasta que aparece.
+    let vic: HTMLElement | null = null
+    let vicObserver: MutationObserver | null = null
+    const findVic = () => {
+      if (vic?.isConnected) return vic
+      vicObserver?.disconnect()
+      vic = document.querySelector<HTMLElement>('aside[aria-label="Asistencia virtual Conta Vic"]')
+      if (vic) {
+        vicObserver = new MutationObserver(schedule)
+        vicObserver.observe(vic, { attributes: true, attributeFilter: ['style'] })
+      }
+      return vic
+    }
     const recalc = () => {
       raf = 0
       const me = wrapRef.current
       if (!me) return
       const myRect = me.getBoundingClientRect()
+      const vic = findVic()
       if (!vic) {
-        setPos({ left: window.innerWidth - myRect.width - 20, top: window.innerHeight - myRect.height - 96, transition: 'none' })
+        setPos({ left: window.innerWidth - myRect.width - 20, top: window.innerHeight - myRect.height - 150, transition: 'none' })
         return
       }
       const r = vic.getBoundingClientRect()
@@ -72,11 +86,15 @@ export function FloatingReferidosButton({ go, hidden }: { go: GoFn; hidden?: boo
       if (!raf) raf = requestAnimationFrame(recalc)
     }
     schedule()
-    const mo = vic ? new MutationObserver(schedule) : null
-    mo?.observe(vic!, { attributes: true, attributeFilter: ['style'] })
+    // Altas/bajas en el body: detecta cuándo aparece (o se vuelve a montar) Conta Vic.
+    const bodyObserver = new MutationObserver(() => {
+      if (!vic?.isConnected) schedule()
+    })
+    bodyObserver.observe(document.body, { childList: true, subtree: true })
     window.addEventListener('resize', schedule)
     return () => {
-      mo?.disconnect()
+      bodyObserver.disconnect()
+      vicObserver?.disconnect()
       window.removeEventListener('resize', schedule)
       if (raf) cancelAnimationFrame(raf)
     }
@@ -108,7 +126,7 @@ export function FloatingReferidosButton({ go, hidden }: { go: GoFn; hidden?: boo
           pos
             ? { left: pos.left, top: pos.top, transition: pos.transition }
             // Primer render (aún sin medir): fuera de vista para que no parpadee en la esquina.
-            : { right: 20, bottom: 96, visibility: 'hidden' }
+            : { right: 20, bottom: 150, visibility: 'hidden' }
         }
       >
         {/* Pastilla compacta y clara, para que no se funda con la de Conta Vic (oscura). */}
