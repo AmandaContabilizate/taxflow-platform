@@ -1,0 +1,308 @@
+'use client'
+
+import { useState } from 'react'
+import { Download, Info, Loader2, UserCog } from 'lucide-react'
+import { exportClientsWithPaidSales } from '@/features/taxpayers/actions/exportClientsWithPaidSales.action'
+import { getClientsWithPaidSales } from '@/features/taxpayers/actions/getClientsWithPaidSales.action'
+import type { ClientListItem } from '@/features/taxpayers/types'
+import { downloadFile } from '@/lib/common/downloadFile'
+import { MONO } from '../constants'
+import { AccountStatusChip, isDeactivated } from '../cancelaciones/parts'
+import { Card, ErrorState, HelpBox } from '../ui'
+import {
+  MinSalesFilter,
+  Pagination,
+  RegimenesCell,
+  SearchBar,
+  VentasPagadasCell,
+  usePagedList,
+} from '../clientes/parts'
+import { PrimeraCompraCell } from '../clientes/PrimeraCompraCell'
+import { ReassignModal } from '../clientes/reassign-modal'
+import { ExpedienteCliente } from '../clientes/expediente-cliente'
+
+const ASSIGN_PERMISSION = 'AssignAccountant'
+const EXPEDIENTE_PERMISSION = 'GerenciaComercial.ReadExpedienteCliente'
+const DEFAULT_MIN_SALES: number | '' = ''
+
+export function ClientesScreen({ permissions = [] }: { permissions?: string[] }) {
+  const list = usePagedList(getClientsWithPaidSales, 50, DEFAULT_MIN_SALES)
+  const canAssign = permissions.includes(ASSIGN_PERMISSION)
+  const canExpediente = permissions.includes(EXPEDIENTE_PERMISSION)
+  const [target, setTarget] = useState<ClientListItem | null>(null)
+  const [expedienteId, setExpedienteId] = useState<number | null>(null)
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
+
+  /** Excel con los mismos filtros que la tabla (todas las páginas). */
+  const handleExport = async () => {
+    if (exporting) return
+    setExporting(true)
+    setExportError(null)
+    const res = await exportClientsWithPaidSales({
+      rfc: list.rfc.trim() || undefined,
+      minSales: list.minSales === '' ? undefined : Number(list.minSales),
+    })
+    setExporting(false)
+    if (!res.success) {
+      setExportError(res.error.message)
+      return
+    }
+    downloadFile(res.value)
+  }
+
+  // Clic en el nombre del cliente → expediente (Resumen / Credenciales / Productos)
+  if (expedienteId !== null) {
+    return (
+      <ExpedienteCliente
+        taxpayerId={expedienteId}
+        permissions={permissions}
+        onBack={() => setExpedienteId(null)}
+      />
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-5 max-w-full h-[calc(100dvh-8.5rem)]">
+      <HelpBox>
+        Padrón de contribuyentes con al menos una venta pagada en Stripe. Desde aquí consultas sus
+        compras acumuladas, los planes a futuro contratados y el contador asignado. Con el filtro
+        de ventas puedes acotar a clientes recurrentes (2 o más ventas).
+      </HelpBox>
+
+      <Card className="shrink-0">
+        <div className="p-4 flex flex-col sm:flex-row gap-3">
+          <div className="flex-1 min-w-0">
+            <SearchBar value={list.rfc} onChange={list.setRfc} placeholder="Buscar por RFC, correo, nombre o teléfono…" />
+          </div>
+          <MinSalesFilter
+            value={list.minSales}
+            onChange={list.setMinSales}
+            allLabel="Todos (1 venta o más)"
+            className="sm:w-[240px]"
+          />
+        </div>
+      </Card>
+
+      <Card className="flex-1 min-h-0 flex flex-col">
+        <div
+          className="px-5 py-4 flex items-center justify-between flex-wrap gap-2 border-b shrink-0"
+          style={{ borderColor: 'var(--border)' }}
+        >
+          <div className="text-[15px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
+            {list.loading ? 'Cargando…' : `${list.total} clientes`}
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            {exportError && (
+              <span className="text-[12px] font-semibold" style={{ color: 'var(--danger)' }}>{exportError}</span>
+            )}
+            <button
+              type="button"
+              onClick={() => void handleExport()}
+              disabled={exporting || list.loading || list.total === 0}
+              title="Descarga en Excel los clientes que coinciden con los filtros actuales, todas las páginas"
+              className="cursor-pointer inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-[12.5px] font-bold transition-[transform,opacity] duration-150 ease-out active:scale-[0.97] disabled:opacity-50 disabled:cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+              style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--ink-700)' }}
+            >
+              {exporting ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+              {exporting ? 'Generando Excel…' : 'Descargar Excel'}
+            </button>
+          </div>
+        </div>
+
+        {list.error ? (
+          <div className="flex-1 flex flex-col justify-center">
+            <ErrorState message={list.error} />
+          </div>
+        ) : list.loading ? (
+          <div className="flex-1 px-5 py-10 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
+            <Loader2 size={18} className="animate-spin" /> Cargando clientes…
+          </div>
+        ) : (
+          <>
+            <div className="flex-1 min-h-0 overflow-auto">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 z-10">
+                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                    {['Cliente', 'RFC', 'Regímenes', 'Primera compra', 'Venta de Planes', 'Compras', 'Planes', 'Contador'].map((h) => (
+                      <th
+                        key={h}
+                        className="px-5 py-3 text-left font-extrabold"
+                        style={{ color: 'var(--ink-700)', background: 'var(--card)' }}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span>{h}</span>
+                          {h === 'Venta de Planes' && (
+                            <div className="relative group/tooltip inline-flex items-center">
+                              <span className="cursor-help inline-flex items-center text-amber-500 hover:text-amber-600 dark:text-amber-400 transition-colors">
+                                <Info size={14} />
+                              </span>
+                              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover/tooltip:flex flex-col w-max px-3 py-2 bg-zinc-900/95 dark:bg-zinc-800/95 text-white text-[11.5px] font-medium leading-relaxed rounded-xl shadow-2xl backdrop-blur-md border border-zinc-700/50 pointer-events-none z-50 text-center animate-in fade-in zoom-in-95 duration-150">
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 -mb-1 border-4 border-transparent border-b-zinc-900/95 dark:border-b-zinc-800/95" />
+                                <span className="whitespace-nowrap">No se consideran las ventas de regularizaciones, trámites,</span>
+                                <span className="whitespace-nowrap">declaraciones anuales ni complementarias.</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {list.items.map((c) => (
+                    <tr key={c.taxpayerId} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td className="px-5 py-4">
+                        {canExpediente ? (
+                          <button
+                            type="button"
+                            onClick={() => setExpedienteId(c.taxpayerId)}
+                            title="Abrir expediente del cliente"
+                            className="text-left cursor-pointer group"
+                          >
+                            <div
+                              className="font-semibold group-hover:underline underline-offset-2"
+                              style={{ color: 'var(--ink-900)' }}
+                            >
+                              {c.legalName}
+                            </div>
+                            <div className="text-xs mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                              {c.email}
+                            </div>
+                            {c.phone && (
+                              <div className="text-[11.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                                📞 {c.phone}
+                              </div>
+                            )}
+                          </button>
+                        ) : (
+                          <>
+                            <div className="font-semibold" style={{ color: 'var(--ink-900)' }}>
+                              {c.legalName}
+                            </div>
+                            <div className="text-xs mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                              {c.email}
+                            </div>
+                            {c.phone && (
+                              <div className="text-[11.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                                📞 {c.phone}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
+                        <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-700)' }}>{c.rfc}</code>
+                        {isDeactivated(c.accountStatusId) && (
+                          <div className="mt-1">
+                            <AccountStatusChip accountStatusId={c.accountStatusId} deactivatedAt={c.deactivatedAt} hideActive />
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
+                        <RegimenesCell regimenes={c.regimenes} />
+                      </td>
+                      <td className="px-5 py-4">
+                        <PrimeraCompraCell fecha={c.fechaPrimeraVenta} />
+                      </td>
+                      <td className="px-5 py-4">
+                        <VentasPagadasCell ventas={c.ventasPagadas} />
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex flex-col gap-0.5 text-xs" style={{ color: 'var(--ink-700)' }}>
+                          <span>Declaraciones: <b>{c.declaracionesCompradas}</b></span>
+                          <span>Regularizaciones: <b>{c.regularizacionesCompradas}</b></span>
+                          <span>Futuras: <b>{c.futurasCompradas}</b></span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4">
+                        {c.planes && c.planes.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {c.planes.map((p, i) => (
+                              <span
+                                key={`${c.taxpayerId}-${i}`}
+                                className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold"
+                                style={{ background: 'var(--brand-100)', color: 'var(--brand-700)' }}
+                              >
+                                {p}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs" style={{ color: 'var(--ink-500)' }}>—</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {c.accountantUserId ? (
+                            <div className="min-w-0">
+                              <div className="font-semibold text-[13px] truncate" style={{ color: 'var(--ink-900)' }}>
+                                {c.accountantName ?? '—'}
+                              </div>
+                              {c.accountantEmail && (
+                                <div className="text-xs mt-0.5 truncate" style={{ color: 'var(--ink-500)' }}>
+                                  {c.accountantEmail}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span
+                              className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold"
+                              style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
+                            >
+                              Sin asignar
+                            </span>
+                          )}
+                          {canAssign && (
+                            <button
+                              type="button"
+                              onClick={() => setTarget(c)}
+                              title={c.accountantUserId ? 'Reasignar contador' : 'Asignar contador'}
+                              className="inline-flex items-center gap-1 text-[11.5px] font-bold px-2 py-1 rounded-lg transition hover:opacity-80"
+                              style={{ background: 'var(--ink-50)', color: 'var(--ink-700)', border: '1px solid var(--border)' }}
+                            >
+                              <UserCog size={13} /> {c.accountantUserId ? 'Reasignar' : 'Asignar'}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {list.items.length === 0 ? (
+              <div className="text-center py-8 shrink-0">
+                <div style={{ color: 'var(--ink-500)' }}>No se encontraron clientes</div>
+              </div>
+            ) : (
+              <Pagination
+                page={list.page}
+                totalPages={list.totalPages}
+                total={list.total}
+                skip={list.skip}
+                take={list.take}
+                itemCount={list.items.length}
+                onPrev={list.prevPage}
+                onNext={list.nextPage}
+              />
+            )}
+          </>
+        )}
+      </Card>
+
+      {canAssign && (
+        <ReassignModal
+          open={target !== null}
+          onOpenChange={(o) => !o && setTarget(null)}
+          client={target}
+          onReassigned={() => {
+            setTarget(null)
+            list.reload()
+          }}
+        />
+      )}
+    </div>
+  )
+}

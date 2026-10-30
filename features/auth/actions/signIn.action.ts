@@ -1,21 +1,15 @@
 "use server";
 
-import { ApiError, fetchPostPublic } from "@/lib/api";
+import { decodeJwt } from "jose";
+import { ApiError, fetchPostPublic, getErrorMessage, hasErrorCode } from "@/lib/api";
 import { API_ROUTES } from "@/lib/api/apiRoutes";
 import { type Result, err, ok } from "@/lib/common";
 import { PROTECTED_ROUTES } from "@/lib/routes";
+import { resolveLoginDestination } from "../lib/resolveLoginDestination";
 import type { SignInSchema } from "../schemas/signIn.schema";
 import type { LoginResponse, SignInError } from "../types";
 import { setSessionCookies } from "./setSessionCookies.action";
 
-/**
- * Server Action de inicio de sesión.
- * Llama POST /api/auth/login en el backend Identity y guarda token httpOnly.
- *
- * Devuelve Result<string, SignInError>:
- *   - success → string con la ruta a la que redirigir
- *   - error   → fieldErrors para mostrar en el form
- */
 export async function signIn(
   credentials: SignInSchema,
   redirectPath: string = PROTECTED_ROUTES.DASHBOARD,
@@ -48,19 +42,43 @@ export async function signIn(
         userId: response.userId,
         rfc: response.rfc,
         expiresAt: response.expiresAt,
+        emailChangeBlocked: response.emailChangeBlocked,
+        emailChangeBlockedReason: response.emailChangeBlockedReason,
       },
       { rememberMe: credentials.rememberMe },
     );
 
-    return ok(redirectPath);
+    const { role } = decodeJwt(response.token) as { role?: string };
+
+    return ok(
+      resolveLoginDestination({
+        role,
+        rfc: response.rfc,
+        fullName: response.fullName,
+        fallback: redirectPath,
+      }),
+    );
   } catch (e) {
     if (e instanceof ApiError && e.status === 401) {
+      // USER_INACTIVE (IsActive=0), PASSWORD_RESET_REQUIRED (migración insegura) y
+      // EMAIL_NOT_CONFIRMED (correo sin confirmar) llegan después de validar la
+      // contraseña — nunca se mezclan con INVALID_CREDENTIALS.
+      if (hasErrorCode(e.errorCode)) {
+        return err({
+          statusCode: 401,
+          errorCode: e.errorCode,
+          fieldErrors: { email: [getErrorMessage(e.errorCode)] },
+        });
+      }
       return err({
         statusCode: 401,
         fieldErrors: { email: ["Credenciales inválidas"] },
       });
     }
-    console.error("[signIn] Error:", e);
+    console.error("[signIn] Error:", e instanceof Error ? e.message : String(e));
+    if (e instanceof Error) {
+      console.error("[signIn] Stack:", e.stack);
+    }
     return err({
       statusCode: 500,
       fieldErrors: { root: ["Error al iniciar sesión. Intenta de nuevo."] },

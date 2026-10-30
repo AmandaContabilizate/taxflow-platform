@@ -1,0 +1,1501 @@
+'use client'
+
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  ArrowLeft,
+  Check,
+  Copy,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  FileText,
+  KeyRound,
+  Loader2,
+  Lock,
+  Mail,
+  Package,
+  Phone,
+  ShieldAlert,
+  ShieldCheck,
+  ShoppingCart,
+  Tag,
+  UserX,
+} from 'lucide-react'
+import {
+  getExpedienteCliente,
+  getSatCredentials,
+} from '@/features/taxpayers/actions/expedienteCliente.action'
+import { getTaxCertificate } from '@/features/taxpayers/actions/getTaxCertificate.action'
+import { getComplianceOpinion } from '@/features/taxpayers/actions/getComplianceOpinion.action'
+import {
+  getComplianceOpinionMetadata,
+  getTaxCertificateMetadata,
+  type DocumentMetadata,
+} from '@/features/taxpayers/actions/getDocumentMetadata.action'
+import { ACCOUNT_STATUS_LABEL, type ExpedienteCliente, type ExpedientePeriodo } from '@/features/taxpayers/types'
+import {
+  getStaffDeactivationPreview,
+  type DeactivationResult,
+  type StaffDeactivationPreview,
+} from '@/features/taxpayers/actions/taxpayerDeactivation.action'
+import { DeactivateTaxpayerModal } from './deactivate-taxpayer-modal'
+import { DISPLAY, MONO } from '../constants'
+import { AccountStatusChip } from '../cancelaciones/parts'
+import { Badge, Btn, Card, CiecUpdateModal, CiecValidationBadge, ErrorState, NoAccessState, Tabs, isForbiddenError } from '../ui'
+import { ArmarVentaModal } from './armar-venta-modal'
+import { VentasAbiertas } from './ventas-abiertas'
+import { TabDiagnostico } from './tab-diagnostico'
+import { TabVistaCliente } from './tab-vista-cliente'
+import { PredeclaracionModal } from './predeclaracion-modal'
+
+const MESES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+]
+
+function periodoLabel(p: ExpedientePeriodo): string {
+  if (p.periodValueId >= 101 && p.periodValueId <= 112)
+    return `${MESES[p.periodValueId - 101]} ${p.fiscalYear}`
+  if (p.periodValueId === 501) return `Anual ${p.fiscalYear}`
+  if (p.periodValueId >= 201 && p.periodValueId <= 206)
+    return `Bimestre ${p.periodValueId - 200} · ${p.fiscalYear}`
+  return `Periodo ${p.periodValueId} · ${p.fiscalYear}`
+}
+
+function formatRegimeBadge(satCode?: string | null, name?: string | null): string | null {
+  if (!satCode && !name) return null
+  const code = (satCode || '').trim()
+  if (code === '625') return '625 Plataformas'
+  if (code === '626') return '626 RESICO'
+  if (code === '612') return '612 Act. Empresarial'
+  if (code === '606') return '606 Arrendamiento'
+  if (code === '605') return '605 Sueldos'
+  if (code === '621') return '621 RIF'
+  if (code && name) {
+    const cleanName = name.replace(/^Régimen\s+(de\s+)?(las\s+|los\s+)?/i, '')
+    const short = cleanName.length > 14 ? `${cleanName.substring(0, 14)}…` : cleanName
+    return `${code} ${short}`
+  }
+  if (code) return code
+  if (name) {
+    const cleanName = name.replace(/^Régimen\s+(de\s+)?(las\s+|los\s+)?/i, '')
+    return cleanName.length > 16 ? `${cleanName.substring(0, 16)}…` : cleanName
+  }
+  return null
+}
+
+const fmtMoney = (n: number) =>
+  n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 })
+
+const fmtDate = (iso: string) =>
+  new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
+
+function CopyBtn({ value, label }: { value: string; label: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <button
+      type="button"
+      title={`Copiar ${label}`}
+      onClick={() => {
+        void navigator.clipboard.writeText(value).then(() => {
+          setCopied(true)
+          setTimeout(() => setCopied(false), 1500)
+        })
+      }}
+      className="inline-flex items-center gap-1 text-[11.5px] font-bold px-2 py-1 rounded-lg transition hover:opacity-80"
+      style={{ background: 'var(--ink-50)', color: 'var(--ink-700)', border: '1px solid var(--border)' }}
+    >
+      {copied ? <Check size={12} style={{ color: 'var(--brand-700)' }} /> : <Copy size={12} />}
+      Copiar
+    </button>
+  )
+}
+
+/** Pestaña con la que abre el expediente (p. ej. desde "Ventas por activar": la acción sugerida). */
+export type ExpedienteTab = 'resumen' | 'credenciales' | 'productos' | 'documentos' | 'diagnostico'
+
+interface Props {
+  taxpayerId: number
+  permissions: string[]
+  onBack: () => void
+  /** Pestaña inicial; si el usuario no tiene permiso para esa pestaña, abre en Resumen. */
+  initialTab?: ExpedienteTab
+}
+
+const TAB_RESUMEN = 'Resumen'
+const TAB_CREDENCIALES = 'Credenciales'
+const TAB_PRODUCTOS = 'Productos'
+const TAB_DOCUMENTOS = 'Documentos'
+const TAB_DIAGNOSTICO = 'Diagnóstico'
+const TAB_VISTA_CLIENTE = 'Vista del cliente'
+
+const TAB_LABEL: Record<ExpedienteTab, string> = {
+  resumen: TAB_RESUMEN,
+  credenciales: TAB_CREDENCIALES,
+  productos: TAB_PRODUCTOS,
+  documentos: TAB_DOCUMENTOS,
+  diagnostico: TAB_DIAGNOSTICO,
+}
+
+/**
+ * Expediente del cliente (pantalla Clientes → clic en el nombre). Función de
+ * gerencia comercial: tabs Resumen / Credenciales / Productos. La tab de
+ * Credenciales solo se pinta con el claim Contador.GetSatPassword y pide la
+ * contraseña BAJO DEMANDA al backend.
+ */
+export function ExpedienteCliente({ taxpayerId, permissions, onBack, initialTab }: Props) {
+  const canCredentials = permissions.includes('Contador.GetSatPassword')
+  const canDocs =
+    permissions.includes('Contador.GetTaxCertificate') ||
+    permissions.includes('Contador.GetComplianceOpinion')
+  const canDiagnostico = permissions.includes('GerenciaComercial.RunDiagnosticoCliente')
+  // Solo gerentes (decisión 2026-09-14): lo que el cliente ve en su app, en solo lectura.
+  const canVistaCliente = permissions.includes('Gerencia.VistaCliente')
+  // Baja del contribuyente (ARCO), junto a la CIEC. Hard lo decide el back (Admin.HardDeleteTaxpayer).
+  const canDeactivate = permissions.includes('Contador.DeactivateTaxpayer')
+  const tabs = useMemo(() => {
+    const t = [TAB_RESUMEN]
+    if (canCredentials) t.push(TAB_CREDENCIALES)
+    t.push(TAB_PRODUCTOS)
+    if (canDocs) t.push(TAB_DOCUMENTOS)
+    if (canDiagnostico) t.push(TAB_DIAGNOSTICO)
+    if (canVistaCliente) t.push(TAB_VISTA_CLIENTE)
+    return t
+  }, [canCredentials, canDocs, canDiagnostico, canVistaCliente])
+  const [tab, setTab] = useState(() => {
+    const idx = initialTab ? tabs.indexOf(TAB_LABEL[initialTab]) : 0
+    return idx >= 0 ? idx : 0
+  })
+
+  const [data, setData] = useState<ExpedienteCliente | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [showCiecModal, setShowCiecModal] = useState(false)
+  const [updateCiecRfc, setUpdateCiecRfc] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    const res = await getExpedienteCliente(taxpayerId)
+    if (res.success) setData(res.value)
+    else setError(res.error.message)
+    setLoading(false)
+  }, [taxpayerId])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  if (loading) {
+    return (
+      <Card>
+        <div className="px-6 py-14 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
+          <Loader2 size={18} className="animate-spin" /> Cargando expediente…
+        </div>
+      </Card>
+    )
+  }
+  if (error || !data) {
+    return (
+      <div className="flex flex-col gap-3">
+        <BackButton onBack={onBack} />
+        {error && isForbiddenError(error) ? <NoAccessState /> : <ErrorState message={error ?? 'Sin datos'} />}
+      </div>
+    )
+  }
+
+  const ciecOk = data.passwordState === 1
+  const initials = data.legalName
+    .split(' ')
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase())
+    .join('')
+
+  const activeTab = tabs[tab] ?? TAB_RESUMEN
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Encabezado del expediente */}
+      <Card>
+        <div className="px-5 py-4 flex items-start gap-4 flex-wrap">
+          <BackButton onBack={onBack} />
+          <div
+            className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 text-[15px] font-extrabold"
+            style={{ background: 'var(--ink-50)', color: 'var(--ink-700)', border: '1px solid var(--border)' }}
+          >
+            {initials}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[18px] font-extrabold tracking-tight" style={DISPLAY}>
+                {data.legalName}
+              </span>
+              <AccountStatusChip accountStatusId={data.accountStatusId} deactivatedAt={data.deactivatedAt} hideActive />
+              <CiecValidationBadge
+                rfc={data.rfc}
+                ciecState={data.passwordState}
+                size="md"
+                onStateChange={(nextState) => {
+                  setData((prev) => (prev ? { ...prev, passwordState: nextState } : prev))
+                }}
+                onOpenUpdateModal={(r) => {
+                  setUpdateCiecRfc(r)
+                  setShowCiecModal(true)
+                }}
+              />
+              {data.accountStatusId !== 1 && (
+                <Badge kind="danger">{ACCOUNT_STATUS_LABEL[data.accountStatusId] ?? 'Baja'}</Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-3 flex-wrap mt-1.5 text-[12.5px]" style={{ color: 'var(--ink-500)' }}>
+              <span className="inline-flex items-center gap-1.5">
+                <code style={{ ...MONO, fontSize: '11.5px', color: 'var(--ink-700)' }}>{data.rfc}</code>
+                <CopyBtn value={data.rfc} label="RFC" />
+              </span>
+              {data.email && (
+                <span className="inline-flex items-center gap-1"><Mail size={13} /> {data.email}</span>
+              )}
+              {data.phone && (
+                <span className="inline-flex items-center gap-1"><Phone size={13} /> {data.phone}</span>
+              )}
+            </div>
+            {/* Equipo asignado */}
+            <div className="flex items-center gap-2 flex-wrap mt-2.5">
+              <span className="text-[10.5px] font-extrabold uppercase tracking-wide" style={{ color: 'var(--ink-400)' }}>
+                Equipo
+              </span>
+              <EquipoChip nombre={data.vendedorNombre} rol="Vendedor" />
+              <EquipoChip nombre={data.contadorNombre} rol="Contador" />
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      <Tabs items={tabs} active={tab} onChange={setTab} />
+
+      {activeTab === TAB_RESUMEN && <TabResumen data={data} ciecOk={ciecOk} />}
+      {/* La baja vive en Credenciales, pero esa pestaña exige Contador.GetSatPassword: quien solo
+          tiene el permiso de baja (p. ej. SAC) la encuentra aquí. */}
+      {activeTab === TAB_RESUMEN && canDeactivate && !canCredentials && (
+        <DeactivationCard
+          taxpayerId={data.taxpayerId}
+          rfc={data.rfc}
+          accountStatusId={data.accountStatusId}
+          onDeactivated={(status) => {
+            setData((prev) => (prev ? { ...prev, accountStatusId: status, passwordState: 0 } : prev))
+          }}
+        />
+      )}
+      {activeTab === TAB_CREDENCIALES && canCredentials && (
+        <TabCredenciales
+          rfc={data.rfc}
+          ciecOk={ciecOk}
+          data={data}
+          onStateChange={(nextState) => {
+            setData((prev) => (prev ? { ...prev, passwordState: nextState } : prev))
+          }}
+          onOpenUpdateModal={(r) => {
+            setUpdateCiecRfc(r)
+            setShowCiecModal(true)
+          }}
+          canDeactivate={canDeactivate}
+          onDeactivated={(status) => {
+            // Sin recargar todo el expediente: la tarjeta conserva el resultado (advertencias).
+            setData((prev) => (prev ? { ...prev, accountStatusId: status, passwordState: 0 } : prev))
+          }}
+        />
+      )}
+      {activeTab === TAB_PRODUCTOS && (
+        <TabProductos
+          data={data}
+          permissions={permissions}
+          onRefresh={() => void load()}
+          onGoDiagnostico={canDiagnostico ? () => {
+            const i = tabs.indexOf(TAB_DIAGNOSTICO)
+            if (i >= 0) setTab(i)
+          } : undefined}
+        />
+      )}
+      {activeTab === TAB_DOCUMENTOS && canDocs && <TabDocumentos rfc={data.rfc} permissions={permissions} />}
+      {activeTab === TAB_DIAGNOSTICO && canDiagnostico && (
+        <TabDiagnostico
+          taxpayerId={taxpayerId}
+          rfc={data.rfc}
+          onGoCredenciales={() => {
+            const i = tabs.indexOf(TAB_CREDENCIALES)
+            if (i >= 0) setTab(i)
+          }}
+        />
+      )}
+      {activeTab === TAB_VISTA_CLIENTE && canVistaCliente && (
+        <TabVistaCliente taxpayerId={taxpayerId} legalName={data.legalName} />
+      )}
+
+      {showCiecModal && updateCiecRfc && (
+        <CiecUpdateModal
+          isOpen={showCiecModal}
+          onClose={() => {
+            setShowCiecModal(false)
+            setUpdateCiecRfc(null)
+          }}
+          rfc={updateCiecRfc}
+        />
+      )}
+    </div>
+  )
+}
+
+/**
+ * Baja del contribuyente (ARCO), junto a la CIEC. Soft con Contador.DeactivateTaxpayer; el botón de
+ * baja definitiva solo aparece si el back dice que el usuario tiene Admin.HardDeleteTaxpayer, y se
+ * habilita cuando el contribuyente ya está en Soft con la antigüedad mínima.
+ */
+function DeactivationCard({
+  taxpayerId,
+  rfc,
+  accountStatusId,
+  onDeactivated,
+}: {
+  taxpayerId: number
+  rfc: string
+  accountStatusId: ExpedienteCliente['accountStatusId']
+  onDeactivated: (status: 2 | 3) => void
+}) {
+  const [preview, setPreview] = useState<StaffDeactivationPreview | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [mode, setMode] = useState<'soft' | 'hard' | null>(null)
+  const [result, setResult] = useState<DeactivationResult | null>(null)
+
+  const loadPreview = useCallback(async () => {
+    const res = await getStaffDeactivationPreview(taxpayerId)
+    if (res.success) setPreview(res.value)
+    else setError(res.error.message)
+  }, [taxpayerId])
+
+  useEffect(() => {
+    void loadPreview()
+  }, [loadPreview, accountStatusId])
+
+  const hardDisabledReason =
+    preview?.currentStatus === 1
+      ? `Primero da la baja; la definitiva se habilita ${preview.hardMinDaysAfterSoft} días después.`
+      : preview?.hardAllowedFrom
+        ? `Disponible a partir del ${new Date(preview.hardAllowedFrom).toLocaleDateString('es-MX')}.`
+        : null
+
+  return (
+    <Card>
+      <div className="px-5 py-4 flex items-center justify-between gap-3 flex-wrap border-b" style={{ borderColor: 'var(--border)' }}>
+        <div className="flex items-center gap-3">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center"
+            style={{ background: 'var(--danger-soft)', color: 'var(--danger)' }}
+          >
+            <UserX size={18} />
+          </div>
+          <div>
+            <div className="text-[14.5px] font-extrabold" style={DISPLAY}>Baja del contribuyente</div>
+            <div className="text-[12px]" style={{ color: 'var(--ink-500)' }}>
+              A solicitud del cliente. Se conservan ventas y declaraciones; se borran credenciales y,
+              en la baja definitiva, sus datos personales.
+            </div>
+          </div>
+        </div>
+        <Badge kind={accountStatusId === 1 ? 'default' : 'danger'}>{ACCOUNT_STATUS_LABEL[accountStatusId] ?? 'Baja'}</Badge>
+      </div>
+
+      <div className="p-5 flex flex-col gap-3">
+        {error && <ErrorState message={error} />}
+        {result && (
+          <div className="text-[12.5px] px-4 py-3 rounded-xl" style={{ background: 'var(--brand-50)', color: 'var(--brand-700)' }}>
+            Baja aplicada.{result.userDeactivated ? ' La cuenta del cliente quedó desactivada.' : ''}
+            {result.warnings.length > 0 && (
+              <ul className="list-disc pl-4 mt-1" style={{ color: 'var(--violet-ink)' }}>
+                {result.warnings.map((w) => (
+                  <li key={w}>{w}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+        {preview?.hasDeclarationInFlight && (
+          <div className="text-[12.5px] px-4 py-3 rounded-xl" style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}>
+            Tiene una declaración presentándose. Espera a que termine para darlo de baja.
+          </div>
+        )}
+        {accountStatusId !== 3 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {accountStatusId === 1 && (
+              <Btn
+                kind="ghost"
+                size="sm"
+                disabled={!preview || preview.hasDeclarationInFlight}
+                onClick={() => setMode('soft')}
+                style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }}
+              >
+                <UserX size={14} /> Dar de baja
+              </Btn>
+            )}
+            {preview?.canHardDelete && (
+              <Btn
+                kind="ghost"
+                size="sm"
+                disabled={!!hardDisabledReason || preview.hasDeclarationInFlight}
+                onClick={() => setMode('hard')}
+                style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }}
+              >
+                <ShieldAlert size={14} /> Baja definitiva
+              </Btn>
+            )}
+            {preview?.canHardDelete && hardDisabledReason && (
+              <span className="text-[12px]" style={{ color: 'var(--ink-500)' }}>{hardDisabledReason}</span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {mode && (
+        <DeactivateTaxpayerModal
+          isOpen
+          onClose={() => setMode(null)}
+          taxpayerId={taxpayerId}
+          rfc={rfc}
+          mode={mode}
+          prepaid={preview?.prepaid ?? null}
+          onDone={(r) => {
+            onDeactivated(mode === 'hard' ? 3 : 2)
+            setMode(null)
+            setResult(r)
+          }}
+        />
+      )}
+    </Card>
+  )
+}
+
+function BackButton({ onBack }: { onBack: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onBack}
+      aria-label="Volver a Clientes"
+      className="w-9 h-9 rounded-xl flex items-center justify-center transition hover:opacity-80 active:scale-[0.97] flex-shrink-0"
+      style={{ background: 'var(--ink-50)', color: 'var(--ink-700)', border: '1px solid var(--border)' }}
+    >
+      <ArrowLeft size={16} />
+    </button>
+  )
+}
+
+function EquipoChip({ nombre, rol }: { nombre: string | null; rol: string }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold px-2 py-1 rounded-full"
+      style={{
+        background: nombre ? 'var(--ink-50)' : 'var(--amber-soft)',
+        color: nombre ? 'var(--ink-700)' : 'var(--violet-ink)',
+        border: '1px solid var(--border)',
+      }}
+    >
+      {nombre ?? 'Sin asignar'}
+      <span style={{ color: 'var(--ink-400)' }}>· {rol}</span>
+    </span>
+  )
+}
+
+function TabResumen({ data, ciecOk }: { data: ExpedienteCliente; ciecOk: boolean }) {
+  const presentadas = data.periodos.filter((p) => p.presentada).length
+  return (
+    <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}>
+      <Card>
+        <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+          <div className="text-[14.5px] font-extrabold" style={DISPLAY}>Datos del cliente</div>
+          <div className="text-[12px]" style={{ color: 'var(--ink-500)' }}>Información fiscal y de contacto.</div>
+        </div>
+        <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Dato label="RFC"><code style={{ ...MONO, fontSize: '12.5px' }}>{data.rfc}</code></Dato>
+          <Dato label="Régimen">
+            {data.regimenes.length > 0
+              ? data.regimenes.map((r) => `${r.name}${r.satCode ? ` (${r.satCode})` : ''}`).join(' · ')
+              : '—'}
+          </Dato>
+          <Dato label="Correo">{data.email ?? '—'}</Dato>
+          <Dato label="Teléfono">{data.phone ?? '—'}</Dato>
+          <Dato label="Fecha de creación">{fmtDate(data.createdAt)}</Dato>
+          <Dato label="Ventas pagadas">{String(data.ventasPagadas)}</Dato>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+          <div className="text-[14.5px] font-extrabold" style={DISPLAY}>Estado operativo</div>
+          <div className="text-[12px]" style={{ color: 'var(--ink-500)' }}>Indicadores del expediente.</div>
+        </div>
+        <div className="p-3">
+          <IndicadorRow
+            icon={ciecOk ? <ShieldCheck size={15} style={{ color: 'var(--brand-700)' }} /> : <ShieldAlert size={15} style={{ color: 'var(--violet-ink)' }} />}
+            label="Credenciales SAT"
+            value={ciecOk ? 'Activas' : 'Revisar'}
+            tone={ciecOk ? 'ok' : 'warn'}
+          />
+          <IndicadorRow
+            icon={<Package size={15} style={{ color: 'var(--ink-500)' }} />}
+            label="Productos comprados"
+            value={String(data.productos.length)}
+          />
+          <IndicadorRow
+            icon={<Check size={15} style={{ color: 'var(--ink-500)' }} />}
+            label="Periodos presentados"
+            value={`${presentadas} de ${data.periodos.length}`}
+          />
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+function Dato({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="text-[10.5px] font-extrabold uppercase tracking-wide mb-0.5" style={{ color: 'var(--ink-400)' }}>
+        {label}
+      </div>
+      <div className="text-[13.5px] font-semibold" style={{ color: 'var(--ink-900)' }}>{children}</div>
+    </div>
+  )
+}
+
+function IndicadorRow({
+  icon, label, value, tone,
+}: { icon: React.ReactNode; label: string; value: string; tone?: 'ok' | 'warn' }) {
+  return (
+    <div className="flex items-center gap-2.5 px-2.5 py-2.5 border-b last:border-b-0" style={{ borderColor: 'var(--border)' }}>
+      {icon}
+      <span className="flex-1 text-[13px] font-semibold" style={{ color: 'var(--ink-700)' }}>{label}</span>
+      <span
+        className="text-[12.5px] font-extrabold"
+        style={{ color: tone === 'ok' ? 'var(--brand-700)' : tone === 'warn' ? 'var(--violet-ink)' : 'var(--ink-900)' }}
+      >
+        {value}
+      </span>
+    </div>
+  )
+}
+
+function TabCredenciales({
+  rfc,
+  ciecOk,
+  data,
+  onStateChange,
+  onOpenUpdateModal,
+  canDeactivate,
+  onDeactivated,
+}: {
+  rfc: string
+  ciecOk: boolean
+  data: ExpedienteCliente
+  onStateChange?: (newState: 0 | 1 | 2) => void
+  onOpenUpdateModal?: (rfc: string) => void
+  canDeactivate: boolean
+  onDeactivated: (status: 2 | 3) => void
+}) {
+  const [password, setPassword] = useState<string | null>(null)
+  const [tieneEfirma, setTieneEfirma] = useState<boolean | null>(null)
+  const [visible, setVisible] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function reveal() {
+    if (password !== null) {
+      setVisible((v) => !v)
+      return
+    }
+    setLoading(true)
+    setError(null)
+    const res = await getSatCredentials(rfc)
+    setLoading(false)
+    if (res.success) {
+      setPassword(res.value.satPassword)
+      setTieneEfirma(res.value.tieneEfirma)
+      setVisible(true)
+    } else {
+      setError(res.error.message)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <Card>
+        <div className="px-5 py-4 flex items-center justify-between gap-3 flex-wrap border-b" style={{ borderColor: 'var(--border)' }}>
+          <div className="flex items-center gap-3">
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center"
+              style={{ background: 'var(--brand-100)', color: 'var(--brand-700)' }}
+            >
+              <KeyRound size={18} />
+            </div>
+            <div>
+              <div className="text-[14.5px] font-extrabold" style={DISPLAY}>Acceso al portal SAT</div>
+              <div className="text-[12px]" style={{ color: 'var(--ink-500)' }}>
+                Usa la CIEC del cliente para entrar al portal del SAT. La contraseña se pide al
+                sistema solo cuando la muestras.
+              </div>
+            </div>
+          </div>
+          <CiecValidationBadge
+            rfc={rfc}
+            ciecState={data.passwordState}
+            size="sm"
+            onStateChange={onStateChange}
+            onOpenUpdateModal={onOpenUpdateModal}
+          />
+        </div>
+
+        <div className="p-5 flex flex-col gap-4">
+          {error && <ErrorState message={error} />}
+          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
+            <div className="rounded-xl px-4 py-3" style={{ border: '1px solid var(--border)' }}>
+              <div className="text-[10.5px] font-extrabold uppercase tracking-wide mb-1" style={{ color: 'var(--ink-400)' }}>
+                RFC del cliente
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <code style={{ ...MONO, fontSize: '14px', color: 'var(--ink-900)' }}>{rfc}</code>
+                <CopyBtn value={rfc} label="RFC" />
+              </div>
+            </div>
+            <div className="rounded-xl px-4 py-3" style={{ border: '1px solid var(--border)' }}>
+              <div className="text-[10.5px] font-extrabold uppercase tracking-wide mb-1" style={{ color: 'var(--ink-400)' }}>
+                Contraseña CIEC
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <code style={{ ...MONO, fontSize: '14px', color: 'var(--ink-900)' }}>
+                  {visible && password !== null ? password : '••••••••••'}
+                </code>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => void reveal()}
+                    title={visible ? 'Ocultar' : 'Mostrar'}
+                    className="inline-flex items-center gap-1 text-[11.5px] font-bold px-2 py-1 rounded-lg transition hover:opacity-80"
+                    style={{ background: 'var(--ink-50)', color: 'var(--ink-700)', border: '1px solid var(--border)' }}
+                  >
+                    {loading ? <Loader2 size={12} className="animate-spin" /> : visible ? <EyeOff size={12} /> : <Eye size={12} />}
+                    {visible ? 'Ocultar' : 'Mostrar'}
+                  </button>
+                  {password !== null && <CopyBtn value={password} label="contraseña" />}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <a
+              href="https://www.sat.gob.mx"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 text-[13px] font-bold px-3.5 py-2 rounded-xl transition hover:opacity-90"
+              style={{ background: 'var(--ink-900)', color: '#fff' }}
+            >
+              <ExternalLink size={14} /> Abrir portal SAT
+            </a>
+            {tieneEfirma !== null && (
+              <Badge kind={tieneEfirma ? 'brand' : 'default'}>
+                {tieneEfirma ? 'e.firma cargada' : 'Sin e.firma cargada'}
+              </Badge>
+            )}
+          </div>
+
+          <div
+            className="flex items-center gap-2 text-[12px] px-3 py-2.5 rounded-xl"
+            style={{ background: 'var(--ink-50)', color: 'var(--ink-500)', border: '1px solid var(--border)' }}
+          >
+            <Lock size={13} className="flex-shrink-0" />
+            Por seguridad la contraseña no se carga con la página: se solicita al sistema solo al
+            pulsar Mostrar, y este acceso está protegido por el permiso de credenciales.
+          </div>
+        </div>
+      </Card>
+
+      {canDeactivate && (
+        <DeactivationCard
+          taxpayerId={data.taxpayerId}
+          rfc={rfc}
+          accountStatusId={data.accountStatusId}
+          onDeactivated={onDeactivated}
+        />
+      )}
+
+      {/* Histórico real: validaciones de CIEC (Users.CiecVerifications) y
+          vigencias de e.firma (Users.DigitalIdentities). Solo estados y fechas. */}
+      <Card>
+        <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+          <div className="text-[14.5px] font-extrabold" style={DISPLAY}>Todas las credenciales</div>
+          <div className="text-[12px]" style={{ color: 'var(--ink-500)' }}>
+            Estado, vigencia e histórico de los accesos registrados.
+          </div>
+        </div>
+        <div className="p-4 flex flex-col gap-4">
+          <CredencialCiec ciecOk={ciecOk} historial={data.ciecHistorial} />
+          <CredencialEfirmas efirmas={data.efirmas} />
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+function relTime(iso: string): string {
+  const dias = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000)
+  if (dias <= 0) return 'hoy'
+  if (dias === 1) return 'ayer'
+  if (dias < 60) return `hace ${dias} días`
+  const meses = Math.floor(dias / 30)
+  return `hace ${meses} ${meses === 1 ? 'mes' : 'meses'}`
+}
+
+function CredencialCiec({ ciecOk, historial }: { ciecOk: boolean; historial: ExpedienteCliente['ciecHistorial'] }) {
+  const [open, setOpen] = useState(false)
+  const ultima = historial[0]
+  return (
+    <div className="rounded-xl" style={{ border: '1px solid var(--border)' }}>
+      <div className="px-4 py-3 flex items-center gap-3 flex-wrap">
+        <div
+          className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+          style={{
+            background: ciecOk ? 'var(--brand-100)' : 'var(--amber-soft)',
+            color: ciecOk ? 'var(--brand-700)' : 'var(--violet-ink)',
+          }}
+        >
+          <KeyRound size={16} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-[13.5px] font-extrabold" style={{ color: 'var(--ink-900)' }}>CIEC SAT</div>
+          <div className="text-[12px]" style={{ color: 'var(--ink-500)' }}>
+            {ultima ? `Última validación ${relTime(ultima.fecha)} · ${ultima.fuente}` : 'Sin validaciones registradas'}
+          </div>
+        </div>
+        <Badge kind={ciecOk ? 'brand' : 'amber'}>{ciecOk ? 'Activa' : 'Revisar'}</Badge>
+        {historial.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            className="text-[12px] font-bold px-2.5 py-1.5 rounded-lg transition hover:opacity-80"
+            style={{ background: 'var(--ink-50)', color: 'var(--ink-700)', border: '1px solid var(--border)' }}
+          >
+            {open ? 'Ocultar histórico' : `Histórico (${historial.length})`}
+          </button>
+        )}
+      </div>
+      {open && (
+        <div className="px-4 pb-3 flex flex-col">
+          {historial.map((h, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-2.5 py-2 border-t text-[12.5px]"
+              style={{ borderColor: 'var(--border)' }}
+            >
+              <span
+                className="w-2 h-2 rounded-full flex-shrink-0"
+                style={{ background: h.valida ? 'var(--brand-500)' : h.estatus === 'Inválida' ? 'var(--coral)' : 'var(--amber)' }}
+              />
+              <span className="font-bold" style={{ color: 'var(--ink-900)' }}>{h.estatus}</span>
+              <span style={{ color: 'var(--ink-500)' }}>{fmtDate(h.fecha)} · {relTime(h.fecha)}</span>
+              <span className="ml-auto text-[11.5px]" style={{ color: 'var(--ink-400)' }}>{h.fuente}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Convierte un PDF en base64 a un blob URL efímero (se revoca solo a los 60s). */
+function base64ToPdfUrl(base64: string): string {
+  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
+  const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }))
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
+  return url
+}
+
+// Exportado: lo reusa el modal de diagnóstico de Contribuyentes (misma vista de documentos).
+export function TabDocumentos({ rfc, permissions }: { rfc: string; permissions: string[] }) {
+  const canCsf = permissions.includes('Contador.GetTaxCertificate')
+  const canOpinion = permissions.includes('Contador.GetComplianceOpinion')
+  return (
+    <Card>
+      <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+        <div className="text-[14.5px] font-extrabold" style={DISPLAY}>Documentos</div>
+        <div className="text-[12px]" style={{ color: 'var(--ink-500)' }}>
+          Documentos fiscales del cliente descargados del SAT. Si el documento tiene más de 30
+          días, la redescarga corre por cuenta del cliente (usa su CIEC).
+        </div>
+      </div>
+      <div className="p-4 flex flex-col gap-3">
+        {canCsf && (
+          <DocumentoRow
+            titulo="Constancia de situación fiscal"
+            rfc={rfc}
+            fetchDoc={getTaxCertificate}
+            fetchMeta={getTaxCertificateMetadata}
+          />
+        )}
+        {canOpinion && (
+          <DocumentoRow
+            titulo="Opinión de cumplimiento"
+            rfc={rfc}
+            fetchDoc={getComplianceOpinion}
+            fetchMeta={getComplianceOpinionMetadata}
+          />
+        )}
+      </div>
+    </Card>
+  )
+}
+
+type DocResult = { success: true; value: { base64: string } } | { success: false; error: { message: string } }
+type MetaResult = { success: true; value: DocumentMetadata } | { success: false; error: { message: string } }
+
+function DocumentoRow({
+  titulo, rfc, fetchDoc, fetchMeta,
+}: {
+  titulo: string
+  rfc: string
+  fetchDoc: (rfc: string) => Promise<DocResult>
+  fetchMeta: (rfc: string) => Promise<MetaResult>
+}) {
+  const [meta, setMeta] = useState<DocumentMetadata | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    void fetchMeta(rfc).then((res) => {
+      if (!cancelled && res.success) setMeta(res.value)
+    })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rfc])
+
+  async function ver() {
+    setLoading(true)
+    setError(null)
+    // La pestaña se abre AHORA, dentro del gesto del click. Si se espera al
+    // await (la descarga del SAT puede tardar minutos) el navegador bloquea el
+    // window.open por "popup no solicitado por el usuario".
+    const tab = window.open('', '_blank')
+    if (tab) tab.document.write('Generando documento, no cierres esta pestaña…')
+    const res = await fetchDoc(rfc)
+    setLoading(false)
+    if (res.success) {
+      const url = base64ToPdfUrl(res.value.base64)
+      if (tab && !tab.closed) tab.location.href = url
+      else window.open(url, '_blank')
+    } else {
+      if (tab && !tab.closed) tab.close()
+      setError(res.error.message)
+    }
+  }
+
+  return (
+    <div className="rounded-xl px-4 py-3" style={{ border: '1px solid var(--border)' }}>
+      <div className="flex items-center gap-3 flex-wrap">
+        <div
+          className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+          style={{ background: 'var(--ink-50)', color: 'var(--ink-700)' }}
+        >
+          <FileText size={16} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-[13.5px] font-extrabold" style={{ color: 'var(--ink-900)' }}>{titulo}</div>
+          <div className="text-[12px]" style={{ color: 'var(--ink-500)' }}>
+            {meta?.generatedAt
+              ? `Generado ${fmtDate(String(meta.generatedAt))}${meta?.expiresAt ? ` · vigente hasta ${fmtDate(String(meta.expiresAt))}` : ''}`
+              : meta?.status
+                ? String(meta.status)
+                : 'PDF del SAT'}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => void ver()}
+          disabled={loading}
+          className="inline-flex items-center gap-1.5 text-[12.5px] font-bold px-3 py-1.5 rounded-lg transition hover:opacity-80 disabled:opacity-50"
+          style={{ background: 'var(--ink-900)', color: '#fff' }}
+        >
+          {loading ? <Loader2 size={13} className="animate-spin" /> : <ExternalLink size={13} />}
+          Ver documento
+        </button>
+      </div>
+      {error && (
+        <div className="mt-2 text-[12px] px-3 py-2 rounded-lg" style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}>
+          {error} — si el documento tiene más de 30 días, la redescarga requiere la sesión del
+          cliente (usa su CIEC).
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CredencialEfirmas({ efirmas }: { efirmas: ExpedienteCliente['efirmas'] }) {
+  if (efirmas.length === 0) {
+    return (
+      <div className="rounded-xl px-4 py-3 flex items-center gap-3" style={{ border: '1px dashed var(--border-strong)', opacity: 0.8 }}>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--ink-50)', color: 'var(--ink-500)' }}>
+          <KeyRound size={16} />
+        </div>
+        <div>
+          <div className="text-[13.5px] font-extrabold" style={{ color: 'var(--ink-700)' }}>e.firma</div>
+          <div className="text-[12px]" style={{ color: 'var(--ink-500)' }}>Sin e.firma registrada.</div>
+        </div>
+      </div>
+    )
+  }
+  const now = Date.now()
+  return (
+    <>
+      {efirmas.map((e, i) => {
+        const vence = new Date(e.noAfter).getTime()
+        const vencida = vence < now
+        const porVencer = !vencida && vence < now + 30 * 86_400_000
+        const kind = vencida ? 'amber' : porVencer ? 'amber' : 'brand'
+        const label = vencida ? 'Vencida' : porVencer ? 'Por vencer' : 'Vigente'
+        return (
+          <div key={i} className="rounded-xl px-4 py-3 flex items-center gap-3 flex-wrap" style={{ border: '1px solid var(--border)' }}>
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{
+                background: kind === 'brand' ? 'var(--brand-100)' : 'var(--amber-soft)',
+                color: kind === 'brand' ? 'var(--brand-700)' : 'var(--violet-ink)',
+              }}
+            >
+              <KeyRound size={16} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[13.5px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
+                e.firma {efirmas.length > 1 ? `#${i + 1}` : ''}
+              </div>
+              <div className="text-[12px]" style={{ color: 'var(--ink-500)' }}>
+                Certificado vigente del {fmtDate(e.notBefore)} al {fmtDate(e.noAfter)}
+                {!e.isActive && ' · inactiva en el sistema'}
+              </div>
+            </div>
+            <Badge kind={kind}>{label}</Badge>
+          </div>
+        )
+      })}
+    </>
+  )
+}
+
+function TabProductos({
+  data,
+  permissions,
+  onRefresh,
+  onGoDiagnostico,
+}: {
+  data: ExpedienteCliente
+  permissions: string[]
+  onRefresh?: () => void
+  /** Desde Armar venta: "Ir a Diagnóstico primero" (validar CIEC / bajar o subir constancia). */
+  onGoDiagnostico?: () => void
+}) {
+  const [selectedRegime, setSelectedRegime] = useState<string>('ALL')
+  // Ver el reporte de predeclaración de un periodo (SAC/Renovaciones y superusuarios).
+  const canPredeclaracion = permissions.includes('Comercial.ReadPredeclaracion')
+  // Armar venta a nombre del cliente y emitir/re-emitir su liga de pago (spec-liga-de-pago-vendedor).
+  // Claim propio: vendedores, atención a clientes, gerencia comercial y gerencia SAC.
+  const canArmarVenta = permissions.includes('Comercial.EmitirLigaPago')
+  const [ventaOpen, setVentaOpen] = useState(false)
+  const [reportDeclId, setReportDeclId] = useState<number | null>(null)
+  // Producto seleccionado: resalta los periodos que cubre esa venta.
+  const [selectedSaleItemId, setSelectedSaleItemId] = useState<number | null>(null)
+
+  // Las anuales (501) y estatus desconocido (12) no se muestran aquí: el servicio se sigue por periodos mensuales activos.
+  const periodos = data.periodos.filter(
+    (p) => p.periodValueId !== 501 && !p.estatus?.toLowerCase().includes('desconocido')
+  )
+
+  // Opciones de regímenes presentes en las declaraciones del cliente
+  const regimeOptions = useMemo(() => {
+    const map = new Map<string, { key: string; label: string; count: number; satCode: string | null }>()
+    for (const p of periodos) {
+      const key = p.taxRegimeId ? String(p.taxRegimeId) : (p.taxRegimeSatCode || 'SIN_REGIMEN')
+      const label = formatRegimeBadge(p.taxRegimeSatCode, p.taxRegimeName) || (p.taxRegimeName ?? 'Sin régimen')
+      const existing = map.get(key)
+      if (existing) {
+        existing.count++
+      } else {
+        map.set(key, { key, label, count: 1, satCode: p.taxRegimeSatCode ?? null })
+      }
+    }
+    return Array.from(map.values())
+  }, [periodos])
+
+  // Al seleccionar un producto, el combo de Régimen salta al régimen de esa venta
+  // (asi sus periodos se ven y se resaltan sin cambiar el filtro a mano).
+  function seleccionarProducto(saleItemId: number, regimenSatCode: string | null | undefined) {
+    const yaSeleccionado = selectedSaleItemId === saleItemId
+    setSelectedSaleItemId(yaSeleccionado ? null : saleItemId)
+    if (!yaSeleccionado && regimenSatCode) {
+      const opt = regimeOptions.find((o) => o.satCode && o.satCode === regimenSatCode)
+      if (opt) setSelectedRegime(opt.key)
+    }
+  }
+
+  // Tarjetas agrupadas por periodo en vista general, o individuales en vista filtrada
+  const displayCards = useMemo(() => {
+    if (selectedRegime !== 'ALL') {
+      // Vista filtrada por un régimen específico: mostrar únicamente sus declaraciones individuales
+      const filtered = periodos.filter((p) => {
+        const key = p.taxRegimeId ? String(p.taxRegimeId) : (p.taxRegimeSatCode || 'SIN_REGIMEN')
+        return key === selectedRegime
+      })
+
+      return [...filtered]
+        .sort((a, b) => {
+          if (b.fiscalYear !== a.fiscalYear) return b.fiscalYear - a.fiscalYear
+          return (b.periodValueId ?? 0) - (a.periodValueId ?? 0)
+        })
+        .map((p) => {
+          const badge = formatRegimeBadge(p.taxRegimeSatCode, p.taxRegimeName)
+          return {
+            key: `${p.fiscalYear}-${p.periodValueId}-${p.taxRegimeId ?? p.taxRegimeSatCode}`,
+            fiscalYear: p.fiscalYear,
+            periodValueId: p.periodValueId,
+            label: periodoLabel(p),
+            regimes: badge
+              ? [
+                  {
+                    key: 'single',
+                    badge,
+                    fullName: p.taxRegimeName,
+                    presentada: p.presentada,
+                    estatus: p.estatus,
+                    declarationId: p.declarationId,
+                  },
+                ]
+              : [],
+            presentada: p.presentada,
+            isMixed: false,
+            estatus: p.estatus,
+            saleItemIds: p.saleItemIds,
+          }
+        })
+    }
+
+    // Vista "Todos los regímenes": agrupar por mes/año para evitar tarjetas duplicadas del mismo periodo
+    const map = new Map<
+      string,
+      {
+        key: string
+        fiscalYear: number
+        periodValueId: number
+        label: string
+        regimes: {
+          key: string
+          badge: string
+          fullName?: string | null
+          presentada: boolean
+          estatus: string
+          declarationId: number
+        }[]
+        items: ExpedientePeriodo[]
+      }
+    >()
+
+    for (const p of periodos) {
+      const groupKey = `${p.fiscalYear}-${p.periodValueId}`
+      const badge = formatRegimeBadge(p.taxRegimeSatCode, p.taxRegimeName)
+      const existing = map.get(groupKey)
+      if (existing) {
+        existing.items.push(p)
+        if (badge && !existing.regimes.some((r) => r.badge === badge)) {
+          existing.regimes.push({
+            key: p.taxRegimeId ? String(p.taxRegimeId) : (p.taxRegimeSatCode || badge),
+            badge,
+            fullName: p.taxRegimeName,
+            presentada: p.presentada,
+            estatus: p.estatus,
+            declarationId: p.declarationId,
+          })
+        }
+      } else {
+        map.set(groupKey, {
+          key: groupKey,
+          fiscalYear: p.fiscalYear,
+          periodValueId: p.periodValueId,
+          label: periodoLabel(p),
+          regimes: badge
+            ? [
+                {
+                  key: p.taxRegimeId ? String(p.taxRegimeId) : (p.taxRegimeSatCode || badge),
+                  badge,
+                  fullName: p.taxRegimeName,
+                  presentada: p.presentada,
+                  estatus: p.estatus,
+                  declarationId: p.declarationId,
+                },
+              ]
+            : [],
+          items: [p],
+        })
+      }
+    }
+
+    // Ordenar cronológicamente descendente (más reciente primero)
+    return Array.from(map.values())
+      .sort((a, b) => {
+        if (b.fiscalYear !== a.fiscalYear) return b.fiscalYear - a.fiscalYear
+        return (b.periodValueId ?? 0) - (a.periodValueId ?? 0)
+      })
+      .map((g) => {
+        const allPresentada = g.items.every((i) => i.presentada)
+        const somePresentada = g.items.some((i) => i.presentada)
+        const isMixed = somePresentada && !allPresentada
+
+        let estatusText = ''
+        if (isMixed) {
+          // Desglose por régimen cuando hay estados combinados
+          estatusText = g.regimes
+            .map((r) => `${r.badge}: ${r.presentada ? 'Presentada' : 'En proceso'}`)
+            .join(' · ')
+        } else {
+          const distinctEstatus = Array.from(new Set(g.items.map((i) => i.estatus).filter(Boolean)))
+          estatusText = distinctEstatus.length === 1 ? distinctEstatus[0] : distinctEstatus.join(' · ')
+        }
+
+        return {
+          key: g.key,
+          fiscalYear: g.fiscalYear,
+          periodValueId: g.periodValueId,
+          label: g.label,
+          regimes: g.regimes,
+          presentada: allPresentada,
+          isMixed,
+          estatus: estatusText || (allPresentada ? 'Presentación procesada exitosamente' : 'En proceso'),
+          saleItemIds: Array.from(new Set(g.items.flatMap((i) => i.saleItemIds))),
+        }
+      })
+  }, [periodos, selectedRegime])
+
+  // Cuántos periodos visibles cubre la venta seleccionada.
+  const coberturaVisible =
+    selectedSaleItemId === null
+      ? null
+      : displayCards.filter((c) => c.saleItemIds.includes(selectedSaleItemId)).length
+
+  return (
+    <div className="flex flex-col gap-4">
+      <Card>
+        <div className="px-5 py-4 border-b flex items-start justify-between gap-3 flex-wrap" style={{ borderColor: 'var(--border)' }}>
+          <div>
+            <div className="text-[14.5px] font-extrabold" style={DISPLAY}>Productos comprados</div>
+            <div className="text-[12px]" style={{ color: 'var(--ink-500)' }}>
+              Partidas de ventas pagadas, la más reciente primero.
+            </div>
+          </div>
+          {canArmarVenta && (
+            <button
+              type="button"
+              onClick={() => setVentaOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12.5px] font-bold whitespace-nowrap"
+              style={{ background: 'linear-gradient(135deg,#00D3A1 0%,#00AD87 100%)', color: '#fff' }}
+            >
+              <ShoppingCart size={14} /> Armar venta
+            </button>
+          )}
+        </div>
+        {canArmarVenta && (
+          <ArmarVentaModal
+            isOpen={ventaOpen}
+            onClose={() => setVentaOpen(false)}
+            taxpayerId={data.taxpayerId}
+            rfc={data.rfc}
+            legalName={data.legalName}
+            onCreated={() => onRefresh?.()}
+            onGoDiagnostico={onGoDiagnostico}
+          />
+        )}
+        <VentasAbiertas ventas={data.ventasAbiertas ?? []} canEmitir={canArmarVenta} onChanged={onRefresh} />
+        {data.productos.length === 0 ? (
+          <div className="px-5 py-8 text-center text-[13px]" style={{ color: 'var(--ink-500)' }}>
+            Sin productos comprados.
+          </div>
+        ) : (
+          <div className="p-3 grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
+            {data.productos.map((p, i) => {
+              const selected = selectedSaleItemId === p.saleItemId
+              return (
+              <div
+                key={i}
+                role="button"
+                tabIndex={0}
+                onClick={() => seleccionarProducto(p.saleItemId, p.regimenSatCode)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    seleccionarProducto(p.saleItemId, p.regimenSatCode)
+                  }
+                }}
+                title={selected ? 'Quitar el resaltado de sus periodos' : 'Resaltar los periodos que cubre esta venta'}
+                className="rounded-xl px-4 py-3.5 cursor-pointer transition active:scale-[0.99]"
+                style={{
+                  border: `1.5px solid ${selected ? 'var(--brand-500)' : 'var(--border)'}`,
+                  background: selected ? 'var(--hero-brand-soft, var(--brand-100))' : 'var(--card)',
+                }}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="text-[13.5px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
+                    {p.plan || 'Plan'}
+                    {p.regimenSatCode && (
+                      <span className="ml-1.5 text-[11px] font-bold" style={{ color: 'var(--ink-500)' }}>
+                        · {p.regimenSatCode}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[13.5px] font-extrabold" style={{ color: 'var(--brand-700)' }}>
+                    {fmtMoney(p.monto)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2 flex-wrap text-[11.5px] mt-0.5">
+                  <div style={{ color: 'var(--ink-500)' }}>
+                    {p.saleId ? (
+                      <>
+                        <span className="font-semibold" style={{ color: 'var(--ink-700)' }}>
+                          Venta #{p.saleId}
+                        </span>
+                        <span className="mx-1.5">·</span>
+                      </>
+                    ) : null}
+                    Comprado el {fmtDate(p.fecha)}
+                  </div>
+                  {p.discountCode && (
+                    <span
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold"
+                      style={{
+                        background: 'var(--violet-soft)',
+                        color: 'var(--violet-ink)',
+                        border: '1px solid rgba(115, 57, 253, 0.25)',
+                      }}
+                      title={`Código de promoción aplicado: ${p.discountCode}`}
+                    >
+                      <Tag size={10} />
+                      <span style={MONO}>{p.discountCode}</span>
+                      {p.discountPercent != null && p.discountPercent > 0 && (
+                        <span>· {p.discountPercent}%</span>
+                      )}
+                      {p.discountTypeId === 2 && p.declarationsCount != null && p.declarationsCount > 0 && (
+                        <span>· +{p.declarationsCount} reg</span>
+                      )}
+                      {p.discountTypeId === 3 && p.discountAmount != null && p.discountAmount > 0 && (
+                        <span>· -{fmtMoney(p.discountAmount)}</span>
+                      )}
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-3 mt-2 text-[12px]" style={{ color: 'var(--ink-700)' }}>
+                  <span>Futuras: <b>{p.futuras}</b></span>
+                  <span>Regularizaciones: <b>{p.regularizaciones}</b></span>
+                </div>
+              </div>
+              )
+            })}
+          </div>
+        )}
+      </Card>
+
+      <Card>
+        <div className="px-5 py-4 border-b flex items-center justify-between flex-wrap gap-3" style={{ borderColor: 'var(--border)' }}>
+          <div>
+            <div className="text-[14.5px] font-extrabold" style={DISPLAY}>Periodos del servicio</div>
+            <div className="text-[12px]" style={{ color: 'var(--ink-500)' }}>
+              Periodos fiscales del contribuyente ({displayCards.length} {displayCards.length === 1 ? 'periodo registrado' : 'periodos registrados'}): Verde = Presentada, Violeta = En proceso.
+            </div>
+            {selectedSaleItemId !== null && (
+              <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setSelectedSaleItemId(null)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-bold cursor-pointer hover:opacity-85"
+                  style={{ background: 'var(--brand-100)', color: 'var(--brand-900)', border: '1px solid var(--brand-500)' }}
+                  title="Quitar el resaltado"
+                >
+                  {data.productos.find((p) => p.saleItemId === selectedSaleItemId)?.plan ?? 'venta'} · quitar ✕
+                </button>
+                {(() => {
+                  const prod = data.productos.find((p) => p.saleItemId === selectedSaleItemId)
+                  const cupo = prod ? prod.futuras + prod.regularizaciones : 0
+                  if (coberturaVisible !== null && coberturaVisible > 0) {
+                    return (
+                      <span
+                        className="text-[11.5px]"
+                        style={{ color: 'var(--ink-500)' }}
+                        title="Meses que esta venta ya cubre (con declaración asignada). El resto del cupo sigue sin aplicarse a un mes."
+                      >
+                        {coberturaVisible} {cupo > 0 ? `de ${cupo} ` : ''}aplicad{coberturaVisible === 1 ? 'a' : 'as'}
+                        {cupo > coberturaVisible && (
+                          <span style={{ color: 'var(--violet-ink)' }}> · {cupo - coberturaVisible} de cupo sin usar</span>
+                        )}
+                      </span>
+                    )
+                  }
+                  return (
+                    <span className="text-[11.5px]" style={{ color: 'var(--violet-ink)' }}>
+                      Esta venta no cubre un periodo mensual visible (complementaria/trámite, o cupo sin aplicar aún).
+                    </span>
+                  )
+                })()}
+              </div>
+            )}
+          </div>
+          {regimeOptions.length > 1 && (
+            <div className="flex items-center gap-2">
+              <label htmlFor="regime-filter-periodos" className="text-[12px] font-bold" style={{ color: 'var(--ink-600)' }}>
+                Régimen:
+              </label>
+              <select
+                id="regime-filter-periodos"
+                value={selectedRegime}
+                onChange={(e) => setSelectedRegime(e.target.value)}
+                className="text-[12.5px] font-bold px-3 py-1.5 rounded-xl outline-none transition cursor-pointer"
+                style={{
+                  background: 'var(--ink-50)',
+                  color: 'var(--ink-900)',
+                  border: '1px solid var(--border)',
+                }}
+              >
+                <option value="ALL">Todos los regímenes ({periodos.length})</option>
+                {regimeOptions.map((opt) => (
+                  <option key={opt.key} value={opt.key}>
+                    {opt.label} ({opt.count})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+        {displayCards.length === 0 ? (
+          <div className="px-5 py-8 text-center text-[13px]" style={{ color: 'var(--ink-500)' }}>
+            Aún no hay declaraciones registradas{selectedRegime !== 'ALL' ? ' para el régimen seleccionado' : ''}.
+          </div>
+        ) : (
+          <div className="p-3 grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(225px, 1fr))' }}>
+            {displayCards.map((card) => {
+              const cardBg = card.isMixed
+                ? 'linear-gradient(135deg, rgba(236,253,245,0.85) 0%, rgba(245,243,255,0.85) 100%)'
+                : card.presentada
+                  ? 'var(--brand-100)'
+                  : 'var(--amber-soft)'
+
+              const cardBorder = card.isMixed ? '1px solid var(--border-strong)' : '1px solid var(--border)'
+
+              // Producto seleccionado: los periodos que NO cubre esa venta se atenúan.
+              // Si la venta no tiene declaraciones vinculadas, todas las tarjetas quedan tenues.
+              const dimmed = selectedSaleItemId !== null && !card.saleItemIds.includes(selectedSaleItemId as number)
+
+              return (
+                <div
+                  key={card.key}
+                  className="rounded-xl px-3.5 py-3 flex flex-col justify-between gap-1.5"
+                  style={{
+                    opacity: dimmed ? 0.35 : 1,
+                    transition: 'opacity 150ms ease',
+                    background: cardBg,
+                    border: cardBorder,
+                  }}
+                >
+                  <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                    <span className="text-[13px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
+                      {card.label}
+                    </span>
+                    {card.regimes.length > 0 && (
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {card.regimes.map((r, idx) => {
+                          const pillBg = card.isMixed
+                            ? r.presentada
+                              ? 'var(--brand-100)'
+                              : 'var(--amber-soft)'
+                            : '#ffffff'
+
+                          const pillColor = card.isMixed
+                            ? r.presentada
+                              ? 'var(--brand-900)'
+                              : 'var(--violet-ink)'
+                            : 'var(--ink-900)'
+
+                          const pillBorder = card.isMixed
+                            ? r.presentada
+                              ? '1px solid rgba(16, 185, 129, 0.4)'
+                              : '1px solid rgba(124, 58, 237, 0.35)'
+                            : '1px solid var(--border)'
+
+                          // Presentada + permiso → la píldora abre el reporte de predeclaración.
+                          const clickable = canPredeclaracion && r.presentada && r.declarationId > 0
+                          return (
+                            <span
+                              key={idx}
+                              role={clickable ? 'button' : undefined}
+                              tabIndex={clickable ? 0 : undefined}
+                              onClick={clickable ? () => setReportDeclId(r.declarationId) : undefined}
+                              onKeyDown={
+                                clickable
+                                  ? (e) => {
+                                      if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault()
+                                        setReportDeclId(r.declarationId)
+                                      }
+                                    }
+                                  : undefined
+                              }
+                              className={`px-2 py-0.5 rounded-md text-[10.5px] font-bold whitespace-nowrap shadow-sm ${clickable ? 'cursor-pointer hover:opacity-80 underline underline-offset-2 active:scale-[0.97] transition' : ''}`}
+                              style={{
+                                background: pillBg,
+                                color: pillColor,
+                                border: pillBorder,
+                              }}
+                              title={
+                                clickable
+                                  ? `Ver reporte de predeclaración · ${r.fullName ?? r.badge} (Presentada)`
+                                  : r.fullName
+                                    ? `${r.fullName} (${r.presentada ? 'Presentada' : 'En proceso'})`
+                                    : r.badge
+                              }
+                            >
+                              {r.badge}
+                            </span>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  <div
+                    className="text-[11px] font-bold mt-0.5"
+                    style={{
+                      color: card.isMixed
+                        ? 'var(--ink-800)'
+                        : card.presentada
+                          ? 'var(--brand-900)'
+                          : 'var(--violet-ink)',
+                    }}
+                    title={card.estatus}
+                  >
+                    {card.estatus}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </Card>
+
+      {canPredeclaracion && (
+        <PredeclaracionModal
+          open={reportDeclId !== null}
+          onOpenChange={(o) => !o && setReportDeclId(null)}
+          declarationId={reportDeclId}
+        />
+      )}
+    </div>
+  )
+}

@@ -1,0 +1,48 @@
+"use server";
+
+import { ApiError, fetchGet } from "@/lib/api";
+import { API_ROUTES } from "@/lib/api/apiRoutes";
+import { getBaseUrl } from "@/lib/api/apiUrls";
+import { type Result, err, ok } from "@/lib/common";
+import type { DeclarationCalculations } from "../types";
+
+interface OpsError {
+  statusCode: number;
+  message: string;
+  /** errorCode del back. DECLARATION_NOT_FOUND = la declaración aún no tiene DeclarationSummary. */
+  code?: string;
+}
+
+// Cálculos fiscales (IVA/ISR) de una declaración. Contadores; `consulta` usa la
+// ruta espejo de solo lectura (claim Contador.ConsultaDeclaraciones).
+export async function getDeclarationCalculations(
+  declarationId: number,
+  consulta = false,
+): Promise<Result<DeclarationCalculations, OpsError>> {
+  if (!declarationId || declarationId <= 0) {
+    return err({ statusCode: 400, message: "Declaración inválida." });
+  }
+
+  const endpoint = API_ROUTES.DECLARATIONS_OPS.CALCULATIONS(declarationId, consulta);
+  // fetchClient arma la URL igual: getBaseUrl(apiType) + endpoint.
+  const url = `${getBaseUrl("declarations_reports")}${endpoint}`;
+  console.log("[getDeclarationCalculations] GET", url);
+
+  try {
+    const data = await fetchGet<DeclarationCalculations>(
+      endpoint,
+      "declarations_reports",
+    );
+    return ok(data);
+  } catch (e) {
+    if (e instanceof ApiError) {
+      console.error(
+        `[getDeclarationCalculations] ${e.status} en ${url} ·`,
+        JSON.stringify(e.body),
+      );
+      return err({ statusCode: e.status, message: e.message, code: e.errorCode });
+    }
+    console.error("[getDeclarationCalculations] Error:", e);
+    return err({ statusCode: 500, message: "No pudimos obtener los cálculos de la declaración." });
+  }
+}

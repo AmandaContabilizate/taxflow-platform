@@ -1,0 +1,547 @@
+'use client'
+
+import { AlertCircle, ArrowLeft, Download, FileText, Loader2, Search } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { getMyDeclarationReport } from '@/features/declaration-report/actions'
+import type { DeclarationReport } from '@/features/declaration-report/types'
+import { getClientDeclarationInvoices } from '@/features/declarations/actions/getClientDeclarationInvoices.action'
+import { getDeclarationFilings } from '@/features/declarations/actions/getDeclarationFilings.action'
+import type {
+  ClientDeclarationInvoice,
+  ClientDeclarationSubject,
+  DeclarationFiling,
+} from '@/features/declarations/types'
+import { DISPLAY, MONO } from '../constants'
+import { Modal } from '../modal'
+import { DeclarationReportPanel } from './declaration-report-panel'
+import { SatReadingButton } from './declaration-sat-reading'
+import { Badge, Card, Tabs } from '../ui'
+import { declarationStatusBadge, filingLabel, filingTitle, fmtDate, money, resolvePdfUrl } from './parts'
+
+interface Props {
+  declaration: ClientDeclarationSubject
+  onBack: () => void
+  /**
+   * Vista del cliente (backoffice): misma pantalla, pero el cálculo completo (/my/{id})
+   * exige la sesión del dueño, así que en el espejo no se ofrece el botón ni sus acciones.
+   */
+  readOnly?: boolean
+}
+
+type Origen = '' | 'true' | 'false'
+type Deducible = '' | 'si' | 'no' | 'pendiente'
+
+/**
+ * Detalle de una declaración para el contribuyente.
+ *
+ * Es una pantalla aparte de la del contador a propósito: el cliente ve el listado
+ * de sus CFDI del periodo y si cada uno quedó deducible, nunca la clasificación ni
+ * las herramientas de recálculo.
+ */
+export function ClientDeclarationDetail({ declaration, onBack, readOnly = false }: Props) {
+  // Presentaciones del periodo (Normal + complementarias): una pestaña por cada una cuando hay
+  // más de una. El listado solo trae una fila por periodo. Si no cargan, la pantalla queda como
+  // antes, sin pestañas, con la declaración que se abrió.
+  const [filings, setFilings] = useState<DeclarationFiling[]>([])
+  const [activeId, setActiveId] = useState(declaration.declarationId)
+
+  useEffect(() => {
+    let cancelled = false
+    setActiveId(declaration.declarationId)
+    setFilings([])
+    void (async () => {
+      const res = await getDeclarationFilings(declaration.declarationId, declaration.taxpayerId)
+      if (cancelled) return
+      setFilings(res.success ? res.value.items : [])
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [declaration.declarationId, declaration.taxpayerId])
+
+  const filing = filings.find((f) => f.declarationId === activeId)
+  // La pestaña activa manda: estatus, fecha, PDFs, reporte y facturas son de ESA presentación.
+  const d: ClientDeclarationSubject = filing
+    ? {
+        ...declaration,
+        declarationId: filing.declarationId,
+        statusCode: filing.statusCode,
+        statusLabel: filing.statusLabel,
+        submittedAt: filing.submittedAt,
+        acknowledgmentPdfUrl: filing.acknowledgmentPdfUrl,
+        paymentLinePdfUrl: filing.paymentLinePdfUrl,
+        paymentAcknowledgmentPdfUrl: filing.paymentAcknowledgmentPdfUrl,
+        complementNumber: filing.complementNumber,
+      }
+    : declaration
+  const isComplement = (d.complementNumber ?? 0) > 0
+
+  const [invoices, setInvoices] = useState<ClientDeclarationInvoice[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
+  const [origen, setOrigen] = useState<Origen>('')
+  const [deducible, setDeducible] = useState<Deducible>('')
+  // El mismo reporte del enlace del correo, pedido con la sesion. Si no carga, la pantalla
+  // sigue sirviendo para el listado de facturas: no se bloquea por esto.
+  const [report, setReport] = useState<DeclarationReport | null>(null)
+  const [reportOpen, setReportOpen] = useState(false)
+  // 19 Cancelada por gerencia comercial: solo lectura, sin cálculo que autorizar ni comentar.
+  const isCancelled = d.statusCode === 'CommercialCancelled'
+
+  useEffect(() => {
+    // En el espejo no se pide: /my/{id} valida la pertenencia con la sesión y el gerente
+    // no es el dueño; pedirlo solo produciría un 403 en el log por cada apertura.
+    if (readOnly || isCancelled) return
+    let cancelled = false
+    setReport(null)
+    void (async () => {
+      const res = await getMyDeclarationReport(d.declarationId)
+      if (cancelled) return
+      setReport(res.success ? res.value : null)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [d.declarationId, readOnly, isCancelled])
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    void (async () => {
+      const res = await getClientDeclarationInvoices({ declarationId: d.declarationId })
+      if (cancelled) return
+      if (res.success) setInvoices(res.value)
+      else {
+        setError(res.error.message)
+        setInvoices([])
+      }
+      setLoading(false)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [d.declarationId])
+
+  const rows = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return invoices
+      .filter((i) => {
+        if (origen !== '' && i.isIssued !== (origen === 'true')) return false
+        if (deducible === 'si' && i.isDeductible !== true) return false
+        if (deducible === 'no' && i.isDeductible !== false) return false
+        if (deducible === 'pendiente' && i.isDeductible != null) return false
+        if (!q) return true
+        return [i.uuid, i.folio, i.issuer?.rfc, i.issuer?.name, i.receiver?.rfc, i.receiver?.name].some(
+          (f) => f?.toLowerCase().includes(q),
+        )
+      })
+      .sort((a, b) => b.invoiceDate.localeCompare(a.invoiceDate))
+  }, [invoices, query, origen, deducible])
+
+  const totalVisible = useMemo(
+    () => rows.reduce((acc, i) => acc + (Number.isFinite(i.total) ? i.total : 0), 0),
+    [rows],
+  )
+
+  const status = declarationStatusBadge(d.statusCode, d.statusLabel)
+
+  return (
+    <div className="flex flex-col gap-5 max-w-full">
+      <div className="flex items-start gap-3 flex-wrap">
+        <button
+          onClick={onBack}
+          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-[13px] font-bold transition hover:opacity-90"
+          style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+        >
+          <ArrowLeft size={16} /> Volver
+        </button>
+        <div>
+          <h2
+            className="text-[24px] lg:text-[28px] font-extrabold tracking-tight leading-tight"
+            style={{ ...DISPLAY, color: 'var(--ink-900)' }}
+          >
+            Declaración — {d.periodo}
+          </h2>
+          <div className="text-[13px] font-semibold mt-0.5" style={{ color: 'var(--ink-500)' }}>
+            <code style={MONO}>{d.rfc}</code>
+            {d.legalName ? ` • ${d.legalName}` : ''}
+          </div>
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
+            <Badge kind={status.kind}>{status.label}</Badge>
+            {isComplement && <Badge>{filingLabel(d.complementNumber)}</Badge>}
+            {d.regimeName && <Badge kind="default">{d.regimeName}</Badge>}
+          </div>
+        </div>
+      </div>
+
+      {filings.length > 1 && (
+        <div className="overflow-x-auto">
+          <Tabs
+            items={filings.map((f) => (f.isCurrent ? `${filingLabel(f.complementNumber)} · Vigente` : filingLabel(f.complementNumber)))}
+            active={Math.max(0, filings.findIndex((f) => f.declarationId === activeId))}
+            onChange={(i) => setActiveId(filings[i].declarationId)}
+          />
+        </div>
+      )}
+
+      <Card>
+        {/* Franja de metadatos: el periodo ya está en el título. */}
+        <dl className="px-5 py-3.5 flex flex-wrap gap-x-6 gap-y-2.5" style={{ borderBottom: '1px solid var(--border)' }}>
+          <Meta label="Ejercicio" value={String(d.fiscalYear)} />
+          <Meta label="Periodicidad" value={d.periodicity ?? 'No definida'} />
+          <Meta label="Presentada el" value={d.submittedAt ? fmtDate(d.submittedAt) : 'Aún no'} />
+          {filing && <Meta label="Folio SAT" value={filing.operationNumber ?? 'Aún no'} mono={!!filing.operationNumber} />}
+          {filing && isComplement && (
+            <Meta label="Tipo de complementaria" value={filing.complementaryType ?? 'No definido'} />
+          )}
+        </dl>
+        {/* Accion principal de la pantalla: el calculo completo va en un modal, no apilado
+            encima del listado de facturas. */}
+        {isCancelled ? (
+          <div className="px-5 pt-4">
+            <div
+              className="rounded-xl px-3.5 py-3 flex items-start gap-2 text-[12.5px] font-semibold"
+              style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)', border: '1px solid var(--border)' }}
+            >
+              <AlertCircle size={15} className="mt-0.5 shrink-0" />
+              <span>
+                Esta declaración fue cancelada por tu ejecutivo de ventas
+                {d.cancelledAt ? ` el ${fmtDate(d.cancelledAt)}` : ''}. No requiere ninguna acción de tu parte;
+                si tienes dudas, contacta a tu ejecutivo.
+              </span>
+            </div>
+          </div>
+        ) : readOnly ? (
+          <p className="px-5 pt-4 text-[12.5px]" style={{ color: 'var(--ink-500)' }}>
+            El cliente ve aquí el botón <b>Ver detalle de la declaración</b>, que abre su cálculo completo
+            {' '}(con autorizar y &quot;Tengo una duda&quot;). Solo él puede abrirlo desde su cuenta.
+          </p>
+        ) : null}
+
+        {/* Una sola barra: la acción principal y, a su lado, Datos SAT y los PDFs. */}
+        <div className="px-5 py-4 flex items-center gap-2 flex-wrap">
+          {!isCancelled && !readOnly && (
+            <button
+              type="button"
+              onClick={() => setReportOpen(true)}
+              disabled={!report}
+              title={
+                report?.canAuthorize
+                  ? 'Revisa el cálculo completo y autorízalo, o mándanos tu duda.'
+                  : 'Revisa el cálculo completo de este periodo.'
+              }
+              className="inline-flex items-center gap-2 h-8 px-3.5 rounded-lg text-[13px] font-extrabold transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: 'var(--brand-700)', color: '#fff' }}
+            >
+              <FileText size={15} />
+              {report ? 'Ver detalle de la declaración' : 'Cargando el detalle…'}
+            </button>
+          )}
+          <SatReadingButton
+            declarationId={d.declarationId}
+            taxpayerId={d.taxpayerId}
+            title={filingTitle(d.periodo, d.complementNumber)}
+            variant="detail"
+          />
+          {d.acknowledgmentPdfUrl && (
+            <PdfLink href={d.acknowledgmentPdfUrl} label="Acuse" title="Descargar acuse" />
+          )}
+          {d.paymentLinePdfUrl && (
+            <PdfLink href={d.paymentLinePdfUrl} label="Línea de captura" title="Descargar línea de captura" />
+          )}
+          {d.paymentAcknowledgmentPdfUrl && (
+            <PdfLink
+              href={d.paymentAcknowledgmentPdfUrl}
+              label="Comprobante de pago"
+              title="Descargar comprobante de pago"
+            />
+          )}
+        </div>
+        {!isCancelled && !readOnly && report?.canAuthorize && (
+          <p className="px-5 -mt-2 pb-4 text-[12.5px]" style={{ color: 'var(--ink-500)' }}>
+            Revisa el cálculo completo y autorízalo, o mándanos tu duda.
+          </p>
+        )}
+      </Card>
+
+      <Card>
+        <div className="p-5 flex flex-col gap-4">
+          <div>
+            <h3 className="text-[17px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
+              Tus facturas de este periodo
+            </h3>
+            <p className="text-[13px] mt-0.5 max-w-[62ch]" style={{ color: 'var(--ink-500)' }}>
+              {loading
+                ? 'Cargando facturas…'
+                : error
+                  ? 'No pudimos cargar tus facturas.'
+                  : `${invoices.length} comprobantes entraron a esta declaración. Aquí ves cuáles tu contador tomó como deducibles.`}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-3 items-end">
+            <div className="relative flex-1 min-w-[240px]">
+              <Search
+                size={16}
+                style={{
+                  position: 'absolute',
+                  left: 12,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--ink-500)',
+                }}
+              />
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Buscar por UUID, folio, RFC o nombre…"
+                className="w-full pl-10 pr-4 py-2.5 rounded-lg text-[13px]"
+                style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+              />
+            </div>
+            <Filtro
+              label="Emitidas / Recibidas"
+              value={origen}
+              onChange={setOrigen}
+              options={[
+                ['', 'Todas'],
+                ['true', 'Emitidas'],
+                ['false', 'Recibidas'],
+              ]}
+            />
+            <Filtro
+              label="Deducibilidad"
+              value={deducible}
+              onChange={setDeducible}
+              options={[
+                ['', 'Todas'],
+                ['si', 'Deducibles'],
+                ['no', 'No deducibles'],
+                ['pendiente', 'Por revisar'],
+              ]}
+            />
+          </div>
+
+          {error ? (
+            <div className="py-8 text-center flex flex-col items-center gap-2">
+              <AlertCircle size={20} style={{ color: 'var(--danger)' }} />
+              <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>
+                {error}
+              </div>
+            </div>
+          ) : loading ? (
+            <div className="py-10 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
+              <Loader2 size={18} className="animate-spin" /> Cargando facturas…
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="text-center py-10 text-[13px]" style={{ color: 'var(--ink-500)' }}>
+              {invoices.length === 0
+                ? 'Esta declaración todavía no tiene facturas asociadas.'
+                : 'Ninguna factura coincide con el filtro.'}
+            </div>
+          ) : (
+            <>
+              <div
+                className="rounded-2xl px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-2"
+                style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}
+              >
+                <span
+                  className="text-[11.5px] font-bold uppercase tracking-wider"
+                  style={{ color: 'var(--ink-500)' }}
+                >
+                  {rows.length} facturas en pantalla
+                </span>
+                <span className="flex items-baseline gap-1.5">
+                  <span className="text-[12px] font-semibold" style={{ color: 'var(--ink-500)' }}>
+                    Total
+                  </span>
+                  <span
+                    className="text-[15px] font-extrabold"
+                    style={{ ...MONO, color: 'var(--ink-900)' }}
+                  >
+                    {money(totalVisible)}
+                  </span>
+                </span>
+              </div>
+
+              <div className="overflow-x-auto -mx-1">
+                <table className="w-full text-[12.5px]">
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                      {['Fecha', 'Folio / UUID', 'Origen', 'Contraparte', 'Total', 'Estatus SAT', 'Deducible'].map(
+                        (h) => (
+                          <th
+                            key={h}
+                            className="px-3 py-2.5 text-left font-extrabold whitespace-nowrap"
+                            style={{ color: 'var(--ink-700)' }}
+                          >
+                            {h}
+                          </th>
+                        ),
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((inv) => {
+                      const contraparte = inv.isIssued ? inv.receiver : inv.issuer
+                      return (
+                        <tr key={inv.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                          <td
+                            className="px-3 py-3 whitespace-nowrap align-top"
+                            style={{ color: 'var(--ink-900)' }}
+                          >
+                            {fmtDate(inv.invoiceDate)}
+                          </td>
+                          <td className="px-3 py-3 align-top min-w-[180px]">
+                            <div className="font-semibold" style={{ color: 'var(--ink-900)' }}>
+                              {inv.folio || 'Sin folio'}
+                            </div>
+                            <code
+                              className="text-[10.5px] leading-[1.45] break-all uppercase"
+                              style={{ ...MONO, color: 'var(--ink-500)' }}
+                            >
+                              {inv.uuid}
+                            </code>
+                          </td>
+                          <td className="px-3 py-3 align-top">
+                            <Chip
+                              bg={inv.isIssued ? 'var(--sky-soft)' : 'var(--ink-50)'}
+                              fg={inv.isIssued ? 'var(--sky)' : 'var(--ink-700)'}
+                            >
+                              {inv.isIssued ? 'Emitida' : 'Recibida'}
+                            </Chip>
+                            <div className="text-[11px] mt-1" style={{ color: 'var(--ink-500)' }}>
+                              {inv.typeId}
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 align-top min-w-[160px]">
+                            <div style={{ color: 'var(--ink-900)' }}>{contraparte?.name ?? '—'}</div>
+                            <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-500)' }}>
+                              {contraparte?.rfc ?? ''}
+                            </code>
+                          </td>
+                          <td
+                            className="px-3 py-3 whitespace-nowrap align-top font-semibold"
+                            style={{ ...MONO, color: 'var(--ink-900)' }}
+                          >
+                            {money(inv.total)}
+                          </td>
+                          <td className="px-3 py-3 align-top">
+                            <Chip
+                              bg={inv.status === 'Cancelado' ? 'var(--coral-soft)' : 'var(--muted)'}
+                              fg={inv.status === 'Cancelado' ? 'var(--violet-ink)' : 'var(--ink-700)'}
+                            >
+                              {inv.status || 'Sin estatus'}
+                            </Chip>
+                          </td>
+                          <td className="px-3 py-3 align-top">
+                            {inv.isDeductible == null ? (
+                              <Chip bg="var(--muted)" fg="var(--ink-500)">
+                                Por revisar
+                              </Chip>
+                            ) : inv.isDeductible ? (
+                              <Chip bg="var(--brand-50)" fg="var(--brand-700)">
+                                Deducible
+                              </Chip>
+                            ) : (
+                              <Chip bg="var(--coral-soft)" fg="var(--violet-ink)">
+                                No deducible
+                              </Chip>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+      </Card>
+
+      <Modal
+        isOpen={reportOpen && report != null}
+        onClose={() => setReportOpen(false)}
+        title={`Declaración de ${d.periodo}`}
+        maxWidth={900}
+      >
+        {report && <DeclarationReportPanel report={report} />}
+      </Modal>
+    </div>
+  )
+}
+
+function Meta({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-[10.5px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+        {label}
+      </dt>
+      <dd className="text-[13.5px] font-bold mt-0.5 break-all" style={{ color: 'var(--ink-900)', ...(mono ? MONO : {}) }}>
+        {value}
+      </dd>
+    </div>
+  )
+}
+
+function PdfLink({ href, label, title }: { href: string; label: string; title: string }) {
+  return (
+    <a
+      href={resolvePdfUrl(href) ?? href}
+      target="_blank"
+      rel="noreferrer"
+      title={title}
+      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12.5px] font-bold transition hover:opacity-90"
+      style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+    >
+      <Download size={14} /> {label}
+    </a>
+  )
+}
+
+function Filtro<T extends string>({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string
+  value: T
+  onChange: (v: T) => void
+  options: [T, string][]
+}) {
+  return (
+    <label className="flex flex-col gap-1 min-w-[160px]">
+      <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+        {label}
+      </span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value as T)}
+        className="w-full px-3 py-2.5 rounded-lg text-[13px]"
+        style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+      >
+        {options.map(([v, l]) => (
+          <option key={v} value={v}>
+            {l}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
+function Chip({ children, bg, fg }: { children: React.ReactNode; bg: string; fg: string }) {
+  return (
+    <span
+      className="inline-flex px-2 py-0.5 rounded-md text-[11px] font-bold whitespace-nowrap"
+      style={{ background: bg, color: fg }}
+    >
+      {children}
+    </span>
+  )
+}

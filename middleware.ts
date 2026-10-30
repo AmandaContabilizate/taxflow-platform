@@ -3,6 +3,7 @@ import {
   PROTECTED_ROUTES,
   PUBLIC_ROUTES,
   isPublicRoute,
+  resolveRedirectBase,
   shouldRedirectIfAuthenticated,
 } from "@/lib/routes";
 
@@ -16,21 +17,36 @@ import {
  * La validación real del token la hace `getCurrentUser` en server actions.
  */
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname: rawPathname } = request.nextUrl;
+
+  // Los deep links de la app movil llegan como /app/<ruta> (ver next.config.mjs:
+  // rewrites). El middleware corre ANTES del rewrite, asi que hay que quitar el
+  // prefijo antes de evaluar si la ruta es publica — si no, /app/auth/reset-password
+  // no matchea PUBLIC_ROUTES y termina redirigido al login.
+  const pathname = rawPathname.replace(/^\/app(?=\/|$)/, "") || "/";
 
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api/webhooks") || // Stripe webhooks (sin auth)
+    pathname.startsWith("/api/auth/") || // sesión deslizante: el handler decide, sin redirect a login
+    pathname.startsWith("/.well-known") || // Universal Links / App Links de la app movil
     pathname.startsWith("/favicon") ||
     /\.(svg|png|jpg|jpeg|gif|webp|ico|css|js|woff2?)$/.test(pathname)
   ) {
     return NextResponse.next();
   }
 
+  // Modo mantenimiento: gana sobre toda la logica de auth/rutas. Se activa
+  // con la Application Setting MAINTENANCE_MODE en Azure + reinicio del App
+  // Service, sin rebuild.
+  if (process.env.MAINTENANCE_MODE === "true" && !pathname.startsWith("/api/webhooks")) {
+    return NextResponse.rewrite(new URL("/mantenimiento", request.url));
+  }
+
   const isAuthenticated = Boolean(request.cookies.get("auth_token"));
 
   if (isAuthenticated && shouldRedirectIfAuthenticated(pathname)) {
-    return NextResponse.redirect(new URL(PROTECTED_ROUTES.DASHBOARD, request.url));
+    return NextResponse.redirect(new URL(PROTECTED_ROUTES.DASHBOARD, resolveRedirectBase(request.url)));
   }
 
   if (isPublicRoute(pathname)) {
@@ -38,7 +54,7 @@ export function middleware(request: NextRequest) {
   }
 
   if (!isAuthenticated) {
-    const url = new URL(PUBLIC_ROUTES.LOGIN, request.url);
+    const url = new URL(PUBLIC_ROUTES.LOGIN, resolveRedirectBase(request.url));
     url.searchParams.set("from", pathname);
     return NextResponse.redirect(url);
   }
@@ -48,6 +64,6 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|api/webhooks|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/webhooks|\\.well-known|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

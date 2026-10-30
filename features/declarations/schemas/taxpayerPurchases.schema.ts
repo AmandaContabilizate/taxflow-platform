@@ -1,0 +1,57 @@
+import { z } from 'zod'
+
+/** Paginado común de los endpoints de compras del contador. */
+const paging = {
+  skip: z.number().int().min(0).default(0),
+  take: z.number().int().min(1).max(200).default(50),
+}
+
+/** 1 = solo regularizaciones, 2 = solo a futuro, ausente = ambas (E5.1). */
+const kind = z.union([z.literal(1), z.literal(2)]).optional()
+
+/**
+ * Filtros server-side compartidos por nivel 1 y nivel 2.
+ * `taxRegimeId` es el Id interno de `Users.TaxRegimes`, NO el código SAT.
+ * `onlyUpcoming`/`upcomingExact`/`periodYear`+`periodMonth` son mutuamente excluyentes
+ * (el back responde 400 si llega más de uno); el control del front lo hace imposible.
+ * Ninguno lo aceptan `regularizations-by-taxpayer` (la ruta los descarta).
+ */
+const filters = {
+  taxRegimeId: z.number().int().positive().optional(),
+  onlyUpcoming: z.boolean().optional(),
+  /** Igual que `onlyUpcoming` pero con `==` en vez de `>=` contra el ancla del back. */
+  upcomingExact: z.boolean().optional(),
+  periodYear: z.number().int().min(2000).max(2100).optional(),
+  periodMonth: z.number().int().min(1).max(12).optional(),
+  /** Id de `DeclarationStatus` (Declarations.Declaration.IdStatusDeclaration). "En proceso" = 15. */
+  statusId: z.number().int().positive().optional(),
+  /** Nivel del semáforo de posteo; el back solo lo acepta junto con `statusId: 11` (Por presentar). */
+  readiness: z.enum(['ok', 'warning', 'blocked']).optional(),
+  /** Estado de la CIEC del contribuyente: 0 sin verificar, 1 válida, 2 inválida. */
+  ciecState: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(),
+  /** Tipo de presentación: normal (ComplementNumber = 0) o complementaria (> 0). */
+  presentacion: z.enum(['normal', 'complementaria']).optional(),
+  /** Pide el conteo por nivel del semáforo sobre todo el universo filtrado (solo con `statusId: 11`). */
+  includeReadinessCounts: z.boolean().optional(),
+}
+
+/** Nivel 1: contribuyentes con compras. `search` filtra por RFC o razón social. */
+export const taxpayerGroupsSchema = z.object({
+  search: z.string().trim().min(1).optional(),
+  kind,
+  /** Solo gerencia (AssignAccountant); sin el claim el back lo ignora en silencio. */
+  accountantUserId: z.string().trim().min(1).optional(),
+  ...filters,
+  ...paging,
+})
+
+/** Nivel 2: declaraciones compradas de un contribuyente. */
+export const taxpayerPurchasesSchema = z.object({
+  rfc: z.string().trim().toUpperCase().min(12).max(13).optional(),
+  kind,
+  ...filters,
+  ...paging,
+})
+
+export type TaxpayerGroupsInput = z.input<typeof taxpayerGroupsSchema>
+export type TaxpayerPurchasesInput = z.input<typeof taxpayerPurchasesSchema>

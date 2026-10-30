@@ -1,0 +1,204 @@
+'use client'
+
+import { CheckCircle2, Download, FileText, MessageSquare } from 'lucide-react'
+import { useState } from 'react'
+import { getAllDeclarations } from '@/features/declarations/actions/getAllDeclarations.action'
+import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
+import type { ClientDeclarationSubject } from '@/features/declarations/types'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Badge, Card, Divider } from '../ui'
+import { DeclarationComments } from './declaration-comments'
+import { SatReadingButton } from './declaration-sat-reading'
+import {
+  DeclarationFilters,
+  KIND_FUTURE_PLAN,
+  PRESENTED_CODES,
+  TabEmpty,
+  TabError,
+  TabLoading,
+  declarationStatusBadge,
+  filingTitle,
+  monthYear,
+  regularizationBadge,
+  resolvePdfUrl,
+  useDeclarationFilters,
+  useRfcResource,
+  withoutUnknownStatus,
+} from './parts'
+
+interface CurrentUser {
+  userId: string
+  fullName: string
+}
+
+interface Props {
+  onViewDetail: (subject: ClientDeclarationSubject) => void
+  currentUser: CurrentUser
+}
+
+export function TodasTab({ onViewDetail, currentUser }: Props) {
+  const state = useRfcResource(getAllDeclarations)
+  const { selectedRfcInfo } = useRfcStore()
+  const [commentFor, setCommentFor] = useState<number | null>(null)
+
+  const items = state.status === 'ready' ? withoutUnknownStatus(state.data.items) : []
+  const { filtered, filters } = useDeclarationFilters(items)
+
+  if (state.status === 'loading') return <TabLoading label="Cargando tus declaraciones…" />
+  if (state.status === 'error') return <TabError message={state.message} />
+
+  if (items.length === 0) {
+    return <TabEmpty message="No tienes declaraciones registradas." />
+  }
+
+  return (
+    <>
+      <DeclarationFilters {...filters} />
+
+      <Card>
+        <div className="px-5 py-4">
+          <div className="text-[15px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
+            {filtered.length} {filtered.length === 1 ? 'declaración' : 'declaraciones'}
+          </div>
+          <div className="text-[12.5px]" style={{ color: 'var(--ink-500)' }}>
+            Historial completo, sin filtrar por acción pendiente
+          </div>
+        </div>
+        <Divider />
+        {filtered.length === 0 ? (
+          <div className="text-center py-8">
+            <div style={{ color: 'var(--ink-500)' }}>No hay declaraciones con esos filtros.</div>
+          </div>
+        ) : (
+          <div>
+            {filtered.map((d, i) => {
+              const status = declarationStatusBadge(d.statusCode, d.statusLabel)
+              const presented = PRESENTED_CODES.has(d.statusCode)
+              const isFuturePlan = d.declarationKind === KIND_FUTURE_PLAN
+              const regularization = regularizationBadge(d.declarationKind, d.statusCode)
+              const title =
+                d.periodicity === 'Anual' || !d.month
+                  ? `Ejercicio ${d.fiscalYear}`
+                  : monthYear(d.fiscalYear, d.month)
+
+              return (
+                <div key={d.declarationId}>
+                  <div className="flex items-center gap-3 px-5 py-4">
+                    <div
+                      className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+                      style={{
+                        background: presented ? 'var(--brand-100)' : 'var(--ink-50)',
+                        color: presented ? 'var(--brand-700)' : 'var(--ink-500)',
+                      }}
+                    >
+                      {presented ? <CheckCircle2 size={18} /> : <FileText size={18} />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="font-bold text-[14.5px]" style={{ color: 'var(--ink-900)' }}>
+                          {title}
+                        </div>
+                        <Badge kind={status.kind}>{status.label}</Badge>
+                        {(d.complementNumber ?? 0) > 0 && <Badge>Complementaria</Badge>}
+                        {isFuturePlan && <Badge kind="sky">Plan a futuro</Badge>}
+                        {regularization && (
+                          <Badge kind={regularization.kind}>{regularization.label}</Badge>
+                        )}
+                      </div>
+                      <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                        {d.regimeName}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        onClick={() => setCommentFor(d.declarationId)}
+                        title="Comentarios"
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-bold transition hover:opacity-90"
+                        style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+                      >
+                        <MessageSquare size={14} /> Comentarios
+                      </button>
+                      {d.acknowledgmentPdfUrl && (
+                        <a
+                          href={resolvePdfUrl(d.acknowledgmentPdfUrl) ?? d.acknowledgmentPdfUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="Descargar Acuse del SAT"
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-bold transition hover:opacity-90"
+                          style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+                        >
+                          <Download size={14} /> Acuse
+                        </a>
+                      )}
+                      {d.paymentLinePdfUrl && (
+                        <a
+                          href={resolvePdfUrl(d.paymentLinePdfUrl) ?? d.paymentLinePdfUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="Descargar Línea de Captura"
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-bold transition hover:opacity-90"
+                          style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+                        >
+                          <Download size={14} /> Línea de captura
+                        </a>
+                      )}
+                      {d.paymentAcknowledgmentPdfUrl && (
+                        <a
+                          href={resolvePdfUrl(d.paymentAcknowledgmentPdfUrl) ?? d.paymentAcknowledgmentPdfUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="Descargar Comprobante de Pago"
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-bold transition hover:opacity-90"
+                          style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+                        >
+                          <Download size={14} /> Pago
+                        </a>
+                      )}
+                      <SatReadingButton declarationId={d.declarationId} title={filingTitle(title, d.complementNumber)} />
+                      <button
+                        onClick={() =>
+                          onViewDetail({
+                            declarationId: d.declarationId,
+                            rfc: selectedRfcInfo?.rfc ?? (state.status === 'ready' ? state.data.rfc : ''),
+                            legalName: selectedRfcInfo?.legalName ?? '',
+                            periodo: title,
+                            fiscalYear: d.fiscalYear,
+                            statusCode: d.statusCode,
+                            statusLabel: d.statusLabel,
+                            regimeName: d.regimeName,
+                            periodicity: d.periodicity,
+                            acknowledgmentPdfUrl: d.acknowledgmentPdfUrl,
+                            paymentLinePdfUrl: d.paymentLinePdfUrl,
+                            paymentAcknowledgmentPdfUrl: d.paymentAcknowledgmentPdfUrl,
+                            submittedAt: d.submittedAt,
+                            complementNumber: d.complementNumber,
+                          })
+                        }
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-bold transition hover:opacity-90"
+                        style={{ background: 'linear-gradient(135deg,#00D3A1 0%,#00AD87 100%)', color: '#fff' }}
+                      >
+                        Ver detalle
+                      </button>
+                    </div>
+                  </div>
+                  {i < filtered.length - 1 && <Divider />}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </Card>
+
+      <Sheet open={commentFor != null} onOpenChange={(open) => !open && setCommentFor(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-md flex flex-col gap-4 p-5">
+          <SheetHeader className="p-0">
+            <SheetTitle>Comentarios</SheetTitle>
+          </SheetHeader>
+          {commentFor != null && (
+            <DeclarationComments declarationId={commentFor} currentUser={currentUser} />
+          )}
+        </SheetContent>
+      </Sheet>
+    </>
+  )
+}

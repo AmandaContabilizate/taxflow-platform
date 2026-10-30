@@ -1,0 +1,333 @@
+'use client'
+
+import { Loader2 } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
+import type { Result } from '@/lib/common'
+import { DISPLAY } from '../constants'
+import { type BadgeKind, Card, ErrorState } from '../ui'
+
+/** Etiqueta y tono de `Declarations.StatusDeclaration` para el contribuyente. */
+const STATUS_BADGE: Record<string, { kind: BadgeKind; label: string }> = {
+  PendientePago: { kind: 'coral', label: 'Pendiente de pago' },
+  PendienteConciliacion: { kind: 'amber', label: 'En conciliación' },
+  Presentada: { kind: 'brand', label: 'Presentada' },
+  IntervencionManual: { kind: 'amber', label: 'En revisión' },
+  PresentadaManual: { kind: 'brand', label: 'Presentada (manual)' },
+  Enviando: { kind: 'amber', label: 'Enviando' },
+  PresentadaPrevio: { kind: 'brand', label: 'Presentada previamente' },
+  PresentadaExterno: { kind: 'brand', label: 'Presentada (SAT)' },
+  EnRevisionCliente: { kind: 'amber', label: 'En tu revisión' },
+  RebotadaCliente: { kind: 'coral', label: 'Rechazada' },
+  PorPresentar: { kind: 'coral', label: 'Por presentar' },
+  // El cliente no sabe que significa "Por revisar": es una obligacion que salio de su
+  // constancia y que todavia estamos confirmando contra el SAT.
+  PorRevisar: { kind: 'default', label: 'En revisión de declaración ante el SAT' },
+  NoPresentada: { kind: 'coral', label: 'No presentada' },
+  EnProceso: { kind: 'amber', label: 'En proceso' },
+  // Reabierta por el contador: el cliente la ve exactamente como una En proceso, solo con
+  // su propio estatus. El motivo de la reapertura nunca le llega.
+  Reopened: { kind: 'amber', label: 'Reabierta' },
+  // Paquete vendido con baja confirmada de régimen previo al periodo.
+  RegimeCancelled: { kind: 'coral', label: 'Régimen cancelado' },
+  // Cancelación comercial por gerencia de ventas: no se trabaja ni se presenta; el crédito se perdió.
+  CommercialCancelled: { kind: 'coral', label: 'Cancelada' },
+}
+
+/** Etiqueta corta por Id de `Catalogs.StatusDeclaration`, para la bitácora (que solo trae Ids). */
+const STATUS_LABEL_BY_ID: Record<number, string> = {
+  1: 'Pendiente de pago',
+  2: 'En conciliación',
+  3: 'Presentada',
+  4: 'Intervención manual',
+  5: 'Presentada (manual)',
+  6: 'Enviando',
+  7: 'Presentada previamente',
+  8: 'Presentada (SAT)',
+  9: 'Por autorizar',
+  10: 'Rechazada por el cliente',
+  11: 'Por presentar',
+  12: 'Desconocido',
+  13: 'Por revisar',
+  14: 'No presentada',
+  15: 'En proceso',
+  16: 'En proceso (Legacy)',
+  17: 'Reabierta',
+  18: 'Régimen cancelado',
+  19: 'Cancelada',
+}
+
+export function declarationStatusLabelById(statusId: number): string {
+  return STATUS_LABEL_BY_ID[statusId] ?? `Estatus ${statusId}`
+}
+
+export function declarationStatusBadge(
+  statusCode: string,
+  statusLabel: string,
+): { kind: BadgeKind; label: string } {
+  return STATUS_BADGE[statusCode] ?? { kind: 'default', label: statusLabel }
+}
+
+const MONTHS = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+]
+
+/** Códigos que el cliente ve como "presentada" (ícono verde en su lista "Todas"). */
+export const PRESENTED_CODES = new Set(['Presentada', 'PresentadaManual', 'PresentadaPrevio', 'PresentadaExterno'])
+
+/** 1 = Regularizacion, 2 = Plan a futuro (Sales.SaleDeclaration.DeclarationKind). */
+export const KIND_REGULARIZATION = 1
+export const KIND_FUTURE_PLAN = 2
+
+/**
+ * Una regularizacion esta comprada cuando tiene venta activa (kind 1) y ya se
+ * activo ("En proceso"). Sin venta el back manda `declarationKind: null` y el
+ * SAT la reporta como no presentada: esa es la que todavia se puede comprar.
+ * Vive aquí (y no en la tab) porque la "Vista del cliente" del backoffice debe
+ * pintar exactamente lo mismo que el cliente: una sola regla, dos pantallas.
+ */
+export function regularizationBadge(
+  kind: number | null,
+  statusCode: string,
+): { kind: 'brand' | 'coral'; label: string } | null {
+  if (kind === KIND_REGULARIZATION && (statusCode === 'EnProceso' || statusCode === 'Reopened')) {
+    return { kind: 'brand', label: 'Comprada' }
+  }
+  if (kind == null && statusCode === 'NoPresentada') {
+    return { kind: 'coral', label: 'Por comprar' }
+  }
+  return null
+}
+
+export function monthYear(fiscalYear: number, month: number): string {
+  return `${MONTHS[month - 1] ?? ''} ${fiscalYear}`.trim()
+}
+
+/** "Normal" / "Complementaria N" según `ComplementNumber` (0 = Normal). */
+export function filingLabel(complementNumber: number | null | undefined): string {
+  return (complementNumber ?? 0) > 0 ? `Complementaria ${complementNumber}` : 'Normal'
+}
+
+/** Periodo + presentación, solo si es complementaria: "Marzo 2026 · Complementaria 1". */
+export function filingTitle(periodo: string, complementNumber: number | null | undefined): string {
+  return (complementNumber ?? 0) > 0 ? `${periodo} · ${filingLabel(complementNumber)}` : periodo
+}
+
+export function fmtDate(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+export const money = (n: number | null | undefined) =>
+  n == null || !Number.isFinite(n)
+    ? '—'
+    : n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2 })
+
+/** Rubro o dato que no vino (en los datos del SAT, `null` = el PDF no lo trae). */
+export function SinDatos() {
+  return (
+    <span className="italic" style={{ color: 'var(--ink-500)' }}>
+      Sin datos
+    </span>
+  )
+}
+
+/**
+ * Normaliza la URL de un documento PDF. El backend ya entrega la URL completa y firmada con SAS.
+ */
+export function resolvePdfUrl(url: string | null | undefined): string | null {
+  if (!url || !url.trim()) return null
+  return url.trim()
+}
+
+type Fetcher<T> = (rfc: string) => Promise<Result<T, { message: string }>>
+
+export type Async<T> =
+  | { status: 'loading' }
+  | { status: 'ready'; data: T }
+  | { status: 'error'; message: string }
+
+// Carga un recurso ligado al RFC activo. El fetcher debe ser estable (acción a nivel módulo).
+export function useRfcResource<T>(fetcher: Fetcher<T>): Async<T> {
+  const { selectedRfc } = useRfcStore()
+  const [state, setState] = useState<Async<T>>({ status: 'loading' })
+
+  useEffect(() => {
+    if (!selectedRfc) return
+    let cancelled = false
+    setState({ status: 'loading' })
+    void (async () => {
+      const res = await fetcher(selectedRfc)
+      if (cancelled) return
+      setState(
+        res.success
+          ? { status: 'ready', data: res.value }
+          : { status: 'error', message: res.error.message },
+      )
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [selectedRfc, fetcher])
+
+  return state
+}
+
+/**
+ * DeclarationStatus.Unknown. El enum del back lo documenta como basura de migración, pero hoy
+ * la mayoría son anuales sembradas al leer la CSF que nadie resuelve (no hay scraper del portal
+ * anual). En ambos casos no se sabe si el contribuyente las presentó y su `statusLabel` es una
+ * nota interna: no se muestran.
+ */
+const STATUS_UNKNOWN = 12
+
+export function withoutUnknownStatus<T extends { statusId: number }>(items: T[]): T[] {
+  return items.filter((i) => i.statusId !== STATUS_UNKNOWN)
+}
+
+const ALL = 'todos'
+
+export interface DeclarationFilterState {
+  year: string
+  setYear: (v: string) => void
+  regime: string
+  setRegime: (v: string) => void
+  years: number[]
+  regimes: string[]
+}
+
+/**
+ * Filtros de año y régimen de las pestañas de declaraciones. El régimen solo se
+ * ofrece si los datos lo traen: `FuturePlanItem`/`RegularizationMonth` no tienen
+ * `regimeName` y ahí el selector se omite en vez de quedar vacío.
+ */
+export function useDeclarationFilters<T extends { fiscalYear: number; regimeName?: string | null }>(
+  items: T[],
+): { filtered: T[]; filters: DeclarationFilterState } {
+  const [year, setYear] = useState(ALL)
+  const [regime, setRegime] = useState(ALL)
+
+  const years = useMemo(
+    () => Array.from(new Set(items.map((i) => i.fiscalYear))).sort((a, b) => b - a),
+    [items],
+  )
+
+  const regimes = useMemo(
+    () =>
+      Array.from(new Set(items.map((i) => i.regimeName).filter((r): r is string => Boolean(r)))).sort(
+        (a, b) => a.localeCompare(b),
+      ),
+    [items],
+  )
+
+  const filtered = useMemo(
+    () =>
+      items.filter(
+        (i) =>
+          (year === ALL || String(i.fiscalYear) === year) &&
+          (regime === ALL || i.regimeName === regime),
+      ),
+    [items, year, regime],
+  )
+
+  return { filtered, filters: { year, setYear, regime, setRegime, years, regimes } }
+}
+
+export function DeclarationFilters({ year, setYear, regime, setRegime, years, regimes }: DeclarationFilterState) {
+  const hasRegimes = regimes.length > 0
+  return (
+    <Card>
+      <div className={`p-5 grid grid-cols-1 gap-4 ${hasRegimes ? 'sm:grid-cols-2' : ''}`}>
+        <div className="space-y-2">
+          <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+            Año fiscal
+          </label>
+          <select
+            value={year}
+            onChange={(e) => setYear(e.target.value)}
+            className="w-full px-4 py-2.5 rounded-lg border text-[13px]"
+            style={{ borderColor: 'var(--border)', background: 'var(--input)', color: 'var(--foreground)' }}
+          >
+            <option value={ALL}>Todos</option>
+            {years.map((y) => (
+              <option key={y} value={String(y)}>
+                {y}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {hasRegimes && (
+          <div className="space-y-2">
+            <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+              Régimen
+            </label>
+            <select
+              value={regime}
+              onChange={(e) => setRegime(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-lg border text-[13px]"
+              style={{ borderColor: 'var(--border)', background: 'var(--input)', color: 'var(--foreground)' }}
+            >
+              <option value={ALL}>Todos</option>
+              {regimes.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+    </Card>
+  )
+}
+
+export function TabLoading({ label }: { label: string }) {
+  return (
+    <Card>
+      <div className="px-5 py-10 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
+        <Loader2 size={18} className="animate-spin" /> {label}
+      </div>
+    </Card>
+  )
+}
+
+export function TabError({ message }: { message: string }) {
+  return (
+    <Card>
+      <ErrorState message={message} />
+    </Card>
+  )
+}
+
+export function TabEmpty({ message }: { message: string }) {
+  return (
+    <Card>
+      <div className="text-center py-10">
+        <div style={{ color: 'var(--ink-500)' }}>{message}</div>
+      </div>
+    </Card>
+  )
+}
+
+// Tile para heroes de fondo oscuro (texto blanco).
+export function HeroTile({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div
+      className="rounded-2xl p-3"
+      style={{
+        background: highlight ? 'rgba(157,115,254,0.18)' : 'rgba(255,255,255,0.10)',
+        border: highlight ? '1px solid rgba(157,115,254,0.45)' : '1px solid rgba(255,255,255,0.18)',
+      }}
+    >
+      <div className="text-[11px] font-extrabold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.75)' }}>
+        {label}
+      </div>
+      <div className="text-[18px] font-extrabold mt-1" style={DISPLAY}>
+        {value}
+      </div>
+    </div>
+  )
+}

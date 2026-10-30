@@ -1,0 +1,131 @@
+'use client'
+
+import { Download, Loader2 } from 'lucide-react'
+import { memo, useEffect, useState } from 'react'
+import { runDeclarationDownload } from '@/features/declarations/actions/runDeclarationDownload.action'
+import { useDownloadCanRun } from '@/features/declarations/hooks/useDeclarationQueries'
+import { useHasPermission } from '../permissions'
+
+interface Props {
+  declarationId: number
+  /** Se llama cuando el POST encoló: el chip de estatus del periodo se re-consulta. */
+  onEncolada?: () => void
+}
+
+/** "30 ago 2026, 8:56 a.m." en hora local del contador. */
+function fechaLocal(iso: string): string {
+  return new Date(iso).toLocaleString('es-MX', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
+const MESES = [
+  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+]
+
+/**
+ * "La descarga estará habilitada a partir del 7 de septiembre del año 2026".
+ * `disponibleDesde` viene como `YYYY-MM-DD` sin huso, así que se parte a mano:
+ * `new Date('2026-09-07')` se interpreta como UTC y en México pintaría el día 6.
+ */
+function disponibleDesdeLabel(fecha: string): string {
+  const [, mes, dia] = fecha.split('-').map(Number)
+  const anio = fecha.slice(0, 4)
+  const nombreMes = MESES[mes - 1] ?? fecha
+  return `La descarga estará habilitada a partir del ${dia} de ${nombreMes} del año ${anio}`
+}
+
+/** "Disponible mañana a las 12:00 a.m." — mismo helper que tab-diagnostico. */
+function ventanaLabel(iso: string): string {
+  const d = new Date(iso)
+  const esOtroDia = d.toDateString() !== new Date().toDateString()
+  const hora = d.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' })
+  return esOtroDia ? `Disponible mañana a las ${hora}` : `Disponible a las ${hora}`
+}
+
+/**
+ * Botón "Descargar archivos SAT" del detalle de declaración (contador). Re-encola la descarga de
+ * los 4 tipos de archivo del periodo. Reglas (todas del backend, aquí solo se pinta el estado):
+ * declaración mensual, periodo ya cerrado, CIEC válida, máximo 1 corrida por día calendario (MX).
+ * Sin el claim `Contador.RunDeclarationDownload` no se pinta nada (ni se consulta).
+ */
+export const DescargarArchivosSatBtn = memo(function DescargarArchivosSatBtn({ declarationId, onEncolada }: Props) {
+  const puede = useHasPermission('Contador.RunDeclarationDownload')
+  // `puede-ejecutar` sale al montar, sin esperar a /general; se vuelve a consultar
+  // después de cada intento de encolar, como antes.
+  const canRunQ = useDownloadCanRun(declarationId, puede)
+  const [running, setRunning] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [runError, setRunError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setNotice(null)
+    setRunError(null)
+  }, [declarationId])
+
+  if (!puede) return null
+
+  const loading = canRunQ.isPending
+  const canRun = canRunQ.isError ? null : (canRunQ.data ?? null)
+  const error = runError ?? (canRunQ.isError ? canRunQ.error.message : null)
+
+  async function ejecutar() {
+    if (running || !canRun?.puedeDescargar) return
+    setRunning(true)
+    setNotice(null)
+    setRunError(null)
+    const res = await runDeclarationDownload(declarationId)
+    setRunning(false)
+    if (!res.success) {
+      setRunError(res.error.message)
+      await canRunQ.refetch()
+      return
+    }
+    setNotice('Descarga encolada — los archivos llegan en unos minutos.')
+    onEncolada?.()
+    await canRunQ.refetch()
+  }
+
+  // Precedencia del motivo de bloqueo (espejo de tab-diagnostico.razon). La ventana del día 7
+  // va DESPUÉS de periodoPasado, igual que en el backend: un periodo del mes en curso recibe su
+  // mensaje propio y no el del día 7.
+  const razon = (() => {
+    if (!canRun || canRun.puedeDescargar) return null
+    if (!canRun.credencialValida) return 'Actualiza la CIEC del contribuyente para descargar.'
+    if (canRun.proximaVentanaUtc) return ventanaLabel(canRun.proximaVentanaUtc)
+    if (!canRun.esMensual) return 'Solo declaraciones mensuales.'
+    if (!canRun.periodoPasado) return 'El periodo aún no cierra.'
+    if (!canRun.ventanaAbierta && canRun.disponibleDesde) {
+      return disponibleDesdeLabel(canRun.disponibleDesde)
+    }
+    return null
+  })()
+
+  const title = razon ?? 'Vuelve a encolar la descarga de los 4 archivos SAT del periodo.'
+
+  return (
+    <div className="flex flex-col gap-1">
+      <button
+        onClick={() => void ejecutar()}
+        disabled={loading || running || !canRun?.puedeDescargar}
+        title={title}
+        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition hover:opacity-95 active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100"
+        style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+      >
+        {running ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+        {running ? 'Encolando…' : 'Descargar archivos SAT'}
+      </button>
+
+      {(canRun?.ultimaDescargaUtc || notice || error) && (
+        <div className="text-[11.5px] leading-tight" style={{ color: error ? 'var(--danger)' : 'var(--ink-500)' }}>
+          {error ?? notice ?? `Última descarga: ${fechaLocal(canRun!.ultimaDescargaUtc as string)}`}
+        </div>
+      )}
+    </div>
+  )
+})

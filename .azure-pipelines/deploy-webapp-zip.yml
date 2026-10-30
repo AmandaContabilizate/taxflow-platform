@@ -1,0 +1,53 @@
+# Paso de deploy reutilizable: zip -> App Service Linux (modo codigo) + smoke check del SHA.
+parameters:
+  - name: azureServiceConnection
+    type: string
+  - name: resourceGroup
+    type: string
+  - name: appName
+    type: string
+
+steps:
+  - download: current
+    artifact: drop
+
+  - task: AzureCLI@2
+    displayName: Deploy zip a ${{ parameters.appName }}
+    inputs:
+      azureSubscription: ${{ parameters.azureServiceConnection }}
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        set -euo pipefail
+        RG='${{ parameters.resourceGroup }}'
+        APP='${{ parameters.appName }}'
+        ZIP="$(Pipeline.Workspace)/drop/taxflow-platform.zip"
+
+        # Assert (no toggle): el sitio debe seguir en modo codigo, no en contenedor.
+        FX=$(az webapp config show -g "$RG" -n "$APP" --query linuxFxVersion -o tsv)
+        case "$FX" in NODE\|*) ;; *) echo "##vso[task.logissue type=error]'$APP' esta en '$FX', no en modo codigo (ver scripts/migrate-prod-off-container.ps1)"; exit 1;; esac
+
+        CMD=$(az webapp config show -g "$RG" -n "$APP" --query appCommandLine -o tsv)
+        if [ "$CMD" != "node server.js" ]; then
+          echo "Startup actual '$CMD'; corrigiendo a 'node server.js'"
+          az webapp config set -g "$RG" -n "$APP" --startup-file "node server.js" -o none
+        fi
+
+        # --track-status espera a que termine la extraccion antes de reiniciar (requiere az >= 2.62).
+        az webapp deploy -g "$RG" -n "$APP" --src-path "$ZIP" --type zip \
+          --clean true --restart true --track-status true
+
+  - bash: |
+      set -uo pipefail
+      EXPECTED=$(cat "$(Pipeline.Workspace)/drop/last-build-sha.txt")
+      URL="https://${{ parameters.appName }}.azurewebsites.net/auth/login"
+      for i in $(seq 1 30); do
+        sleep 5
+        if curl -fsS -m 15 -H 'Cache-Control: no-cache' "$URL" | grep -qF "$EXPECTED"; then
+          echo "OK: SHA $EXPECTED visible en $URL"; exit 0
+        fi
+        echo "intento $i/30: SHA $EXPECTED aun no visible..."
+      done
+      echo "##vso[task.logissue type=error]Tras 150s no aparece el SHA $EXPECTED en $URL"
+      exit 1
+    displayName: Smoke check (SHA en /auth/login)

@@ -1,0 +1,719 @@
+export interface FiscalScoreStatusBreakdown {
+  statusId: number // 1..8
+  status: string // nombre del DeclarationStatus (enum)
+  count: number
+  countsAsPresented: boolean
+}
+
+export interface FiscalScore {
+  rfc: string
+  total: number // total de declaraciones del RFC
+  presented: number // declaraciones que cuentan como presentadas
+  pending: number // total - presented
+  score: number // 0-100 (2 decimales)
+  breakdown: FiscalScoreStatusBreakdown[]
+  hasCsfData: boolean // true si ya se leyó la Constancia de Situación Fiscal al menos una vez
+  isReconciling: boolean // true si el scraper de declaraciones sigue corriendo para este RFC
+  pendingVerificationCount: number // cuántas siguen "Por Revisar" (sembradas, sin confirmar aún)
+}
+
+export interface FiscalScoreError {
+  statusCode: number
+  message: string
+  /** errorCode del backend (TAXPAYER_NOT_FOUND | INVALID_REQUEST | EMAIL_REQUIRED). */
+  code?: string
+}
+
+// Error compartido por las acciones de declaraciones.
+export type DeclarationsError = FiscalScoreError
+
+// --- Descarga de archivos SAT bajo demanda (contador) ---
+
+/**
+ * GET download-files/puede-ejecutar — solo lectura, no dispara nada. Llamar SIEMPRE antes de
+ * pintar el botón (el POST revalida con la misma lógica).
+ */
+export interface CanRunDeclarationDownload {
+  /** PeriodValueId 101..112. */
+  esMensual: boolean
+  /** Periodo ya cerrado en hora de México. */
+  periodoPasado: boolean
+  /** Taxpayer.PasswordState == Valid. */
+  credencialValida: boolean
+  /** Ya se encoló una descarga para esta declaración hoy (día calendario MX). */
+  yaCorrioHoy: boolean
+  /** AND de todo — único campo necesario para habilitar el botón. */
+  puedeDescargar: boolean
+  /** ISO 8601: DateRequest más reciente de los 4 tipos para este periodo. null si nunca. */
+  ultimaDescargaUtc: string | null
+  /** ISO 8601: próxima medianoche MX (en UTC) si yaCorrioHoy. */
+  proximaVentanaUtc: string | null
+  /**
+   * Ya pasó el día 7 del mes siguiente al periodo. Antes de esa fecha el SAT todavía no
+   * tiene los CFDIs de los primeros días, y una descarga prematura queda registrada como
+   * cobertura completa sin serlo — el periodo nunca se vuelve a pedir.
+   */
+  ventanaAbierta: boolean
+  /** `YYYY-MM-DD` (sin huso): fecha desde la que el botón se habilita. null si no es mensual. */
+  disponibleDesde: string | null
+}
+
+/** POST download-files: encolada=false = un click concurrente ganó la carrera (idempotente). */
+export interface RunDeclarationDownloadResult {
+  encolada: boolean
+  ultimaDescargaUtc: string | null
+  proximaVentanaUtc: string | null
+}
+
+/**
+ * GET download-files/estatus-periodo: los 4 combos de descarga SAT del periodo de la
+ * declaración: 0 = gris, nunca se pidió; 1 = verde, completo; 2 = azul, hay algo en curso
+ * (DownloadRequest sin terminar, o todavía en la cola interna de scrapers); 3 = rojo, el
+ * intento más reciente terminó en Error/Expired. "Completo" NO es "existe una corrida
+ * Completed": es que las corridas completadas CUBRAN por unión de rangos la ventana
+ * del periodo (día 1 del mes .. día 6 del mes siguiente) — varias descargas parciales
+ * suman, y una sola de 6 días no cubre un mes. Lee la copia sincronizada, así que
+ * puede ir unos minutos atrás de la descarga real.
+ */
+export interface PeriodDownloadStatus {
+  declarationId: number
+  /** Resueltos desde la declaración; informativos, la UI no los necesita. */
+  rfc: string
+  fiscalYear: number
+  period: number
+  issuedInvoices: number
+  receivedInvoices: number
+  issuedRetentions: number
+  receivedRetentions: number
+}
+
+/** Mensajes en español por errorCode del 400 (el título del ProblemDetails no se parsea). */
+export function declarationDownloadErrorMessage(
+  code: string | undefined,
+  fallback: string,
+): string {
+  switch (code) {
+    case 'NO_VALID_CREDENTIAL':
+      return 'El contribuyente no tiene una CIEC válida. Actualiza su CIEC para descargar.'
+    case 'DOWNLOAD_THROTTLED':
+      return 'Ya se encoló una descarga para esta declaración hoy. Espera un día.'
+    case 'DOWNLOAD_NOT_MONTHLY':
+      return 'Solo las declaraciones mensuales pueden re-descargarse.'
+    case 'DOWNLOAD_PERIOD_NOT_PAST':
+      return 'El periodo aún no cierra: solo se re-descargan periodos pasados.'
+    case 'DOWNLOAD_TAIL_NOT_READY':
+      return 'Todavía no. La descarga se habilita el día 7 del mes siguiente al periodo, cuando el SAT ya tiene todos los CFDIs.'
+    case 'DECLARATION_NOT_FOUND':
+      return 'No encontramos la declaración.'
+    default:
+      return fallback
+  }
+}
+
+// --- Regularizaciones ---
+export type RegularizationBadge = 'NoPresentada' | 'NecesitaCorreccion' | 'EnProceso'
+
+export interface RegularizationMonth {
+  declarationId: number
+  fiscalYear: number
+  month: number
+  periodValueId: number
+  statusId: number
+  statusLabel: string
+  isContracted: boolean
+  badge: RegularizationBadge
+  /** 0 = Normal; >0 = complementaria comprada (llega como mes contratado). */
+  complementNumber?: number
+}
+
+export interface Regularizations {
+  rfc: string
+  totalMonths: number
+  contractedCount: number
+  toContractCount: number
+  advancePercent: number
+  months: RegularizationMonth[]
+}
+
+// --- Plan a futuro ---
+export type FuturePlanBadge = 'Siguiente' | 'Programada'
+
+export interface FuturePlanItem {
+  declarationId: number
+  fiscalYear: number
+  month: number
+  periodValueId: number
+  statusId: number
+  statusLabel: string
+  badge: FuturePlanBadge
+}
+
+export interface FuturePlan {
+  rfc: string
+  presentedThisYear: number
+  remainingInPlan: number
+  upcoming: FuturePlanItem[]
+}
+
+// --- Todas ---
+export interface AllDeclarationItem {
+  declarationId: number
+  fiscalYear: number
+  periodValueId: number | null
+  month: number | null
+  periodicityId: number | null
+  periodicity: string | null // "Mensual" | "Bimestral" | "Anual"
+  statusId: number
+  statusCode: string
+  statusLabel: string
+  taxRegimeId: number | null
+  regimeSatCode: string | null
+  regimeName: string | null
+  /** 1 = Regularización, 2 = Futuro. Null si no tiene venta activa asociada. */
+  declarationKind: number | null
+  acknowledgmentPdfUrl: string | null
+  paymentLinePdfUrl?: string | null
+  paymentAcknowledgmentPdfUrl?: string | null
+  submittedAt: string | null
+  /** 0 = Normal; >0 = complementaria comprada (sustituye a la Normal del periodo). */
+  complementNumber?: number
+}
+
+export interface AllDeclarations {
+  rfc: string
+  items: AllDeclarationItem[]
+}
+
+// --- Anuales ---
+export interface AnnualCurrent {
+  fiscalYear: number
+  prepareFrom: string
+  dueDate: string
+  remainingDays: number
+}
+
+export interface AnnualHistoryItem {
+  fiscalYear: number
+  planName: string
+  saleDate: string
+}
+
+export interface Annuals {
+  rfc: string
+  hasPurchase: boolean
+  current: AnnualCurrent
+  history: AnnualHistoryItem[]
+}
+
+// --- Recálculo y reclasificación manual ---
+
+/**
+ * Corrección manual del contador sobre un CFDI. Solo se mandan los campos que
+ * se quieren cambiar: el clasificador aplica los ajustes con `exclude_unset`, así
+ * que enviar `classification: null` borraría la categoría en vez de dejarla igual.
+ */
+export interface ClassificationAdjustment {
+  uuid: string
+  /** `name` del catálogo de clasificaciones; si no existe, el backend responde 422. */
+  classification?: string
+  isDeductible?: boolean
+  /** true = gasto, false = ingreso. */
+  isExpense?: boolean
+  activityId?: number
+  reason?: string
+  /**
+   * E2: hasta dónde llega el ajuste. Default "declaration" (no escribe regla,
+   * solo afecta este recálculo). "client"/"global" además memorizan una regla
+   * 625 por cada clave de `productKeys`, con `rfc` del contribuyente o NULL.
+   */
+  scope?: ClassificationAdjustmentScope
+  /** Claves prod/serv a las que aplica la regla cuando `scope` no es "declaration". */
+  productKeys?: string[]
+}
+
+export type ClassificationAdjustmentScope = 'declaration' | 'client' | 'global'
+
+/** Alcance elegido por fila en la pestaña Recálculo. */
+export interface RecalcScopeState {
+  scope: ClassificationAdjustmentScope
+}
+
+/** Categoría de `classification.clasificacion` (GET catalogs/classifications). */
+export interface ClassificationCategory {
+  id: number
+  name: string
+  isExpense: boolean
+  description: string | null
+}
+
+/** Clasificación de un comprobante dentro del resultado del recálculo. */
+export interface RecalculatedClassification {
+  uuid: string
+  classification: string | null
+  isDeductible: boolean
+  isExpense: boolean
+  reason: string | null
+}
+
+/**
+ * Cuántos XML llegaron realmente al clasificador. Va a propósito en el contrato:
+ * si el cálculo se ve raro, aquí se ve si el problema está en el payload.
+ */
+export interface RecalculationInputSummary {
+  issuedXmlCount: number
+  receivedXmlCount: number
+  totalXmlCount: number
+  manualDeductions: number
+  yearToDateIvaFavor: number | null
+}
+
+/**
+ * Respuesta de `POST declaration/recalculate`. Ya trae los datos nuevos, así que
+ * la pantalla se repinta sin un segundo round-trip al terminar el spinner.
+ */
+export interface RecalculationResult {
+  declarationId: number
+  rfc: string
+  fiscalYear: number
+  periodValueId: number | null
+  regimeSatCode: string
+  statusId: number
+  /** true = corrió con ajustes manuales (reclasificación). */
+  reclassified: boolean
+  /** UUID de los ajustes que el clasificador alcanzó a aplicar. */
+  appliedAdjustments: string[]
+  accumulatedIncome: number | null
+  annualTax: number | null
+  withheldTax: number | null
+  totalDeclaration: number | null
+  personalDeductions: number | null
+  income: number | null
+  ivaCargo: number | null
+  ivaFavor: number | null
+  ivaIngresos: number | null
+  ivaGastos: number | null
+  ivaRetenido: number | null
+  isrRetenido: number | null
+  /** JSON crudo del clasificador; su forma depende del régimen. */
+  isrDetail: Record<string, unknown> | null
+  ivaDetail: Record<string, unknown> | null
+  classifications: RecalculatedClassification[]
+  input: RecalculationInputSummary
+  /**
+   * Avisos del clasificador cuando lo facturado (`invoiced`) es menor a lo
+   * que la plataforma reportó (`platformReported`); en el 625 implica CFDI
+   * de ingreso pendientes de emitir. `[]`/`null`/ausente = sin avisos.
+   */
+  invoicingWarnings?: InvoicingWarning[] | null
+}
+
+export interface InvoicingWarning {
+  section: string | null
+  concept: string | null
+  invoiced: number | null
+  platformReported: number | null
+  missingInvoicing: number | null
+}
+
+/**
+ * Factura del periodo con su clasificación (`DeclarationInvoiceItemDto`).
+ * OJO: no es el mismo DTO que `DeclarationInvoice` de operaciones — este sale de
+ * Procedures y trae el universo completo del periodo, incluidas las no deducibles
+ * y las de declaraciones en proceso.
+ */
+export interface DeclarationPeriodInvoice {
+  id: number
+  uuid: string
+  folio: string | null
+  issuer: { rfc: string; name: string } | null
+  receiver: { rfc: string; name: string } | null
+  /** Fecha de expedición del CFDI. */
+  invoiceDate: string
+  /** Fecha de timbrado. */
+  stampDate: string
+  total: number
+  uso: string | null
+  /** Descripción del tipo de CFDI ("Ingreso", "Egreso", …). */
+  typeId: string
+  /** Enum TipoComprobante: 0 desconocido, 1 I, 2 E, 3 T, 4 N, 5 P. */
+  tipoComprobante: number
+  /** Enum StatusComprobante: 0 desconocido, 1 vigente, 2 cancelado, 3 pendiente. */
+  statusComprobante: number
+  status: string
+  /** true = el contribuyente es el emisor. */
+  isIssued: boolean
+  declarationId: number | null
+  /** null = todavía no se ha clasificado. */
+  isDeductible: boolean | null
+  reason: string | null
+  classification: string | null
+  classificationId: number | null
+  isExpense: boolean | null
+  activityId: number | null
+  /**
+   * true = el contador lo ajustó a mano: un recálculo completo no lo reclasifica y
+   * la propagación de otro ajuste por clave no lo toca. Opcional mientras haya un
+   * back que no lo mande.
+   */
+  isManualAdjustment?: boolean
+  /** Claves prod/serv SAT de los conceptos. */
+  productServiceKeys: string[]
+  /** Suma de Invoices.Withholds; null si el CFDI no trae retenciones. */
+  withheldAmount: number | null
+  withheldTaxableAmount: number | null
+  /**
+   * Periodo que declara la factura global (Publico en General): "Febrero 2025" o
+   * "Enero-Febrero 2025". null cuando el CFDI no es global.
+   */
+  period: string | null
+  subTotal: number | null
+  /** Suma de PaymentComplements.PaidAmount. Solo tipoComprobante Pago; null en los demás y en Pago sin complemento. */
+  paidAmount: number | null
+  /**
+   * UUID de las facturas que liquida el complemento (un CFDI de pago puede liquidar
+   * varias). Solo tipoComprobante Pago; vacío o ausente = no hay factura padre en el sistema.
+   */
+  parentInvoiceUuids?: string[] | null
+  ivaAmount: number | null
+  paymentMethodCode: string | null
+  paymentMethodName: string | null
+  wayOfPaymentCode: string | null
+  wayOfPaymentName: string | null
+  concepts: DeclarationPeriodInvoiceConcept[]
+  conceptsSummary: string | null
+  conceptsCount: number
+  receiverRegimeId: number | null
+  receiverRegimeCode: string | null
+  receiverRegimeName: string | null
+  /** E3: factura de otro régimen del contribuyente, visible pero no computable. */
+  isOtherRegime: boolean
+  /** PPD sin complemento: descargada, visible, pero no computable hasta que se pague. Independiente de isOtherRegime. */
+  isPpdWithoutComplement: boolean
+}
+
+export interface DeclarationPeriodInvoiceConcept {
+  productCode: string | null
+  description: string | null
+  quantity: number
+  unitPrice: number
+  subtotal: number
+  discount: number
+}
+
+/**
+ * Lo minimo que necesita la pantalla de detalle del contribuyente. Se arma desde
+ * `AllDeclarationItem` mas el RFC/razon social del RFC activo: el cliente no puede
+ * pegarle al EP `/general` (es de contadores).
+ */
+export interface ClientDeclarationSubject {
+  declarationId: number
+  rfc: string
+  legalName: string
+  /** Etiqueta ya resuelta del periodo ("Mayo 2025" o "Ejercicio 2025"). */
+  periodo: string
+  fiscalYear: number
+  statusCode: string
+  statusLabel: string
+  regimeName: string | null
+  periodicity: string | null
+  acknowledgmentPdfUrl: string | null
+  paymentLinePdfUrl?: string | null
+  paymentAcknowledgmentPdfUrl?: string | null
+  submittedAt: string | null
+  /**
+   * Solo en 19 Cancelada (gerencia comercial): fecha del último `DeclarationLog` con NewStatusId 19.
+   * El DTO de `/all` aún no la trae; cuando lo haga, la nota del detalle la pinta.
+   */
+  cancelledAt?: string | null
+  /** 0 = Normal; >0 = complementaria. */
+  complementNumber?: number
+  /** Solo en la Vista del cliente (backoffice): pide las rutas espejo con este contribuyente. */
+  taxpayerId?: number
+}
+
+/**
+ * Una presentacion del periodo (`DeclarationFilingItemDto`): la Normal o cada complementaria.
+ * Son las pestañas de la pantalla de detalle.
+ */
+export interface DeclarationFiling {
+  declarationId: number
+  /** 0 = Normal; 1..N = cada complementaria, en orden. */
+  complementNumber: number
+  /** La presentacion vigente del periodo. */
+  isCurrent: boolean
+  operationNumber: string | null
+  /** Tipo de complementaria tal como lo imprime el SAT; null en la Normal. */
+  complementaryType: string | null
+  statusId: number
+  statusCode: string
+  statusLabel: string
+  submittedAt: string | null
+  presentedDate: string | null
+  acknowledgmentPdfUrl: string | null
+  paymentLinePdfUrl: string | null
+  paymentAcknowledgmentPdfUrl: string | null
+}
+
+export interface DeclarationFilings {
+  declarationId: number
+  /** La Normal primero. */
+  items: DeclarationFiling[]
+}
+
+/**
+ * Lo que el lector externo saco de los PDFs del SAT de una declaracion (`DeclarationSatReadingDto`).
+ * Campos en ContaboxPro.Backend/docs/lectura-acuses-sat-campos-modal.md. `null` en un dato =
+ * el PDF no lo trae (no es cero). Fechas sin hora (`YYYY-MM-DD`) en los campos *On / *Date / ValidUntil.
+ */
+export interface DeclarationSatReading {
+  declarationId: number
+  operationNumber: string | null
+  hasPdfError: boolean
+  failedPdfs: number
+  pendingPdfs: number
+  acknowledgment: SatDocumentReading | null
+  paymentLine: SatDocumentReading | null
+  paymentReceipt: SatDocumentReading | null
+}
+
+export interface SatDocumentReading {
+  /** 1 = Leido, 2 = Con error. */
+  readStatusId: number
+  /** Codigo de Catalogs.DocumentReadError (OperationNumberMismatch, NoText…). */
+  errorCode: string | null
+  errorDetail: string | null
+  readAt: string
+  operationNumber: string | null
+  filingType: string | null
+  complementaryType: string | null
+  presentedAt: string | null
+  obligationDueDate: string | null
+  issuedAt: string | null
+  formVersion: number | null
+  taxes: SatDocumentTax[]
+  paymentLine: SatPaymentLine | null
+  bankPayment: SatBankPayment | null
+  determinations: SatTaxDetermination[]
+}
+
+export interface SatDocumentTax {
+  concept: string
+  /** ISR / IVA / IEPS. */
+  taxCode: string
+  amountCharged: number | null
+  updatedPart: number | null
+  surcharges: number | null
+  totalApplications: number | null
+  amountDue: number | null
+  amountToPay: number | null
+  amountInFavor: number | null
+  priorPaymentDate: string | null
+  amountPreviouslyPaid: number | null
+  priorPayments: SatPriorPayment[]
+}
+
+export interface SatPriorPayment {
+  priorOperationNumber: string
+  captureLineCode: string
+  bank: string
+  paidOn: string
+  bankOperationNumber: string
+  paymentKey: string
+  amountPaid: number
+}
+
+export interface SatPaymentLine {
+  captureLineCode: string
+  totalToPay: number
+  validUntil: string
+}
+
+export interface SatBankPayment {
+  bank: string
+  paidOn: string
+  bankOperationNumber: string
+  paymentKey: string
+}
+
+export interface SatTaxDetermination {
+  concept: string
+  taxCode: string
+  incomeCollected: number | null
+  taxableBase: number | null
+  /** Fraccion: 0.01 = 1%. */
+  rateApplied: number | null
+  monthlyTax: number | null
+  isrWithheld: number | null
+  vatTransferred: number | null
+  vatWithheld: number | null
+  vatCreditable: number | null
+  priorFavorBalanceApplied: number | null
+  pueInvoicesValid: number | null
+  pueInvoicesCancelled: number | null
+}
+
+/**
+ * CFDI de una declaracion visto por el cliente (`ClientDeclarationInvoiceDto`).
+ * A proposito no trae clasificacion: solo el detalle del comprobante y si quedo
+ * deducible (sale de `DeclarationInvoice.IsValid`).
+ */
+export interface ClientDeclarationInvoice {
+  id: number
+  uuid: string
+  folio: string | null
+  issuer: { rfc: string; name: string } | null
+  receiver: { rfc: string; name: string } | null
+  /** Fecha de expedicion del CFDI. */
+  invoiceDate: string
+  /** Fecha de timbrado. */
+  stampDate: string
+  total: number
+  uso: string | null
+  /** Descripcion del tipo de CFDI ("Ingreso", "Egreso", ...). */
+  typeId: string
+  /** Enum TipoComprobante: 0 desconocido, 1 I, 2 E, 3 T, 4 N, 5 P. */
+  tipoComprobante: number
+  /** Enum StatusComprobante: 0 desconocido, 1 vigente, 2 cancelado. */
+  statusComprobante: number
+  status: string
+  /** true = el contribuyente es el emisor. */
+  isIssued: boolean
+  /** null = el clasificador todavia no la evaluo. */
+  isDeductible: boolean | null
+}
+
+// --- Comentarios ---
+export interface DeclarationComment {
+  id: number
+  declarationId: number
+  authorUserId: string
+  authorName: string
+  authorRole: string | null
+  body: string
+  createdAt: string
+}
+
+// --- Vista del contador: compras agrupadas por contribuyente ---
+
+/** Envelope paginado de los endpoints `*-by-taxpayer` / `*-taxpayers`. */
+export interface PagedDeclarations<T> {
+  items: T[]
+  total: number
+  skip: number
+  take: number
+  /** Conteo por nivel del semáforo sobre todo el universo filtrado; solo si se pidió `includeReadinessCounts`. */
+  readinessCounts?: ReadinessCounts | null
+}
+
+export interface ReadinessCounts {
+  ok: number
+  warning: number
+  blocked: number
+}
+
+/**
+ * Régimen de las declaraciones compradas del contribuyente (`RegimeItemDto`).
+ * `id` es el Id interno de `Users.TaxRegimes` (lo que espera `taxRegimeId`);
+ * `satCode` es el código SAT ("625", "626"), que solo sirve para pintar.
+ */
+export interface TaxpayerRegime {
+  id: number
+  satCode: string | null
+  name: string | null
+}
+
+/** Nivel 1: contribuyente con declaraciones compradas y en proceso. */
+export interface TaxpayerGroup {
+  taxpayerId: number
+  rfc: string
+  legalName: string | null
+  email: string | null
+  declarationCount: number
+  /** De declarationCount, cuántas se compraron a futuro. */
+  futureCount?: number
+  /** De declarationCount, cuántas se compraron como regularización. */
+  regularizationCount?: number
+  /** Fecha de su primera venta pagada (ISO). Null si no tiene ninguna pagada. */
+  clienteDesde?: string | null
+  lastFiscalYear: number | null
+  /**
+   * Estado de la CIEC del RFC (Users.Taxpayers.PasswordState): 0 sin verificar,
+   * 1 válida, 2 inválida. Los tres se muestran por separado.
+   */
+  ciecState?: number
+  /**
+   * Regímenes distintos de sus declaraciones bajo los filtros aplicados. Nunca
+   * null desde el backend, pero puede venir `[]` (declaraciones sin régimen).
+   */
+  regimes?: TaxpayerRegime[]
+  /** Contador asignado hoy al contribuyente (TaxpayerAccountant activo). Null = sin asignar. */
+  accountantUserId?: string | null
+  accountantName?: string | null
+}
+
+/** Fila de `Catalogs.StatusDeclaration` (GET catalogs/declaration-statuses). */
+export interface DeclarationStatusCatalogItem {
+  id: number
+  description: string
+}
+
+/**
+ * Nivel 2. Desde E5.1 tanto `declarations-by-taxpayer` como
+ * `regularizations-by-taxpayer` exponen `declarationKind` (1 regularización,
+ * 2 a futuro); se deja opcional por si algún origen viejo no lo trae.
+ */
+export interface TaxpayerDeclarationItem {
+  declarationId: number
+  rfc: string
+  taxpayerId: number
+  fiscalYear: number
+  periodValueId: number | null
+  month: number | null
+  periodLabel: string | null
+  taxRegimeId: number
+  taxRegimeName: string | null
+  statusId: number
+  /** `Catalogs.StatusDeclaration.Code` (EnProceso, Presentada, RebotadaCliente…). */
+  statusCode?: string | null
+  statusLabel: string | null
+  /** 1 = regularización, 2 = plan a futuro. */
+  declarationKind?: number
+  assignedToUser: string | null
+  /** Razón social del contribuyente (las listas sin `rfc` mezclan contribuyentes). */
+  legalName?: string | null
+  /** Semáforo de posteo; sólo viene en estatus 11 (PorPresentar). */
+  postingReadiness?: PostingReadiness | null
+  createdAt?: string | null
+  /** `Users.Taxpayers.PasswordState`: 0 sin verificar, 1 válida, 2 inválida. */
+  ciecState?: number
+  /** 0 = presentación normal; > 0 = número de complementaria. */
+  complementNumber?: number
+}
+
+/**
+ * Por qué el robot no presentará una declaración en PorPresentar (11). Lo calcula el back con la
+ * MISMA validación que corre la cola de posteo.
+ * - `blocked` (rojo): no se puede presentar ni autorizándola (sin CIEC, sin cálculo, régimen sin robot).
+ * - `warning` (amarillo): el robot no la toma, pero el GO puede autorizarla (sin pago, descargas incompletas…).
+ * - `ok`: el robot la tomará en su siguiente corrida.
+ */
+export interface PostingReadiness {
+  level: 'ok' | 'warning' | 'blocked'
+  blockers: string[]
+  warnings: string[]
+  /**
+   * Último intento de posteo en la cola: `queued` (en espera o reintentando), `processing` (el robot
+   * la está presentando o espera acuse) o null (sin intento vivo: se puede enviar).
+   */
+  queueState?: 'queued' | 'processing' | null
+}
+
+/** Respuesta de `POST /Declaration/{id}/force-post`. */
+export interface ForcePostResult {
+  declarationId: number
+  /** Cola a la que fue: posting-625 / posting-626 / posting-complementary. */
+  task: string
+  /** false = ya había un intento vivo para esta declaración; no se duplicó. */
+  enqueued: boolean
+  taskAttemptId: number | null
+}

@@ -1,0 +1,1286 @@
+'use client'
+
+import {
+  AlertCircle,
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Check,
+  Columns3,
+  Copy,
+  Loader2,
+  Search,
+} from 'lucide-react'
+import { type ReactNode, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import type { InvoiceFilterKey, WithholdingFilterKey } from '@/features/declarations/hooks/declarationQueryKeys'
+import {
+  useDeclarationInvoices,
+  useDeclarationWithholdings,
+} from '@/features/declarations/hooks/useDeclarationQueries'
+import { getDeclarationInvoices } from '@/features/operations/actions/getDeclarationInvoices.action'
+import type {
+  DeclarationInvoice,
+  DeclarationInvoiceConcepto,
+  InvoiceCuadre,
+  InvoiceSortBy,
+  InvoiceSortDir,
+  PagedConTotales,
+  Retencion,
+} from '@/features/operations/types'
+import { Pagination } from '../clientes/parts'
+import { MONO } from '../constants'
+import { Card } from '../ui'
+import { useUrlState } from '../url-state'
+import { type ColumnKey, COLUMN_DEFS, type ColumnDef } from './column-defs'
+import { ColumnsModal, FilterSelect } from './filter-columns'
+
+const TAKE = 100
+
+/** Página vacía con identidad estable (no se reconstruye en cada render). */
+const EMPTY_PAGE: PagedConTotales<DeclarationInvoice> = { items: [], total: 0, skip: 0, take: TAKE }
+
+/**
+ * Alto máximo del cuerpo de la tabla. El scroll vertical vive DENTRO de la
+ * tabla, no en la página: con 100 filas la paginación quedaba hasta el fondo y
+ * el contador no veía que hubiera una página siguiente.
+ */
+const TABLE_MAX_H = 'min(62vh, 620px)'
+
+/** Catálogo de `invoiceTypeId` del backend; fuera de 1-5 responde INVALID_REQUEST. */
+type InvoiceTypeId = 1 | 2 | 3 | 4 | 5
+
+const INVOICE_TYPES: [InvoiceTypeId, string][] = [
+  [1, 'Ingreso'],
+  [2, 'Egreso'],
+  [3, 'Traslado'],
+  [4, 'Pago'],
+  [5, 'Nómina'],
+]
+
+/** Columnas que la tabla ya mostraba, más IVA (nueva). */
+const DEFAULT_COLUMNS: ColumnKey[] = [
+  'tipo',
+  'comprobante',
+  'emisor',
+  'receptor',
+  'subtotal',
+  'iva',
+  'total',
+  'clasificacion',
+]
+
+const money = (v: string | number | null) => {
+  const n = typeof v === 'string' ? Number(v) : v
+  if (n == null || !Number.isFinite(n)) return '—'
+  return n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2 })
+}
+
+const toNumber = (v: string | number | null | undefined) => {
+  const n = typeof v === 'string' ? Number(v) : v
+  return n != null && Number.isFinite(n) ? n : 0
+}
+
+const fmtDate = (iso: string | null) => {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+/**
+ * Fecha que define a qué periodo pertenece la factura. Para nómina es la fecha
+ * de pago, no la del CFDI: una factura del 3-feb con pago del 23-ene cae en enero.
+ */
+const periodDate = (inv: DeclarationInvoice) =>
+  inv.esNomina && inv.fechaPagoNomina ? inv.fechaPagoNomina : inv.invoiceDate
+
+function Chip({
+  children,
+  bg,
+  fg,
+  title,
+}: {
+  children: React.ReactNode
+  bg: string
+  fg: string
+  title?: string
+}) {
+  return (
+    <span
+      title={title}
+      className="inline-flex px-2 py-0.5 rounded-md text-[11px] font-bold whitespace-nowrap"
+      style={{ background: bg, color: fg }}
+    >
+      {children}
+    </span>
+  )
+}
+
+/** El UUID va completo (es el dato con el que se busca en el SAT) y se copia al hacer click. */
+function UuidCopy({ uuid }: { uuid: string }) {
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    if (!copied) return
+    const t = setTimeout(() => setCopied(false), 1600)
+    return () => clearTimeout(t)
+  }, [copied])
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(uuid)
+      setCopied(true)
+    } catch {
+      /* clipboard bloqueado (http o permisos): el UUID igual se ve completo */
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      title={copied ? 'UUID copiado' : 'Copiar UUID'}
+      className="group flex items-start gap-1 -mx-1 px-1 py-0.5 rounded text-left transition-colors hover:bg-[var(--ink-50)]"
+    >
+      <code
+        className="text-[10.5px] leading-[1.45] break-all uppercase"
+        style={{ ...MONO, color: 'var(--ink-500)' }}
+      >
+        {uuid}
+      </code>
+      {copied ? (
+        <Check size={11} className="shrink-0 mt-[2px]" style={{ color: 'var(--brand-700)' }} />
+      ) : (
+        <Copy
+          size={11}
+          className="shrink-0 mt-[2px] opacity-0 transition-opacity group-hover:opacity-100"
+          style={{ color: 'var(--ink-500)' }}
+        />
+      )}
+    </button>
+  )
+}
+
+function FolioCell({ inv }: { inv: DeclarationInvoice }) {
+  const folio = [inv.serie, inv.folio].filter(Boolean).join('-')
+
+  return (
+    <div className="flex flex-col gap-1 min-w-[176px]">
+      <span className="font-semibold" style={{ color: 'var(--ink-900)' }}>
+        {folio || 'Sin folio'}
+      </span>
+      {inv.uuid ? (
+        <UuidCopy uuid={inv.uuid} />
+      ) : (
+        <span className="text-[10.5px]" style={{ color: 'var(--ink-500)' }}>
+          Sin UUID
+        </span>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Facturas que liquida un complemento de pago. Un CFDI de pago puede liquidar
+ * varias; lista vacía significa que no existe factura padre, no que falte el dato.
+ */
+export function FacturasPadre({ uuids }: { uuids?: string[] | null }) {
+  const list = uuids ?? []
+
+  return (
+    <div className="flex flex-col gap-0.5 items-start min-w-[176px]">
+      <span className="text-[10.5px] font-semibold" style={{ color: 'var(--ink-700)' }}>
+        {list.length > 1 ? 'Facturas padre' : 'Factura padre'}
+      </span>
+      {list.length === 0 ? (
+        <span className="text-[10.5px] leading-snug" style={{ color: 'var(--ink-500)' }}>
+          Este complemento no tiene factura padre
+        </span>
+      ) : (
+        list.map((uuid) => <UuidCopy key={uuid} uuid={uuid} />)
+      )}
+    </div>
+  )
+}
+
+/** `clasificada` es la bandera; no se infiere por nulls. */
+function ClasificacionCell({ inv }: { inv: DeclarationInvoice }) {
+  if (inv.esOtroRegimen) {
+    return <OtroRegimenChip motivo={inv.motivo} />
+  }
+
+  if (inv.esPpdSinComplemento) {
+    return <PpdSinComplementoChip motivo={inv.motivo} />
+  }
+
+  if (!inv.clasificada) {
+    return (
+      <Chip bg="var(--muted)" fg="var(--ink-500)">
+        Sin clasificar
+      </Chip>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-1 min-w-[180px]">
+      <div className="flex flex-wrap items-center gap-1">
+        {inv.isDeducible === true && (
+          <Chip bg="var(--brand-50)" fg="var(--brand-700)">Deducible</Chip>
+        )}
+        {inv.isDeducible === false && (
+          <Chip bg="var(--coral-soft)" fg="var(--violet-ink)" title={inv.motivo ?? undefined}>
+            No deducible
+          </Chip>
+        )}
+        {inv.isGasto != null && (
+          <Chip
+            bg="var(--ink-50)"
+            fg="var(--ink-700)"
+            title="Naturaleza del comprobante; la deducibilidad va aparte"
+          >
+            {inv.isGasto ? 'Gasto' : 'Ingreso'}
+          </Chip>
+        )}
+      </div>
+      {inv.clasificacion && (
+        <span className="text-[12px] font-semibold" style={{ color: 'var(--ink-900)' }}>
+          {inv.clasificacion}
+        </span>
+      )}
+      {inv.actividad && (
+        <span className="text-[11.5px]" style={{ color: 'var(--ink-500)' }}>
+          {inv.actividad}
+        </span>
+      )}
+      {/* `motivo` sale de la nota de la declaración, así que puede venir aunque
+          sí sea deducible; solo se pinta en rojo cuando no lo es. */}
+      {inv.motivo && (
+        <span
+          className="text-[11.5px] leading-snug"
+          style={{ color: inv.isDeducible === false ? 'var(--violet-ink)' : 'var(--ink-500)' }}
+        >
+          {inv.motivo}
+        </span>
+      )}
+    </div>
+  )
+}
+
+/** E3: la fila no pertenece al régimen de la declaración, es visible pero no computable. */
+export function OtroRegimenChip({ motivo }: { motivo: string | null }) {
+  return (
+    <Chip bg="var(--ink-50)" fg="var(--ink-500)" title={motivo ?? undefined}>
+      Otro régimen
+    </Chip>
+  )
+}
+
+/**
+ * PPD sin complemento: no es un error ni falta nada, es el flujo normal de una
+ * factura en parcialidades mientras el proveedor no paga y timbra el complemento.
+ * Se usa el violeta de "pendientes" del theming (no el rojo/coral de error) y
+ * "En espera de pago" en vez de "sin complemento"/"incompleta" para que el
+ * contador lea un estado esperado, no algo roto que perseguir.
+ */
+export function PpdSinComplementoChip({ motivo }: { motivo: string | null }) {
+  return (
+    <Chip bg="var(--violet-soft)" fg="var(--violet)" title={motivo ?? undefined}>
+      En espera de pago
+    </Chip>
+  )
+}
+
+/** Nombre resuelto por el backend; el id crudo solo se ve si el catálogo no vino. */
+export function CatalogCell({ name, id }: { name: string | null; id: number | string | null }) {
+  if (name) return <span style={{ color: 'var(--ink-700)' }}>{name}</span>
+  if (id != null) {
+    return (
+      <span style={{ color: 'var(--ink-500)' }} title="Catálogo no resuelto por el backend">
+        #{id}
+      </span>
+    )
+  }
+  return <span style={{ color: 'var(--ink-500)' }}>—</span>
+}
+
+interface ConceptoLike {
+  productCode: string | null
+  description: string | null
+  quantity: string | number | null
+  unitPrice: string | number | null
+  subtotal: string | number | null
+  discount: string | number | null
+}
+
+/**
+ * Conceptos: resumen siempre visible; con más de uno, popover con el detalle
+ * completo. Compartida por Comprobantes (carga bajo demanda) y Recálculo (ya
+ * trae `concepts` completo, así que `loading`/`error` siempre van en falso).
+ */
+export function ConceptosCell({
+  resumen,
+  count,
+  concepts,
+  loading,
+  error,
+  onOpen,
+}: {
+  resumen: string | null
+  count: number
+  concepts: ConceptoLike[] | undefined
+  loading: boolean
+  error: string | null
+  onOpen: () => void
+}) {
+  if (!resumen && count === 0) {
+    return <span style={{ color: 'var(--ink-500)' }}>—</span>
+  }
+  if (count <= 1) {
+    return <span style={{ color: 'var(--ink-700)' }}>{resumen ?? '—'}</span>
+  }
+
+  return (
+    <Popover onOpenChange={(open) => open && onOpen()}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="text-left underline decoration-dotted underline-offset-2"
+          style={{ color: 'var(--brand-700)' }}
+        >
+          {resumen}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 max-h-72 overflow-y-auto">
+        <div className="text-[12px] font-bold mb-2" style={{ color: 'var(--foreground)' }}>
+          {count} conceptos
+        </div>
+        {loading ? (
+          <div className="flex items-center gap-2 text-[12px]" style={{ color: 'var(--ink-500)' }}>
+            <Loader2 size={14} className="animate-spin" /> Cargando…
+          </div>
+        ) : error && !concepts ? (
+          <div className="text-[12px]" style={{ color: 'var(--violet-ink)' }}>{error}</div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {(concepts ?? []).map((c, i) => (
+              <div
+                key={i}
+                className="text-[12px] pb-2"
+                style={i < (concepts?.length ?? 0) - 1 ? { borderBottom: '1px solid var(--border)' } : undefined}
+              >
+                <div className="font-semibold" style={{ color: 'var(--foreground)' }}>
+                  {c.description ?? 'Sin descripción'}
+                </div>
+                <div style={{ color: 'var(--ink-500)' }}>
+                  {c.productCode ?? '—'} · {c.quantity ?? '—'} × {money(c.unitPrice)} = {money(c.subtotal)}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function SortIcon({ active, dir }: { active: boolean; dir: InvoiceSortDir }) {
+  if (!active) return <ArrowUpDown size={12} style={{ opacity: 0.45 }} />
+  return dir === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />
+}
+
+function SortableHeader({
+  label,
+  active,
+  dir,
+  onClick,
+}: {
+  label: string
+  active: boolean
+  dir: InvoiceSortDir
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-1 font-extrabold whitespace-nowrap"
+      style={{ color: active ? 'var(--brand-700)' : 'var(--ink-700)' }}
+    >
+      {label}
+      <SortIcon active={active} dir={dir} />
+    </button>
+  )
+}
+
+const MESES = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+
+/** Periodo que declara el propio CFDI de retención; puede no ser el de la declaración. */
+const retencionPeriodo = (r: Retencion) => {
+  const ini = MESES[r.beginMonth] ?? r.beginMonth
+  const fin = MESES[r.endMonth] ?? r.endMonth
+  return r.beginMonth === r.endMonth ? `${ini} ${r.year}` : `${ini}–${fin} ${r.year}`
+}
+
+/** Colores por impuesto; el backend ya resuelve 001/002/003, el code es el fallback. */
+const IMPUESTO_STYLE: Record<string, { bg: string; fg: string }> = {
+  ISR: { bg: 'var(--violet-soft)', fg: 'var(--violet)' },
+  IVA: { bg: 'var(--sky-soft)', fg: 'var(--sky)' },
+  IEPS: { bg: 'var(--hero-amber-icon-bg)', fg: 'var(--ink-900)' },
+}
+
+function RetencionBlock({ r }: { r: Retencion }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Chip bg="var(--ink-50)" fg="var(--ink-700)" title="Periodo declarado por el CFDI de retención">
+          {retencionPeriodo(r)}
+        </Chip>
+        <span style={{ ...MONO, fontSize: '11.5px', color: 'var(--ink-500)' }}>
+          Base {money(r.totalTaxableAmount)}
+        </span>
+      </div>
+      <div className="flex flex-col gap-1">
+        {r.detalle.map((d, i) => {
+          const nombre = d.impuesto || d.retentionTaxCode || '—'
+          const st = IMPUESTO_STYLE[nombre] ?? { bg: 'var(--muted)', fg: 'var(--ink-700)' }
+          return (
+            <div key={`${d.retentionTaxCode}-${i}`} className="flex flex-wrap items-center gap-1.5">
+              <Chip bg={st.bg} fg={st.fg} title={d.retentionPaymentType ?? undefined}>
+                {nombre}
+              </Chip>
+              <span style={{ ...MONO, fontSize: '11.5px', color: 'var(--ink-900)' }}>
+                {money(d.retentionAmount)}
+              </span>
+              <span className="text-[11px]" style={{ color: 'var(--ink-500)' }}>
+                sobre {money(d.retentionBaseAmount)}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/** Solo el 625 depende de las constancias de retención para sus ingresos. */
+const REGIMEN_PLATAFORMAS = '625'
+
+/**
+ * El CFDI de Egreso es la nota de crédito: cancela o reduce lo facturado, así que
+ * en cualquier total va en NEGATIVO. Sumarlo al derecho es lo que hacía que la
+ * franja de totales no cuadrara contra Ingresos Brutos — el cálculo sí lo resta.
+ * `tipoComprobante` es el nombre ya resuelto por el backend (TipoComprobanteName).
+ */
+const esEgreso = (inv: DeclarationInvoice) => inv.tipoComprobante === 'Egreso'
+const signo = (inv: DeclarationInvoice) => (esEgreso(inv) ? -1 : 1)
+
+/* -------------------------------------------------------------------------- */
+/*  Filas (memoizadas: escribir en el buscador no las repinta)                */
+/* -------------------------------------------------------------------------- */
+
+const RetencionRow = memo(function RetencionRow({ inv }: { inv: DeclarationInvoice }) {
+  return (
+    <tr style={{ borderBottom: '1px solid var(--border)' }}>
+      <td className="px-3 py-3 whitespace-nowrap align-top" style={{ color: 'var(--ink-900)' }}>
+        {fmtDate(inv.invoiceDate)}
+      </td>
+      <td className="px-3 py-3 align-top">
+        <FolioCell inv={inv} />
+      </td>
+      <td className="px-3 py-3 align-top">
+        <Chip
+          bg={inv.isIssued ? 'var(--sky-soft)' : 'var(--ink-50)'}
+          fg={inv.isIssued ? 'var(--sky)' : 'var(--ink-700)'}
+        >
+          {inv.isIssued ? 'Emitida' : 'Recibida'}
+        </Chip>
+      </td>
+      <td className="px-3 py-3 align-top">
+        <div style={{ color: 'var(--ink-900)' }}>{inv.emitterName}</div>
+        <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-500)' }}>{inv.emitterRfc}</code>
+      </td>
+      <td className="px-3 py-3 align-top">
+        <div style={{ color: 'var(--ink-900)' }}>{inv.receiverName}</div>
+        <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-500)' }}>{inv.receivedRfc}</code>
+      </td>
+      <td className="px-3 py-3 align-top min-w-[260px]">
+        <div className="flex flex-col gap-2.5">
+          {(inv.retenciones ?? []).map((r, i) => (
+            <RetencionBlock key={`${inv.invoiceId}-${i}`} r={r} />
+          ))}
+        </div>
+      </td>
+      <td
+        className="px-3 py-3 whitespace-nowrap align-top font-semibold"
+        style={{ ...MONO, color: 'var(--ink-900)' }}
+      >
+        {money(inv.totalRetenido ?? null)}
+      </td>
+    </tr>
+  )
+})
+
+const InvoiceRow = memo(function InvoiceRow({
+  inv,
+  visibleColumns,
+  concepts,
+  conceptsLoading,
+  conceptsError,
+  onLoadConcepts,
+}: {
+  inv: DeclarationInvoice
+  visibleColumns: ColumnDef[]
+  concepts: DeclarationInvoiceConcepto[] | undefined
+  conceptsLoading: boolean
+  conceptsError: string | null
+  onLoadConcepts: (invoiceId: number) => void
+}) {
+  const desfasada = inv.esNomina && inv.fechaPagoNomina
+  return (
+    <tr
+      style={{
+        borderBottom: '1px solid var(--border)',
+        background: inv.esOtroRegimen || inv.esPpdSinComplemento ? 'var(--muted)' : undefined,
+      }}
+    >
+      <td className="px-3 py-3 whitespace-nowrap align-top">
+        <div style={{ color: 'var(--ink-900)' }}>{fmtDate(periodDate(inv))}</div>
+        {desfasada && (
+          <div className="text-[11px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
+            CFDI {fmtDate(inv.invoiceDate)}
+          </div>
+        )}
+      </td>
+      <td className="px-3 py-3 align-top">
+        <FolioCell inv={inv} />
+      </td>
+      {visibleColumns.map((col) => (
+        <td key={col.key} className="px-3 py-3 align-top">
+          {col.key === 'tipo' && (
+            <Chip
+              bg={inv.isIssued ? 'var(--sky-soft)' : 'var(--ink-50)'}
+              fg={inv.isIssued ? 'var(--sky)' : 'var(--ink-700)'}
+            >
+              {inv.isIssued ? 'Emitida' : 'Recibida'}
+            </Chip>
+          )}
+          {col.key === 'comprobante' && (
+            <div className="flex flex-col gap-1 items-start">
+              <span style={{ color: 'var(--ink-700)' }}>{inv.tipoComprobante}</span>
+              {inv.esNomina && (
+                <Chip bg="var(--violet-soft)" fg="var(--violet)">Nómina</Chip>
+              )}
+              {inv.isValid === false && (
+                <Chip
+                  bg="var(--coral-soft)"
+                  fg="var(--violet-ink)"
+                  title="La factura entró a esta declaración marcada como no válida"
+                >
+                  No válida
+                </Chip>
+              )}
+              {inv.isValid === true && (
+                <Chip
+                  bg="var(--muted)"
+                  fg="var(--ink-500)"
+                  title="Válida en el cálculo de esta declaración"
+                >
+                  Válida
+                </Chip>
+              )}
+            </div>
+          )}
+          {col.key === 'emisor' && (
+            <>
+              <div style={{ color: 'var(--ink-900)' }}>{inv.emitterName}</div>
+              <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-500)' }}>{inv.emitterRfc}</code>
+            </>
+          )}
+          {col.key === 'receptor' && (
+            <>
+              <div style={{ color: 'var(--ink-900)' }}>{inv.receiverName}</div>
+              <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-500)' }}>{inv.receivedRfc}</code>
+            </>
+          )}
+          {col.key === 'subtotal' && (
+            <span className="whitespace-nowrap" style={{ ...MONO, color: 'var(--ink-900)' }}>
+              {money(inv.subTotal)}
+            </span>
+          )}
+          {col.key === 'iva' && (
+            <span className="whitespace-nowrap font-semibold" style={{ ...MONO, color: 'var(--ink-900)' }}>
+              {money(inv.ivaAmount)}
+            </span>
+          )}
+          {col.key === 'total' && (
+            <div className="flex flex-col gap-1 items-start">
+              <span className="whitespace-nowrap font-semibold" style={{ ...MONO, color: 'var(--ink-900)' }}>
+                {money(inv.paidAmount ?? inv.total)}
+              </span>
+              {inv.paidAmount != null && (
+                <Chip
+                  bg="var(--violet-soft)"
+                  fg="var(--violet)"
+                  title="Importe del complemento de pago; el total del comprobante es 0 por regla del SAT"
+                >
+                  Pago
+                </Chip>
+              )}
+              {inv.invoiceTypeId === 4 && (
+                <FacturasPadre uuids={inv.parentInvoiceUuids} />
+              )}
+            </div>
+          )}
+          {col.key === 'metodoPago' && (
+            <CatalogCell name={inv.paymentMethodName} id={inv.paymentMethodId} />
+          )}
+          {col.key === 'formaPago' && (
+            <CatalogCell name={inv.wayOfPaymentName} id={inv.wayOfPaymentId} />
+          )}
+          {col.key === 'conceptos' && (
+            <ConceptosCell
+              resumen={inv.conceptosResumen}
+              count={inv.conceptosCount}
+              concepts={concepts}
+              loading={conceptsLoading}
+              error={conceptsError}
+              onOpen={() => onLoadConcepts(inv.invoiceId)}
+            />
+          )}
+          {col.key === 'clasificacion' && <ClasificacionCell inv={inv} />}
+          {col.key === 'regimenReceptor' && (
+            <CatalogCell name={inv.receiverRegimeName} id={inv.receiverRegimeCode} />
+          )}
+          {col.key === 'usoCfdi' && (
+            <CatalogCell name={inv.cfdiUsageName} id={inv.cfdiUsageCode ?? inv.cfdiUsageId} />
+          )}
+        </td>
+      ))}
+    </tr>
+  )
+})
+
+/* -------------------------------------------------------------------------- */
+/*  Pestaña                                                                   */
+/* -------------------------------------------------------------------------- */
+
+export const ComprobantesTab = memo(function ComprobantesTab({
+  declarationId,
+  periodo,
+  regimeSatCode,
+  consulta = false,
+}: {
+  declarationId: number
+  periodo: string
+  regimeSatCode?: string | null
+  /** true = perfil de solo consulta: usa la ruta espejo bajo Contador.ConsultaDeclaraciones. */
+  consulta?: boolean
+}) {
+  const { params, setParams } = useUrlState()
+
+  // Dos universos independientes, cada uno con su paginación y su `total`. Antes
+  // era una sola página partida en el cliente con `.filter(esRetencion)`: con más
+  // comprobantes que TAKE las constancias no llegaban a la primera página y la
+  // sub-pestaña decía "(0)". En el 625 pasaba siempre que el periodo rebasaba el
+  // take, porque la constancia de un mes se timbra al inicio del siguiente y es
+  // la fecha más alta del periodo.
+  const [skip, setSkip] = useState(0)
+  const [retSkip, setRetSkip] = useState(0)
+  const [subTab, setSubTab] = useState(0)
+  const [query, setQuery] = useState('')
+  // '' = sin filtro (el EP los trae todos cuando el query param se omite).
+  const [origen, setOrigen] = useState<'' | 'true' | 'false'>('')
+  const [tipo, setTipo] = useState('')
+  const [clasificada, setClasificada] = useState<'' | 'true' | 'false'>('')
+  const [columnsModalOpen, setColumnsModalOpen] = useState(false)
+
+  // Orden server-side (E2): persistido en la URL, no se ordena en cliente.
+  const sortBy: InvoiceSortBy = params.get('sortBy') === 'total' ? 'total' : 'invoiceDate'
+  const sortDir: InvoiceSortDir = params.get('sortDir') === 'desc' ? 'desc' : 'asc'
+
+  const setSort = (col: InvoiceSortBy) => {
+    setParams(
+      { sortBy: col, sortDir: sortBy === col && sortDir === 'asc' ? 'desc' : 'asc' },
+      { replace: true },
+    )
+    setSkip(0)
+    setRetSkip(0)
+  }
+
+  // Selección de columnas persistida en la URL. `cols=none` distingue "el
+  // usuario las quitó todas" de "no hay parámetro todavía" (default).
+  const rawCols = params.get('cols')
+  const selectedCols = useMemo<ColumnKey[]>(() => {
+    if (rawCols == null) return DEFAULT_COLUMNS
+    if (rawCols === 'none') return []
+    const set = new Set(rawCols.split(','))
+    return COLUMN_DEFS.map((d) => d.key).filter((k) => set.has(k))
+  }, [rawCols])
+
+  const setSelectedCols = (next: ColumnKey[]) => {
+    setParams({ cols: next.length === 0 ? 'none' : next.join(',') }, { replace: true })
+  }
+
+  // En egresos el IVA es justo el dato que el contador vino a buscar: se
+  // activa aunque el usuario lo haya desmarcado (D4).
+  const effectiveColSet = useMemo(() => {
+    const set = new Set(selectedCols)
+    if (tipo === '2') set.add('iva')
+    return set
+  }, [selectedCols, tipo])
+  const visibleColumns = useMemo(() => COLUMN_DEFS.filter((d) => effectiveColSet.has(d.key)), [effectiveColSet])
+
+  // Filtros del EP (sin paginación): son la clave de caché de cada universo. Cambiar
+  // uno reinicia la página de los DOS (ver `onFilter`), porque el `total` cambia en ambos.
+  const invoiceFilters = useMemo<InvoiceFilterKey>(
+    () => ({
+      isIssued: origen === '' ? null : origen === 'true',
+      invoiceTypeId: tipo === '' ? null : Number(tipo),
+      clasificada: clasificada === '' ? null : clasificada === 'true',
+      sortBy,
+      sortDir,
+    }),
+    [origen, tipo, clasificada, sortBy, sortDir],
+  )
+  // Las constancias van por su propio endpoint. `tipo` NO entra: los CFDI de
+  // retención no tienen TipoDeComprobante, así que ese filtro no les aplica y
+  // volver a pedirlas al cambiarlo sería una llamada de más.
+  const retFilters = useMemo<WithholdingFilterKey>(
+    () => ({
+      isIssued: origen === '' ? null : origen === 'true',
+      clasificada: clasificada === '' ? null : clasificada === 'true',
+      sortBy,
+      sortDir,
+    }),
+    [origen, clasificada, sortBy, sortDir],
+  )
+
+  // Cada página es una entrada de caché; volver a la pestaña no vuelve a pedirla
+  // mientras esté fresca. Las páginas siguientes se piden sin `totales` cuando los
+  // de este filtro ya llegaron (`cachedTotales`); la franja los sigue usando.
+  const { query: invQ, cachedTotales } = useDeclarationInvoices(declarationId, consulta, invoiceFilters, skip)
+  const { query: retQ, cachedTotales: cachedRetTotales } = useDeclarationWithholdings(
+    declarationId,
+    consulta,
+    retFilters,
+    retSkip,
+  )
+  const page = invQ.isError ? EMPTY_PAGE : (invQ.data ?? EMPTY_PAGE)
+  const loading = invQ.isPending
+  const error = invQ.error?.message ?? null
+  const retPage = retQ.isError ? EMPTY_PAGE : (retQ.data ?? EMPTY_PAGE)
+  const retLoading = retQ.isPending
+  const retError = retQ.error?.message ?? null
+
+  // Conceptos completos: solo se piden bajo demanda (`includeConcepts=true`),
+  // cacheados por invoiceId para no repetir la llamada al reabrir el popover.
+  const [conceptsCache, setConceptsCache] = useState<Record<number, DeclarationInvoiceConcepto[]>>({})
+  const conceptsCacheRef = useRef(conceptsCache)
+  conceptsCacheRef.current = conceptsCache
+  const [conceptsLoadingId, setConceptsLoadingId] = useState<number | null>(null)
+  const [conceptsError, setConceptsError] = useState<string | null>(null)
+
+  const loadConcepts = useCallback(
+    async (invoiceId: number) => {
+      if (conceptsCacheRef.current[invoiceId]) return
+      setConceptsLoadingId(invoiceId)
+      setConceptsError(null)
+      const res = await getDeclarationInvoices({
+        declarationId,
+        isIssued: origen === '' ? undefined : origen === 'true',
+        invoiceTypeId: tipo === '' ? undefined : Number(tipo),
+        clasificada: clasificada === '' ? undefined : clasificada === 'true',
+        skip,
+        take: TAKE,
+        sortBy,
+        sortDir,
+        includeConcepts: true,
+        esRetencion: false,
+        consulta,
+      })
+      if (res.success) {
+        setConceptsCache((prev) => {
+          const next = { ...prev }
+          for (const it of res.value.items) if (it.conceptos) next[it.invoiceId] = it.conceptos
+          return next
+        })
+      } else {
+        setConceptsError(res.error.message)
+      }
+      setConceptsLoadingId(null)
+    },
+    [declarationId, origen, tipo, clasificada, skip, sortBy, sortDir, consulta],
+  )
+  const onLoadConcepts = useCallback((invoiceId: number) => void loadConcepts(invoiceId), [loadConcepts])
+
+  // Cambiar un filtro reinicia la paginación de los DOS universos: el `total` del
+  // backend cambia en ambos.
+  const onFilter = <T,>(setter: (v: T) => void) => (v: T) => {
+    setSkip(0)
+    setRetSkip(0)
+    setter(v)
+  }
+
+  // El backend no filtra por texto: se busca sobre la página cargada. El
+  // orden ya viene resuelto por el backend (E2) — no se reordena en cliente.
+  const buscar = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return (items: DeclarationInvoice[]) =>
+      q
+        ? items.filter((i) =>
+            [i.folio, i.serie, i.uuid, i.emitterRfc, i.emitterName, i.receivedRfc, i.receiverName, i.clasificacion]
+              .some((f) => f?.toLowerCase().includes(q)),
+          )
+        : items
+  }, [query])
+
+  // Cada sub-pestaña pinta SU página, traída de su propio endpoint. Ya no se
+  // reparte una sola página con `.filter(esRetencion)`.
+  const normales = useMemo(() => buscar(page.items), [buscar, page.items])
+  const retenciones = useMemo(() => buscar(retPage.items), [buscar, retPage.items])
+  const enRetenciones = subTab === 1
+  const visibles = enRetenciones ? retenciones : normales
+
+  // Todo lo que la vista activa necesita saber de "su" universo, en un solo lugar.
+  const vista = enRetenciones
+    ? { page: retPage, skip: retSkip, setSkip: setRetSkip, loading: retLoading, error: retError }
+    : { page, skip, setSkip, loading, error }
+
+  // Totales del periodo de la vista activa: los de esta página o, si se pidió sin
+  // ellos (página siguiente), los que ya llegaron para el mismo filtro. Solo cuando
+  // el back de verdad no los mandó la franja cae a la página (en ámbar).
+  const totalesPeriodo = vista.page.totales ?? (enRetenciones ? cachedRetTotales : cachedTotales)
+
+  // El aviso sale del `total` que devuelve el endpoint de retenciones, NO de las
+  // filas cargadas: atado a una página afirmaba "no llegó la constancia" cuando
+  // simplemente estaba en la página 2, y encima con los ingresos ya calculados
+  // arriba en la misma pantalla.
+  const sinConstanciasDeRetencion = !retLoading && !retError && retPage.total === 0
+  const esRegimenPlataformas = regimeSatCode === REGIMEN_PLATAFORMAS
+
+  // Suma de lo que se está viendo: cambia con los filtros, la búsqueda y la
+  // página, así que el encabezado dice explícitamente sobre qué se sumó.
+  const totales = useMemo(() => {
+    const ivaResueltos = visibles.filter((i) => i.ivaAmount != null)
+    // Subtotal y Total salen del universo del PERIODO que calcula el backend, no de
+    // la página: antes se sumaba `visibles` (≤ TAKE filas, y encima ya filtradas por
+    // el buscador), así que la franja no servía para cuadrar contra Ingresos Brutos.
+    const periodo = totalesPeriodo
+    return {
+      subTotal: periodo ? periodo.subTotal : visibles.reduce((acc, i) => acc + signo(i) * toNumber(i.subTotal), 0),
+      total: periodo ? periodo.total : visibles.reduce((acc, i) => acc + signo(i) * toNumber(i.total), 0),
+      egresos: periodo ? periodo.egresos : visibles.filter(esEgreso).length,
+      egresosSubTotal: periodo
+        ? periodo.egresosSubTotal
+        : visibles.filter(esEgreso).reduce((acc, i) => acc + toNumber(i.subTotal), 0),
+      esDelPeriodo: periodo != null,
+      // El cuadre contra Ingresos Brutos solo lo puede resolver el backend, sobre el universo
+      // completo y sabiendo qué comprobantes entran al cálculo. Sin él la franja no se inventa
+      // nada: la línea simplemente no aparece.
+      cuadre: periodo?.cuadre,
+      // Lo retenido y el IVA siguen siendo de la página: el backend solo los resuelve
+      // para las facturas que devuelve, y se etiquetan como tales.
+      retenido: visibles.reduce((acc, i) => acc + toNumber(i.totalRetenido), 0),
+      iva: ivaResueltos.reduce((acc, i) => acc + toNumber(i.ivaAmount), 0),
+      ivaResuelto: ivaResueltos.length > 0,
+    }
+  }, [visibles, totalesPeriodo])
+
+  const totalPages = Math.max(1, Math.ceil(vista.page.total / TAKE))
+  const currentPage = Math.floor(vista.skip / TAKE) + 1
+
+  // El encabezado cuenta el periodo COMPLETO: normales + constancias. Cada
+  // sub-pestaña lleva aparte el total de su propio universo.
+  const totalPeriodo = page.total + retPage.total
+
+  return (
+    <Card>
+      <div className="p-5 flex flex-col gap-4">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h3 className="text-[17px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
+              CFDIs Emitidos y Recibidos
+            </h3>
+            <p className="text-[13px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
+              {loading || retLoading
+                ? 'Cargando comprobantes…'
+                : `${totalPeriodo} comprobantes del período ${periodo}`}
+            </p>
+          </div>
+          {subTab === 0 && (
+            <button
+              type="button"
+              onClick={() => setColumnsModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12.5px] font-bold transition hover:opacity-90"
+              style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+            >
+              <Columns3 size={14} /> Columnas
+            </button>
+          )}
+        </div>
+
+        {esRegimenPlataformas && sinConstanciasDeRetencion && (
+          <div
+            className="rounded-2xl px-4 py-3 flex items-start gap-2.5 text-[13px]"
+            style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)', border: '1px solid var(--border)' }}
+          >
+            <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+            <span>
+              No se recibieron constancias de retención para este periodo; en el régimen 625 los
+              ingresos provienen de ellas. Un <strong>$0.00</strong> en Ingresos/IVA/ISR puede
+              significar que la constancia no llegó, no que no hubo ingresos.
+            </span>
+          </div>
+        )}
+
+        <div className="relative">
+          <Search
+            size={16}
+            style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-500)' }}
+          />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar por folio, UUID, RFC o clasificación…"
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg text-[13px]"
+            style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+          />
+        </div>
+
+        {/* Filtros del EP: los tres son opcionales, "Todos" omite el query param. */}
+        <div className="flex flex-wrap gap-3 items-end">
+          <FilterSelect
+            label="Emitidas / Recibidas"
+            value={origen}
+            onChange={onFilter(setOrigen)}
+            options={[
+              ['', 'Todas'],
+              ['true', 'Emitidas'],
+              ['false', 'Recibidas'],
+            ]}
+          />
+          <FilterSelect
+            label="Tipo de comprobante"
+            value={tipo}
+            onChange={onFilter(setTipo)}
+            options={[['', 'Todos'], ...INVOICE_TYPES.map(([v, l]) => [String(v), l] as [string, string])]}
+          />
+          <FilterSelect
+            label="Clasificación"
+            value={clasificada}
+            onChange={onFilter(setClasificada)}
+            options={[
+              ['', 'Todos'],
+              ['true', 'Clasificados'],
+              ['false', 'Sin clasificar'],
+            ]}
+          />
+          {(origen || tipo || clasificada) && (
+            <button
+              onClick={() => {
+                setSkip(0)
+                setOrigen('')
+                setTipo('')
+                setClasificada('')
+              }}
+              className="px-3.5 py-2.5 rounded-lg text-[12.5px] font-bold transition hover:opacity-90"
+              style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+            >
+              Limpiar filtros
+            </button>
+          )}
+        </div>
+
+        <div className="flex p-1 rounded-xl" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
+          {[
+            ['CFDIs Normales', page.total],
+            ['CFDIs de Retenciones', retPage.total],
+          ].map(([t, n], i) => (
+            <button
+              key={t}
+              onClick={() => setSubTab(i)}
+              className="flex-1 px-4 py-2 rounded-lg text-[13px] font-bold transition"
+              style={
+                i === subTab
+                  ? { background: 'var(--card)', color: 'var(--ink-900)', boxShadow: 'var(--sh-1)' }
+                  : { background: 'transparent', color: 'var(--ink-500)' }
+              }
+            >
+              {t}
+              {!loading && <span className="ml-1.5 font-semibold opacity-70">({n})</span>}
+            </button>
+          ))}
+        </div>
+
+        {vista.error ? (
+          <div className="py-8 text-center flex flex-col items-center gap-2">
+            <AlertCircle size={20} style={{ color: 'var(--violet-ink)' }} />
+            <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>{vista.error}</div>
+          </div>
+        ) : vista.loading ? (
+          <div className="py-10 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
+            <Loader2 size={18} className="animate-spin" /> Cargando comprobantes…
+          </div>
+        ) : visibles.length === 0 ? (
+          <div className="text-center py-10 text-[13px]" style={{ color: 'var(--ink-500)' }}>
+            {vista.page.items.length > 0 && query.trim()
+              ? 'Ningún comprobante coincide con la búsqueda.'
+              : enRetenciones
+                ? 'No hay CFDIs de retenciones en este período.'
+                : origen || tipo || clasificada
+                  ? 'No hay comprobantes con esos filtros.'
+                  : 'No hay comprobantes en este período.'}
+            {subTab === 0 && page.items.length === 0 && clasificada === 'true' && (
+              <div className="mt-1.5 text-[12.5px]">
+                Si la declaración no tiene periodo asignado, el clasificador no ha corrido y esta vista sale vacía.
+              </div>
+            )}
+          </div>
+        ) : subTab === 1 ? (
+          <>
+            <TotalesResumen
+              caption={
+                totales.esDelPeriodo
+                  ? `${retPage.total} CFDI de retenciones del período`
+                  : `${visibles.length} CFDI de retenciones en pantalla`
+              }
+              entries={[['Total retenido (en esta página)', money(totales.retenido)]]}
+            />
+
+            <div className="overflow-auto -mx-1 rounded-lg" style={{ maxHeight: TABLE_MAX_H }}>
+              <table className="w-full text-[12.5px]">
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                    {['Fecha', 'Folio / UUID', 'Origen', 'Emisor', 'Receptor', 'Retenciones', 'Total retenido'].map((h) => (
+                      <th
+                        key={h}
+                        className="px-3 py-2.5 text-left font-extrabold whitespace-nowrap sticky top-0 z-10"
+                        style={{ color: 'var(--ink-700)', background: 'var(--card)', boxShadow: 'inset 0 -1px 0 var(--border)' }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibles.map((inv) => (
+                    <RetencionRow key={inv.invoiceId} inv={inv} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <p className="text-[11.5px]" style={{ color: 'var(--ink-500)' }}>
+              El periodo que aparece en cada retención es el que declara el propio CFDI y puede no
+              coincidir con el de la declaración ({periodo}).
+            </p>
+
+            {vista.page.total > TAKE && (
+              <Pagination
+                page={currentPage}
+                totalPages={totalPages}
+                total={vista.page.total}
+                skip={vista.skip}
+                take={TAKE}
+                itemCount={vista.page.items.length}
+                onPrev={() => vista.setSkip((s) => Math.max(0, s - TAKE))}
+                onNext={() => vista.setSkip((s) => (s + TAKE < vista.page.total ? s + TAKE : s))}
+              />
+            )}
+          </>
+        ) : (
+          <>
+            <TotalesResumen
+              aviso={!totales.esDelPeriodo}
+              caption={
+                totales.esDelPeriodo
+                  ? `${page.total} comprobantes del período`
+                  : `Solo esta página: ${visibles.length} de ${page.total} comprobantes`
+              }
+              entries={[
+                ['Subtotal', money(totales.subTotal)],
+                ['Total', money(totales.total)],
+                ...(totales.egresos > 0
+                  ? ([[
+                      `Incluye ${totales.egresos} nota${totales.egresos === 1 ? '' : 's'} de crédito`,
+                      `−${money(totales.egresosSubTotal)}`,
+                    ]] as [string, string][])
+                  : []),
+                ...(totales.cuadre
+                  ? ([[
+                      'Entra al cálculo (emitidas de ingreso)',
+                      money(totales.cuadre.subTotal),
+                    ]] as [string, string][])
+                  : []),
+                ...(effectiveColSet.has('iva')
+                  ? ([['IVA (en esta página)', totales.ivaResuelto ? money(totales.iva) : '—']] as [string, string][])
+                  : []),
+              ]}
+              nota={<CuadreNota cuadre={totales.cuadre} />}
+            />
+
+            <div className="overflow-auto -mx-1 rounded-lg" style={{ maxHeight: TABLE_MAX_H }}>
+              <table className="w-full text-[12.5px]">
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                    <th
+                      className="px-3 py-2.5 text-left whitespace-nowrap sticky top-0 z-10"
+                      style={{ color: 'var(--ink-700)', background: 'var(--card)', boxShadow: 'inset 0 -1px 0 var(--border)' }}
+                    >
+                      <SortableHeader
+                        label="Fecha"
+                        active={sortBy === 'invoiceDate'}
+                        dir={sortDir}
+                        onClick={() => setSort('invoiceDate')}
+                      />
+                    </th>
+                    <th
+                      className="px-3 py-2.5 text-left font-extrabold whitespace-nowrap sticky top-0 z-10"
+                      style={{ color: 'var(--ink-700)', background: 'var(--card)', boxShadow: 'inset 0 -1px 0 var(--border)' }}
+                    >
+                      Folio / UUID
+                    </th>
+                    {visibleColumns.map((col) => (
+                      <th
+                        key={col.key}
+                        className="px-3 py-2.5 text-left font-extrabold whitespace-nowrap sticky top-0 z-10"
+                        style={{ color: 'var(--ink-700)', background: 'var(--card)', boxShadow: 'inset 0 -1px 0 var(--border)' }}
+                      >
+                        {col.key === 'total' ? (
+                          <SortableHeader
+                            label="Total"
+                            active={sortBy === 'total'}
+                            dir={sortDir}
+                            onClick={() => setSort('total')}
+                          />
+                        ) : (
+                          col.label
+                        )}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibles.map((inv) => (
+                    <InvoiceRow
+                      key={inv.invoiceId}
+                      inv={inv}
+                      visibleColumns={visibleColumns}
+                      concepts={conceptsCache[inv.invoiceId]}
+                      conceptsLoading={conceptsLoadingId === inv.invoiceId}
+                      conceptsError={conceptsError}
+                      onLoadConcepts={onLoadConcepts}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {vista.page.total > TAKE && (
+              <Pagination
+                page={currentPage}
+                totalPages={totalPages}
+                total={vista.page.total}
+                skip={vista.skip}
+                take={TAKE}
+                itemCount={vista.page.items.length}
+                onPrev={() => vista.setSkip((s) => Math.max(0, s - TAKE))}
+                onNext={() => vista.setSkip((s) => (s + TAKE < vista.page.total ? s + TAKE : s))}
+              />
+            )}
+          </>
+        )}
+      </div>
+
+      <ColumnsModal
+        open={columnsModalOpen}
+        onOpenChange={setColumnsModalOpen}
+        defs={COLUMN_DEFS}
+        selected={selectedCols}
+        onChange={setSelectedCols}
+        fixedColumnsHint="Fecha y Folio / UUID siempre se muestran."
+      />
+    </Card>
+  )
+})
+
+/**
+ * Por qué el Subtotal de la franja no iguala Ingresos Brutos del encabezado. El listado es más
+ * ancho que el cálculo A PROPÓSITO —trae las de otro régimen, las PPD en espera, las canceladas
+ * y las recibidas, para que el contador verifique que todo se descargó—, así que sin este
+ * renglón el descuadre no se puede explicar y termina en un Excel hecho a mano.
+ * No pinta nada cuando no hay nada fuera: ahí el cuadre se explica solo.
+ */
+function CuadreNota({ cuadre }: { cuadre?: InvoiceCuadre }) {
+  if (!cuadre || cuadre.excluidos.length === 0) return null
+
+  return (
+    <div
+      className="text-[11.5px] leading-relaxed pt-2"
+      style={{ color: 'var(--ink-500)', borderTop: '1px solid var(--border)' }}
+    >
+      <span className="font-semibold">
+        {cuadre.comprobantes} emitida{cuadre.comprobantes === 1 ? '' : 's'} de ingreso entra
+        {cuadre.comprobantes === 1 ? '' : 'n'} al cálculo
+      </span>
+      {cuadre.excluidos.map((e) => (
+        <span key={e.motivo} className="block">
+          · {e.comprobantes} fuera — {e.motivo} ({money(e.subTotal)})
+        </span>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * Suma del universo del periodo que devuelve el backend. `aviso` la pinta en ámbar para el caso
+ * en que esos totales NO llegaron y lo que se muestra es la página: el `caption` solo decía "en
+ * pantalla" y era demasiado discreto para lo que implica —un contador leyendo una cifra de
+ * página como si fuera la del periodo—, así que además cambia de color.
+ * `nota` es el desglose de lo que se quedó fuera del cálculo, que va en su propio renglón.
+ */
+function TotalesResumen({
+  caption,
+  entries,
+  aviso = false,
+  nota,
+}: {
+  caption: string
+  entries: [string, string][]
+  aviso?: boolean
+  nota?: ReactNode
+}) {
+  return (
+    <div
+      className="rounded-2xl px-4 py-3 flex flex-col gap-2"
+      style={{
+        background: aviso ? 'var(--amber-soft)' : 'var(--muted)',
+        border: '1px solid var(--border)',
+      }}
+    >
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+        <span
+          className="text-[11.5px] font-bold uppercase tracking-wider flex items-center gap-1.5"
+          style={{ color: aviso ? 'var(--violet-ink)' : 'var(--ink-500)' }}
+        >
+          {aviso && <AlertTriangle size={13} className="shrink-0" />}
+          {caption}
+        </span>
+        {entries.map(([label, value]) => (
+          <span key={label} className="flex items-baseline gap-1.5">
+            <span className="text-[12px] font-semibold" style={{ color: 'var(--ink-500)' }}>
+              {label}
+            </span>
+            <span className="text-[15px] font-extrabold" style={{ ...MONO, color: 'var(--ink-900)' }}>
+              {value}
+            </span>
+          </span>
+        ))}
+      </div>
+      {nota}
+    </div>
+  )
+}

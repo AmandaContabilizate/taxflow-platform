@@ -1,0 +1,430 @@
+{
+  "INVALID_INPUT": {
+    "es": "Entrada inválida. Faltan o son incorrectos los parámetros.",
+    "en": "Invalid input. Missing or incorrect parameters."
+  },
+  "EXPORT_NO_RESULTS": {
+    "es": "Ningún registro cumple los filtros seleccionados.",
+    "en": "No records match the selected filters."
+  },
+  "INVALID_PHOTO_TYPE": {
+    "es": "El archivo debe ser una imagen JPG o PNG.",
+    "en": "File must be a JPG or PNG image."
+  },
+  "INVALID_PHOTO_SIZE": {
+    "es": "La foto debe tener un tamaño máximo de 2 MB.",
+    "en": "Photo must be at most 2 MB."
+  },
+  "PHOTO_UPDATE_FAILED": {
+    "es": "No se pudo actualizar la foto del usuario.",
+    "en": "Failed to update user photo."
+  },
+  "USER_CREATION_FAILED": {
+    "es": "No se pudo crear o actualizar el usuario.",
+    "en": "Failed to create or update user."
+  },
+  "USER_ALREADY_REGISTERED": {
+    "es": "El correo ya está registrado.",
+    "en": "The email is already registered."
+  },
+  "SYSTEM_ORIGIN_INVALID": {
+    "es": "El origen de registro no es válido.",
+    "en": "The registration origin is not valid."
+  },
+  "USER_ROLE_ASSIGN_FAILED": {
+    "es": "No se pudo asignar el rol por defecto al usuario.",
+    "en": "Failed to assign default role to user."
+  },
+  "USER_UPDATE_PASSWORD_FAILED": {
+    "es": "No se pudo actualizar la contraseña del usuario.",
+    "en": "Failed to update user password."
+  },
+  "PasswordTooShort": {
+    "es": "Debe tener al menos 8 caracteres.",
+    "en": "Must be at least 8 characters long."
+  },
+  "PasswordRequiresLower": {
+    "es": "Debe incluir al menos una letra minúscula.",
+    "en": "Must include at least one lowercase letter."
+  },
+  "PasswordRequiresUpper": {
+    "es": "Debe incluir al menos una letra mayúscula.",
+    "en": "Must include at least one uppercase letter."
+  },
+  "PasswordRequiresDigit": {
+    "es": "Debe incluir al menos un número.",
+    "en": "Must include at least one number."
+  },
+  "PasswordRequiresNonAlphanumeric": {
+    "es": "Debe incluir al menos un carácter especial (ej. !@#$%).",
+    "en": "Must include at least one special character (e.g. !@#$%)."
+  },
+  "PasswordRequiresUniqueChars": {
+    "es": "Debe incluir más caracteres distintos.",
+    "en": "Must include more distinct characters."
+  },
+  "InvalidToken": {
+    "es": "El enlace ya no es válido o expiró. Solicita uno nuevo.",
+    "en": "The link is no longer valid or has expired. Request a new one."
+  },
+  "UNEXPECTED_ERROR": {
+    "es": "Ocurrió un error inesperado.",
+    "en": "An unexpected error occurred."
+  },
+  "INVALID_REQUEST": {
+    "es": "La solicitud es inválida.",
+    "en": "The request is invalid."
+  },
+  "PROCESSING_ERROR": {
+    "es": "Ocurrió un error al procesar la solicitud.",
+    "en": "An error occurred while processing the request."
+  },
+  "INVOICE_XML_NOT_FOUND": {
+    "es": "No se encontró el XML de la factura.",
+    "en": "Invoice XML not found."
+  },
+  "EXPENSE_XML_NOT_FOUND": {
+    "es": "No se encontró el XML del gasto.",
+    "en": "Expense XML not found."
+  },
+  "RETENTION_XML_NOT_FOUND": {
+    "es": "No se encontró el XML de retención.",
+    "en": "Retention XML not found."
+  },
+  "INVOICE_PDF_NOT_FOUND": {
+    "es": "No se encontró el PDF de la factura.",
+    "en": "Invoice PDF not found."
+  },
+  "EXPENSE_PDF_NOT_FOUND": {
+    "es": "No se encontró el PDF del gasto.",
+    "en": "Expense PDF not found."
+  },
+  "RETENTION_PDF_NOT_FOUND": {
+    "es": "No se encontró el PDF de retención.",
+    "en": "Retention PDF not found."
+  },
+  "INVALID_CODE_FORMAT": {
+    "es": "El código debe ser un número válido.",
+    "en": "The code must be a valid number."
+  },
+  "CONFIRMATION_VALIDATION_FAILED": {
+    "es": "La validación de la confirmación falló.",
+    "en": "Confirmation validation failed."
+  },
+  "CODE_NOT_FOUND": {
+    "es": "No se encontró un código de confirmación para este usuario.",
+    "en": "No confirmation code found for this user."
+  },
+  "INVALID_CODE": {
+    "es": "El código de confirmación es inválido.",
+    "en": "The confirmation code is invalid."
+  },
+  "INVALID_PASSWORD": {
+    "es": "La contraseña es incorrecta.",
+    "en": "The password is incorrect."
+  },
+  "EMAIL_PASSWORD_REQUIRED": {
+    "es": "Se requieren correo y contraseña.",
+    "en": "Email and password are required."
+  },
+  "DEACTIVATION_ERROR": {
+    "es": "No pudimos desactivar tu cuenta. Intenta de nuevo.",
+    "en": "We couldn't deactivate your account. Please try again."
+  },
+  "DELETE_ACCOUNT_FAILED": {
+    "es": "No pudimos eliminar tu cuenta. Intenta de nuevo.",
+    "en": "We couldn't delete your account. Please try again."
+  },
+  "UNAUTHORIZED": {
+    "es": "Tu sesión expiró. Inicia sesión de nuevo.",
+    "en": "Your session expired. Please sign in again."
+  },
+  "USER_NOT_FOUND": {
+    "es": "Usuario no encontrado.",
+    "en": "User not found."
+  },
+  "USER_UPDATE_FAILED": {
+    "es": "No se pudo actualizar la información del usuario.",
+    "en": "Failed to update user information."
+  },
+  "UNKNOW_PARTNERSHIP": {
+    "es": "El código de referido no pertenece a ninguna alianza.",
+    "en": "Referral code does not belong to any partnership."
+  },
+  "UPDATE_FAILED": {
+    "es": "Actualización fallida.",
+    "en": "Update failed."
+  },
+  "PROFILE_SAVE_FAILED": {
+    "es": "No se pudo guardar el perfil del usuario.",
+    "en": "Failed to save user profile."
+  },
+  "ROLE_NOT_FOUND": {
+    "es": "Rol no encontrado.",
+    "en": "Role not found."
+  },
+  "ROLE_INACTIVE": {
+    "es": "El rol está inactivo.",
+    "en": "Role is inactive."
+  },
+  "ROLE_ALREADY_ASSIGNED": {
+    "es": "El usuario ya tiene asignado ese rol.",
+    "en": "User already has this role."
+  },
+  "ROLE_ASSIGN_FAILED": {
+    "es": "No se pudo asignar el rol al usuario.",
+    "en": "Failed to assign role to user."
+  },
+  "ROLE_NOT_ASSIGNED": {
+    "es": "El usuario no tiene asignado el rol especificado.",
+    "en": "User is not assigned to the specified role."
+  },
+  "CANNOT_REMOVE_LAST_ROLE": {
+    "es": "No se puede dejar al usuario sin roles.",
+    "en": "User cannot be left without roles."
+  },
+  "ROLE_REMOVE_FAILED": {
+    "es": "No se pudo remover el rol del usuario.",
+    "en": "Failed to remove role from user."
+  },
+  "EXTERNAL_AUTH_FAILED": {
+    "es": "Falló la autenticación externa.",
+    "en": "External authentication failed."
+  },
+  "FAILED_CREATE_USER": {
+    "es": "No se pudo crear el usuario.",
+    "en": "Failed to create user."
+  },
+  "FAILED_ADD_EXTERNAL_LOGIN": {
+    "es": "No se pudo asociar el inicio de sesión externo.",
+    "en": "Failed to add external login."
+  },
+  "INVALID_CREDENTIALS": {
+    "es": "Credenciales inválidas.",
+    "en": "Invalid credentials."
+  },
+  "USER_INACTIVE": {
+    "es": "Tu cuenta está desactivada. Contacta a soporte para reactivarla.",
+    "en": "Your account is deactivated. Contact support to reactivate it."
+  },
+  "PASSWORD_RESET_REQUIRED": {
+    "es": "Tu contraseña ya no es segura. Debes recuperarla para poder ingresar.",
+    "en": "Your password is no longer secure. You must recover it to sign in."
+  },
+  "EMAIL_NOT_CONFIRMED": {
+    "es": "Debes confirmar tu correo antes de iniciar sesión. Solicita un código nuevo.",
+    "en": "You must confirm your email before signing in. Request a new code."
+  },
+  "TAXPAYER_NOT_FOUND": {
+    "es": "No se encontro al contribuyente.",
+    "en": "Taxpayer not found."
+  },
+  "DB_SERVICE_NOT_RESOLVED": {
+    "es": "No se pudo resolver el servicio de base de datos.",
+    "en": "Database service could not be resolved."
+  },
+  "PDF_GEN_EMPTY_HTML": {
+    "es": "El servicio de generación de PDF devolvió HTML vacío.",
+    "en": "PDF generation service returned empty HTML."
+  },
+  "CERT_PARSE_FAILED": {
+    "es": "No se pudo parsear el certificado (.cer).",
+    "en": "Unable to parse certificate (.cer)."
+  },
+  "RFC_NOT_IN_CERT": {
+    "es": "El RFC no se encontró en los campos del certificado.",
+    "en": "RFC not found in certificate fields."
+  },
+  "CERT_NOT_VALID": {
+    "es": "El certificado no es válido en el periodo actual.",
+    "en": "Certificate is not currently valid."
+  },
+  "CERT_VALIDATION_SAT_FAILED": {
+    "es": "La validación del certificado contra SAT falló.",
+    "en": "Certificate validation against SAT failed."
+  },
+  "CERT_VALIDATION_SAT_ERROR": {
+    "es": "Error al validar el certificado contra el SAT. SAT no disponible por el momento.",
+    "en": "Error validating the certificate against SAT. SAT is temporarily unavailable."
+  },
+  "CERT_THUMBPRINT_MISSING": {
+    "es": "No se pudo determinar la huella digital del certificado.",
+    "en": "Certificate thumbprint could not be determined."
+  },
+  "CERT_THUMBPRINT_EXISTS": {
+    "es": "Ya existe un certificado con la misma huella digital.",
+    "en": "A certificate with the same thumbprint already exists."
+  },
+  "PRIVATE_KEY_LOAD_FAILED": {
+    "es": "No se pudo cargar la clave privada.",
+    "en": "Unable to load private key."
+  },
+  "KEY_CERT_MISMATCH": {
+    "es": "La clave privada y el certificado no coinciden.",
+    "en": "Certificate and private key do not match."
+  },
+  "KEY_VALIDATION_ERROR": {
+    "es": "Error al validar el par clave-certificado.",
+    "en": "Error validating key pair."
+  },
+  "SAVE_FILES_FAILED": {
+    "es": "Error al guardar los archivos o registro en la base de datos.",
+    "en": "Error saving files or db record."
+  },
+  "LOAD_DIGITAL_IDENTITY_FAILED": {
+    "es": "Fallo al cargar la identidad digital.",
+    "en": "Failed to load digital identity."
+  },
+  "INVALID_RFC_LENGTH": {
+    "es": "El RFC debe tener entre 12 y 13 caracteres.",
+    "en": "The RFC must be between 12 and 13 characters long."
+  },
+  "ALREADY_EXISTS": {
+    "es": "El RFC ya existe.",
+    "en": "The RFC already exists."
+  },
+  "TIMBRAME_USER_NOT_FOUND": {
+    "es": "Tu cuenta aún no está habilitada en el módulo de Facturación. Por favor, contacta a soporte para activar este servicio.",
+    "en": "Your account is not yet enabled for the Billing module. Please contact support to activate this service."
+  },
+  "TIMBRAME_AUTH_FAILED": {
+    "es": "No fue posible conectar con el servicio de Facturación. Intenta de nuevo en unos momentos.",
+    "en": "Unable to connect to the Billing service. Please try again in a few moments."
+  },
+  "EMAIL_ALREADY_EXISTS": {
+    "es": "El correo electrónico ya está en uso por otro usuario.",
+    "en": "The email is already in use by another user."
+  },
+  "CIEC_INVALID": {
+    "es": "La CIEC no es válida. Actualice sus credenciales del SAT.",
+    "en": "The CIEC is invalid. Please update your SAT credentials."
+  },
+  "DOCUMENT_UNAVAILABLE": {
+    "es": "No se pudo obtener el documento fiscal. Intente más tarde.",
+    "en": "The fiscal document could not be retrieved. Please try again later."
+  },
+  "TIMBRAME_REGISTRATION_FAILED": {
+    "es": "No se pudo completar el registro automático. Asegúrate de tener al menos un régimen fiscal activo configurado en tu perfil.",
+    "en": "Could not complete automatic registration on Tímbrame. Make sure to have at least one active tax regime configured in your profile."
+  },
+  "REPORT_TOKEN_INVALID": {
+    "es": "El enlace del reporte no es válido o fue modificado. Abre el último correo que te enviamos.",
+    "en": "The report link is invalid or was modified. Please open the latest email we sent you."
+  },
+  "DECLARATION_NOT_FOUND": {
+    "es": "No encontramos la declaración de este enlace.",
+    "en": "We could not find the declaration for this link."
+  },
+  "INVALID_STATUS_TRANSITION": {
+    "es": "Esta declaración ya no está en revisión: tu contador ya la retomó.",
+    "en": "This declaration is no longer under review: your accountant already picked it up."
+  },
+  "REGIMES_NOT_FOUND": {
+    "es": "El régimen de esta declaración no existe en el catálogo.",
+    "en": "The regime of this declaration does not exist in the catalog."
+  },
+  "RECLASSIFICATION_NOT_SUPPORTED": {
+    "es": "Este régimen no admite reclasificación manual. Recalcula sin ajustes.",
+    "en": "This regime does not support manual reclassification. Recalculate without adjustments."
+  },
+  "CLASSIFICATION_SERVICE_ERROR": {
+    "es": "El clasificador no respondió. Intenta recalcular de nuevo en un momento.",
+    "en": "The classifier did not respond. Try recalculating again in a moment."
+  },
+  "TAXPAYER_EMAIL_NOT_FOUND": {
+    "es": "El contribuyente no tiene un correo registrado: no se puede reenviar la declaración.",
+    "en": "The taxpayer has no email on file: the declaration cannot be resent."
+  },
+  "REPORT_LINK_NOT_AVAILABLE": {
+    "es": "Falta el periodo o régimen de la declaración para generar el enlace del reporte.",
+    "en": "The declaration is missing the period or regime needed to generate the report link."
+  },
+  "DOWNLOAD_TAIL_NOT_READY": {
+    "es": "Todavía no. La descarga se habilita el día 7 del mes siguiente al periodo, cuando el SAT ya tiene todos los CFDIs.",
+    "en": "Not yet. The download opens on the 7th of the month after the period, once the SAT has every CFDI."
+  },
+  "DECLARATION_NOT_CANCELLABLE": {
+    "es": "Esta declaración no se puede cancelar por su estatus actual (presentada, sin servicio vendido o ya cancelada por otro motivo).",
+    "en": "This declaration cannot be cancelled in its current status (filed, no service sold, or already cancelled for another reason)."
+  },
+  "DECLARATION_ALREADY_CANCELLED": {
+    "es": "Esta declaración ya estaba cancelada.",
+    "en": "This declaration was already cancelled."
+  },
+  "DECLARATION_IN_FLIGHT": {
+    "es": "El robot está presentando esta declaración ante el SAT. Espera a que termine e inténtalo de nuevo.",
+    "en": "The robot is currently filing this declaration with the SAT. Wait for it to finish and try again."
+  },
+  "CANCELLATION_REASON_REQUIRED": {
+    "es": "Elige el motivo de la cancelación; con “Otro” la nota es obligatoria.",
+    "en": "Choose the cancellation reason; with “Other” a note is required."
+  },
+  "DECLARATION_NOT_CANCELLED": {
+    "es": "Esta declaración no está cancelada por gerencia: no hay nada que reactivar.",
+    "en": "This declaration is not cancelled by management: there is nothing to reactivate."
+  },
+  "TAXPAYER_NOT_CANCELLED": {
+    "es": "El contribuyente no está cancelado: no hay nada que reactivar.",
+    "en": "The taxpayer is not cancelled: there is nothing to reactivate."
+  },
+  "TAXPAYER_DEACTIVATED": {
+    "es": "El contribuyente está cancelado. Reactiva primero al cliente y después sus declaraciones.",
+    "en": "The taxpayer is deactivated. Reactivate the client first, then their declarations."
+  },
+  "TAXPAYER_ALREADY_DEACTIVATED": {
+    "es": "El contribuyente ya estaba dado de baja.",
+    "en": "The taxpayer was already deactivated."
+  },
+  "RFC_CONFIRMATION_MISMATCH": {
+    "es": "El RFC escrito no coincide con el del contribuyente.",
+    "en": "The RFC you typed does not match the taxpayer's RFC."
+  },
+  "TOO_MANY_PASSWORD_ATTEMPTS": {
+    "es": "Demasiados intentos de contraseña. Espera 15 minutos e inténtalo de nuevo.",
+    "en": "Too many password attempts. Wait 15 minutes and try again."
+  },
+  "DEACTIVATION_FORBIDDEN": {
+    "es": "Tu rol no puede dar de baja a este contribuyente.",
+    "en": "Your role cannot deactivate this taxpayer."
+  },
+  "HARD_DELETE_NOT_ALLOWED_YET": {
+    "es": "La baja definitiva todavía no está permitida para este contribuyente.",
+    "en": "Permanent deletion is not allowed yet for this taxpayer."
+  },
+  "EMAIL_INVALID": {
+    "es": "Escribe un correo electrónico válido.",
+    "en": "Enter a valid email address."
+  },
+  "EMAIL_SAME_AS_CURRENT": {
+    "es": "Es el mismo correo que tienes ahora.",
+    "en": "That is the same email you have now."
+  },
+  "PASSWORD_REQUIRED_FOR_EMAIL_CHANGE": {
+    "es": "Tu cuenta no tiene contraseña. Primero crea una desde ¿Olvidaste tu contraseña? y vuelve a intentarlo.",
+    "en": "Your account has no password. Create one from Forgot your password? first and try again."
+  },
+  "EMAIL_CHANGE_TOO_MANY_ATTEMPTS": {
+    "es": "Demasiados códigos incorrectos. Espera 15 minutos y pide uno nuevo.",
+    "en": "Too many incorrect codes. Wait 15 minutes and request a new one."
+  },
+  "EMAIL_CHANGE_TOO_MANY_REQUESTS": {
+    "es": "Pediste demasiados códigos. Espera una hora e inténtalo de nuevo.",
+    "en": "You requested too many codes. Wait an hour and try again."
+  },
+  "EMAIL_CHANGE_RESEND_TOO_SOON": {
+    "es": "Espera un minuto antes de pedir otro código.",
+    "en": "Wait a minute before requesting another code."
+  },
+  "EMAIL_CHANGE_CRM_UNAVAILABLE": {
+    "es": "No pudimos actualizar tu correo, inténtalo más tarde.",
+    "en": "We could not update your email, please try again later."
+  },
+  "EMAIL_CHANGE_BLOCKED_PARTNER_LOGIN": {
+    "es": "Tu acceso lo administra tu partner; para cambiar tu correo contáctalo.",
+    "en": "Your access is managed by your partner; contact them to change your email."
+  },
+  "EMAIL_CHANGE_REQUIRES_VERIFICATION": {
+    "es": "Para cambiar tu correo confirma el nuevo con el código que te enviamos.",
+    "en": "To change your email, confirm the new one with the code we sent you."
+  }
+}

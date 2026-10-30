@@ -8,9 +8,23 @@ __v0_jsx-dev-runtime.ts
 next.user-config.*
 
 # Environment variables
-.env*.local
+#.env*.local solo valores de desarrollo local
+#.env -- solo valores de desarrollo local
 
 # Common ignores
 node_modules
 .next/
 .DS_Store
+
+# Deploy zips (scripts/build-deploy-zip.ps1)
+deploy/
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
+# Logs
+*.log
+server.log
+# Config local y artefactos de herramientas
+.env*.local
+.impeccable/

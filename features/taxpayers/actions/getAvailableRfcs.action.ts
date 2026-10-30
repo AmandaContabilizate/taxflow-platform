@@ -1,0 +1,56 @@
+"use server";
+
+import { ApiError, fetchGet } from "@/lib/api";
+import { API_ROUTES } from "@/lib/api/apiRoutes";
+import { type Result, err, ok } from "@/lib/common";
+
+export interface AvailableRfc {
+  rfc: string;
+  legalName: string;
+  status69B: string | null;
+  /** Estado de la CIEC: 1 = válida, 2 = inválida. Ausente si no se ha validado. */
+  ciecState?: number;
+  /** true si tiene una e.firma con IsActive=1 y vigencia no vencida. */
+  hasActiveDigitalIdentity?: boolean;
+  /** true si hay una contraseña CIEC guardada (distingue los dos sabores de ciecState 0). */
+  hasSatPassword?: boolean;
+  /**
+   * true si hay constancia de situación fiscal registrada (del robot o subida). Con constancia
+   * hay régimen documentado: Mi plan y Trámites se desbloquean aunque la CIEC siga "sin verificar".
+   */
+  hasTaxCertificate?: boolean;
+  /** true si la constancia vigente la bajó el robot del SAT; false si es la subida, aún sin contrastar. */
+  taxCertificateVerified?: boolean;
+  taxRegimes?: Array<{ regimeId: number; idActivities?: number[] }>;
+}
+
+interface AvailableRfcsResponse {
+  success: boolean;
+  rfcs: AvailableRfc[];
+}
+
+interface GetAvailableRfcsError {
+  statusCode: number;
+  message: string;
+}
+
+export async function getAvailableRfcs(): Promise<
+  Result<AvailableRfc[], GetAvailableRfcsError>
+> {
+  try {
+    const data = await fetchGet<AvailableRfcsResponse>(
+      API_ROUTES.TAXPAYERS.AVAILABLE_RFCS,
+      "taxpayers",
+    );
+    return ok(data?.rfcs ?? []);
+  } catch (e) {
+    if (e instanceof ApiError) {
+      return err({ statusCode: e.status, message: e.message });
+    }
+    console.error("[getAvailableRfcs] Error:", e);
+    return err({
+      statusCode: 500,
+      message: "No pudimos obtener los RFC disponibles.",
+    });
+  }
+}

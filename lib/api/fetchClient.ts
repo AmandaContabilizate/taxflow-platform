@@ -1,22 +1,13 @@
-/**
- * Cliente HTTP para Next.js (App Router).
- *
- * - Wrapper de `fetch` nativo, sin axios.
- * - Lee cookie `auth_token` httpOnly desde el server con `next/headers`.
- * - Inyecta automáticamente `Authorization: Bearer <token>`.
- * - Tipa la respuesta con genérico <T>.
- *
- * IMPORTANTE: SOLO corre en el server (Server Components, Server Actions,
- * Route Handlers). Para llamarlo desde el cliente, envuélvelo en una Server Action.
- *
- * NOTA dev (HTTPS local con certificado autofirmado):
- * Si el backend corre en https://localhost:7125 con cert de dev de .NET,
- * Node rechazará la conexión. En .env.local pon:
- *   NODE_TLS_REJECT_UNAUTHORIZED=0
- * NUNCA hagas eso en producción.
- */
 import { cookies } from "next/headers";
 import { getBaseUrl, type ApiType } from "./apiUrls";
+import { getErrorMessage, hasErrorCode } from "./errorMessages";
+import { readAuthToken } from "./tokenCookie";
+
+// El backend .NET en dev local usa un certificado HTTPS autofirmado.
+// Se desactiva la verificación aquí para garantizar que aplique en development.
+if (process.env.NODE_ENV === "development") {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+}
 
 // =============================================================
 // Errores
@@ -27,6 +18,7 @@ export class ApiError extends Error {
   statusText: string;
   body: unknown;
   url: string;
+  errorCode?: string;
 
   constructor(opts: {
     message: string;
@@ -34,6 +26,7 @@ export class ApiError extends Error {
     statusText: string;
     body: unknown;
     url: string;
+    errorCode?: string;
   }) {
     super(opts.message);
     this.name = "ApiError";
@@ -41,6 +34,7 @@ export class ApiError extends Error {
     this.statusText = opts.statusText;
     this.body = opts.body;
     this.url = opts.url;
+    this.errorCode = opts.errorCode;
   }
 }
 
@@ -48,14 +42,66 @@ type RequestOptions = Omit<RequestInit, "method" | "body" | "headers"> & {
   headers?: Record<string, string>;
 };
 
+/**
+ * ValidationProblemDetails de ASP.NET Core: el mensaje útil vive en `errors`
+ * ({campo: [mensajes]}). Ese body NO trae `detail`, y su `title` es siempre
+ * "One or more validation errors occurred.", que es lo que se veía en pantalla.
+ * Las llaves que empiezan con `$` son errores de deserialización del JSON y su
+ * nombre no le dice nada a nadie: se muestra solo el mensaje.
+ */
+function validationMessage(errors?: Record<string, string[]>): string | undefined {
+  if (!errors) return undefined;
+  const parts = Object.entries(errors).flatMap(([field, messages]) =>
+    (messages ?? []).map((m) => (field && !field.startsWith("$") ? `${field}: ${m}` : m)),
+  );
+  return parts.length > 0 ? parts.join(" ") : undefined;
+}
+
+/**
+ * Cuando el backend responde con la Developer Exception Page de ASP.NET, el body
+ * es texto plano con el stack trace COMPLETO y el volcado de headers — incluido
+ * `Authorization: Bearer <jwt>`. Ese texto terminaba pintado tal cual en pantalla.
+ * Solo se deja pasar un body de texto corto y sin pinta de volcado; el resto cae
+ * al mensaje genérico por status.
+ */
+function safeRawMessage(raw: string): string | undefined {
+  const text = raw.trim();
+  if (!text) return undefined;
+  const looksLikeDump =
+    text.length > 300 ||
+    /\n/.test(text) ||
+    /\bat [A-Za-z0-9_.]+\(/.test(text) ||
+    /Authorization:|HEADERS|Exception|Stack trace/i.test(text);
+  return looksLikeDump ? undefined : text;
+}
+
+/**
+ * Último recurso cuando el backend no dijo nada útil. Antes aquí iba
+ * `response.statusText`, la frase del protocolo HTTP: en inglés y sin pistas de qué hacer. Un
+ * 404 sin cuerpo es ambiguo a propósito —puede ser un id que no existe o una ruta que no está
+ * desplegada— y el mensaje lo dice en vez de fingir precisión.
+ */
+function mensajePorEstado(status: number): string {
+  if (status === 401) return "Tu sesión expiró. Vuelve a iniciar sesión.";
+  if (status === 403) return "Tu cuenta no tiene permiso para esta consulta.";
+  if (status === 404)
+    return "No encontramos esta información. Puede que el dato no exista o que el servicio no esté disponible; si se repite, avísale al equipo técnico.";
+  if (status === 408 || status === 504) return "El servicio tardó demasiado en responder. Intenta de nuevo.";
+  if (status === 409) return "La información cambió mientras trabajabas. Recarga la pantalla.";
+  if (status === 429) return "Demasiadas consultas seguidas. Espera un momento e intenta de nuevo.";
+  if (status >= 500) return "El servicio no está respondiendo. Intenta de nuevo en unos minutos.";
+  return "No pudimos completar la consulta.";
+}
+
 // =============================================================
 // Headers helpers
 // =============================================================
 
 async function buildAuthHeaders(): Promise<Record<string, string>> {
   const cookieStore = await cookies();
-  const authToken = cookieStore.get("auth_token");
-  return authToken ? { Authorization: `Bearer ${authToken.value}` } : {};
+  // El token viaja troceado en cookies (auth_token + auth_token_1..n)
+  const authToken = readAuthToken((name) => cookieStore.get(name)?.value);
+  return authToken ? { Authorization: `Bearer ${authToken}` } : {};
 }
 
 function isFormData(body: unknown): body is FormData {
@@ -106,8 +152,11 @@ async function request<T>(
   // Read body once as text — más seguro con respuestas vacías o no-JSON.
   const rawText = await response.text();
   const contentType = response.headers.get("content-type") ?? "";
+  // Incluye "application/problem+json" (ProblemDetails de ASP.NET Core), no
+  // solo "application/json" — si no, el body de un error 400/404 nunca se
+  // parsea y detail/title/errorCode quedan inaccesibles para el caller.
   let data: unknown = rawText;
-  if (contentType.includes("application/json") && rawText) {
+  if (contentType.includes("json") && rawText) {
     try {
       data = JSON.parse(rawText);
     } catch {
@@ -116,19 +165,52 @@ async function request<T>(
   }
 
   if (!response.ok) {
+    const parsed =
+      typeof data === "object" && data !== null
+        ? (data as {
+          message?: string;
+          error?: string;
+          detail?: string;
+          title?: string;
+          errors?: Record<string, string[]>;
+          errorCode?: string;
+          extensions?: { errorCode?: string };
+        })
+        : undefined;
+
+    const errorCode = parsed?.errorCode ?? parsed?.extensions?.errorCode;
+
+    // Distintos formatos de error del backend: `error` (respuestas custom),
+    // ProblemDetails `detail` (específico) y `title` (genérico, p. ej. "Not
+    // Found"). El catálogo (errorCode → mensaje amigable) tiene prioridad
+    // sobre el texto crudo del backend (a veces en inglés, p. ej. mensajes
+    // de validación de ASP.NET Identity) — pero solo si el código está
+    // catalogado, para no ocultar un `detail` específico con "Error
+    // desconocido".
+    // `title` solo cuando dice algo: en un 404 de ruta que no existe, o en cualquier error que
+    // ASP.NET arma solo, ProblemDetails trae `title` = la frase del protocolo ("Not Found"), que
+    // es lo mismo que `statusText`. Pintarla dejaba al usuario con un "Not Found" en inglés en
+    // medio de la pantalla, sin forma de distinguir un dato que no existe de un servicio caído.
+    const tituloEspecifico =
+      parsed?.title && parsed.title !== response.statusText ? parsed.title : undefined;
+
     const message =
-      typeof data === "string"
-        ? data
-        : (data as { message?: string; title?: string; detail?: string })?.message ??
-          (data as { title?: string })?.title ??
-          (data as { detail?: string })?.detail ??
-          response.statusText;
+      (hasErrorCode(errorCode) ? getErrorMessage(errorCode) : null) ??
+      (typeof data === "string" ? safeRawMessage(data) : undefined) ??
+      parsed?.message ??
+      parsed?.error ??
+      validationMessage(parsed?.errors) ??
+      parsed?.detail ??
+      tituloEspecifico ??
+      mensajePorEstado(response.status);
+
     throw new ApiError({
       message: message || `HTTP ${response.status}`,
       status: response.status,
       statusText: response.statusText,
       body: data,
       url,
+      errorCode,
     });
   }
 
@@ -201,15 +283,44 @@ export async function fetchGetBlob(
   const url = `${getBaseUrl(apiType)}${endpoint}`;
   const headers = await buildAuthHeaders();
 
-  const response = await fetch(url, { method: "GET", headers });
+  const response = await fetch(url, {
+    method: "GET",
+    headers,
+    cache: "no-store",
+  });
   if (!response.ok) {
     const errorText = await response.text();
+    // Los binarios también pueden fallar con ProblemDetails (400/403 antes de
+    // generar el archivo): se intenta extraer errorCode igual que en `request`.
+    let errorCode: string | undefined;
+    let message = safeRawMessage(errorText) ?? mensajePorEstado(response.status);
+    try {
+      const parsed = JSON.parse(errorText) as {
+        detail?: string;
+        title?: string;
+        errors?: Record<string, string[]>;
+        errorCode?: string;
+        extensions?: { errorCode?: string };
+      };
+      errorCode = parsed.errorCode ?? parsed.extensions?.errorCode;
+      message =
+        (hasErrorCode(errorCode) ? getErrorMessage(errorCode) : undefined) ??
+        validationMessage(parsed.errors) ??
+        parsed.detail ??
+        // Igual que en `request`: el `title` genérico de ProblemDetails es la frase del
+        // protocolo y no se pinta.
+        (parsed.title && parsed.title !== response.statusText ? parsed.title : undefined) ??
+        mensajePorEstado(response.status);
+    } catch {
+      // No era JSON: se deja el texto crudo si es corto y no es un volcado.
+    }
     throw new ApiError({
-      message: errorText || `HTTP ${response.status}`,
+      message: message || `HTTP ${response.status}`,
       status: response.status,
       statusText: response.statusText,
       body: errorText,
       url,
+      errorCode,
     });
   }
 

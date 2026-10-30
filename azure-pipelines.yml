@@ -1,0 +1,123 @@
+# Pipeline de taxflow-platform (Next.js standalone -> Azure App Service Linux, modo codigo).
+# Portado de scripts/build-deploy-zip.ps1 y scripts/deploy-zip-az-prod.ps1 (sin prompts).
+#
+# Requisitos en Azure DevOps (ver plan CI/CD):
+#   - Agent pool 'selfhosted-contabox' (Ubuntu x64, Node 24 via NodeTool).
+#   - Service connection ARM 'sc-contabilizate-azure' (Contributor sobre los RG destino).
+#   - Environments: 'taxflow-stg' (sin approval) y 'taxflow-prod' (con approval manual).
+#   - Los secretos (Stripe, etc.) NUNCA van aqui: viven en Application Settings del App Service.
+
+trigger:
+  branches:
+    include:
+      - dev
+  paths:
+    exclude:
+      - '*.md'
+      - docs/**
+      - scripts/**
+
+pr:
+  branches:
+    include:
+      - dev
+
+pool:
+  name: selfhosted-contabox
+
+variables:
+  azureServiceConnection: sc-contabilizate-azure
+  prodResourceGroup: contabilizate-prod
+  prodAppName: contaboxpro-prod-frontend
+  # Staging: dejar vacio hasta definir el App Service de stg (la etapa se omite si esta vacio).
+  stgResourceGroup: ''
+  stgAppName: ''
+  nodeVersion: 24.x
+
+stages:
+  - stage: Build
+    displayName: Build y empaquetado
+    jobs:
+      - job: Build
+        steps:
+          - checkout: self
+            fetchDepth: 1
+
+          - task: NodeTool@0
+            displayName: Node $(nodeVersion)
+            inputs:
+              versionSpec: $(nodeVersion)
+
+          - script: npm ci
+            displayName: npm ci
+
+          # next.config.mjs tiene typescript.ignoreBuildErrors: true, asi que el build no
+          # detecta errores de tipos. Se reportan como warning sin bloquear (hay deuda previa).
+          - script: npx tsc --noEmit
+            displayName: Typecheck (informativo)
+            continueOnError: true
+
+          - bash: |
+              set -euo pipefail
+              rm -rf .next
+              export NEXT_PUBLIC_BUILD_DATE="$(date -u +'%Y-%m-%d %H:%M')"
+              export NEXT_PUBLIC_BUILD_BRANCH="$(Build.SourceBranchName)"
+              export NEXT_PUBLIC_BUILD_SHA="$(git rev-parse --short HEAD)"
+              npm run build
+              test -d .next/standalone || { echo "Falta .next/standalone: revisa output: 'standalone' en next.config.mjs"; exit 1; }
+              echo "$NEXT_PUBLIC_BUILD_SHA" > "$(Build.ArtifactStagingDirectory)/last-build-sha.txt"
+            displayName: next build
+
+          - bash: |
+              set -euo pipefail
+              S=.next/standalone
+              rm -rf "$S/.next/static" "$S/public"
+              cp -r .next/static "$S/.next/static"
+              [ -d public ] && cp -r public "$S/public"
+              # Next copia .env* al standalone por conveniencia: nunca deben ir en el zip.
+              find "$S" -maxdepth 1 -name '.env*' -type f -print -delete
+              # zip(1) guarda las rutas con "/" (lo que exige App Service Linux).
+              (cd "$S" && zip -qr "$(Build.ArtifactStagingDirectory)/taxflow-platform.zip" .)
+              ls -lh "$(Build.ArtifactStagingDirectory)/taxflow-platform.zip"
+            displayName: Empaquetar zip (static + public, sin .env)
+
+          - publish: $(Build.ArtifactStagingDirectory)
+            artifact: drop
+            displayName: Publicar artefacto
+
+  - stage: DeployStg
+    displayName: Deploy a staging
+    dependsOn: Build
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'), ne(variables['stgAppName'], ''))
+    jobs:
+      - deployment: Stg
+        environment: taxflow-stg
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - template: .azure-pipelines/deploy-webapp-zip.yml
+                  parameters:
+                    azureServiceConnection: $(azureServiceConnection)
+                    resourceGroup: $(stgResourceGroup)
+                    appName: $(stgAppName)
+
+  - stage: DeployProd
+    displayName: Deploy a produccion
+    dependsOn:
+      - Build
+      - DeployStg
+    # Corre aunque DeployStg se omita (stg vacio), pero no si fallo.
+    condition: and(succeeded('Build'), in(dependencies.DeployStg.result, 'Succeeded', 'SucceededWithIssues', 'Skipped'), ne(variables['Build.Reason'], 'PullRequest'))
+    jobs:
+      - deployment: Prod
+        environment: taxflow-prod   # aprobacion manual configurada en el Environment
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - template: .azure-pipelines/deploy-webapp-zip.yml
+                  parameters:
+                    azureServiceConnection: $(azureServiceConnection)
+                    resourceGroup: $(prodResourceGroup)
+                    appName: $(prodAppName)

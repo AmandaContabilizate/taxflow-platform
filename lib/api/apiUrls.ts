@@ -1,38 +1,62 @@
-/**
- * Mapa de bases URL por microservicio del backend ContaboxPro core2.
- *
- * Microservicios (puertos por defecto en dev):
- *   - Identity   → 7125  (auth, users, taxpayers, employees, roles)
- *   - Procedures → 7165  (declaration, vault, cfdi, ...)
- *   - Reports    → 7126  (dashboards)
- *   - Scrappers  → 7042  (SAT scrappers)
- *
- * Configurables en .env.local con NEXT_PUBLIC_API_*.
- */
+import "server-only";
 
-const BASE_IDENTITY   = process.env.NEXT_PUBLIC_API_BASE_IDENTITY   || "https://localhost:7125";
-const BASE_PROCEDURES = process.env.NEXT_PUBLIC_API_BASE_PROCEDURES || "https://localhost:7165";
-const BASE_REPORTS    = process.env.NEXT_PUBLIC_API_BASE_REPORTS    || "https://localhost:7126";
-const BASE_SCRAPPERS  = process.env.NEXT_PUBLIC_API_BASE_SCRAPPERS  || "https://localhost:7042";
+const BASE_IDENTITY = process.env.API_BASE_IDENTITY || "https://localhost:7125/api";
+const BASE_PROCEDURES = process.env.API_BASE_PROCEDURES || "https://localhost:7165/api";
+const BASE_REPORTS = process.env.API_BASE_REPORTS || "https://localhost:7126/api";
+const BASE_GEORGE = `${BASE_PROCEDURES}/george`;
+
+const DbOrigin = "/SQLServer";
 
 export const API_BASE_URLS = {
-  default:   BASE_IDENTITY,
-  // Identity
-  auth:      `${BASE_IDENTITY}/api/auth`,
-  users:     `${BASE_IDENTITY}/api/users`,
-  taxpayers: `${BASE_IDENTITY}/api/taxpayers`,
-  catalogs:  `${BASE_IDENTITY}/api/catalogs`,
-  metadata:  `${BASE_IDENTITY}/api/metadata`,
-  roles:     `${BASE_IDENTITY}/api/roles`,
-  // Procedures
-  declaration: `${BASE_PROCEDURES}/api/declaration`,
-  vault:       `${BASE_PROCEDURES}/api/vault`,
-  cfdi:        `${BASE_PROCEDURES}/api/cfdi`,
-  procedures:  BASE_PROCEDURES,
+  default: BASE_IDENTITY,
+  auth: `${BASE_IDENTITY}/auth${DbOrigin}`,
+  users: `${BASE_IDENTITY}/users${DbOrigin}`,
+  taxpayers: `${BASE_IDENTITY}/taxpayers${DbOrigin}`,
+  catalogs: `${BASE_IDENTITY}/catalogs${DbOrigin}`,
+  metadata: `${BASE_IDENTITY}/metadata${DbOrigin}`,
+  roles: `${BASE_IDENTITY}/roles${DbOrigin}`,
+  declaration: `${BASE_PROCEDURES}/declaration${DbOrigin}`,
+  declarations_procedures: `${BASE_PROCEDURES}/declarations`,
+  declaration_report: `${BASE_PROCEDURES}/DeclarationReport`,
+  vault: `${BASE_PROCEDURES}/vault${DbOrigin}`,
+  cfdi: `${BASE_PROCEDURES}/cfdi${DbOrigin}`,
+  catalogs_procedures: `${BASE_PROCEDURES}/catalogs${DbOrigin}`,
+  finances: `${BASE_PROCEDURES}/finances${DbOrigin}`,
+  accountant_assignments: `${BASE_PROCEDURES}/accountant-assignments`,
+  stripe: `${BASE_PROCEDURES}/stripe`,
+  payment_link: `${BASE_PROCEDURES}/payment-link`,
+  referrals: `${BASE_PROCEDURES}/referrals`,
+  george: BASE_GEORGE,
+  partnership: `${BASE_PROCEDURES}/partnership`,
+  classification_rules_admin: `${BASE_PROCEDURES}/classification-rules-admin`,
+  timbrame: `${BASE_PROCEDURES}/timbrame${DbOrigin}`,
   // Reports
-  reports:   BASE_REPORTS,
-  // Scrappers
-  scrappers: BASE_SCRAPPERS,
+  sales_procedures: `${BASE_PROCEDURES}/sales`,
+  dashboard_reports: `${BASE_REPORTS}/dashboard${DbOrigin}`,
+  declarations_reports: `${BASE_REPORTS}/declarations`,
+  sales_reports: `${BASE_REPORTS}/sales`,
+  taxpayers_reports: `${BASE_REPORTS}/taxpayers`,
+  // Diagnóstico fiscal bajo demanda (Identity). OJO: NO lleva /SQLServer.
+  diagnostico: `${BASE_IDENTITY}/diagnostico`,
+  marketing: `${BASE_IDENTITY}/Marketing`,
+  push_tokens: `${BASE_IDENTITY}/PushTokens`,
+  users_reports: `${BASE_REPORTS}/users`,
+  team: `${BASE_IDENTITY}/team`,
+  partners: `${BASE_PROCEDURES}/partners`,
+  discount_codes: `${BASE_PROCEDURES}/discount-codes`,
+  commissions: `${BASE_PROCEDURES}/commissions`,
+  assignments: `${BASE_PROCEDURES}/assignments`,
+  notification_prefs: `${BASE_PROCEDURES}/Notification${DbOrigin}`,
+  user_notifications: `${BASE_PROCEDURES}/v1/user-notifications`,
+  // Monitor de descargas SAT (solo Developer). Sin /SQLServer.
+  download_monitor: `${BASE_PROCEDURES}/download-monitor`,
+  // Cancelación comercial (gerencia de ventas): motivos, cancelar y reactivar declaraciones
+  // viven en Procedures; búsqueda, listado del RFC e historial en Reports. Sin /SQLServer.
+  cancellations: `${BASE_PROCEDURES}/cancellations`,
+  cancellations_reports: `${BASE_REPORTS}/cancellations`,
+  // Baja/reactivación de contribuyente (Identity, TaxpayerDeactivationController): ruta base
+  // `api/taxpayers/{id}/...` sin /SQLServer, distinta del TaxpayersController (`taxpayers`).
+  taxpayer_deactivation: `${BASE_IDENTITY}/taxpayers`,
 } as const;
 
 export type ApiType = keyof typeof API_BASE_URLS;
@@ -46,3 +70,15 @@ export function getBaseUrl(apiType: ApiType = "default"): string {
   }
   return url;
 }
+
+const SYSTEM_ORIGIN_ID = Number(process.env.SYSTEM_ORIGIN_ID ?? 4);
+
+export function getSystemOriginId(): number {
+  return Number.isInteger(SYSTEM_ORIGIN_ID) ? SYSTEM_ORIGIN_ID : 4;
+}
+
+export function getExternalAuthUrl(provider: "google" | "facebook" | "apple"): string {
+  return `${getBaseUrl("auth")}/${provider}/${getSystemOriginId()}`;
+}
+
+export { SYSTEM_ORIGIN_ID };

@@ -1,0 +1,596 @@
+'use client'
+
+import { Loader2, Save } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { saveDiscountCode } from '@/features/discountCodes/actions/saveDiscountCode.action'
+import type { DiscountCodeAdmin, DiscountCodeLookups } from '@/features/discountCodes/types'
+import { Modal } from '../modal'
+
+interface Props {
+  open: boolean
+  /** null = crear; con valor = editar. */
+  code: DiscountCodeAdmin | null
+  lookups: DiscountCodeLookups | null
+  onClose: () => void
+  /** Al guardar un código BASE trae el resumen del reparto para el aviso de la pantalla. */
+  onSaved: (reparto?: { creadas: number; yaTenian: number }) => void
+  /** Admin.AuthorizeHighDiscount: puede guardar ACTIVOS códigos fuera de tope (>20% / >3 decl.). */
+  canAuthorize?: boolean
+}
+
+type OwnerType = 'user' | 'partner' | 'none'
+
+const inputStyle = {
+  background: 'var(--input)',
+  border: '1px solid var(--border)',
+  color: 'var(--foreground)',
+} as const
+
+export function CodigoModal({ open, code, lookups, onClose, onSaved, canAuthorize = false }: Props) {
+  const [codeText, setCodeText] = useState('')
+  const [description, setDescription] = useState('')
+  const [ownerType, setOwnerType] = useState<OwnerType>('user')
+  const [sellerUserId, setSellerUserId] = useState('')
+  const [partnershipId, setPartnershipId] = useState<number | ''>('')
+  const [discountTypeId, setDiscountTypeId] = useState(1)
+  const [discountPercent, setDiscountPercent] = useState('')
+  const [declarationsCount, setDeclarationsCount] = useState('')
+  const [maxUses, setMaxUses] = useState('')
+  const [planIds, setPlanIds] = useState<number[]>([])
+  // Tab visible del selector de planes; las selecciones se conservan entre tabs.
+  const [planTab, setPlanTab] = useState<'sub' | 'once'>('sub')
+  const [rfcsText, setRfcsText] = useState('')
+  const [isActive, setIsActive] = useState(true)
+  // Código base para asesores: molde sin dueño, no canjeable; al guardarse activo se
+  // reparte una copia personal (CODE-VENDORCODE) a cada asesor del segmento.
+  const [isBaseTemplate, setIsBaseTemplate] = useState(false)
+  const [baseSegmentId, setBaseSegmentId] = useState<number | ''>('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    setCodeText(code?.code ?? '')
+    setDescription(code?.description ?? '')
+    setOwnerType(code ? code.ownerType : 'user')
+    setSellerUserId(code?.sellerUserId ?? '')
+    setPartnershipId(code?.partnershipId ?? '')
+    setDiscountTypeId(code?.discountTypeId ?? 1)
+    setDiscountPercent(code ? String(code.discountPercent) : '')
+    setDeclarationsCount(code?.declarationsCount ? String(code.declarationsCount) : '')
+    setMaxUses(code?.maxUses ? String(code.maxUses) : '')
+    setPlanIds(code?.subscriptionPlanIds ?? [])
+    // Precargar la lista blanca actual: lo que se guarda REEMPLAZA la lista, así
+    // que el usuario siempre debe partir de lo que ya existe.
+    setRfcsText((code?.whitelistedRfcs ?? []).join('\n'))
+    setIsActive(code?.isActive ?? true)
+    setIsBaseTemplate(code?.isBaseTemplate ?? false)
+    setBaseSegmentId(code?.baseTemplateSegmentId ?? '')
+    setError(null)
+  }, [open, code])
+
+  // Validación en vivo de RFCs: nada se descarta en silencio.
+  const rfcTokens = rfcsText
+    .split(/[\s,;]+/)
+    .map((r) => r.trim().toUpperCase())
+    .filter(Boolean)
+  const validRfcs = rfcTokens.filter((r) => r.length === 12 || r.length === 13)
+  const invalidRfcs = rfcTokens.filter((r) => r.length !== 12 && r.length !== 13)
+
+  // Planes DESACTIVADOS que siguen palomeados (ligas viejas del código): se
+  // muestran para poder desmarcarlos, pero bloquean el guardado.
+  const planesInactivosSeleccionados = (lookups?.plans ?? []).filter(
+    (p) => !p.isActive && planIds.includes(p.id),
+  )
+
+  const isPercent = discountTypeId === 1
+  const canSubmit =
+    planesInactivosSeleccionados.length === 0 &&
+    codeText.trim().length >= 3 &&
+    // MaxUses solo es obligatorio para códigos ACTIVOS (el checkout rechaza códigos
+    // sin límite); un código inactivo puede guardarse sin tope (legacy).
+    (!isActive || Number(maxUses) > 0) &&
+    invalidRfcs.length === 0 &&
+    // Un código base no lleva dueño (las copias repartidas son de cada asesor).
+    (isBaseTemplate ||
+      ownerType === 'none' ||
+      (ownerType === 'user' && sellerUserId !== '') ||
+      (ownerType === 'partner' && partnershipId !== '')) &&
+    // Topes de negocio para códigos ACTIVOS (el backend los valida de nuevo):
+    // máximo 20% / 3 declaraciones. Fuera de tope se puede guardar INACTIVO
+    // (la solicitud); solo quien autoriza (Admin.AuthorizeHighDiscount) puede
+    // guardarlo activo, hasta 100%.
+    (isPercent
+      ? discountPercent !== '' &&
+        Number.isInteger(Number(discountPercent)) &&
+        Number(discountPercent) >= 0 &&
+        Number(discountPercent) <= (isActive && !canAuthorize ? 20 : 100)
+      : Number(declarationsCount) > 0 && (!isActive || canAuthorize || Number(declarationsCount) <= 3))
+
+  // Por qué no se puede guardar: el botón nunca se apaga en silencio.
+  const faltantes: string[] = []
+  if (codeText.trim().length < 3) faltantes.push('el código (mínimo 3 caracteres)')
+  if (isActive && !(Number(maxUses) > 0)) faltantes.push('los usos máximos (obligatorios si está activo)')
+  if (!isBaseTemplate && ownerType === 'user' && sellerUserId === '') faltantes.push('el dueño (selecciona un ejecutivo, o usa "Sin dueño")')
+  if (!isBaseTemplate && ownerType === 'partner' && partnershipId === '') faltantes.push('el partner dueño')
+  if (invalidRfcs.length > 0) faltantes.push(`RFCs inválidos: ${invalidRfcs.join(', ')}`)
+  if (planesInactivosSeleccionados.length > 0)
+    faltantes.push(
+      `desmarcar los planes desactivados: ${planesInactivosSeleccionados.map((p) => p.name).join(', ')}`,
+    )
+  if (isPercent && discountPercent === '') faltantes.push('el % de descuento')
+  if (isPercent && Number(discountPercent) > 100) faltantes.push('el % no puede ser mayor a 100')
+  if (isPercent && discountPercent !== '' && !Number.isInteger(Number(discountPercent)))
+    faltantes.push('el % debe ser entero, sin decimales')
+  if (isPercent && isActive && !canAuthorize && Number(discountPercent) > 20 && Number(discountPercent) <= 100)
+    faltantes.push('más de 20% activo requiere autorización (desmarca "Código activo")')
+  if (!isPercent && !(Number(declarationsCount) > 0)) faltantes.push('las declaraciones de regalo')
+
+  const togglePlan = (id: number) => {
+    setPlanIds((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]))
+  }
+
+  const submit = async () => {
+    if (!canSubmit || loading) return
+    setLoading(true)
+    setError(null)
+    const rfcs = validRfcs
+    const res = await saveDiscountCode({
+      id: code?.id,
+      code: codeText.trim().toUpperCase(),
+      description: description.trim() || undefined,
+      sellerUserId: !isBaseTemplate && ownerType === 'user' ? sellerUserId : undefined,
+      partnershipId: !isBaseTemplate && ownerType === 'partner' && partnershipId !== '' ? partnershipId : undefined,
+      discountTypeId,
+      discountPercent: isPercent ? Number(discountPercent) : undefined,
+      declarationsCount: !isPercent ? Number(declarationsCount) : undefined,
+      maxUses: Number(maxUses),
+      subscriptionPlanIds: planIds,
+      whitelistedRfcs: rfcs,
+      isActive,
+      isBaseTemplate,
+      baseTemplateSegmentId: isBaseTemplate && baseSegmentId !== '' ? baseSegmentId : null,
+    })
+    setLoading(false)
+    if (!res.success) {
+      setError(res.error.message)
+      return
+    }
+    onSaved(
+      res.value.copiesCreated != null
+        ? { creadas: res.value.copiesCreated, yaTenian: res.value.copiesExisting ?? 0 }
+        : undefined,
+    )
+    onClose()
+  }
+
+  if (!open) return null
+
+  return (
+    <Modal isOpen onClose={onClose} title={code ? `Editar código — ${code.code}` : 'Nuevo código de descuento'}>
+      <div className="flex flex-col gap-4">
+        {error && (
+          <div className="p-3 rounded-lg text-[13px]" style={{ background: 'var(--hero-coral-soft-bg, #FCDCDC)', color: '#991B1B' }}>
+            {error}
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[12px] font-bold mb-1.5" style={{ color: 'var(--ink-700)' }}>
+              Código
+            </label>
+            <input
+              value={codeText}
+              onChange={(e) => setCodeText(e.target.value.toUpperCase())}
+              placeholder="VERANO25"
+              maxLength={50}
+              className="w-full px-3 py-2.5 rounded-lg text-[14px] outline-none focus:ring-2 uppercase"
+              style={inputStyle}
+              disabled={loading}
+            />
+          </div>
+          <div>
+            <label className="block text-[12px] font-bold mb-1.5" style={{ color: 'var(--ink-700)' }}>
+              Usos máximos{' '}
+              <span className="font-normal" style={{ color: 'var(--ink-400)' }}>
+                (requerido si está activo)
+              </span>
+            </label>
+            <input
+              type="number"
+              min={1}
+              value={maxUses}
+              onChange={(e) => setMaxUses(e.target.value)}
+              placeholder="100"
+              className="w-full px-3 py-2.5 rounded-lg text-[14px] outline-none focus:ring-2"
+              style={inputStyle}
+              disabled={loading}
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-[12px] font-bold mb-1.5" style={{ color: 'var(--ink-700)' }}>
+            Descripción <span className="font-normal" style={{ color: 'var(--ink-400)' }}>(opcional)</span>
+          </label>
+          <input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            maxLength={150}
+            className="w-full px-3 py-2.5 rounded-lg text-[14px] outline-none focus:ring-2"
+            style={inputStyle}
+            disabled={loading}
+          />
+        </div>
+
+        {/* Código base para asesores */}
+        <div
+          className="rounded-xl p-3.5"
+          style={{
+            border: `2px solid ${isBaseTemplate ? 'var(--brand-500)' : 'var(--border)'}`,
+            background: isBaseTemplate ? 'var(--hero-brand-soft)' : 'var(--card)',
+          }}
+        >
+          <label className="flex items-start gap-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isBaseTemplate}
+              onChange={(e) => setIsBaseTemplate(e.target.checked)}
+              disabled={loading || code?.baseTemplateId != null}
+              className="mt-0.5 cursor-pointer"
+            />
+            <span>
+              <span className="block text-[13px] font-bold" style={{ color: 'var(--ink-900)' }}>
+                Código base para asesores
+              </span>
+              <span className="block text-[11.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                Es un molde: no se puede canjear y no lleva dueño. Al guardarlo activo, cada asesor
+                recibe su copia personal (p. ej. {codeText.trim() ? `${codeText.trim()}-JORGE2000001` : 'CODIGO-JORGE2000001'})
+                y los asesores nuevos la reciben al ser invitados.
+              </span>
+            </span>
+          </label>
+          {isBaseTemplate && (
+            <div className="mt-3">
+              <label className="block text-[12px] font-bold mb-1.5" style={{ color: 'var(--ink-700)' }}>
+                Repartir a asesores de
+              </label>
+              <select
+                value={baseSegmentId}
+                onChange={(e) => setBaseSegmentId(e.target.value === '' ? '' : Number(e.target.value))}
+                className="w-full px-3 py-2.5 rounded-lg text-[14px] outline-none focus:ring-2 cursor-pointer"
+                style={inputStyle}
+                disabled={loading}
+              >
+                <option value="">Todos los segmentos</option>
+                {(lookups?.segments ?? []).map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
+        {/* Dueño (un código base no lleva: las copias son de cada asesor) */}
+        {!isBaseTemplate && (
+        <div>
+          <label className="block text-[12px] font-bold mb-1.5" style={{ color: 'var(--ink-700)' }}>
+            Tipo de dueño
+          </label>
+          <div className="grid grid-cols-3 gap-2">
+            {([
+              { value: 'user' as OwnerType, label: 'Ejecutivo / Finder Fee' },
+              { value: 'partner' as OwnerType, label: 'Partner' },
+              { value: 'none' as OwnerType, label: 'Sin dueño' },
+            ]).map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setOwnerType(opt.value)}
+                className="px-3 py-2 rounded-xl text-[12.5px] font-bold transition-colors cursor-pointer"
+                style={{
+                  border: `2px solid ${ownerType === opt.value ? 'var(--brand-500)' : 'var(--border)'}`,
+                  background: ownerType === opt.value ? 'var(--hero-brand-soft)' : 'var(--card)',
+                  color: 'var(--ink-900)',
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        )}
+
+        {!isBaseTemplate && ownerType === 'user' && (
+          <select
+            value={sellerUserId}
+            onChange={(e) => setSellerUserId(e.target.value)}
+            className="w-full px-3 py-2.5 rounded-lg text-[14px] outline-none focus:ring-2 cursor-pointer"
+            style={inputStyle}
+            disabled={loading}
+          >
+            <option value="">Selecciona dueño…</option>
+            {(lookups?.sellers ?? []).map((s) => (
+              <option key={s.userId} value={s.userId}>
+                {s.name} · {s.profileType}
+              </option>
+            ))}
+          </select>
+        )}
+        {!isBaseTemplate && ownerType === 'partner' && (
+          <select
+            value={partnershipId}
+            onChange={(e) => setPartnershipId(e.target.value === '' ? '' : Number(e.target.value))}
+            className="w-full px-3 py-2.5 rounded-lg text-[14px] outline-none focus:ring-2 cursor-pointer"
+            style={inputStyle}
+            disabled={loading}
+          >
+            <option value="">Selecciona partner…</option>
+            {(lookups?.partners ?? []).map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        )}
+
+        {/* Tipo de descuento */}
+        <div>
+          <label className="block text-[12px] font-bold mb-1.5" style={{ color: 'var(--ink-700)' }}>
+            Tipo de descuento
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setDiscountTypeId(1)}
+              className="p-3 rounded-xl text-left transition-colors cursor-pointer"
+              style={{
+                border: `2px solid ${isPercent ? 'var(--brand-500)' : 'var(--border)'}`,
+                background: isPercent ? 'var(--hero-brand-soft)' : 'var(--card)',
+              }}
+            >
+              <div className="text-[13px] font-bold" style={{ color: 'var(--ink-900)' }}>Porcentaje</div>
+              <div className="text-[11.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>Descuenta el total de la venta</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setDiscountTypeId(2)}
+              className="p-3 rounded-xl text-left transition-colors cursor-pointer"
+              style={{
+                border: `2px solid ${!isPercent ? 'var(--brand-500)' : 'var(--border)'}`,
+                background: !isPercent ? 'var(--hero-brand-soft)' : 'var(--card)',
+              }}
+            >
+              <div className="text-[13px] font-bold" style={{ color: 'var(--ink-900)' }}>Declaraciones futuras</div>
+              <div className="text-[11.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>Precio completo + declaraciones futuras extra</div>
+            </button>
+          </div>
+        </div>
+
+        {isPercent ? (
+          <div>
+            <label className="block text-[12px] font-bold mb-1.5" style={{ color: 'var(--ink-700)' }}>
+              % de descuento{' '}
+              <span className="font-normal" style={{ color: 'var(--ink-400)' }}>
+                (enteros{canAuthorize ? ', hasta 100% con tu autorización' : ', máximo 20%'})
+              </span>
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={canAuthorize ? 100 : 20}
+              step={1}
+              value={discountPercent}
+              onChange={(e) => setDiscountPercent(e.target.value)}
+              placeholder="15"
+              className="w-full px-3 py-2.5 rounded-lg text-[14px] outline-none focus:ring-2"
+              style={inputStyle}
+              disabled={loading}
+            />
+            {isActive && !canAuthorize && Number(discountPercent) > 20 && (
+              <p className="text-[11.5px] mt-1 font-semibold" style={{ color: 'var(--violet-ink)' }}>
+                Más de 20% requiere autorización: desmarca "Código activo" para guardarlo como
+                solicitud, y un administrador lo activará.
+              </p>
+            )}
+            {isActive && canAuthorize && Number(discountPercent) > 20 && Number(discountPercent) <= 100 && (
+              <p className="text-[11.5px] mt-1 font-semibold" style={{ color: 'var(--violet-ink)' }}>
+                Estás autorizando un descuento fuera de tope. Sugerencia: usa RFCs permitidos y
+                pocos usos máximos para acotarlo.
+              </p>
+            )}
+            {discountPercent !== '' && !Number.isInteger(Number(discountPercent)) && (
+              <p className="text-[11.5px] mt-1 font-semibold" style={{ color: 'var(--violet-ink)' }}>
+                El porcentaje debe ser un número entero, sin decimales.
+              </p>
+            )}
+            {Number(discountPercent) > 100 && (
+              <p className="text-[11.5px] mt-1 font-semibold" style={{ color: 'var(--violet-ink)' }}>
+                El porcentaje no puede ser mayor a 100%.
+              </p>
+            )}
+          </div>
+        ) : (
+          <div>
+            <label className="block text-[12px] font-bold mb-1.5" style={{ color: 'var(--ink-700)' }}>
+              Declaraciones futuras de regalo{' '}
+              <span className="font-normal" style={{ color: 'var(--ink-400)' }}>
+                {canAuthorize ? '(sin tope con tu autorización)' : '(máximo 3)'}
+              </span>
+            </label>
+            <input
+              type="number"
+              min={1}
+              max={canAuthorize ? undefined : 3}
+              value={declarationsCount}
+              onChange={(e) => setDeclarationsCount(e.target.value)}
+              placeholder="3"
+              className="w-full px-3 py-2.5 rounded-lg text-[14px] outline-none focus:ring-2"
+              style={inputStyle}
+              disabled={loading}
+            />
+            {isActive && !canAuthorize && Number(declarationsCount) > 3 && (
+              <p className="text-[11.5px] mt-1 font-semibold" style={{ color: 'var(--violet-ink)' }}>
+                Más de 3 declaraciones requiere autorización: desmarca "Código activo" para
+                guardarlo como solicitud, y un administrador lo activará.
+              </p>
+            )}
+            <p className="text-[11.5px] mt-1" style={{ color: 'var(--ink-400)' }}>
+              Se suman al cupo de futuras del plan comprado (compra 12 con regalo de 3 =
+              15 meses). Solo aplica en compra de planes, no en regularizaciones sueltas.
+            </p>
+          </div>
+        )}
+
+        {/* Planes aplicables */}
+        <div>
+          <label className="block text-[12px] font-bold mb-1.5" style={{ color: 'var(--ink-700)' }}>
+            Planes donde aplica{' '}
+            <span className="font-normal" style={{ color: 'var(--ink-400)' }}>
+              (opcional — sin planes seleccionados, el código aplica a todos)
+            </span>
+          </label>
+          {/* Tabs: los planes de suscripción cobran recurrente (el cupón en Stripe
+              descuenta solo el primer cobro); los de pago único son one-shot.
+              Cambiar de tab NO borra lo seleccionado en el otro. */}
+          <div className="flex gap-1 mb-1.5">
+            {([
+              { key: 'sub', label: 'Suscripciones' },
+              { key: 'once', label: 'Pago único' },
+            ] as const).map((t) => {
+              const seleccionados = (lookups?.plans ?? []).filter(
+                (p) => (t.key === 'sub' ? p.isSubscription : p.isOneTime) && planIds.includes(p.id),
+              ).length
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setPlanTab(t.key)}
+                  disabled={loading}
+                  className="px-3 py-1.5 rounded-lg text-[12.5px] font-semibold cursor-pointer"
+                  style={
+                    planTab === t.key
+                      ? { background: 'var(--accent-100, #ecfdf5)', border: '1.5px solid var(--accent-500, #10b981)', color: 'var(--ink-900)' }
+                      : { background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--ink-500)' }
+                  }
+                >
+                  {t.label}
+                  {seleccionados > 0 && <span className="ml-1.5 font-normal">({seleccionados})</span>}
+                </button>
+              )
+            })}
+          </div>
+          <div
+            className="flex flex-col gap-1.5 max-h-[160px] overflow-y-auto rounded-lg p-3"
+            style={{ border: '1px solid var(--border)', background: 'var(--input)' }}
+          >
+            {/* Activos siempre; desactivados solo si el código los trae palomeados
+                (ligas viejas): visibles para desmarcarlos, pero bloquean el guardado. */}
+            {(lookups?.plans ?? [])
+              .filter((p) => (planTab === 'sub' ? p.isSubscription : p.isOneTime))
+              .filter((p) => p.isActive || planIds.includes(p.id))
+              .map((p) => (
+                <label key={p.id} className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={planIds.includes(p.id)}
+                    onChange={() => togglePlan(p.id)}
+                    disabled={loading}
+                    className="w-4 h-4 cursor-pointer"
+                  />
+                  <span className="text-[13px]" style={{ color: p.isActive ? 'var(--ink-700)' : '#B91C1C' }}>
+                    {p.name}
+                    {!p.isActive && <b> (desactivado — desmárcalo para poder guardar)</b>}
+                  </span>
+                </label>
+              ))}
+            {(lookups?.plans ?? []).filter((p) => (planTab === 'sub' ? p.isSubscription : p.isOneTime) && (p.isActive || planIds.includes(p.id))).length === 0 && (
+              <span className="text-[12.5px]" style={{ color: 'var(--ink-400)' }}>
+                {planTab === 'sub' ? 'Sin planes de suscripción activos' : 'Sin planes de pago único activos'}
+              </span>
+            )}
+          </div>
+          {planTab === 'sub' && (
+            <p className="text-[11.5px] mt-1" style={{ color: 'var(--ink-400)' }}>
+              En suscripciones el descuento aplica una sola vez: solo el primer cobro — las renovaciones van a precio completo.
+            </p>
+          )}
+        </div>
+
+        {/* Lista blanca de RFCs */}
+        <div>
+          <label className="block text-[12px] font-bold mb-1.5" style={{ color: 'var(--ink-700)' }}>
+            RFCs permitidos <span className="font-normal" style={{ color: 'var(--ink-400)' }}>(opcional — con RFCs el código es exclusivo de esos clientes)</span>
+          </label>
+          <textarea
+            value={rfcsText}
+            onChange={(e) => setRfcsText(e.target.value)}
+            placeholder={'GURO820108281\nDUMC921108LH2'}
+            rows={2}
+            className="w-full px-3 py-2.5 rounded-lg text-[13px] outline-none focus:ring-2 resize-y"
+            style={{ ...inputStyle, fontFamily: 'var(--font-mono)' }}
+            disabled={loading}
+          />
+          {rfcTokens.length > 0 && (
+            <p
+              className="text-[11.5px] mt-1"
+              style={{ color: invalidRfcs.length > 0 ? 'var(--violet-ink)' : 'var(--ink-500)' }}
+            >
+              {validRfcs.length} RFC{validRfcs.length === 1 ? '' : 's'} válido{validRfcs.length === 1 ? '' : 's'}
+              {invalidRfcs.length > 0 && (
+                <> · {invalidRfcs.length} inválido{invalidRfcs.length === 1 ? '' : 's'} (corrígelo{invalidRfcs.length === 1 ? '' : 's'} para guardar): <b>{invalidRfcs.join(', ')}</b></>
+              )}
+            </p>
+          )}
+          {code && code.whitelistedRfcsCount > 0 && (
+            <p className="text-[11.5px] mt-1" style={{ color: 'var(--ink-400)' }}>
+              La lista de arriba es la actual del código; al guardar se reemplaza completa con lo que quede aquí.
+            </p>
+          )}
+        </div>
+
+        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={isActive}
+            onChange={(e) => setIsActive(e.target.checked)}
+            disabled={loading}
+            className="w-4 h-4 cursor-pointer"
+          />
+          <span className="text-[13px]" style={{ color: 'var(--ink-700)' }}>Código activo</span>
+        </label>
+
+        {/* Nunca apagar el botón en silencio: decir exactamente qué falta. */}
+        {!canSubmit && faltantes.length > 0 && (
+          <div
+            className="px-3.5 py-2.5 rounded-xl text-[12.5px]"
+            style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}
+          >
+            <b>Para guardar falta:</b> {faltantes.join(' · ')}
+          </div>
+        )}
+
+        <div className="flex gap-3 justify-end pt-1">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="px-5 py-2.5 rounded-full font-bold text-[13.5px] transition cursor-pointer"
+            style={{ background: 'var(--card)', color: 'var(--foreground)', border: '1px solid var(--border-strong, var(--border))' }}
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={() => void submit()}
+            disabled={!canSubmit || loading}
+            className="px-5 py-2.5 rounded-full font-bold text-[13.5px] inline-flex items-center gap-2 transition hover:opacity-95 disabled:opacity-50 cursor-pointer"
+            style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}
+          >
+            {loading ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+            {code ? 'Guardar cambios' : 'Crear código'}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  )
+}

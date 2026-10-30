@@ -1,0 +1,377 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { Stethoscope, FileText, FilePlus, FolderLock, FilePlus2, Gem, ArrowRight, Loader2 } from 'lucide-react'
+import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
+import { useFiscalScore } from '@/features/declarations/hooks/useFiscalScore'
+import { getTaxRegimes, type TaxRegime } from '@/features/taxpayers/actions/getTaxRegimes.action'
+import { getTaxpayerByRfc } from '@/features/taxpayers/actions/getTaxpayerByRfc.action'
+import { MONO } from '../constants'
+import type { GoFn } from '../types'
+import { Card, CiecWarningBanner, HelpBox } from '../ui'
+import { NeedsSatConnect } from './needs-sat-connect'
+import { scoreLabel } from '../fiscal-score.utils'
+import { getCiecBlockStatus, isConnectedByEfirmaOnly, isSatConnected } from '../sat-connection.utils'
+import { CiecBlockedScreen } from './ciec-blocked'
+import { Card3D } from '../card-3d'
+
+interface Props {
+  go: GoFn
+  firstName?: string
+}
+
+export function VistaFiscalScreen({ go, firstName }: Props) {
+  const { hasRfc, loading } = useHasRfc()
+  const { selectedRfcInfo, selectedRfc } = useRfcStore()
+  // Estatus compartido del diagnóstico (docs/diagnostico-status.md): antes esta
+  // pantalla pintaba el score como definitivo aunque el robot siguiera
+  // reconciliando; ahora distingue "revisando…" y se actualiza sola (polling).
+  const { score, step } = useFiscalScore()
+  const [loadingData, setLoadingData] = useState(true)
+  const [taxRegimes, setTaxRegimes] = useState<TaxRegime[]>([])
+  const [rfcTaxRegimes, setRfcTaxRegimes] = useState<Array<{ regimeId: number; idActivities?: number[] }>>([])
+
+  useEffect(() => {
+    void (async () => {
+      const res = await getTaxRegimes()
+      if (res.success) {
+        setTaxRegimes(res.value)
+      }
+    })()
+  }, [])
+
+  useEffect(() => {
+    if (!selectedRfc) return
+    let cancelled = false
+    setLoadingData(true)
+    void (async () => {
+      try {
+        const taxpayerRes = await getTaxpayerByRfc(selectedRfc)
+
+        if (!cancelled) {
+          if (taxpayerRes.success && taxpayerRes.value?.taxRegimes) {
+            setRfcTaxRegimes(taxpayerRes.value.taxRegimes)
+          }
+          setLoadingData(false)
+        }
+      } catch (e) {
+        if (!cancelled) {
+          console.error('[VistaFiscal] Error loading data:', e)
+          setLoadingData(false)
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [selectedRfc])
+
+  if (loading) return null
+  if (!hasRfc) return <NeedsSatConnect go={go} feature="acceder a tu vista fiscal" />
+  // status69B trae valor SOLO cuando el RFC aparece en la lista del 69-B (null si no aparece,
+  // ver RfcList.cs). Estaba al reves: el pill verde solo lo veia quien si estaba en la lista.
+  const isIn69B = (selectedRfcInfo?.status69B ?? '').trim() !== ''
+
+  const ciecBlock = getCiecBlockStatus(selectedRfcInfo)
+  if (!isSatConnected(selectedRfcInfo) && !ciecBlock) return <NeedsSatConnect go={go} feature="acceder a tu vista fiscal" />
+  if (ciecBlock === 'invalid') return <CiecBlockedScreen go={go} state="invalid" />
+
+  return (
+    <div className="flex flex-col gap-6">
+      {ciecBlock === 'unverified' && <CiecWarningBanner go={go} variant="unverified" />}
+      {isConnectedByEfirmaOnly(selectedRfcInfo) && <CiecWarningBanner go={go} variant="efirma" />}
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Columna izquierda */}
+        <div className="flex-1 flex flex-col gap-6">
+          {selectedRfcInfo && (
+            <div className="rounded-3xl p-6 lg:p-7 flex items-start justify-between" style={{ background: 'var(--hero-brand-soft)', border: '1px solid var(--brand-200)' }}>
+              <div className="flex-1">
+                <div className="text-[11px] font-extrabold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-700)' }}>
+                  Tu régimen fiscal
+                </div>
+                {rfcTaxRegimes && rfcTaxRegimes.length > 0 && (
+                  <div className="mb-4">
+                    <div className="flex flex-col gap-1.5">
+                      {rfcTaxRegimes.map((regime: any, idx: number) => {
+                        const regimeName = taxRegimes.find(r => r.id === regime.regimeId)?.name || `Régimen ${regime.regimeId}`
+                        const isFirst = idx === 0
+                        return (
+                          <span
+                            key={regime.regimeId}
+                            className={isFirst ? "text-[24px] font-extrabold tracking-tight" : "text-[14px] font-semibold tracking-wide"}
+                            style={{ color: 'rgb(34,17,88)' }}
+                          >
+                            {regimeName}
+                          </span>
+                        )
+                      })}
+                    </div>
+                    {rfcTaxRegimes.length > 1 && (
+                      <div className="text-[12px] font-medium mt-2" style={{ color: 'var(--brand-600)' }}>
+                        +{rfcTaxRegimes.length - 1} régimen{rfcTaxRegimes.length - 1 > 1 ? 'es' : ''} más
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div className="text-[18px] font-extrabold tracking-tight mb-2" style={{ color: 'var(--ink-900)' }}>
+                  {selectedRfcInfo.legalName}
+                </div>
+                <div className="text-[13.5px]" style={{ ...MONO, color: 'var(--ink-600)' }}>
+                  {selectedRfcInfo.rfc}
+                </div>
+              </div>
+              {isIn69B ? (
+                <div className="text-[12px] font-semibold px-3 py-1.5 rounded-full" style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}>
+                  Requiere revisión
+                </div>
+              ) : (
+                <div className="text-[12px] font-semibold px-3 py-1.5 rounded-full" style={{ background: 'var(--brand-50)', color: 'var(--brand-700)' }}>
+                  ✓ Todo en orden
+                </div>
+              )}
+            </div>
+          )}
+
+          <HelpBox>
+            Tu vida fiscal centralizada. Accede a todas tus herramientas de gestión fiscal desde un solo lugar.
+          </HelpBox>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Card3D>
+              <Card>
+                <button
+                  onClick={() => go('diagnostico')}
+                  className="w-full p-6 text-left"
+              >
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'var(--brand-50)', color: 'var(--brand-700)' }}>
+                  <Stethoscope size={24} />
+                </div>
+                <div className="font-bold text-[15px]" style={{ color: 'var(--ink-900)' }}>
+                  Diagnóstico
+                </div>
+                <div className="text-[13px] mt-1" style={{ color: 'var(--ink-500)' }}>
+                  Tu situación fiscal
+                </div>
+              </button>
+              </Card>
+            </Card3D>
+
+            <Card3D>
+              <Card>
+                <button
+                  onClick={() => go('declaraciones')}
+                  className="w-full p-6 text-left"
+                >
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)' }}>
+                    <FileText size={24} />
+                  </div>
+                  <div className="font-bold text-[15px]" style={{ color: 'var(--ink-900)' }}>
+                    Declaraciones
+                  </div>
+                  <div className="text-[13px] mt-1" style={{ color: 'var(--ink-500)' }}>
+                    Tus impuestos del mes
+                  </div>
+                </button>
+              </Card>
+            </Card3D>
+
+            <Card3D>
+              <Card>
+                <button
+                  onClick={() => go('facturas')}
+                  className="w-full p-6 text-left"
+                >
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: '#2A1C64', color: '#fff' }}>
+                    <FilePlus size={24} />
+                  </div>
+                  <div className="font-bold text-[15px]" style={{ color: 'var(--ink-900)' }}>
+                    Facturación
+                  </div>
+                  <div className="text-[13px] mt-1" style={{ color: 'var(--ink-500)' }}>
+                    Emite y revisa facturas
+                  </div>
+                </button>
+              </Card>
+            </Card3D>
+
+            <Card3D>
+              <Card>
+                <button
+                  onClick={() => go('documentos')}
+                  className="w-full p-6 text-left"
+                >
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'var(--sky-soft)', color: 'var(--violet-ink)' }}>
+                    <FolderLock size={24} />
+                  </div>
+                  <div className="font-bold text-[15px]" style={{ color: 'var(--ink-900)' }}>
+                    Bóveda
+                  </div>
+                  <div className="text-[13px] mt-1" style={{ color: 'var(--ink-500)' }}>
+                    Tu bóveda digital de CFDI
+                  </div>
+                </button>
+              </Card>
+            </Card3D>
+
+            <Card3D>
+              <Card>
+                <button
+                  onClick={() => go('tramites')}
+                  className="w-full p-6 text-left"
+                >
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)' }}>
+                    <FilePlus2 size={24} />
+                  </div>
+                  <div className="font-bold text-[15px]" style={{ color: 'var(--ink-900)' }}>
+                    Trámites
+                  </div>
+                  <div className="text-[13px] mt-1" style={{ color: 'var(--ink-500)' }}>
+                    Servicios extra
+                  </div>
+                </button>
+              </Card>
+            </Card3D>
+
+            <Card3D>
+              <Card>
+                <button
+                  onClick={() => go('plan')}
+                  className="w-full p-6 text-left"
+                >
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'var(--violet-soft)', color: '#7339FD' }}>
+                    <Gem size={24} />
+                  </div>
+                  <div className="font-bold text-[15px]" style={{ color: 'var(--ink-900)' }}>
+                    Mi plan
+                  </div>
+                  <div className="text-[13px] mt-1" style={{ color: 'var(--ink-500)' }}>
+                    Tu suscripción
+                  </div>
+                </button>
+              </Card>
+            </Card3D>
+          </div>
+        </div>
+
+        {/* Columna derecha - Score Fiscal */}
+        {(step === 'connecting' || step === 'checking') && (
+          <div className="w-full lg:w-[360px] flex-shrink-0">
+            <div
+              className="rounded-3xl p-6 lg:p-7 text-white"
+              style={{ background: 'linear-gradient(155deg,#2A1C64 0%,#221158 100%)', boxShadow: 'var(--sh-ink)' }}
+            >
+              <div
+                className="inline-flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-wider"
+                style={{ color: 'rgba(255,255,255,0.6)' }}
+              >
+                <Loader2 size={13} className="animate-spin" /> Tu score fiscal
+              </div>
+              <div className="text-[22px] font-extrabold tracking-tight mt-2">
+                {step === 'connecting' ? 'Conectando con el SAT' : 'Revisando tu información'}
+              </div>
+              <div className="text-[13px] mt-2 leading-relaxed" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                {step === 'connecting'
+                  ? 'Estamos descargando tu constancia de situación fiscal.'
+                  : 'Estamos confirmando tus declaraciones con el SAT. El score aparecerá en cuanto sea confiable.'}
+              </div>
+            </div>
+          </div>
+        )}
+        {step === 'ready' && score && score.total === 0 && (
+          // Sin declaraciones: el score llega en 100 "por vacuidad" — mismo
+          // estado honesto que Home y Diagnóstico en lugar de "Excelente".
+          <div className="w-full lg:w-[360px] flex-shrink-0">
+            <div
+              className="rounded-3xl p-6 lg:p-7 text-white"
+              style={{ background: 'linear-gradient(155deg,#2A1C64 0%,#221158 100%)', boxShadow: 'var(--sh-ink)' }}
+            >
+              <div
+                className="text-[11px] font-extrabold uppercase tracking-wider"
+                style={{ color: 'rgba(255,255,255,0.6)' }}
+              >
+                Tu score fiscal
+              </div>
+              <div className="text-[22px] font-extrabold tracking-tight mt-2">Aún no tienes declaraciones</div>
+              <div className="text-[13px] mt-2 leading-relaxed" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                Tu RFC ya está conectado con el SAT. En cuanto presentemos la primera declaración, aquí verás tu
+                score fiscal en tiempo real.
+              </div>
+            </div>
+          </div>
+        )}
+        {step === 'ready' && score && score.total > 0 && (
+          <div className="w-full lg:w-[360px] flex-shrink-0">
+            <div
+              className="rounded-3xl p-6 lg:p-7 text-white"
+              style={{ background: 'linear-gradient(155deg,#2A1C64 0%,#221158 100%)', boxShadow: 'var(--sh-ink)' }}
+            >
+              {!isIn69B && (
+                <div className="text-[12px] font-semibold px-3 py-1.5 rounded-full inline-flex items-center gap-1.5 mb-4" style={{ background: 'rgba(0,173,135, 0.2)', color: '#00AD87' }}>
+                  <span className="w-2 h-2 rounded-full" style={{ background: '#00AD87' }} />
+                  SAT sincronizado
+                </div>
+              )}
+
+              <div className="flex items-start gap-4 mb-6">
+                <div className="relative w-24 h-24 flex-shrink-0">
+                  <svg viewBox="0 0 100 100" className="w-full h-full">
+                    <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="8" />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="45"
+                      fill="none"
+                      stroke="#00D3A1"
+                      strokeWidth="8"
+                      strokeDasharray={`${(score.score / 100) * 282.7} 282.7`}
+                      strokeLinecap="round"
+                      style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%' }}
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <div className="text-[28px] font-extrabold">{Math.round(score.score)}</div>
+                    <div className="text-[10px]">/100</div>
+                  </div>
+                </div>
+
+                <div className="flex-1">
+                  <div className="text-[11px] font-extrabold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                    Tu score fiscal
+                  </div>
+                  <div className="text-[24px] font-extrabold tracking-tight">
+                    {scoreLabel(score.score)}
+                  </div>
+                  <div className="text-[13px] mt-1" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                    {score.pending > 0 ? `Suma +${Math.max(0, 100 - Math.round(score.score))} pts regularizando ${score.pending} ${score.pending === 1 ? 'declaración pendiente' : 'declaraciones pendientes'}.` : 'Todo está en orden'}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.12)' }} className="pt-4">
+                <div className="text-[11px] font-extrabold uppercase tracking-wider mb-2" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                  Tu acción de hoy
+                </div>
+                <div className="text-[16px] font-extrabold mb-1">
+                  {score.pending > 0 ? 'Regulariza tus declaraciones pendientes' : 'Todo en orden'}
+                </div>
+                <div className="text-[13px] mb-4" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                  {score.pending > 0 ? `Tienes ${score.pending} de ${score.total} declaraciones sin presentar.` : 'No hay acciones pendientes'}
+                </div>
+                {score.pending > 0 && (
+                  <button
+                    onClick={() => go('declaraciones')}
+                    className="w-full px-4 py-2.5 rounded-full font-bold text-[14px] flex items-center justify-center gap-2 transition hover:opacity-90"
+                    style={{ background: '#fff', color: '#221158' }}
+                  >
+                    Ver detalle
+                    <ArrowRight size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

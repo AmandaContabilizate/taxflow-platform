@@ -1,0 +1,1342 @@
+'use client'
+
+import { AlertCircle, AlertTriangle, Check, Columns3, Loader2, RotateCcw, Search, Undo2 } from 'lucide-react'
+import { useVirtualizer } from '@tanstack/react-virtual'
+import { memo, useCallback, useMemo, useRef, useState } from 'react'
+import {
+  useClassificationCategories,
+  useDeclarationPeriodInvoices,
+} from '@/features/declarations/hooks/useDeclarationQueries'
+import type { PeriodInvoicesKey } from '@/features/declarations/hooks/declarationQueryKeys'
+import type { Recalculation } from '@/features/declarations/hooks/useRecalculation'
+import { periodMonthRange } from '@/features/declarations/periods'
+import type {
+  ClassificationAdjustment,
+  ClassificationAdjustmentScope,
+  ClassificationCategory,
+  DeclarationPeriodInvoice,
+  RecalcScopeState,
+} from '@/features/declarations/types'
+import { money } from './calc-read'
+import {
+  CatalogCell,
+  ConceptosCell,
+  FacturasPadre,
+  OtroRegimenChip,
+  PpdSinComplementoChip,
+} from './comprobantes-tab'
+import { type ColumnKey, COLUMN_DEFS } from './column-defs'
+import { ColumnsModal, FilterSelect } from './filter-columns'
+import { RecalcSeconds } from './recalc-seconds'
+import { MONO } from '../constants'
+import { Card } from '../ui'
+import { useUrlState } from '../url-state'
+
+interface Props {
+  declarationId: number
+  rfc: string
+  fiscalYear: number
+  /** Catalogs.Period (101-112 mensual, 201-206 bimestral, 501 anual). */
+  periodValueId: number | null
+  /** Id interno de Users.TaxRegimes; es lo que piden los EP de facturas del periodo. */
+  taxRegimeId: number | null
+  periodo: string
+  recalc: Recalculation
+  /** Solo lectura: se ve el resultado pero no se reclasifica ni se dispara el cálculo. */
+  readOnly?: boolean
+}
+
+type Deducible = '' | 'true' | 'false'
+
+/**
+ * `DeclarationPeriodInvoice.tipoComprobante` es el enum TipoComprobante
+ * (0 desconocido, 1 I, 2 E, 3 T, 4 N, 5 P) — Nómina y Pago van al revés que el
+ * `invoiceTypeId` de comprobantes (1 I, 2 E, 3 T, 4 P, 5 N). No se reutiliza esa
+ * lista: los valores numéricos no significan lo mismo aunque las etiquetas coincidan.
+ */
+const TIPO_COMPROBANTE_OPTIONS: [string, string][] = [
+  ['1', 'Ingreso'],
+  ['2', 'Egreso'],
+  ['3', 'Traslado'],
+  ['4', 'Nómina'],
+  ['5', 'Pago'],
+]
+
+/** Todas visibles por default: es el comportamiento que ya tenía la tabla. */
+const RECALC_DEFAULT_COLUMNS: ColumnKey[] = COLUMN_DEFS.map((d) => d.key)
+
+/**
+ * E2/E7: qué hace cada alcance, para que se lea sin abrir documentación. En los tres
+ * casos el ajuste se extiende a las demás facturas de la declaración con la misma
+ * clave (la del concepto de mayor importe) y la misma naturaleza.
+ */
+const SCOPE_OPTIONS: [ClassificationAdjustmentScope, string, string][] = [
+  [
+    'declaration',
+    'Solo este recálculo',
+    'Cambia todas las facturas de esta declaración con la misma clave y se conserva en los siguientes recálculos.',
+  ],
+  [
+    'client',
+    'Solo este cliente',
+    'Cambia las facturas con esta clave en esta declaración y en las futuras de este contribuyente.',
+  ],
+  ['global', 'Todos', 'Memoriza la clave para todos los contribuyentes de esta actividad.'],
+]
+
+/** Clave genérica del SAT: lo que ampara cambia con cada cliente y cada declaración. */
+const GENERIC_PRODUCT_CODE = '01010101'
+
+const DEFAULT_SCOPE_STATE: RecalcScopeState = { scope: 'declaration' }
+
+const EMPTY_INVOICES: DeclarationPeriodInvoice[] = []
+const EMPTY_CATEGORIES: ClassificationCategory[] = []
+
+/**
+ * Alto máximo del cuerpo de la tabla, como en Comprobantes: la lista se virtualiza
+ * sobre este contenedor (solo se montan las filas visibles, con sus 3 selects), así
+ * que el scroll vertical vive dentro de la tabla.
+ */
+const TABLE_MAX_H = 'min(62vh, 620px)'
+
+/**
+ * Clave del comprobante: la del concepto de mayor importe (en empate, la primera).
+ * Es el mismo criterio con el que el clasificador propaga el ajuste a las demás
+ * facturas, así que la regla que se memoriza y las facturas que cambian coinciden.
+ */
+function dominantProductCode(inv: DeclarationPeriodInvoice): string | null {
+  let best: string | null = null
+  let bestAmount = Number.NEGATIVE_INFINITY
+  for (const c of inv.concepts) {
+    if (!c.productCode) continue
+    const amount = Number.isFinite(c.subtotal) ? c.subtotal : 0
+    if (amount > bestAmount) {
+      best = c.productCode
+      bestAmount = amount
+    }
+  }
+  return best ?? inv.productServiceKeys[0] ?? null
+}
+
+const fmtDate = (iso: string | null) => {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+const amount = (n: number | null | undefined) => (n == null ? '—' : money(n))
+
+/** Solo se manda lo que cambió: un ajuste sin campos además del uuid no se envía. */
+function hasChanges(adj: ClassificationAdjustment): boolean {
+  return (
+    adj.classification !== undefined ||
+    adj.isDeductible !== undefined ||
+    adj.isExpense !== undefined ||
+    adj.reason !== undefined
+  )
+}
+
+export const RecalculoTab = memo(function RecalculoTab({
+  declarationId,
+  rfc,
+  fiscalYear,
+  periodValueId,
+  taxRegimeId,
+  periodo,
+  recalc,
+  readOnly = false,
+}: Props) {
+  const { params, setParams } = useUrlState()
+
+  const [query, setQuery] = useState('')
+  const [soloProblemas, setSoloProblemas] = useState(false)
+  // Ajustes y alcance por fila (E2/E7) viven en `recalc` para sobrevivir al cambio de
+  // pestaña. El alcance va aparte porque elegirlo, por sí solo, no es un cambio que se
+  // deba mandar (ver `hasChanges`).
+  const { adjustments, setAdjustments, scopeByUuid, setScopeByUuid } = recalc
+
+  // Filtros de comprobantes, pero EN CLIENTE: el EP de recálculo no los
+  // soporta y ya trae el universo completo del periodo en memoria.
+  const [origen, setOrigen] = useState<'' | 'true' | 'false'>('')
+  const [tipo, setTipo] = useState('')
+  const [clasificada, setClasificada] = useState<'' | 'true' | 'false'>('')
+  const [columnsModalOpen, setColumnsModalOpen] = useState(false)
+
+  // Selección de columnas persistida en la URL con prefijo propio (`rcols`):
+  // comprobantes usa `cols` en el mismo query string y pisarían el mismo param.
+  const rawCols = params.get('rcols')
+  const selectedCols = useMemo<ColumnKey[]>(() => {
+    if (rawCols == null) return RECALC_DEFAULT_COLUMNS
+    if (rawCols === 'none') return []
+    const set = new Set(rawCols.split(','))
+    return COLUMN_DEFS.map((d) => d.key).filter((k) => set.has(k))
+  }, [rawCols])
+
+  const setSelectedCols = useCallback(
+    (next: ColumnKey[]) => {
+      setParams({ rcols: next.length === 0 ? 'none' : next.join(',') }, { replace: true })
+    },
+    [setParams],
+  )
+
+  const visibleColSet = useMemo(() => new Set(selectedCols), [selectedCols])
+  const visibleColumns = useMemo(() => COLUMN_DEFS.filter((d) => visibleColSet.has(d.key)), [visibleColSet])
+
+  const range = useMemo(() => periodMonthRange(periodValueId), [periodValueId])
+
+  // Universo completo del periodo, de la caché por declaración. Se invalida en cada
+  // recálculo exitoso (la clasificación por comprobante cambió) y vuelve a pedirse;
+  // volver a la pestaña con datos frescos no pide nada.
+  const listInput = useMemo<PeriodInvoicesKey | null>(
+    () =>
+      rfc && range && taxRegimeId
+        ? { rfc, year: fiscalYear, beginMonth: range.beginMonth, endMonth: range.endMonth, idRegime: taxRegimeId }
+        : null,
+    [rfc, fiscalYear, range, taxRegimeId],
+  )
+  const listQ = useDeclarationPeriodInvoices(declarationId, listInput)
+  const invoices = listQ.isError ? EMPTY_INVOICES : (listQ.data ?? EMPTY_INVOICES)
+  const loading = listInput != null && listQ.isPending
+  const listError = listQ.error?.message ?? null
+
+  // Catálogo estático: una sola vez por sesión (1 h), no en cada entrada a la pestaña.
+  const categoriesQ = useClassificationCategories(!readOnly)
+  const categories = categoriesQ.data ?? EMPTY_CATEGORIES
+
+  const invoiceByUuid = useMemo(() => {
+    const map: Record<string, DeclarationPeriodInvoice> = {}
+    for (const inv of invoices) map[inv.uuid] = inv
+    return map
+  }, [invoices])
+
+  // Clave dominante por comprobante, una vez por universo: antes se recalculaba en
+  // cada render de cada fila.
+  const productCodeByUuid = useMemo(() => {
+    const map = new Map<string, string | null>()
+    for (const inv of invoices) map.set(inv.uuid, dominantProductCode(inv))
+    return map
+  }, [invoices])
+
+  // El alcance solo viaja si la fila tiene un cambio real: elegirlo no es, por
+  // sí mismo, un ajuste (regla dura de E7).
+  const pending = useMemo(
+    () =>
+      Object.values(adjustments)
+        .filter(hasChanges)
+        .map((adj) => {
+          const scopeState = scopeByUuid[adj.uuid]
+          if (!scopeState || scopeState.scope === 'declaration') return adj
+          const inv = invoiceByUuid[adj.uuid]
+          const key = inv ? (productCodeByUuid.get(adj.uuid) ?? null) : null
+          return { ...adj, scope: scopeState.scope, productKeys: key ? [key] : [] }
+        }),
+    [adjustments, scopeByUuid, invoiceByUuid, productCodeByUuid],
+  )
+
+  // Alcance != "declaration" sin ninguna clave resuelta: el back respondería
+  // 422. Se bloquea el botón antes de mandarlo.
+  const hasScopeError = useMemo(
+    () =>
+      pending.some(
+        (adj) =>
+          adj.scope &&
+          adj.scope !== 'declaration' &&
+          ((adj.productKeys?.length ?? 0) === 0 ||
+            (adj.scope === 'global' && adj.productKeys?.includes(GENERIC_PRODUCT_CODE))),
+      ),
+    [pending],
+  )
+
+  const rows = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return invoices
+      .filter((i) => {
+        if (soloProblemas && i.isDeductible !== false && i.isDeductible != null) return false
+        if (origen && i.isIssued !== (origen === 'true')) return false
+        if (tipo && i.tipoComprobante !== Number(tipo)) return false
+        // "clasificada" ↔ isDeductible == null: sin clasificar es null, clasificado no lo es.
+        const sinClasificar = i.isDeductible == null
+        if (clasificada === 'true' && sinClasificar) return false
+        if (clasificada === 'false' && !sinClasificar) return false
+        if (!q) return true
+        return [
+          i.uuid,
+          i.folio,
+          i.issuer?.rfc,
+          i.issuer?.name,
+          i.receiver?.rfc,
+          i.receiver?.name,
+          i.classification,
+          i.period,
+          ...i.productServiceKeys,
+        ].some((f) => f?.toLowerCase().includes(q))
+      })
+      // Ascendente por fecha, mismo criterio que el default de comprobantes.
+      .sort((a, b) => a.invoiceDate.localeCompare(b.invoiceDate))
+  }, [invoices, query, soloProblemas, origen, tipo, clasificada])
+
+  // Suma de los comprobantes que quedaron visibles con el filtro puesto; el
+  // universo completo del periodo es `invoices`, no esto.
+  const totalVisible = useMemo(
+    () => rows.reduce((acc, i) => acc + (Number.isFinite(i.total) ? i.total : 0), 0),
+    [rows],
+  )
+
+  // Totales del universo del periodo (E6): sobre `invoices`, no sobre `rows`
+  // filtrados, para poder cuadrar contra la declaración. Otro régimen (E3) no
+  // entra al cálculo y se reporta aparte.
+  const totales = useMemo(() => {
+    const sum = (list: DeclarationPeriodInvoice[]) => ({
+      count: list.length,
+      subTotal: list.reduce((acc, i) => acc + (i.subTotal ?? 0), 0),
+      iva: list.reduce((acc, i) => acc + (i.ivaAmount ?? 0), 0),
+      total: list.reduce((acc, i) => acc + (Number.isFinite(i.total) ? i.total : 0), 0),
+    })
+    const computables = invoices.filter((i) => !i.isOtherRegime && !i.isPpdWithoutComplement)
+    return {
+      clasificadas: sum(computables.filter((i) => i.isDeductible != null)),
+      sinClasificar: sum(computables.filter((i) => i.isDeductible == null)),
+      conjunto: sum(computables),
+      otroRegimen: sum(invoices.filter((i) => i.isOtherRegime)),
+    }
+  }, [invoices])
+  const sinClasificar = totales.sinClasificar.count
+
+  // Callbacks estables: las filas van con `React.memo` y solo se repinta la que cambió.
+  const patch = useCallback(
+    (uuid: string, change: Partial<ClassificationAdjustment>) =>
+      setAdjustments((prev) => {
+        const next = { ...prev[uuid], uuid, ...change }
+        // Quitar la clave (no ponerla en null) es lo que el clasificador espera:
+        // aplica los ajustes con `exclude_unset`.
+        for (const key of Object.keys(next) as (keyof ClassificationAdjustment)[]) {
+          if (next[key] === undefined) delete next[key]
+        }
+        return { ...prev, [uuid]: next }
+      }),
+    [setAdjustments],
+  )
+
+  const clearRow = useCallback(
+    (uuid: string) => {
+      setAdjustments((prev) => {
+        const { [uuid]: _drop, ...rest } = prev
+        return rest
+      })
+      setScopeByUuid((prev) => {
+        const { [uuid]: _drop, ...rest } = prev
+        return rest
+      })
+    },
+    [setAdjustments, setScopeByUuid],
+  )
+
+  /** "Todos" es la única opción que toca datos de terceros: exige confirmación. */
+  const setScope = useCallback(
+    (uuid: string, scope: ClassificationAdjustmentScope) => {
+      if (
+        scope === 'global' &&
+        !window.confirm(
+          'Esta clave quedará memorizada para TODOS los contribuyentes de esta actividad, no solo este cliente. ¿Confirmas?',
+        )
+      ) {
+        return
+      }
+      setScopeByUuid((prev) => ({ ...prev, [uuid]: { ...DEFAULT_SCOPE_STATE, ...prev[uuid], scope } }))
+    },
+    [setScopeByUuid],
+  )
+
+  const gastos = useMemo(() => categories.filter((c) => c.isExpense), [categories])
+  const ingresos = useMemo(() => categories.filter((c) => !c.isExpense), [categories])
+
+  const disabled = readOnly || recalc.running
+
+  // Virtualización: solo se montan las filas visibles (más un margen). Cada fila mide
+  // su alto real (`measureElement`): con 3 selects, el motivo opcional y los chips, el
+  // alto varía por fila. La lista completa sigue en memoria (`invoices`/`rows`): de ahí
+  // salen `pending`, los totales y el buscador.
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => (readOnly ? 76 : 250),
+    overscan: 8,
+    getItemKey: (index) => rows[index]?.id ?? index,
+  })
+  const virtualItems = virtualizer.getVirtualItems()
+  const paddingTop = virtualItems.length > 0 ? virtualItems[0].start : 0
+  const paddingBottom =
+    virtualItems.length > 0 ? virtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end : 0
+  // Fecha, Folio / UUID, las columnas elegidas y la de corrección / retenciones.
+  const columnCount = visibleColumns.length + 3
+
+  return (
+    <div className="flex flex-col gap-5">
+      <Card>
+        <div className="p-5 flex flex-col gap-4">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <h3 className="text-[17px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
+                Recálculo de la declaración
+              </h3>
+              <p className="text-[13px] mt-0.5 max-w-[62ch]" style={{ color: 'var(--ink-500)' }}>
+                Recalcular vuelve a bajar y parsear los XML del período {periodo} y rehace ISR/IVA.
+                Si corriges una clasificación aquí, el cálculo se repite con tus ajustes sin volver
+                a pasar por la IA.
+              </p>
+            </div>
+
+            {!readOnly && (
+              <div className="flex items-center gap-2 flex-wrap">
+                {pending.length > 0 && (
+                  <button
+                    onClick={() => {
+                      setAdjustments({})
+                      setScopeByUuid({})
+                    }}
+                    disabled={recalc.running}
+                    className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-[12.5px] font-bold transition hover:opacity-90 disabled:opacity-50"
+                    style={{
+                      background: 'var(--card)',
+                      border: '1px solid var(--border-strong)',
+                      color: 'var(--foreground)',
+                    }}
+                  >
+                    <Undo2 size={15} /> Descartar {pending.length} ajuste
+                    {pending.length === 1 ? '' : 's'}
+                  </button>
+                )}
+                <button
+                  onClick={() => void recalc.run(pending)}
+                  disabled={recalc.running || !recalc.ready || hasScopeError}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition hover:opacity-95 active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100"
+                  style={{
+                    background: 'linear-gradient(135deg,#00D3A1 0%,#00AD87 100%)',
+                    color: '#fff',
+                    boxShadow: 'var(--sh-brand)',
+                  }}
+                >
+                  {recalc.running ? (
+                    <>
+                      <Loader2 size={15} className="animate-spin" /> Calculando…{' '}
+                      <RecalcSeconds startedAt={recalc.startedAt} />s
+                    </>
+                  ) : (
+                    <>
+                      <RotateCcw size={15} />
+                      {pending.length > 0
+                        ? `Recalcular con ${pending.length} ajuste${pending.length === 1 ? '' : 's'}`
+                        : 'Recalcular'}
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {!recalc.ready && (
+            <Note tone="warn">
+              La declaración no tiene período o régimen asignado, así que no se puede recalcular.
+            </Note>
+          )}
+
+          {hasScopeError && (
+            <Note tone="warn">
+              Hay un ajuste que no se puede memorizar: el comprobante no trae clave de producto, o
+              es la clave genérica 01010101 con alcance "Todos". Cámbialo a "Solo este cliente" o
+              "Solo este recálculo" para poder recalcular.
+            </Note>
+          )}
+
+          {recalc.error && <Note tone="error">{recalc.error}</Note>}
+
+          {recalc.running && (
+            <Note tone="info">
+              El clasificador está procesando los comprobantes del período. Puede tardar varios
+              minutos; no cierres la pantalla.
+            </Note>
+          )}
+
+          {!recalc.running && sinClasificar === totales.conjunto.count && totales.conjunto.count > 0 && (
+            <Note tone="info">
+              Ningún comprobante de este período está clasificado todavía. Recalcula primero sin
+              ajustes: el clasificador necesita esa primera corrida para poder aplicar correcciones
+              manuales.
+            </Note>
+          )}
+        </div>
+      </Card>
+
+      {recalc.result && <ResultadoRecalculo result={recalc.result} />}
+
+      <Card>
+        <div className="p-5 flex flex-col gap-4">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <h3 className="text-[17px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
+                Comprobantes del período y su clasificación
+              </h3>
+              <p className="text-[13px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                {loading
+                  ? 'Cargando comprobantes…'
+                  : listError
+                    ? 'No pudimos cargar los comprobantes del período.'
+                    : `${totales.conjunto.count} comprobantes entran al cálculo${sinClasificar > 0 ? ` · ${sinClasificar} sin clasificar` : ''}`}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setColumnsModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12.5px] font-bold transition hover:opacity-90"
+              style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+            >
+              <Columns3 size={14} /> Columnas
+            </button>
+          </div>
+
+          {!loading && !listError && invoices.length > 0 && <TotalesRecalculo totales={totales} />}
+
+          {/* Filtros del tab de comprobantes, reutilizados aquí pero aplicados
+              en cliente (ver `rows`): el EP de recálculo no los soporta. */}
+          <div className="flex flex-wrap gap-3 items-end">
+            <FilterSelect
+              label="Emitidas / Recibidas"
+              value={origen}
+              onChange={setOrigen}
+              options={[
+                ['', 'Todas'],
+                ['true', 'Emitidas'],
+                ['false', 'Recibidas'],
+              ]}
+            />
+            <FilterSelect
+              label="Tipo de comprobante"
+              value={tipo}
+              onChange={setTipo}
+              options={[['', 'Todos'], ...TIPO_COMPROBANTE_OPTIONS]}
+            />
+            <FilterSelect
+              label="Clasificación"
+              value={clasificada}
+              onChange={setClasificada}
+              options={[
+                ['', 'Todos'],
+                ['true', 'Clasificados'],
+                ['false', 'Sin clasificar'],
+              ]}
+            />
+            {(origen || tipo || clasificada) && (
+              <button
+                onClick={() => {
+                  setOrigen('')
+                  setTipo('')
+                  setClasificada('')
+                }}
+                className="px-3.5 py-2.5 rounded-lg text-[12.5px] font-bold transition hover:opacity-90"
+                style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+              >
+                Limpiar filtros
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-3 items-center">
+            <div className="relative flex-1 min-w-[240px]">
+              <Search
+                size={16}
+                style={{
+                  position: 'absolute',
+                  left: 12,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--ink-500)',
+                }}
+              />
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Buscar por UUID, folio, RFC, clasificación o clave prod/serv…"
+                className="w-full pl-10 pr-4 py-2.5 rounded-lg text-[13px]"
+                style={{
+                  background: 'var(--input)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--foreground)',
+                }}
+              />
+            </div>
+            <label
+              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-[12.5px] font-bold cursor-pointer"
+              style={{
+                background: soloProblemas ? 'var(--nav-active-bg)' : 'var(--card)',
+                border: '1px solid var(--border-strong)',
+                color: soloProblemas ? 'var(--nav-active-fg)' : 'var(--foreground)',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={soloProblemas}
+                onChange={(e) => setSoloProblemas(e.target.checked)}
+                className="accent-[var(--brand-700)]"
+              />
+              Solo no deducibles y sin clasificar
+            </label>
+          </div>
+
+          {listError ? (
+            <div className="py-8 text-center flex flex-col items-center gap-2">
+              <AlertCircle size={20} style={{ color: 'var(--danger)' }} />
+              <div className="text-[13.5px]" style={{ color: 'var(--ink-700)' }}>
+                {listError}
+              </div>
+            </div>
+          ) : loading ? (
+            <div className="py-10 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
+              <Loader2 size={18} className="animate-spin" /> Cargando comprobantes…
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="text-center py-10 text-[13px]" style={{ color: 'var(--ink-500)' }}>
+              {invoices.length === 0
+                ? 'No hay comprobantes en este período para el régimen de la declaración.'
+                : 'Ningún comprobante coincide con el filtro.'}
+            </div>
+          ) : (
+            <>
+            <div
+              className="rounded-2xl px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-2"
+              style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}
+            >
+              <span
+                className="text-[11.5px] font-bold uppercase tracking-wider"
+                style={{ color: 'var(--ink-500)' }}
+              >
+                {rows.length} comprobantes en pantalla
+              </span>
+              <span className="flex items-baseline gap-1.5">
+                <span className="text-[12px] font-semibold" style={{ color: 'var(--ink-500)' }}>
+                  Total
+                </span>
+                <span
+                  className="text-[15px] font-extrabold"
+                  style={{ ...MONO, color: 'var(--ink-900)' }}
+                >
+                  {amount(totalVisible)}
+                </span>
+              </span>
+            </div>
+
+            <div ref={scrollRef} className="overflow-auto -mx-1 rounded-lg" style={{ maxHeight: TABLE_MAX_H }}>
+              <table className="w-full text-[12.5px]">
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                    {[
+                      'Fecha',
+                      'Folio / UUID',
+                      ...visibleColumns.map((c) => c.label),
+                      readOnly ? 'Retenciones' : 'Corregir',
+                    ].map((h) => (
+                      <th
+                        key={h}
+                        className="px-3 py-2.5 text-left font-extrabold whitespace-nowrap sticky top-0 z-10"
+                        style={{ color: 'var(--ink-700)', background: 'var(--card)', boxShadow: 'inset 0 -1px 0 var(--border)' }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {paddingTop > 0 && (
+                    <tr aria-hidden>
+                      <td colSpan={columnCount} style={{ height: paddingTop, padding: 0, border: 0 }} />
+                    </tr>
+                  )}
+                  {virtualItems.map((item) => {
+                    const inv = rows[item.index]
+                    return (
+                      <RecalcRow
+                        key={item.key}
+                        index={item.index}
+                        measureRef={virtualizer.measureElement}
+                        inv={inv}
+                        adj={adjustments[inv.uuid]}
+                        scopeState={scopeByUuid[inv.uuid]}
+                        productCode={productCodeByUuid.get(inv.uuid) ?? null}
+                        visibleColSet={visibleColSet}
+                        readOnly={readOnly}
+                        baseDisabled={disabled}
+                        running={recalc.running}
+                        gastos={gastos}
+                        ingresos={ingresos}
+                        onPatch={patch}
+                        onClear={clearRow}
+                        onScope={setScope}
+                      />
+                    )
+                  })}
+                  {paddingBottom > 0 && (
+                    <tr aria-hidden>
+                      <td colSpan={columnCount} style={{ height: paddingBottom, padding: 0, border: 0 }} />
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            </>
+          )}
+        </div>
+      </Card>
+
+      <ColumnsModal
+        open={columnsModalOpen}
+        onOpenChange={setColumnsModalOpen}
+        defs={COLUMN_DEFS}
+        selected={selectedCols}
+        onChange={setSelectedCols}
+        fixedColumnsHint="Fecha, Folio / UUID y la columna de corrección siempre se muestran."
+      />
+    </div>
+  )
+})
+
+/* -------------------------------------------------------------------------- */
+/*  Fila (memoizada: solo se repinta la que cambió)                           */
+/* -------------------------------------------------------------------------- */
+
+interface RecalcRowProps {
+  inv: DeclarationPeriodInvoice
+  /** Índice en `rows`: el virtualizador lo lee de `data-index` para medir la fila. */
+  index: number
+  measureRef: (node: HTMLTableRowElement | null) => void
+  adj: ClassificationAdjustment | undefined
+  scopeState: RecalcScopeState | undefined
+  /** Clave dominante ya resuelta (concepto de mayor importe). */
+  productCode: string | null
+  visibleColSet: Set<ColumnKey>
+  readOnly: boolean
+  /** `readOnly || recalc.running`; la fila añade sus propias razones (otro régimen, PPD). */
+  baseDisabled: boolean
+  running: boolean
+  gastos: ClassificationCategory[]
+  ingresos: ClassificationCategory[]
+  onPatch: (uuid: string, change: Partial<ClassificationAdjustment>) => void
+  onClear: (uuid: string) => void
+  onScope: (uuid: string, scope: ClassificationAdjustmentScope) => void
+}
+
+const RecalcRow = memo(function RecalcRow({
+  inv,
+  index,
+  measureRef,
+  adj,
+  scopeState,
+  productCode,
+  visibleColSet,
+  readOnly,
+  baseDisabled,
+  running,
+  gastos,
+  ingresos,
+  onPatch,
+  onClear,
+  onScope,
+}: RecalcRowProps) {
+  // Otro régimen (E3) y PPD sin complemento: visibles, no computables, sin ajustes.
+  const rowDisabled = baseDisabled || inv.isOtherRegime || inv.isPpdWithoutComplement
+  return (
+    <tr
+      ref={measureRef}
+      data-index={index}
+      style={{
+        borderBottom: '1px solid var(--border)',
+        background: inv.isOtherRegime || inv.isPpdWithoutComplement ? 'var(--muted)' : undefined,
+      }}
+    >
+      <td className="px-3 py-3 whitespace-nowrap align-top" style={{ color: 'var(--ink-900)' }}>
+        {fmtDate(inv.invoiceDate)}
+      </td>
+      <td className="px-3 py-3 align-top min-w-[180px]">
+        <div className="font-semibold" style={{ color: 'var(--ink-900)' }}>
+          {inv.folio || 'Sin folio'}
+        </div>
+        <code
+          className="text-[10.5px] leading-[1.45] break-all uppercase"
+          style={{ ...MONO, color: 'var(--ink-500)' }}
+        >
+          {inv.uuid}
+        </code>
+      </td>
+      {visibleColSet.has('tipo') && (
+        <td className="px-3 py-3 align-top">
+          <Chip
+            bg={inv.isIssued ? 'var(--sky-soft)' : 'var(--ink-50)'}
+            fg={inv.isIssued ? 'var(--sky)' : 'var(--ink-700)'}
+          >
+            {inv.isIssued ? 'Emitida' : 'Recibida'}
+          </Chip>
+        </td>
+      )}
+      {visibleColSet.has('comprobante') && (
+        <td className="px-3 py-3 align-top">
+          <span style={{ color: 'var(--ink-700)' }}>{inv.typeId}</span>
+          {/* Factura global (Público en General): el periodo que
+              declara puede no ser el de la declaración. */}
+          {inv.period && (
+            <div className="mt-1">
+              <Chip bg="var(--violet-soft)" fg="var(--violet-ink)">
+                Global · {inv.period}
+              </Chip>
+            </div>
+          )}
+        </td>
+      )}
+      {visibleColSet.has('emisor') && (
+        <td className="px-3 py-3 align-top min-w-[160px]">
+          <div style={{ color: 'var(--ink-900)' }}>{inv.issuer?.name ?? '—'}</div>
+          <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-500)' }}>
+            {inv.issuer?.rfc ?? ''}
+          </code>
+        </td>
+      )}
+      {visibleColSet.has('receptor') && (
+        <td className="px-3 py-3 align-top min-w-[160px]">
+          <div style={{ color: 'var(--ink-900)' }}>{inv.receiver?.name ?? '—'}</div>
+          <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-500)' }}>
+            {inv.receiver?.rfc ?? ''}
+          </code>
+        </td>
+      )}
+      {visibleColSet.has('subtotal') && (
+        <td
+          className="px-3 py-3 whitespace-nowrap align-top"
+          style={{ ...MONO, color: 'var(--ink-900)' }}
+        >
+          {amount(inv.subTotal)}
+        </td>
+      )}
+      {visibleColSet.has('iva') && (
+        <td
+          className="px-3 py-3 whitespace-nowrap align-top font-semibold"
+          style={{ ...MONO, color: 'var(--ink-900)' }}
+        >
+          {amount(inv.ivaAmount)}
+        </td>
+      )}
+      {visibleColSet.has('total') && (
+        <td
+          className="px-3 py-3 whitespace-nowrap align-top font-semibold"
+          style={{ ...MONO, color: 'var(--ink-900)' }}
+        >
+          {amount(inv.paidAmount ?? inv.total)}
+          {inv.paidAmount != null && (
+            <div className="mt-0.5">
+              <Chip
+                bg="var(--violet-soft)"
+                fg="var(--violet)"
+                title="Importe del complemento de pago; el total del comprobante es 0 por regla del SAT"
+              >
+                Pago
+              </Chip>
+            </div>
+          )}
+          {inv.tipoComprobante === 5 && (
+            <div className="mt-0.5 font-normal whitespace-normal">
+              <FacturasPadre uuids={inv.parentInvoiceUuids} />
+            </div>
+          )}
+          {inv.withheldAmount != null && (
+            <div className="text-[11px] font-normal mt-0.5" style={{ color: 'var(--ink-500)' }}>
+              Retenido {amount(inv.withheldAmount)}
+            </div>
+          )}
+        </td>
+      )}
+      {visibleColSet.has('metodoPago') && (
+        <td className="px-3 py-3 align-top">
+          <CatalogCell name={inv.paymentMethodName} id={inv.paymentMethodCode} />
+        </td>
+      )}
+      {visibleColSet.has('formaPago') && (
+        <td className="px-3 py-3 align-top">
+          <CatalogCell name={inv.wayOfPaymentName} id={inv.wayOfPaymentCode} />
+        </td>
+      )}
+      {visibleColSet.has('conceptos') && (
+        <td className="px-3 py-3 align-top">
+          <ConceptosCell
+            resumen={inv.conceptsSummary}
+            count={inv.conceptsCount}
+            concepts={inv.concepts}
+            loading={false}
+            error={null}
+            onOpen={noop}
+          />
+        </td>
+      )}
+      {visibleColSet.has('clasificacion') && (
+        <td className="px-3 py-3 align-top min-w-[170px]">
+          <ClasificacionActual inv={inv} />
+        </td>
+      )}
+      {visibleColSet.has('regimenReceptor') && (
+        <td className="px-3 py-3 align-top">
+          <CatalogCell name={inv.receiverRegimeName} id={inv.receiverRegimeCode} />
+        </td>
+      )}
+      {visibleColSet.has('usoCfdi') && (
+        <td className="px-3 py-3 align-top">
+          <span style={{ color: 'var(--ink-700)' }}>{inv.uso ?? '—'}</span>
+        </td>
+      )}
+      <td className="px-3 py-3 align-top min-w-[230px]">
+        {readOnly ? (
+          <span style={{ ...MONO, color: 'var(--ink-900)' }}>
+            {amount(inv.withheldAmount)}
+          </span>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            {inv.isOtherRegime ? (
+              <span className="text-[11.5px]" style={{ color: 'var(--ink-500)' }}>
+                No pertenece a esta declaración: no se puede ajustar.
+              </span>
+            ) : inv.isPpdWithoutComplement ? (
+              <span className="text-[11.5px]" style={{ color: 'var(--ink-500)' }}>
+                En espera del complemento de pago: no se puede ajustar.
+              </span>
+            ) : null}
+            <select
+              value={adj?.classification ?? ''}
+              onChange={(e) =>
+                onPatch(inv.uuid, {
+                  classification: e.target.value || undefined,
+                })
+              }
+              disabled={rowDisabled}
+              className="w-full px-2.5 py-2 rounded-lg text-[12.5px] disabled:opacity-60"
+              style={{
+                background: 'var(--input)',
+                border: '1px solid var(--border)',
+                color: 'var(--foreground)',
+              }}
+            >
+              <option value="">Dejar clasificación</option>
+              <optgroup label="Gastos">
+                {gastos.map((c) => (
+                  <option key={c.id} value={c.name}>
+                    {c.name}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Ingresos">
+                {ingresos.map((c) => (
+                  <option key={c.id} value={c.name}>
+                    {c.name}
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+
+            <select
+              value={
+                adj?.isDeductible === undefined
+                  ? ''
+                  : (String(adj.isDeductible) as Deducible)
+              }
+              onChange={(e) => {
+                const v = e.target.value as Deducible
+                onPatch(inv.uuid, {
+                  isDeductible: v === '' ? undefined : v === 'true',
+                })
+              }}
+              disabled={rowDisabled}
+              className="w-full px-2.5 py-2 rounded-lg text-[12.5px] disabled:opacity-60"
+              style={{
+                background: 'var(--input)',
+                border: '1px solid var(--border)',
+                color: 'var(--foreground)',
+              }}
+            >
+              <option value="">Dejar deducibilidad</option>
+              <option value="true">Marcar deducible</option>
+              <option value="false">Marcar no deducible</option>
+            </select>
+
+            {adj?.isDeductible === false && (
+              <input
+                type="text"
+                value={adj.reason ?? ''}
+                onChange={(e) =>
+                  onPatch(inv.uuid, { reason: e.target.value || undefined })
+                }
+                disabled={rowDisabled}
+                placeholder="Motivo (opcional)"
+                className="w-full px-2.5 py-2 rounded-lg text-[12.5px] disabled:opacity-60"
+                style={{
+                  background: 'var(--input)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--foreground)',
+                }}
+              />
+            )}
+
+            <ScopeSelector
+              state={scopeState ?? DEFAULT_SCOPE_STATE}
+              productCode={productCode}
+              multipleCodes={inv.productServiceKeys.length > 1}
+              disabled={rowDisabled}
+              onScopeChange={(scope) => onScope(inv.uuid, scope)}
+            />
+
+            {adj && hasChanges(adj) && (
+              <button
+                onClick={() => onClear(inv.uuid)}
+                disabled={running}
+                className="self-start text-[11.5px] font-bold underline disabled:opacity-50"
+                style={{ color: 'var(--ink-500)' }}
+              >
+                Quitar ajuste
+              </button>
+            )}
+          </div>
+        )}
+      </td>
+    </tr>
+  )
+})
+
+const noop = () => {}
+
+/* -------------------------------------------------------------------------- */
+/*  Resultado del último recálculo                                            */
+/* -------------------------------------------------------------------------- */
+
+const ResultadoRecalculo = memo(function ResultadoRecalculo({
+  result,
+}: {
+  result: NonNullable<Recalculation['result']>
+}) {
+  const totals: [string, number | null][] = [
+    ['Ingresos', result.income],
+    ['Ingreso acumulado', result.accumulatedIncome],
+    ['ISR del período', result.annualTax],
+    ['ISR retenido', result.isrRetenido],
+    ['IVA a cargo', result.ivaCargo],
+    ['IVA a favor', result.ivaFavor],
+    ['IVA retenido', result.ivaRetenido],
+    ['Total a pagar', result.totalDeclaration],
+  ]
+
+  return (
+    <Card>
+      <div className="p-5 flex flex-col gap-4">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Check size={18} style={{ color: 'var(--brand-700)' }} />
+            <h3 className="text-[17px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
+              Resultado del recálculo
+            </h3>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Chip bg="var(--muted)" fg="var(--ink-700)">
+              Régimen {result.regimeSatCode}
+            </Chip>
+            {result.reclassified && (
+              <Chip bg="var(--brand-50)" fg="var(--brand-700)">
+                {result.appliedAdjustments.length} ajuste
+                {result.appliedAdjustments.length === 1 ? '' : 's'} aplicado
+                {result.appliedAdjustments.length === 1 ? '' : 's'}
+              </Chip>
+            )}
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {totals.map(([label, value]) => (
+            <div
+              key={label}
+              className="rounded-2xl p-3.5"
+              style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}
+            >
+              <div className="text-[11.5px] font-semibold" style={{ color: 'var(--ink-500)' }}>
+                {label}
+              </div>
+              <div className="text-[16px] font-extrabold mt-1" style={{ ...MONO, color: 'var(--ink-900)' }}>
+                {amount(value)}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* `input` es la auditoría del cálculo: si aquí faltan XML, el problema
+            está en el armado del payload, no en el clasificador. */}
+        <div
+          className="rounded-2xl p-3.5 text-[12.5px] flex flex-wrap gap-x-5 gap-y-1.5"
+          style={{ background: 'var(--hero-info)', border: '1px solid var(--hero-info-border)' }}
+        >
+          <span style={{ color: 'var(--ink-700)' }}>
+            XML enviados al clasificador:{' '}
+            <strong style={{ color: 'var(--ink-900)' }}>{result.input.totalXmlCount}</strong>
+          </span>
+          <span style={{ color: 'var(--ink-700)' }}>
+            Emitidos: <strong style={{ color: 'var(--ink-900)' }}>{result.input.issuedXmlCount}</strong>
+          </span>
+          <span style={{ color: 'var(--ink-700)' }}>
+            Recibidos:{' '}
+            <strong style={{ color: 'var(--ink-900)' }}>{result.input.receivedXmlCount}</strong>
+          </span>
+          <span style={{ color: 'var(--ink-700)' }}>
+            Deducciones manuales:{' '}
+            <strong style={{ color: 'var(--ink-900)' }}>{amount(result.input.manualDeductions)}</strong>
+          </span>
+          {result.input.yearToDateIvaFavor != null && (
+            <span style={{ color: 'var(--ink-700)' }}>
+              IVA a favor acumulado:{' '}
+              <strong style={{ color: 'var(--ink-900)' }}>{amount(result.input.yearToDateIvaFavor)}</strong>
+            </span>
+          )}
+        </div>
+
+        {result.invoicingWarnings && result.invoicingWarnings.length > 0 && (
+          <div className="flex flex-col gap-2">
+            {result.invoicingWarnings.map((w, i) => (
+              <div
+                key={i}
+                className="rounded-2xl px-4 py-3 flex items-start gap-2.5 text-[13px]"
+                style={{ background: 'var(--amber-soft)', color: 'var(--violet-ink)', border: '1px solid var(--border)' }}
+              >
+                <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                <span>
+                  Facturación faltante{w.section ? ` en ${w.section}` : ''}
+                  {w.concept ? ` (${w.concept})` : ''}: la plataforma reportó{' '}
+                  <strong>{amount(w.platformReported)}</strong> y se facturaron{' '}
+                  <strong>{amount(w.invoiced)}</strong>. Faltan{' '}
+                  <strong>{amount(w.missingInvoicing)}</strong> por facturar.
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Card>
+  )
+})
+
+/* -------------------------------------------------------------------------- */
+/*  Piezas chicas                                                             */
+/* -------------------------------------------------------------------------- */
+
+interface TotalesBloque {
+  count: number
+  subTotal: number
+  iva: number
+  total: number
+}
+
+function BloqueTotales({ label, t }: { label: string; t: TotalesBloque }) {
+  return (
+    <div className="rounded-2xl p-3.5 flex flex-col gap-1.5" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
+      <div className="text-[11.5px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
+        {label} · {t.count}
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        {(
+          [
+            ['Subtotal', t.subTotal],
+            ['IVA', t.iva],
+            ['Total', t.total],
+          ] as [string, number][]
+        ).map(([l, v]) => (
+          <span key={l} className="flex items-baseline gap-1.5">
+            <span className="text-[12px] font-semibold" style={{ color: 'var(--ink-500)' }}>{l}</span>
+            <span className="text-[14px] font-extrabold" style={{ ...MONO, color: 'var(--ink-900)' }}>{money(v)}</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Totales del universo del periodo (E6): tres bloques que cuadran contra la
+ * declaración (clasificadas + sin clasificar = conjunto) y un cuarto,
+ * separado, para las facturas de otro régimen (E3) que no entran al cálculo.
+ */
+const TotalesRecalculo = memo(function TotalesRecalculo({
+  totales,
+}: {
+  totales: { clasificadas: TotalesBloque; sinClasificar: TotalesBloque; conjunto: TotalesBloque; otroRegimen: TotalesBloque }
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <BloqueTotales label="Clasificadas" t={totales.clasificadas} />
+        <BloqueTotales label="Sin clasificar" t={totales.sinClasificar} />
+        <BloqueTotales label="Conjunto" t={totales.conjunto} />
+      </div>
+      {totales.otroRegimen.count > 0 && (
+        <div className="pt-1" style={{ borderTop: '1px dashed var(--border-strong)' }}>
+          <p className="text-[11px] mb-1.5" style={{ color: 'var(--ink-500)' }}>
+            No pertenecen a esta declaración, no entran al cálculo:
+          </p>
+          <BloqueTotales label="Otro régimen" t={totales.otroRegimen} />
+        </div>
+      )}
+    </div>
+  )
+})
+
+function ClasificacionActual({ inv }: { inv: DeclarationPeriodInvoice }) {
+  if (inv.isOtherRegime) {
+    return <OtroRegimenChip motivo={inv.reason} />
+  }
+  if (inv.isPpdWithoutComplement) {
+    return <PpdSinComplementoChip motivo={inv.reason} />
+  }
+  if (inv.isDeductible == null) {
+    return (
+      <Chip bg="var(--muted)" fg="var(--ink-500)">
+        Sin clasificar
+      </Chip>
+    )
+  }
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex flex-wrap gap-1">
+        {inv.isManualAdjustment && (
+          <Chip bg="var(--violet-soft)" fg="var(--violet-ink)" title="Ajustado a mano: el recálculo no lo reclasifica">
+            Manual
+          </Chip>
+        )}
+        {inv.isDeductible ? (
+          <Chip bg="var(--brand-50)" fg="var(--brand-700)">Deducible</Chip>
+        ) : (
+          <Chip bg="var(--coral-soft)" fg="var(--ink-900)">No deducible</Chip>
+        )}
+        {inv.isExpense != null && (
+          <Chip bg="var(--ink-50)" fg="var(--ink-700)">{inv.isExpense ? 'Gasto' : 'Ingreso'}</Chip>
+        )}
+      </div>
+      {inv.classification && (
+        <span className="text-[12px] font-semibold" style={{ color: 'var(--ink-900)' }}>
+          {inv.classification}
+        </span>
+      )}
+      {inv.reason && (
+        <span
+          className="text-[11.5px] leading-snug"
+          style={{ color: inv.isDeductible ? 'var(--ink-500)' : 'var(--ink-900)' }}
+        >
+          {inv.reason}
+        </span>
+      )}
+    </div>
+  )
+}
+
+/**
+ * E7: alcance del ajuste + ámbito de claves. Vive junto a clasificación/
+ * deducibilidad/motivo pero no forma parte de `ClassificationAdjustment` hasta
+ * que hay un cambio real (ver `pending` en `RecalculoTab`).
+ */
+function ScopeSelector({
+  state,
+  productCode,
+  multipleCodes,
+  disabled,
+  onScopeChange,
+}: {
+  state: RecalcScopeState
+  /** Clave del concepto de mayor importe: es la que se memoriza y la que se propaga. */
+  productCode: string | null
+  multipleCodes: boolean
+  disabled: boolean
+  onScopeChange: (scope: ClassificationAdjustmentScope) => void
+}) {
+  const isGeneric = productCode === GENERIC_PRODUCT_CODE
+  // La genérica solo se guarda para este cliente o esta declaración: lo que ampara
+  // varía con cada contribuyente, así que una regla para todos siempre estaría mal.
+  const options = isGeneric ? SCOPE_OPTIONS.filter(([s]) => s !== 'global') : SCOPE_OPTIONS
+  const help = SCOPE_OPTIONS.find(([s]) => s === state.scope)?.[2]
+  const missingKey = state.scope !== 'declaration' && !productCode
+
+  return (
+    <div className="flex flex-col gap-1 pt-1" style={{ borderTop: '1px dashed var(--border)' }}>
+      <select
+        value={isGeneric && state.scope === 'global' ? 'client' : state.scope}
+        onChange={(e) => onScopeChange(e.target.value as ClassificationAdjustmentScope)}
+        disabled={disabled || !productCode}
+        className="w-full px-2.5 py-2 rounded-lg text-[12.5px] disabled:opacity-60"
+        style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+      >
+        {options.map(([value, label]) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        ))}
+      </select>
+      {help && (
+        <span className="text-[11px] leading-snug" style={{ color: 'var(--ink-500)' }}>
+          {help}
+        </span>
+      )}
+
+      {productCode && (
+        <span className="text-[11px] leading-snug" style={{ color: 'var(--ink-500)' }}>
+          Clave: <code style={{ ...MONO, color: 'var(--ink-700)' }}>{productCode}</code>
+          {multipleCodes ? ' (la del concepto de mayor importe)' : ''}
+        </span>
+      )}
+
+      {isGeneric && (
+        <span className="text-[11px] font-semibold leading-snug" style={{ color: 'var(--ink-700)' }}>
+          Clave genérica: solo se puede guardar para este cliente o para esta declaración.
+        </span>
+      )}
+
+      {missingKey && (
+        <span className="text-[11px] font-semibold" style={{ color: 'var(--danger)' }}>
+          El comprobante no trae clave de producto: este ajuste no se puede memorizar.
+        </span>
+      )}
+    </div>
+  )
+}
+
+function Chip({
+  children,
+  bg,
+  fg,
+  title,
+}: {
+  children: React.ReactNode
+  bg: string
+  fg: string
+  title?: string
+}) {
+  return (
+    <span
+      title={title}
+      className="inline-flex px-2 py-0.5 rounded-md text-[11px] font-bold whitespace-nowrap"
+      style={{ background: bg, color: fg }}
+    >
+      {children}
+    </span>
+  )
+}
+
+function Note({ tone, children }: { tone: 'info' | 'warn' | 'error'; children: React.ReactNode }) {
+  const styles = {
+    info: { background: 'var(--hero-info)', border: '1px solid var(--hero-info-border)', color: 'var(--ink-700)' },
+    warn: { background: 'var(--hero-amber)', border: '1px solid var(--border-strong)', color: 'var(--ink-700)' },
+    error: { background: 'var(--coral-soft)', border: '1px solid var(--border-strong)', color: 'var(--ink-900)' },
+  }[tone]
+
+  return (
+    <div className="rounded-2xl px-4 py-3 text-[13px] flex items-start gap-2" style={styles}>
+      {tone !== 'info' && <AlertCircle size={16} className="mt-0.5 shrink-0" />}
+      <span>{children}</span>
+    </div>
+  )
+}

@@ -1,0 +1,82 @@
+'use client'
+
+import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
+import { useFiscalScore } from '@/features/declarations/hooks/useFiscalScore'
+import type { GoFn } from '../types'
+import { BlacklistCard } from './blacklist-card'
+import { ComplianceCard } from './compliance-card'
+import { CredibilityHeader } from './credibility-header'
+import { CsfCard } from './csf-card'
+import { PdfViewerDialog } from './pdf-viewer-dialog'
+import { useFiscalDocuments } from './use-fiscal-documents'
+
+interface Props {
+  go: GoFn
+}
+
+export function FiscalCredibility({ go }: Props) {
+  const { selectedRfc } = useRfcStore()
+  const { step } = useFiscalScore()
+  // 'connecting' (sin CSF aún) y 'checking' (robots trabajando/re-leyendo la
+  // constancia, p. ej. un diagnóstico bajo demanda): en ambos las tarjetas
+  // muestran su estado de sincronización en lugar de brincar a "lista".
+  const isSyncingWithSat = step === 'connecting' || step === 'checking'
+  const { csf, opinion, blacklist, busy, viewer, runAction, closeViewer } = useFiscalDocuments(selectedRfc, isSyncingWithSat)
+
+  const csfMissing = csf.state === 'missing'
+  const csfErrored = csf.state === 'error'
+  const csfForbidden = csf.state === 'forbidden'
+  const rfcNotFound =
+    csf.state === 'rfc-not-found' ||
+    opinion.state === 'rfc-not-found' ||
+    blacklist.state === 'rfc-not-found'
+  const allBlocked = csfMissing
+
+  const goToSat = () => go('estatus-sat')
+
+  return (
+    <div>
+      <CredibilityHeader
+        csfMissing={csfMissing}
+        csfErrored={csfErrored}
+        csfForbidden={csfForbidden}
+        rfcNotFound={rfcNotFound}
+      />
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+        <CsfCard
+          state={csf.state}
+          hasFile={csf.hasFile}
+          isStale={csf.isStale}
+          downloadDate={csf.downloadDate}
+          busy={busy}
+          onConnect={goToSat}
+          onUpload={() => go('documentos')}
+          onView={() => runAction('csf', 'view')}
+          onDownload={() => runAction('csf', 'download')}
+        />
+        <ComplianceCard
+          state={opinion.state}
+          hasFile={opinion.hasFile}
+          isStale={opinion.isStale}
+          blocked={allBlocked}
+          downloadDate={opinion.downloadDate}
+          statusText={opinion.statusText}
+          busy={busy}
+          onView={() => runAction('opinion', 'view')}
+          onDownload={() => runAction('opinion', 'download')}
+          onConnect={goToSat}
+        />
+        <BlacklistCard
+          state={blacklist.state}
+          statusText={blacklist.statusText}
+          inBlacklist={blacklist.inBlacklist}
+          blocked={allBlocked}
+          onConnect={goToSat}
+        />
+      </div>
+
+      <PdfViewerDialog viewer={viewer} onClose={closeViewer} />
+    </div>
+  )
+}

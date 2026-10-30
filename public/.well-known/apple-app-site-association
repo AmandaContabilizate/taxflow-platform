@@ -1,0 +1,12 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["Z6ZHWLN3P4.com.algoryt.AppContabox"],
+        "components": [
+          { "/": "/app/*", "comment": "Rutas de la app movil" }
+        ]
+      }
+    ]
+  }
+}

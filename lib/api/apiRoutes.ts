@@ -1,22 +1,804 @@
-/**
- * Catálogo central de endpoints del backend ContaboxPro core2.
- * Las rutas son relativas a la base que define cada `apiType` en apiUrls.ts.
- */
+/** Query de `issued|received-invoices-declaration`: el rango de meses es cerrado. */
+export interface DeclarationPeriodInvoicesParams {
+  rfc: string
+  year: number
+  beginMonth: number
+  endMonth: number
+  /** Id interno de Users.TaxRegimes, no el código SAT. */
+  idRegime: number
+}
+
+function periodInvoicesQuery(p: DeclarationPeriodInvoicesParams): string {
+  const qs = new URLSearchParams({
+    rfc: p.rfc,
+    year: String(p.year),
+    beginMonth: String(p.beginMonth),
+    endMonth: String(p.endMonth),
+    idRegime: String(p.idRegime),
+  })
+  return `?${qs.toString()}`
+}
+
+/** Query común de los listados del contador (nivel 1 y nivel 2). */
+interface TaxpayerListQuery {
+  skip?: number
+  take?: number
+  /** 1 solo regularizaciones, 2 solo a futuro, ausente = ambas. */
+  kind?: 1 | 2
+  /** Id interno de Users.TaxRegimes, NO el código SAT. */
+  taxRegimeId?: number
+  /** Solo periodos de calendario aún no vencidos (`>=` ancla). No lo acepta regularization-taxpayers. */
+  onlyUpcoming?: boolean
+  /** Mismo periodo próximo a trabajar, pero `==` ancla en vez de `>=`. */
+  upcomingExact?: boolean
+  /** Ejercicio pedido; va junto con `periodMonth` o ninguno de los dos. */
+  periodYear?: number
+  /** Mes de cierre 1-12 pedido; va junto con `periodYear` o ninguno de los dos. */
+  periodMonth?: number
+  /** Id de `DeclarationStatus` (`Declarations.Declaration.IdStatusDeclaration`). "En proceso" = 15. */
+  statusId?: number
+  /** Nivel del semáforo de posteo (solo con `statusId: 11`); el back evalúa todo y pagina en memoria. */
+  readiness?: "ok" | "warning" | "blocked"
+  /** Estado de la CIEC del contribuyente: 0 sin verificar, 1 válida, 2 inválida. */
+  ciecState?: number
+  /** Tipo de presentación: normal (ComplementNumber = 0) o complementaria (> 0). */
+  presentacion?: "normal" | "complementaria"
+  /** Conteo por nivel del semáforo sobre todo el universo filtrado (solo declarations-by-taxpayer con `statusId: 11`). */
+  includeReadinessCounts?: boolean
+}
+
+export interface TaxpayerGroupsQuery extends TaxpayerListQuery {
+  search?: string
+  /** Solo gerencia (claim AssignAccountant); el back lo ignora en silencio si no aplica. */
+  accountantUserId?: string
+}
+
+export interface TaxpayerPurchasesQuery extends TaxpayerListQuery {
+  rfc?: string
+}
+
+function taxpayerListQuery(p: TaxpayerListQuery): URLSearchParams {
+  const qs = new URLSearchParams({
+    skip: String(p.skip ?? 0),
+    take: String(p.take ?? 50),
+  })
+  if (p.kind) qs.set("kind", String(p.kind))
+  if (p.taxRegimeId) qs.set("taxRegimeId", String(p.taxRegimeId))
+  if (p.onlyUpcoming) qs.set("onlyUpcoming", "true")
+  if (p.upcomingExact) qs.set("upcomingExact", "true")
+  if (p.periodYear != null) qs.set("periodYear", String(p.periodYear))
+  if (p.periodMonth != null) qs.set("periodMonth", String(p.periodMonth))
+  if (p.statusId) qs.set("statusId", String(p.statusId))
+  if (p.readiness) qs.set("readiness", p.readiness)
+  if (p.ciecState != null) qs.set("ciecState", String(p.ciecState))
+  if (p.presentacion) qs.set("presentacion", p.presentacion)
+  if (p.includeReadinessCounts) qs.set("includeReadinessCounts", "true")
+  return qs
+}
+
+function taxpayerGroupsQuery(p: TaxpayerGroupsQuery): string {
+  const qs = taxpayerListQuery(p)
+  if (p.search) qs.set("search", p.search)
+  if (p.accountantUserId) qs.set("accountantUserId", p.accountantUserId)
+  return `?${qs.toString()}`
+}
+
+function taxpayerPurchasesQuery(p: TaxpayerPurchasesQuery): string {
+  const qs = taxpayerListQuery(p)
+  if (p.rfc) qs.set("rfc", p.rfc)
+  return `?${qs.toString()}`
+}
+
+/** Query de `export-report`: mismos filtros del modal de exportación, todos opcionales. */
+export interface ExportDeclarationsReportQuery {
+  /** 1 solo regularizaciones, 2 solo a futuro, ausente = ambas. Lo impone la pantalla. */
+  kind?: 1 | 2
+  search?: string
+  /** Id interno de Users.TaxRegimes, NO el código SAT. */
+  taxRegimeId?: number
+  statusId?: number
+  fiscalYear?: number
+  /** Mes calendario 1-12 (el backend lo traduce a PeriodValueId). */
+  month?: number
+  /** 1 válida, 2 inválida, 0 no registrada, ausente = todas. */
+  ciecState?: 0 | 1 | 2
+  /** Se ignora en el backend si el caller no tiene el claim AssignAccountant. */
+  accountantUserId?: string
+}
+
+function exportReportQuery(p: ExportDeclarationsReportQuery): string {
+  const qs = new URLSearchParams()
+  if (p.kind) qs.set("kind", String(p.kind))
+  if (p.search) qs.set("search", p.search)
+  if (p.taxRegimeId) qs.set("taxRegimeId", String(p.taxRegimeId))
+  if (p.statusId) qs.set("statusId", String(p.statusId))
+  if (p.fiscalYear) qs.set("fiscalYear", String(p.fiscalYear))
+  if (p.month) qs.set("month", String(p.month))
+  if (p.ciecState != null) qs.set("ciecState", String(p.ciecState))
+  if (p.accountantUserId) qs.set("accountantUserId", p.accountantUserId)
+  const s = qs.toString()
+  return `/export-report${s ? `?${s}` : ""}`
+}
+
 export const API_ROUTES = {
   AUTH: {
-    LOGIN: "/login",                // POST   apiType "auth"  → /api/auth/login
-    SIGN_OUT: "/signout",           // POST   apiType "auth"
-    VALIDATE: "/validate",          // GET    apiType "auth"
+    LOGIN: "/login",
+    SIGN_OUT: "/signout",
+    VALIDATE: "/validate",
+    /** POST auth (Identity). Re-emite el access token (sliding expiration) con un JWT aún válido. */
+    REFRESH: "/refresh",
+    /** POST auth (Identity), anonimo. Desactiva la cuenta (isActive = 0) validando email + password. */
+    DELETE_ACCOUNT: "/delete-account",
   },
   USERS: {
-    ROOT: "",                       // GET    apiType "users" → /api/users
+    ROOT: "",
     GET: (id: string) => `/${id}`,
-    SEND_CODE: "/SendCode",         // POST   apiType "users" → /api/users/SendCode
-    VALIDATE_CODE: "/ValidateConfirmationCode", // POST apiType "users"
-    COMPLETE_PROFILE: "/CompleteUserProfile",   // POST apiType "users" (auth)
+    MY_INFO: "/my-info",
+    /** POST users (Identity). El systemOriginId va en ruta; sin el, el back asume 1 (Contabox). */
+    SEND_CODE: (systemOriginId?: number) =>
+      systemOriginId == null ? "/SendCode" : `/SendCode/${systemOriginId}`,
+    EXIST_EMAIL: (email: string) => `/ExistEmail/${encodeURIComponent(email)}`,
+    VALIDATE_CODE: "/ValidateConfirmationCode",
+    COMPLETE_PROFILE: "/CompleteUserProfile",
+    /** POST users (Identity). El systemOriginId va en ruta; sin el, el back asume 1 (Contabox). */
+    FORGOT_PASSWORD: (systemOriginId?: number) =>
+      systemOriginId == null ? "/forgot-password" : `/forgot-password/${systemOriginId}`,
+    RESET_PASSWORD: "/reset-password",
+    UPDATE_PASSWORD: "/UpdatePassword",
+    ASSIGN_ROLE: "/assign-role",
+    REMOVE_ROLE: "/remove-role",
+    ROLES: (userId: string) => `/${encodeURIComponent(userId)}/roles`,
+    SWITCH_ROLE: "/switch-role",
+    /** POST users (Identity). Baja Soft de TODOS los contribuyentes y de la cuenta (flujo legado, solo contraseña). */
+    DELETE_ACCOUNT: "/delete-account",
+    /** GET users (Identity). Contribuyentes activos del usuario con su saldo prepagado, para el modal de baja. */
+    MY_TAXPAYERS_DEACTIVATION_PREVIEW: "/me/taxpayers/deactivation-preview",
+    /** POST users (Identity). Baja Soft de uno, varios o todos mis contribuyentes (RFC + motivo + contraseña). */
+    MY_TAXPAYERS_DEACTIVATE: "/me/taxpayers/deactivate",
+    // Cambio de correo del propio usuario (Identity, [Authorize]). Sin estado en el back:
+    // newEmail viaja en los tres porque el código TOTP está ligado a ese correo.
+    EMAIL_CHANGE_REQUEST: "/email-change/request",
+    EMAIL_CHANGE_RESEND: "/email-change/resend",
+    EMAIL_CHANGE_CONFIRM: "/email-change/confirm",
+  },
+  // Equipo comercial — módulo de comisiones. apiType "team" (Identity)
+  TEAM: {
+    INVITE: "/invite",
+    MEMBERS: "/members",
+    MEMBER_PROFILE: (userId: string) =>
+      `/members/${encodeURIComponent(userId)}/profile`,
+  },
+  // Partners y alianzas B2B2C. apiType "partners" (Procedures)
+  PARTNERS: {
+    LIST: "",
+    CREATE: "",
+    UPDATE: (id: number) => `/${id}`,
+  },
+  // Códigos de descuento. apiType "discount_codes" (Procedures)
+  DISCOUNT_CODES: {
+    LIST: "",
+    LOOKUPS: "/lookups",
+    CREATE: "",
+    UPDATE: (id: number) => `/${id}`,
+    /** Bitácora de autorizaciones de códigos fuera de tope (auditoría). */
+    AUTHORIZATIONS: "/authorizations",
+  },
+  // Comisiones. apiType "commissions" (Procedures)
+  COMMISSIONS: {
+    MY_SUMMARY: (period: string) => `/my-summary?period=${encodeURIComponent(period)}`,
+    MY_OPERATIONS: (period: string) => `/my-operations?period=${encodeURIComponent(period)}`,
+    TEAM_SUMMARY: (period: string) => `/team-summary?period=${encodeURIComponent(period)}`,
+    // Recalcula las metas dinámicas de los gerentes (Regla 10). Claim Admin.RunCommissionClose.
+    RECALC_GOALS: (period: string) => `/goals/recalculate?period=${encodeURIComponent(period)}`,
+  },
+  // Preferencias de notificación del usuario autenticado. apiType "notification_prefs" (Procedures)
+  NOTIFICATION_PREFS: {
+    INFO: "/info",
+  },
+  // Asignaciones de venta. apiType "assignments" (Procedures)
+  ASSIGNMENTS: {
+    UNASSIGNED: "/unassigned",
+    REQUESTS: "/requests",
+    APPROVE: (id: number) => `/requests/${id}/approve`,
+    REJECT: (id: number) => `/requests/${id}/reject`,
+    /** Retira una solicitud PENDIENTE (solo quien la creó). */
+    CANCEL: (id: number) => `/requests/${id}/cancel`,
+  },
+  ROLES: {
+    LIST: "/roles-list",
+    GET: (roleId: string) => `/roles/${encodeURIComponent(roleId)}`,
+    /** Usuarios que tienen asignado un rol (con flag de rol activo/por defecto). */
+    USERS: (roleId: string) => `/${encodeURIComponent(roleId)}/users`,
+    CREATE: "/roles",
+    UPDATE: "/roles",
+    DELETE: (roleId: string) => `/roles/${encodeURIComponent(roleId)}`,
+    CLAIMS_CATALOG: "/claims-catalog",
   },
   TAXPAYERS: {
     ROOT: "",
     GET: (id: string) => `/${id}`,
+    GET_BY_RFC: (rfc: string) => `/2/taxpayer?rfc=${encodeURIComponent(rfc)}`,
+    UPDATECIEC: "/updateCiec",
+    VALIDATE_CIEC: "/validate-ciec",
+    // Actividades económicas por régimen (matriz de la última CSF). apiType "taxpayers"
+    REGIME_ACTIVITIES: (rfc: string) => `/regime-activities?rfc=${encodeURIComponent(rfc)}`,
+    REGIME_ACTIVITY_ACTIVATE: (rfc: string, regimeId: number, activityId: number) =>
+      `/regime-activities/activate?rfc=${encodeURIComponent(rfc)}&regimeId=${regimeId}&activityId=${activityId}`,
+    REGIME_ACTIVITY_DEACTIVATE: (rfc: string, regimeId: number, activityId: number) =>
+      `/regime-activities/deactivate?rfc=${encodeURIComponent(rfc)}&regimeId=${regimeId}&activityId=${activityId}`,
+    // Regímenes dados de baja: actividades asignadas, sugeridas por IDC y catálogo completo. PUT reemplaza
+    // las actividades de UNA liga (taxPayerTaxRegimeId). apiType "taxpayers"
+    REGIME_ACTIVITIES_INACTIVE: (rfc: string) => `/regime-activities/inactive?rfc=${encodeURIComponent(rfc)}`,
+    REGIME_ACTIVITIES_INACTIVE_UPDATE: (rfc: string, taxPayerTaxRegimeId: number) =>
+      `/regime-activities/inactive?rfc=${encodeURIComponent(rfc)}&taxPayerTaxRegimeId=${taxPayerTaxRegimeId}`,
+    // Bandeja global del Gerente de Operaciones (claim Operaciones.ReadActividadesPendientes).
+    // kind: 0 todos, 1 regímenes sin actividades, 2 CSF sin asignar, 3 IDC sin asignar. apiType "taxpayers"
+    REGIME_ACTIVITIES_PENDING: (params: { rfc?: string; kind?: number; skip?: number; take?: number }) => {
+      const qs = new URLSearchParams()
+      if (params.rfc) qs.set("rfc", params.rfc)
+      if (params.kind) qs.set("kind", String(params.kind))
+      qs.set("skip", String(params.skip ?? 0))
+      qs.set("take", String(params.take ?? 50))
+      return `/regime-activities/pending?${qs.toString()}`
+    },
+    // Crea contribuyente para cualquier régimen (no limitado a 605); valida CIEC sin
+    // descargar constancia, régimen/razón social se completan async. apiType "taxpayers"
+    CREATE_BY_CIEC: "/create-by-ciec",
+    // Crea (o reutiliza) contribuyente por RFC y persiste su e.Firma. apiType "taxpayers"
+    CREATE_BY_EFIRMA: "/create-by-efirma",
+    AVAILABLE_RFCS: "/available-rfcs",
+    // Constancia de situación fiscal subida por el cliente (PDF, multipart: rfc + file) cuando el
+    // SAT no responde. apiType "taxpayers" (Identity, con /SQLServer).
+    UPLOAD_TAX_CERTIFICATE: "/uploadTaxCertificate",
+    // Backoffice: el vendedor/gerente sube la constancia de un contribuyente ajeno (multipart: file).
+    UPLOAD_TAX_CERTIFICATE_STAFF: (taxpayerId: number) => `/${taxpayerId}/uploadTaxCertificate`,
+    // Baja del contribuyente (ARCO) desde el expediente. Contador.DeactivateTaxpayer; Hard además
+    // Admin.HardDeleteTaxpayer. apiType "taxpayers"
+    DEACTIVATION_PREVIEW: (taxpayerId: number) => `/${taxpayerId}/deactivation-preview`,
+    DEACTIVATE: (taxpayerId: number) => `/${taxpayerId}/deactivate`,
+    DEACTIVATION_REASONS: "/deactivation-reasons",
+    // Credenciales del contribuyente (tab Credenciales del expediente). apiType "taxpayers"
+    SAT_PASSWORD: (rfc: string) => `/sat-password?rfc=${encodeURIComponent(rfc)}`,
+    RFC_STATUS: (rfc: string) => `/rfc-status?rfc=${encodeURIComponent(rfc)}`,
+    COMPLIANCE_OPINION: (rfc: string) =>
+      `/compliance-opinion?rfc=${encodeURIComponent(rfc)}`,
+    TAX_CERTIFICATE: (rfc: string) =>
+      `/taxcertificate?rfc=${encodeURIComponent(rfc)}`,
+  },
+  METADATA: {
+    COMPLIANCE_OPINION: (rfc: string) =>
+      `/compliance-opinion/metadata?rfc=${encodeURIComponent(rfc)}`,
+    TAX_CERTIFICATE: (rfc: string) =>
+      `/taxcertificate/metadata?rfc=${encodeURIComponent(rfc)}`,
+  },
+  REPORTS: {
+    MONTHLY_INCOME: "/monthly-income",
+    MONTHLY_BILLS: "/monthly-bills",
+    ISSUED_INVOICES: "/issued-invoices",
+    ACTIVE_CLIENTS: "/active-clients",
+  },
+  DECLARATIONS_OPS: {
+    // apiType "declarations_reports" · GET. Todos los filtros son opcionales y
+    // combinables. OJO: devuelve un array pelón, no PagedResult (sin total).
+    // regimeId = Id de Users.TaxRegimes; periodValueId = Catalogs.Period
+    // (101-112 mensual, 201-206 bimestral, 501 anual).
+    // `consulta`: ruta espejo de solo lectura (claim Contador.ConsultaDeclaraciones),
+    // para perfiles que ven el módulo sin tener Contador.ReadDeclaraciones.
+    LIST: (params: {
+      rfc?: string
+      regimeId?: number
+      year?: number
+      periodValueId?: number
+      statusId?: number
+      skip?: number
+      take?: number
+      consulta?: boolean
+    }) => {
+      const qs = new URLSearchParams()
+      if (params.rfc) qs.set("rfc", params.rfc)
+      if (params.regimeId) qs.set("regimeId", String(params.regimeId))
+      if (params.year) qs.set("year", String(params.year))
+      if (params.periodValueId) qs.set("periodValueId", String(params.periodValueId))
+      if (params.statusId) qs.set("statusId", String(params.statusId))
+      qs.set("skip", String(params.skip ?? 0))
+      qs.set("take", String(params.take ?? 100))
+      return `${params.consulta ? "/consulta" : ""}?${qs.toString()}`
+    },
+    // GET declarations_reports — panel del contador (cartera, periodo y CIEC).
+    CONTADOR_DASHBOARD: (year: number, month: number) =>
+      `/contador-dashboard?year=${year}&month=${month}`,
+    // GET declarations_reports — equipo de operaciones (pool de contadores + carga del periodo).
+    EQUIPO_OPERACIONES: (year: number, month: number) =>
+      `/equipo-operaciones?year=${year}&month=${month}`,
+    // GET declarations_reports — panel de gerencia contable (área + desglose).
+    GERENCIA_CONTABLE_DASHBOARD: (year: number, month: number, accountantUserId?: string) =>
+      `/gerencia-contable-dashboard?year=${year}&month=${month}${accountantUserId ? `&accountantUserId=${encodeURIComponent(accountantUserId)}` : ""}`,
+    CALCULATIONS: (declarationId: number, consulta = false) =>
+      `/${declarationId}${consulta ? "/consulta" : ""}/calculations`,
+    // Facturas del periodo + su clasificación. Devuelve PagedResult.
+    // Filtros opcionales y combinables; omitirlos = "todos". El backend filtra
+    // dentro del IQueryable, así que `total` ya viene filtrado.
+    // invoiceTypeId: 1 Ingreso, 2 Egreso, 3 Traslado, 4 Pago, 5 Nómina
+    // (fuera de 1-5 el backend responde INVALID_REQUEST).
+    // `sortBy`/`sortDir`: lista blanca del backend (invoiceDate|total, asc|desc);
+    // default invoiceDate/asc reproduce el orden anterior. `includeConcepts=true`
+    // llena `conceptos` (detalle completo); sin el flag viaja `null`.
+    // `esRetencion`: null/omitido = todos, true = solo constancias, false = solo
+    // CFDI normales. La pantalla manda false en la sub-pestaña de normales para
+    // que `total` y las páginas sean las de ESE universo (las constancias tienen
+    // su propio EP, RETENCIONES).
+    INVOICES: (params: {
+      declarationId: number
+      isIssued?: boolean
+      invoiceTypeId?: number
+      clasificada?: boolean
+      skip?: number
+      take?: number
+      sortBy?: "invoiceDate" | "total"
+      sortDir?: "asc" | "desc"
+      includeConcepts?: boolean
+      esRetencion?: boolean
+      consulta?: boolean
+      /**
+       * `false` = el back omite `totales`/`cuadre` (responde null) y solo manda
+       * `total` y las filas. Solo se manda cuando es false: omitido = true en el
+       * back, y un back viejo ignora el parámetro.
+       */
+      includeTotals?: boolean
+    }) => {
+      const qs = new URLSearchParams()
+      if (params.isIssued != null) qs.set("isIssued", String(params.isIssued))
+      if (params.invoiceTypeId != null) qs.set("invoiceTypeId", String(params.invoiceTypeId))
+      if (params.clasificada != null) qs.set("clasificada", String(params.clasificada))
+      qs.set("skip", String(params.skip ?? 0))
+      qs.set("take", String(params.take ?? 100))
+      if (params.sortBy) qs.set("sortBy", params.sortBy)
+      if (params.sortDir) qs.set("sortDir", params.sortDir)
+      if (params.includeConcepts) qs.set("includeConcepts", "true")
+      if (params.esRetencion != null) qs.set("esRetencion", String(params.esRetencion))
+      if (params.includeTotals === false) qs.set("includeTotals", "false")
+      return `/${params.declarationId}${params.consulta ? "/consulta" : ""}/invoices?${qs.toString()}`
+    },
+    // SOLO las constancias de retención del periodo, paginadas sobre su propio
+    // universo. Misma forma de respuesta que INVOICES (PagedResult) con
+    // esRetencion/totalRetenido/retenciones ya poblados.
+    // No acepta invoiceTypeId: los CFDI de retención no tienen TipoDeComprobante
+    // y filtrar por tipo vaciaba la lista.
+    INVOICES_RETENCIONES: (params: {
+      declarationId: number
+      isIssued?: boolean
+      clasificada?: boolean
+      skip?: number
+      take?: number
+      sortBy?: "invoiceDate" | "total"
+      sortDir?: "asc" | "desc"
+      consulta?: boolean
+      /** Igual que en INVOICES: solo viaja cuando es false. */
+      includeTotals?: boolean
+    }) => {
+      const qs = new URLSearchParams()
+      if (params.isIssued != null) qs.set("isIssued", String(params.isIssued))
+      if (params.clasificada != null) qs.set("clasificada", String(params.clasificada))
+      qs.set("skip", String(params.skip ?? 0))
+      qs.set("take", String(params.take ?? 100))
+      if (params.sortBy) qs.set("sortBy", params.sortBy)
+      if (params.sortDir) qs.set("sortDir", params.sortDir)
+      if (params.includeTotals === false) qs.set("includeTotals", "false")
+      return `/${params.declarationId}${params.consulta ? "/consulta" : ""}/invoices/retenciones?${qs.toString()}`
+    },
+    GENERAL: (declarationId: number, consulta = false) =>
+      `/${declarationId}${consulta ? "/consulta" : ""}/general`,
+    // Igual que GENERAL pero bajo el claim Comercial.ReadPredeclaracion (SAC /
+    // Renovaciones): reporte de predeclaracion en solo lectura. Misma respuesta.
+    PREDECLARACION: (declarationId: number) => `/${declarationId}/predeclaracion`,
+    // apiType "declarations_reports" · GET. Bitácora de cambios de estatus
+    // (`DeclarationLog`). Devuelve un ARRAY plano (NO PagedResult), changedAt DESC.
+    // `consulta`: ruta espejo (claim Contador.ConsultaDeclaraciones) acotada a una
+    // declaración — la usa el banner de rechazo para el perfil de solo consulta (SAC).
+    LOGS: (declarationId: number, skip = 0, take = 100, consulta = false) =>
+      `${consulta ? "/consulta" : ""}/logs?declarationId=${declarationId}&skip=${skip}&take=${take}`,
+  },
+  // Controller nuevo de Procedures (`api/declarations`, plural). apiType
+  // "declarations_procedures". Policy Contador.UpdateDeclaracionEstatus.
+  DECLARATIONS_PROCEDURES: {
+    // POST · body opcional `{ note?: string }`. 9|10|11|15|17 -> 9 + correo (best-effort).
+    RESEND_TO_CLIENT: (declarationId: number) => `/${declarationId}/resend-to-client`,
+    // POST · body `{ reason: string }` (obligatorio, máx. 500). 3|9|11 -> 17 Reabierta.
+    // Sin correo: el motivo solo va a la bitácora y el cliente nunca lo ve.
+    REOPEN: (declarationId: number) => `/${declarationId}/reopen`,
+    // GET · solo lectura. Devuelve `{ url, token }` del reporte del cliente.
+    REPORT_LINK: (declarationId: number) => `/${declarationId}/report-link`,
+  },
+  SALES_OPS: {
+    PROCEDURES: (skip = 0, take = 500) =>
+      `/procedures?skip=${skip}&take=${take}`,
+    SUMMARY: (skip = 0, take = 100, rfc?: string, status?: number) =>
+      `/summary?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${status ? `&status=${status}` : ""}`,
+    // GET sales_reports — trazabilidad Stripe de una venta (policy Contador.ReadVentas).
+    DETAIL: (saleId: number) => `/detail/${saleId}`,
+    // GET sales_reports — ventas pagadas sin activar (plan sin régimen / sin declaraciones), con
+    // el motivo derivado. Pantalla "Ventas por activar" (spec-ventas-por-activar).
+    POR_ACTIVAR: (skip = 0, take = 100, search?: string, queFalta?: string) =>
+      `/por-activar?skip=${skip}&take=${take}${search ? `&search=${encodeURIComponent(search)}` : ""}${queFalta ? `&queFalta=${encodeURIComponent(queFalta)}` : ""}`,
+    // GET sales_reports — ligas de pago emitidas desde el backoffice con estado derivado
+    // (Vigente · Vencida · Pagada · Cancelada). Pestaña "Ligas de pago" de Ventas por activar.
+    LIGAS_PAGO: (skip = 0, take = 100, search?: string, estado?: string, soloMias = false) =>
+      `/ligas-pago?skip=${skip}&take=${take}${search ? `&search=${encodeURIComponent(search)}` : ""}${estado ? `&estado=${encodeURIComponent(estado)}` : ""}${soloMias ? "&soloMias=true" : ""}`,
+    // GET sales_reports — planes por vencer en los próximos `dias`.
+    UPCOMING_RENEWALS: (
+      skip = 0,
+      take = 100,
+      dias = 30,
+      tipo?: "subscription" | "one_time",
+      rfc?: string,
+      incluirVencidas = false,
+    ) =>
+      `/upcoming-renewals?skip=${skip}&take=${take}&dias=${dias}${tipo ? `&tipo=${tipo}` : ""}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""
+      }${incluirVencidas ? "&incluirVencidas=true" : ""}`,
+    // GET sales_reports — reporte de cobertura de renovaciones por régimen (vista Declarations.vw_RenovacionesCobertura).
+    COVERAGE_RENEWALS: (
+      margen?: number,
+      regimen?: string,
+      search?: string,
+      skip = 0,
+      take = 1000,
+    ) => {
+      const qs = new URLSearchParams()
+      if (margen !== undefined && margen !== null) qs.set("margen", String(margen))
+      if (regimen) qs.set("regimen", regimen)
+      if (search) qs.set("search", search)
+      qs.set("skip", String(skip))
+      qs.set("take", String(take))
+      return `/coverage-renewals?${qs.toString()}`
+    },
+    // GET sales_reports — exportar reporte de cobertura de renovaciones en Excel .xlsx
+    EXPORT_COVERAGE_RENEWALS: (
+      margen?: number,
+      regimen?: string,
+      search?: string,
+    ) => {
+      const qs = new URLSearchParams()
+      if (margen !== undefined && margen !== null) qs.set("margen", String(margen))
+      if (regimen) qs.set("regimen", regimen)
+      if (search) qs.set("search", search)
+      return `/export-coverage-renewals?${qs.toString()}`
+    },
+  },
+  TAXPAYERS_OPS: {
+    // regimeId es el Id interno de Users.TaxRegimes (p.ej. 18), NO el código SAT (625).
+    // minSales: mínimo de ventas pagadas (StatusSaleId=2 con referencia de Stripe).
+    // En LIST, minSales=1 ya filtra a los que compraron alguna vez; en
+    // WITH_PAID_SALES y MY_CLIENTS el mínimo implícito ya es 1, así que sólo
+    // tiene efecto con 2 o más.
+    LIST: (skip = 0, take = 100, rfc?: string, regimeId?: number, minSales?: number) =>
+      `?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${regimeId ? `&regimeId=${regimeId}` : ""
+      }${minSales ? `&minSales=${minSales}` : ""}`,
+    WITH_PAID_SALES: (skip = 0, take = 100, rfc?: string, minSales?: number) =>
+      `/with-paid-sales?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${minSales ? `&minSales=${minSales}` : ""}`,
+    // Excel del padrón de contribuyentes, mismos filtros que LIST, sin paginar.
+    LIST_EXPORT: (rfc?: string, regimeId?: number, minSales?: number) => {
+      const qs = new URLSearchParams()
+      if (rfc) qs.set("rfc", rfc)
+      if (regimeId) qs.set("regimeId", String(regimeId))
+      if (minSales) qs.set("minSales", String(minSales))
+      const s = qs.toString()
+      return `/export${s ? `?${s}` : ""}`
+    },
+    // Excel del padrón de clientes con compras, mismos filtros que WITH_PAID_SALES, sin paginar.
+    WITH_PAID_SALES_EXPORT: (rfc?: string, minSales?: number) => {
+      const qs = new URLSearchParams()
+      if (rfc) qs.set("rfc", rfc)
+      if (minSales) qs.set("minSales", String(minSales))
+      const s = qs.toString()
+      return `/with-paid-sales/export${s ? `?${s}` : ""}`
+    },
+    MY_CLIENTS: (skip = 0, take = 100, rfc?: string, accountantUserId?: string, minSales?: number) =>
+      `/my-clients?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${accountantUserId ? `&accountantUserId=${encodeURIComponent(accountantUserId)}` : ""
+      }${minSales ? `&minSales=${minSales}` : ""}`,
+    // Expediente del cliente (gerencia comercial): resumen + equipo + productos + periodos.
+    EXPEDIENTE: (taxpayerId: number) => `/${taxpayerId}/expediente`,
+  },
+  // GET users_reports — padrón de cuentas registradas (solo requiere token).
+  USERS_OPS: {
+    LIST: (
+      skip = 0,
+      take = 100,
+      search?: string,
+      role?: string,
+      emailConfirmed?: boolean,
+      estatus?: string,
+      roleExclusive?: boolean,
+      origins?: string,
+    ) =>
+      `?skip=${skip}&take=${take}${search ? `&search=${encodeURIComponent(search)}` : ""}${role ? `&role=${encodeURIComponent(role)}` : ""
+      }${emailConfirmed === undefined ? "" : `&emailConfirmed=${emailConfirmed}`}${estatus ? `&estatus=${encodeURIComponent(estatus)}` : ""}${roleExclusive ? "&roleExclusive=true" : ""}${origins ? `&origins=${encodeURIComponent(origins)}` : ""}`,
+    // GET users_reports — Excel del padrón con los mismos filtros que LIST (sin paginar).
+    EXPORT: (
+      search?: string,
+      role?: string,
+      emailConfirmed?: boolean,
+      estatus?: string,
+      roleExclusive?: boolean,
+      origins?: string,
+    ) => {
+      const qs = new URLSearchParams()
+      if (search) qs.set("search", search)
+      if (role) qs.set("role", role)
+      if (emailConfirmed !== undefined) qs.set("emailConfirmed", String(emailConfirmed))
+      if (estatus) qs.set("estatus", estatus)
+      if (roleExclusive) qs.set("roleExclusive", "true")
+      if (origins) qs.set("origins", origins)
+      const s = qs.toString()
+      return `/export${s ? `?${s}` : ""}`
+    },
+    // GET users_reports — panel comercial: embudo, altas recientes y clientes con RFC.
+    SELLER_DASHBOARD: "/seller-dashboard",
+  },
+  ACCOUNTANT_ASSIGNMENTS: {
+    GET: (taxpayerId: number) => `/${taxpayerId}`,
+    REASSIGN: "/reassign",
+    BY_RFC: (rfc: string) => `/by-rfc?rfc=${encodeURIComponent(rfc)}`,
+  },
+  SALES: {
+    PAYMENTS: (rfc: string, page = 1, pageSize = 20) =>
+      `/payments?rfc=${encodeURIComponent(rfc)}&page=${page}&pageSize=${pageSize}`,
+    // GET sales_procedures — instrucciones de pago (SPEI/OXXO) de una venta Open.
+    PAYMENT_INSTRUCTIONS: (saleId: number) => `/payments/${saleId}/payment-instructions`,
+  },
+  // GET classification_rules_admin — overrides de deducibilidad forzada (solo lectura, rol Admin).
+  CLASSIFICATION_RULES_ADMIN: {
+    DEDUCTIBILITY_OVERRIDES: (activityId?: number, rfc?: string, page = 1, pageSize = 20) =>
+      `/deductibility-overrides?page=${page}&pageSize=${pageSize}${activityId ? `&activityId=${activityId}` : ""}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}`,
+  },
+  // Diagnóstico fiscal bajo demanda (apiType "diagnostico", Identity, sin /SQLServer).
+  // Cliente: rfc del propio JWT, máx 1 corrida/día. Vendedor: por taxpayerId, cooldown 6h.
+  DIAGNOSTICO: {
+    RUN_CLIENTE: (rfc: string) => `/cliente?rfc=${encodeURIComponent(rfc)}`,
+    CAN_RUN_CLIENTE: (rfc: string) => `/cliente/puede-ejecutar?rfc=${encodeURIComponent(rfc)}`,
+    // ¿Terminó el diagnóstico del propio cliente? Candado de compra: sin terminar solo trámites.
+    ESTADO_CLIENTE: (rfc: string) => `/cliente/estado?rfc=${encodeURIComponent(rfc)}`,
+    RUN_VENDEDOR: (taxpayerId: number) => `/vendedor/${taxpayerId}`,
+    CAN_RUN_VENDEDOR: (taxpayerId: number) => `/vendedor/puede-ejecutar/${taxpayerId}`,
+    // Declaraciones pendientes (13/14) que el diagnóstico encontró — backoffice.
+    RESULTADO_VENDEDOR: (taxpayerId: number) => `/vendedor/resultado/${taxpayerId}`,
+    // Historial de corridas (quién, cuándo, cómo terminó) — backoffice.
+    HISTORIAL_VENDEDOR: (taxpayerId: number) => `/vendedor/historial/${taxpayerId}`,
+    // Actividad de robots SAT (constancia/evaluación/decl-*): qué se ejecutó y en qué
+    // paso va — incluye el trabajo del onboarding, que el historial no registra.
+    ACTIVIDAD_VENDEDOR: (taxpayerId: number) => `/vendedor/actividad/${taxpayerId}`,
+    // Lo mismo para el propio cliente + estado de su espera al SAT (cuenta regresiva de
+    // Csf:MaxWaitMinutes y si ya puede subir su constancia). La pantalla de bloqueo lo sondea.
+    ACTIVIDAD_CLIENTE: (rfc: string) => `/cliente/actividad?rfc=${encodeURIComponent(rfc)}`,
+    // Backoffice: mismo estado de espera/constancia, por taxpayerId (tab Diagnóstico del expediente).
+    CONSTANCIA_ESTADO_VENDEDOR: (taxpayerId: number) => `/vendedor/constancia-estado/${taxpayerId}`,
+  },
+  DECLARATION: {
+    FISCAL_SCORE: (rfc: string) => `/fiscal-score?rfc=${encodeURIComponent(rfc)}`,
+    REGULARIZATIONS: (rfc: string) => `/regularizations?rfc=${encodeURIComponent(rfc)}`,
+    FUTURE_PLAN: (rfc: string) => `/future-plan?rfc=${encodeURIComponent(rfc)}`,
+    ANNUALS: (rfc: string) => `/annuals?rfc=${encodeURIComponent(rfc)}`,
+    ALL: (rfc: string) => `/all?rfc=${encodeURIComponent(rfc)}`,
+    // Vista del cliente (backoffice, claim Gerencia.VistaCliente): el mismo /all que ve el
+    // cliente, pedido por un gerente para un contribuyente ajeno. Solo lectura.
+    ALL_ESPEJO: (taxpayerId: number) => `/espejo/${taxpayerId}/all`,
+    // Pestañas del detalle: Normal + cada complementaria del periodo de la declaración.
+    FILINGS: (declarationId: number) => `/${declarationId}/filings`,
+    FILINGS_ESPEJO: (taxpayerId: number, declarationId: number) =>
+      `/espejo/${taxpayerId}/${declarationId}/filings`,
+    // Modal "Datos del SAT": lo leído de acuse / línea de captura / recibo bancario.
+    SAT_READING: (declarationId: number) => `/${declarationId}/sat-reading`,
+    SAT_READING_ESPEJO: (taxpayerId: number, declarationId: number) =>
+      `/espejo/${taxpayerId}/${declarationId}/sat-reading`,
+    COMMENTS: (declarationId: number) => `/${declarationId}/comments`,
+    RECALCULATE: "/recalculate",
+    ISSUED_INVOICES_DECLARATION: (p: DeclarationPeriodInvoicesParams) =>
+      `/issued-invoices-declaration${periodInvoicesQuery(p)}`,
+    RECEIVED_INVOICES_DECLARATION: (p: DeclarationPeriodInvoicesParams) =>
+      `/received-invoices-declaration${periodInvoicesQuery(p)}`,
+    CLIENT_INVOICES: (declarationId: number) =>
+      `/client-invoices?declarationId=${declarationId}`,
+    // Descarga de archivos SAT bajo demanda (contador, detalle de declaración). Mensual + periodo
+    // pasado + CIEC válida + máx 1/día calendario MX. GET = puede-ejecutar (no dispara nada).
+    DOWNLOAD_FILES_CAN_RUN: (declarationId: number) =>
+      `/download-files/puede-ejecutar?declarationId=${declarationId}`,
+    DOWNLOAD_FILES_RUN: (declarationId: number) =>
+      `/download-files?declarationId=${declarationId}`,
+    // Estatus de los 4 combos de descarga SAT del periodo de la declaración. 1 = completo,
+    // 0 = pendiente. "Completo" NO es "existe una descarga": es cobertura por unión de rangos
+    // hasta el día 6 del mes siguiente. Ver, en el repo backend,
+    // ContaboxPro.Backend.Procedures/Features/Declarations/DownloadFiles/PeriodDownloadStatus.md
+    DOWNLOAD_FILES_PERIOD_STATUS: (declarationId: number) =>
+      `/download-files/estatus-periodo?declarationId=${declarationId}`,
+    DECLARATION_TAXPAYERS: (p: TaxpayerGroupsQuery = {}) =>
+      `/declaration-taxpayers${taxpayerGroupsQuery(p)}`,
+    REGULARIZATION_TAXPAYERS: (p: TaxpayerGroupsQuery = {}) =>
+      `/regularization-taxpayers${taxpayerGroupsQuery({ ...p, onlyUpcoming: undefined })}`,
+    DECLARATIONS_BY_TAXPAYER: (p: TaxpayerPurchasesQuery = {}) =>
+      `/declarations-by-taxpayer${taxpayerPurchasesQuery(p)}`,
+    // Nivel 2 de regularizaciones: nunca aceptó filtros de periodo (ni el `>=` viejo ni los nuevos).
+    REGULARIZATIONS_BY_TAXPAYER: (p: TaxpayerPurchasesQuery = {}) =>
+      `/regularizations-by-taxpayer${taxpayerPurchasesQuery({
+        ...p,
+        onlyUpcoming: undefined,
+        upcomingExact: undefined,
+        periodYear: undefined,
+        periodMonth: undefined,
+      })}`,
+    UPLOAD_DOCUMENT: (declarationId: number) => `/${declarationId}/upload-document`,
+    // Presentación autorizada (GO, claim Operaciones.ForcePostDeclaration): encola en su cola de
+    // posteo aunque no cumpla pago/descargas/historial. El autorizador es el usuario del token.
+    FORCE_POST: (declarationId: number) => `/${declarationId}/force-post`,
+    DOCUMENTS: (declarationId: number) => `/${declarationId}/documents`,
+    // GET declaration (Procedures). Policy Contador.ReadDeclaraciones. Responde el
+    // .xlsx binario; sin resultados el back manda 400 con errorCode EXPORT_NO_RESULTS.
+    EXPORT_REPORT: (p: ExportDeclarationsReportQuery = {}) => exportReportQuery(p),
+  },
+  DECLARATION_REPORT: {
+    REPORT: (token: string) => `/report?t=${encodeURIComponent(token)}`,
+    AUTHORIZE: "/authorize",
+    COMMENT: "/comment",
+    // Mismo reporte para el cliente ya autenticado: la credencial es el JWT y el
+    // identificador la declaracion, no el token del correo.
+    MY: (declarationId: number) => `/my/${declarationId}`,
+    MY_AUTHORIZE: (declarationId: number) => `/my/${declarationId}/authorize`,
+    MY_COMMENT: (declarationId: number) => `/my/${declarationId}/comment`,
+  },
+  // apiType "payment_link" (Procedures). REDEEM es [AllowAnonymous] · GET.
+  PAYMENT_LINK: {
+    REDEEM: (token: string) => `/redeem?t=${encodeURIComponent(token)}`,
+  },
+  VAULT: {
+    ISSUED_COUNT: (rfc: string, email: string) =>
+      `/issued-count?rfc=${encodeURIComponent(rfc)}&email=${encodeURIComponent(email)}`,
+    RECEIVED_COUNT: (rfc: string, email: string) =>
+      `/received-count?rfc=${encodeURIComponent(rfc)}&email=${encodeURIComponent(email)}`,
+    TOTAL_INCOME: (rfc: string, email: string, year: number) =>
+      `/total-income?rfc=${encodeURIComponent(rfc)}&email=${encodeURIComponent(email)}&year=${year}`,
+    TOTAL_EXPENSES: (rfc: string, email: string, year: number) =>
+      `/total-expenses?rfc=${encodeURIComponent(rfc)}&email=${encodeURIComponent(email)}&year=${year}`,
+    ISSUED_INVOICES: (rfc: string, email: string) =>
+      `/issued-invoices?rfc=${encodeURIComponent(rfc)}&email=${encodeURIComponent(email)}`,
+    RECEIVED_INVOICES: (rfc: string, email: string) =>
+      `/received-invoices?rfc=${encodeURIComponent(rfc)}&email=${encodeURIComponent(email)}`,
+  },
+  CFDI: {
+    INVOICE_PDF: (id: string) => `/invoice-pdf?IdInvoice=${encodeURIComponent(id)}`,
+    INVOICE_XML: (id: string) => `/invoice-xml?IdInvoice=${encodeURIComponent(id)}`,
+    EXPENSE_PDF: (id: string) => `/expense-pdf?IdExpense=${encodeURIComponent(id)}`,
+    EXPENSE_XML: (id: string) => `/expense-xml?IdExpense=${encodeURIComponent(id)}`,
+  },
+  CATALOGS: {
+    // backoffice=true (solo con claim Comercial.EmitirLigaPago): sin régimen documentado devuelve
+    // todo el catálogo para Armar venta. El cliente sin constancia no ve ningún plan.
+    PLANS: (rfc: string, backoffice = false) =>
+      `/plans?rfc=${encodeURIComponent(rfc)}${backoffice ? "&backoffice=true" : ""}`,
+    ADDITIONAL_PROCEDURES: "/additional-procedures",
+    TAX_REGIMES: "/taxregimes",
+    CLASSIFICATIONS: (isExpense?: boolean) =>
+      `/classifications${isExpense == null ? "" : `?isExpense=${isExpense}`}`,
+    // GET catalogs_procedures. Sin filtros ni paginación: las 15 filas de Catalogs.StatusDeclaration.
+    DECLARATION_STATUSES: "/declaration-statuses",
+  },
+  FINANCES: {
+    REGISTER_SALE_NEW: "/register-sale/new",
+    // Backoffice: venta en nombre de un cliente registrado, firmada por el vendedor. Sin saldo
+    // nace pagada; con saldo devuelve la liga de pago de 48 h. Policy Comercial.EmitirLigaPago.
+    REGISTER_SALE_ON_BEHALF: (taxpayerId: number) => `/register-sale/on-behalf/${taxpayerId}`,
+    // Backoffice: re-emite la liga de pago (48 h) de una venta abierta armada desde el expediente.
+    REISSUE_PAYMENT_LINK_ON_BEHALF: (saleId: number) => `/register-sale/on-behalf/${saleId}/payment-link`,
+    // Backoffice: activa ahora las ventas pagadas sin declaraciones de un cliente que ya tiene constancia.
+    ACTIVATE_PENDING_SALES: (taxpayerId: number) => `/activate-pending/${taxpayerId}`,
+    // Backoffice: cambia el plan de una venta pagada cuyo plan no cubre el régimen y la activa.
+    ADJUST_SALE_PLAN: (saleId: number) => `/register-sale/on-behalf/${saleId}/ajustar-plan`,
+    DISCOUNT_CODE_PREVIEW: (code: string, rfc: string) =>
+      `/discount-code?code=${encodeURIComponent(code)}&rfc=${encodeURIComponent(rfc)}`,
+  },
+  PARTNERSHIP: {
+    CORS: {
+      LIST: "/cors",
+      ADD: "/cors",
+      DELETE: (id: number) => `/cors/${id}`,
+    },
+    KEYS: {
+      ACTIVE: "/keys",
+      GENERATE: "/keys",
+    },
+    LOGINS: "/logins",
+  },
+  STRIPE: {
+    PAYMENT_SHEET: "/payment-sheet",
+    PROMOTION_CODE_VALIDATE: "/promotion-code/validate",
+    SUBSCRIPTION_CURRENT: (rfc: string) =>
+      `/subscription/current?rfc=${encodeURIComponent(rfc)}`,
+    SUBSCRIPTION_CANCEL: "/subscription/cancel",
+    ACTIVE_PLAN: (rfc: string) =>
+      `/active-plan?rfc=${encodeURIComponent(rfc)}`,
+  },
+  /** Programa de referidos entre clientes (Procedures `api/referrals`). */
+  REFERRALS: {
+    ME: "/me",
+    /** Saldo de créditos disponible (lo consulta el carrito antes de pagar). */
+    BALANCE: "/balance",
+    /** Saldo disponible; con `rfc` no resta lo apartado en la venta Abierta de ese RFC (la compra nueva la reemplaza). */
+    BALANCE_FOR: (rfc: string) => `/balance?rfc=${encodeURIComponent(rfc)}`,
+    /** Anónimo: ¿existe el código de referido? Responde solo `{ valid }`. */
+    VALIDATE: (code: string) => `/validate?code=${encodeURIComponent(code)}`,
+  },
+  TIMBRAME: {
+    PORTAL_ACCESS: "/portal-access",
+  },
+  MARKETING: {
+    BROADCAST_PUSH: "/broadcast-push",
+  },
+  PUSH_TOKENS: {
+    REGISTER: "/register",
+  },
+  GEORGE: {
+    REGISTER_COMPANY: "/george/register-company",
+    COMPANY: "/george/company",
+    QUOTA: "/george/quota",
+    UPLOAD_TICKET: "/george/upload-ticket",
+    TICKETS: "/george/tickets",
+    PURCHASE_TICKETS: "/george/purchase-tickets",
+  },
+  // apiType "download_monitor". Policy Developer.ReadDownloadMonitor. `query` ya viene armado
+  // (rfc, email, from, to) con URLSearchParams; vacío = sin filtros.
+  DOWNLOAD_MONITOR: {
+    LIST: (query: string) => (query ? `?${query}` : ""),
+    // .xlsx binario, una hoja por estatus; sin resultados el back manda 400 EXPORT_NO_RESULTS.
+    EXPORT: (query: string) => `/export${query ? `?${query}` : ""}`,
+    HISTORY: (id: number) => `/${id}/history`,
+  },
+  // Cancelación comercial de declaraciones y clientes (módulo Cancelaciones, gerencia de ventas).
+  // Lectura en Reports (apiType "cancellations_reports"), escritura de declaraciones en Procedures
+  // (apiType "cancellations"); la baja/reactivación del contribuyente va a Identity
+  // (TAXPAYER_DEACTIVATION, apiType "taxpayer_deactivation").
+  CANCELLATIONS: {
+    // GET cancellations_reports · q ≥ 3 caracteres (RFC / nombre / correo). Cualquiera de los 3 claims.
+    TAXPAYERS_SEARCH: (q: string, skip = 0, take = 20) =>
+      `/taxpayers/search?q=${encodeURIComponent(q)}&skip=${skip}&take=${take}`,
+    // GET cancellations_reports · todas las filas del RFC (normales y complementarias) con
+    // `cancellable` / `notCancellableReason` / `inFlight` ya resueltos por el back, más el saldo prepagado.
+    TAXPAYER_DECLARATIONS: (
+      taxpayerId: number,
+      p: { taxRegimeId?: number; fiscalYear?: number; statusId?: number; onlyCancellable?: boolean } = {},
+    ) => {
+      const qs = new URLSearchParams()
+      if (p.taxRegimeId) qs.set("taxRegimeId", String(p.taxRegimeId))
+      if (p.fiscalYear) qs.set("fiscalYear", String(p.fiscalYear))
+      if (p.statusId) qs.set("statusId", String(p.statusId))
+      if (p.onlyCancellable) qs.set("onlyCancellable", "true")
+      const s = qs.toString()
+      return `/taxpayers/${taxpayerId}/declarations${s ? `?${s}` : ""}`
+    },
+    // GET cancellations · catálogo Catalogs.DeclarationCancellationReason (99 Otro exige nota). Solo sesión.
+    REASONS: "/reasons",
+    // POST cancellations · `{ declarationIds (1..100), reasonId, note }`. Resultado PARCIAL: 200 con
+    // `cancelled` y `rejected`; 400 solo si todas se rechazan. Policy GerenciaComercial.CancelDeclaraciones.
+    CANCEL_DECLARATIONS: "/declarations",
+    // POST cancellations · `{ note }`. 19 → estatus previo del log (o 15). Policy GerenciaComercial.ReactivarCancelaciones.
+    REACTIVATE_DECLARATION: (declarationId: number) => `/declarations/${declarationId}/reactivate`,
+    // GET cancellations_reports · bitácora del RFC: TaxpayerDeactivation + DeclarationLog con Source gerencia-%.
+    HISTORY: (taxpayerId: number, skip = 0, take = 100) =>
+      `/history?taxpayerId=${taxpayerId}&skip=${skip}&take=${take}`,
+  },
+  // Baja lógica de contribuyente (Identity, origin/dev) extendida para gerencia comercial.
+  // apiType "taxpayer_deactivation". Claims Contador.DeactivateTaxpayer o GerenciaComercial.CancelCliente.
+  TAXPAYER_DEACTIVATION: {
+    // GET · estatus actual, declaraciones en vuelo, saldo prepagado, suscripción encontrada.
+    PREVIEW: (taxpayerId: number) => `/${taxpayerId}/deactivation-preview`,
+    // POST · `{ hard:false, confirmRfc, reasonId, reasonNote, requestReference, password,
+    //   cancelOpenDeclarations, cancelSubscription }`. Borra CIEC, e.firma y cuentas bancarias.
+    DEACTIVATE: (taxpayerId: number) => `/${taxpayerId}/deactivate`,
+    // POST · `{ note, reactivateDeclarations }`. Policy GerenciaComercial.ReactivarCancelaciones.
+    REACTIVATE: (taxpayerId: number) => `/${taxpayerId}/reactivate`,
+  },
+  USER_NOTIFICATIONS: {
+    ROOT: "",
+    UNREAD_COUNT: "/unread-count",
+    READ: (id: string) => `/${id}/read`,
+    MARK_ALL_READ: "/mark-all-read",
+    DELETE: (id: string) => `/${id}`,
+    SEED_TEST: "/seed-test",
   },
 } as const;

@@ -1,0 +1,106 @@
+export interface DiscountCodesError {
+  statusCode: number;
+  message: string;
+}
+
+/** Ids del catálogo Catalogs.DiscountType. */
+export const DISCOUNT_TYPES = [
+  { id: 1, name: "Porcentaje" },
+  { id: 2, name: "Declaraciones" },
+] as const;
+
+export interface DiscountCodeAdmin {
+  id: number;
+  code: string;
+  description: string | null;
+  ownerType: "partner" | "user" | "none";
+  partnershipId: number | null;
+  sellerUserId: string | null;
+  ownerName: string | null;
+  ownerProfileType: string | null;
+  discountTypeId: number;
+  discountPercent: number;
+  declarationsCount: number | null;
+  maxUses: number | null;
+  usedCount: number;
+  whitelistedRfcsCount: number;
+  /** Lista blanca completa; el modal de edición la precarga para no perder RFCs. */
+  whitelistedRfcs: string[];
+  subscriptionPlanIds: number[];
+  isActive: boolean;
+  createdAt: string;
+  /** Quién generó el código (nombre; "system" u otro valor crudo si no es usuario). */
+  createdByName: string | null;
+  /**
+   * Espejo en Stripe: "synced" ya sincronizó, "error" el último intento falló
+   * (volver a guardar reintenta), "none" nunca se ha intentado (códigos previos
+   * a la funcionalidad). Los tipo Declaraciones no se espejan.
+   */
+  stripeStatus: "synced" | "error" | "none";
+  /** Motivo del último fallo de sincronización con Stripe. */
+  stripeSyncError: string | null;
+  /** Código base para asesores: molde no canjeable que se reparte en copias personales. */
+  isBaseTemplate: boolean;
+  /** Segmento objetivo del reparto del molde; null = todos los asesores. */
+  baseTemplateSegmentId: number | null;
+  /** En las copias: id del molde del que nació (null en códigos normales). */
+  baseTemplateId: number | null;
+}
+
+/** Fila de la bitácora de autorizaciones de códigos fuera de tope (inmutable). */
+export interface DiscountCodeAuthorization {
+  id: number;
+  code: string;
+  /** activated | deactivated */
+  action: string;
+  discountTypeId: number;
+  discountPercent: number;
+  declarationsCount: number | null;
+  maxUses: number | null;
+  whitelistedRfcsCount: number;
+  authorizedByName: string | null;
+  authorizedByEmail: string | null;
+  authorizedAt: string;
+}
+
+export interface DiscountCodeLookups {
+  sellers: { userId: string; name: string; profileType: string }[];
+  partners: { id: number; name: string }[];
+  // isSubscription / isOneTime ubican el plan en los tabs Suscripciones / Pago único.
+  // NO son excluyentes: un plan con ambos precios de Stripe sale en los DOS tabs.
+  // isSubscription: tiene precio recurrente; isOneTime: tiene precio de pago único
+  // (o ninguno, para que los planes sin Stripe caigan en Pago único).
+  // isActive: los desactivados también vienen (visibles para desmarcar ligas viejas),
+  // pero el modal no permite guardar con uno palomeado.
+  plans: { id: number; name: string; price: number; isSubscription: boolean; isOneTime: boolean; isActive: boolean }[];
+  /** Segmentos comerciales: destino del reparto de un código base. */
+  segments: { id: number; name: string }[];
+}
+
+export interface SaveDiscountCodeInput {
+  id?: number;
+  code: string;
+  description?: string;
+  partnershipId?: number;
+  sellerUserId?: string;
+  discountTypeId: number;
+  discountPercent?: number;
+  declarationsCount?: number;
+  maxUses: number;
+  subscriptionPlanIds: number[];
+  whitelistedRfcs: string[];
+  isActive: boolean;
+  /** Código base para asesores (molde): sin dueño, no canjeable, se reparte al guardar. */
+  isBaseTemplate?: boolean;
+  /** Segmento objetivo del reparto; undefined/null = todos los asesores. */
+  baseTemplateSegmentId?: number | null;
+}
+
+/** Resumen del reparto que regresa el guardado de un código base. */
+export interface SaveDiscountCodeResult {
+  discountCodeId: number;
+  /** Copias creadas en este guardado (solo códigos base). */
+  copiesCreated: number | null;
+  /** Asesores que ya tenían su copia (solo códigos base). */
+  copiesExisting: number | null;
+}

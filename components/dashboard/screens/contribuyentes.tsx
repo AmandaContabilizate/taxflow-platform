@@ -1,0 +1,262 @@
+'use client'
+
+import { useState } from 'react'
+import { Download, Info, Loader2, Stethoscope } from 'lucide-react'
+import { exportTaxpayers } from '@/features/taxpayers/actions/exportTaxpayers.action'
+import { getTaxpayers } from '@/features/taxpayers/actions/getTaxpayers.action'
+import type { TaxpayerListItem } from '@/features/taxpayers/types'
+import { downloadFile } from '@/lib/common/downloadFile'
+import { MONO } from '../constants'
+import { AccountStatusChip, isDeactivated } from '../cancelaciones/parts'
+import { Card, ErrorState, HelpBox } from '../ui'
+import { DiagnosticoHistorialModal } from '../clientes/diagnostico-historial-modal'
+import { ExpedienteCliente } from '../clientes/expediente-cliente'
+import {
+  Pagination,
+  RegimenesCell,
+  TaxpayerFilters,
+  VentasPagadasCell,
+  usePagedList,
+  useRegimenOptions,
+} from '../clientes/parts'
+
+const DEFAULT_MIN_SALES: number | '' = ''
+/** Mismo claim que protege el historial de diagnósticos en el backend. */
+const DIAGNOSTICO_PERMISSION = 'GerenciaComercial.RunDiagnosticoCliente'
+/** Mismo claim con el que Clientes abre el expediente. */
+const EXPEDIENTE_PERMISSION = 'GerenciaComercial.ReadExpedienteCliente'
+
+export function ContribuyentesScreen({ permissions = [] }: { permissions?: string[] }) {
+  const list = usePagedList(getTaxpayers, 50, DEFAULT_MIN_SALES)
+  const regimenOptions = useRegimenOptions(list.items)
+  const canDiagnostico = permissions.includes(DIAGNOSTICO_PERMISSION)
+  const canExpediente = permissions.includes(EXPEDIENTE_PERMISSION)
+  const [diagTarget, setDiagTarget] = useState<TaxpayerListItem | null>(null)
+  const [expedienteId, setExpedienteId] = useState<number | null>(null)
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
+
+  /** Excel con los mismos filtros que la tabla (todas las páginas). */
+  const handleExport = async () => {
+    if (exporting) return
+    setExporting(true)
+    setExportError(null)
+    const res = await exportTaxpayers({
+      rfc: list.rfc.trim() || undefined,
+      regimeId: list.regimeId === '' ? undefined : Number(list.regimeId),
+      minSales: list.minSales === '' ? undefined : Number(list.minSales),
+    })
+    setExporting(false)
+    if (!res.success) {
+      setExportError(res.error.message)
+      return
+    }
+    downloadFile(res.value)
+  }
+
+  // Clic en el nombre → el mismo expediente que en Clientes. Aquí es la única entrada para un
+  // contribuyente SIN ventas (Clientes solo lista quien ya compró): primera venta desde el
+  // backoffice y subida de constancia (spec-ventas-por-activar, paso 1).
+  if (expedienteId !== null) {
+    return (
+      <ExpedienteCliente
+        taxpayerId={expedienteId}
+        permissions={permissions}
+        onBack={() => setExpedienteId(null)}
+      />
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-5 max-w-full h-[calc(100dvh-8.5rem)] min-h-[600px]">
+      <HelpBox>
+        Padrón de contribuyentes. Filtra por RFC, régimen fiscal o por número de ventas pagadas
+        (con 2+ ves solo a los que renovaron).
+      </HelpBox>
+
+      <Card className="shrink-0">
+        <div className="p-4">
+          <TaxpayerFilters
+            rfc={list.rfc}
+            onRfcChange={list.setRfc}
+            regimeId={list.regimeId}
+            onRegimeChange={list.setRegimeId}
+            regimenes={regimenOptions}
+            placeholder="Buscar por RFC, correo, teléfono o nombre…"
+            minSales={list.minSales}
+            onMinSalesChange={list.setMinSales}
+            minSalesAllLabel="Todos (con o sin venta)"
+          />
+        </div>
+      </Card>
+
+      <Card className="flex-1 min-h-[480px] flex flex-col">
+        <div
+          className="px-5 py-4 flex items-center justify-between flex-wrap gap-2 border-b shrink-0"
+          style={{ borderColor: 'var(--border)' }}
+        >
+          <div className="text-[15px] font-extrabold" style={{ color: 'var(--ink-900)' }}>
+            {list.loading ? 'Cargando…' : `${list.total} contribuyentes`}
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            {exportError && (
+              <span className="text-[12px] font-semibold" style={{ color: 'var(--danger)' }}>{exportError}</span>
+            )}
+            <button
+              type="button"
+              onClick={() => void handleExport()}
+              disabled={exporting || list.loading || list.total === 0}
+              title="Descarga en Excel los contribuyentes que coinciden con los filtros actuales, todas las páginas"
+              className="cursor-pointer inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-[12.5px] font-bold transition-[transform,opacity] duration-150 ease-out active:scale-[0.97] disabled:opacity-50 disabled:cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+              style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--ink-700)' }}
+            >
+              {exporting ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+              {exporting ? 'Generando Excel…' : 'Descargar Excel'}
+            </button>
+          </div>
+        </div>
+
+        {list.error ? (
+          <div className="flex-1 flex flex-col justify-center">
+            <ErrorState message={list.error} />
+          </div>
+        ) : list.loading ? (
+          <div className="flex-1 px-5 py-10 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
+            <Loader2 size={18} className="animate-spin" /> Cargando contribuyentes…
+          </div>
+        ) : (
+          <>
+            <div className="flex-1 min-h-0 overflow-auto">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 z-10">
+                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                    {['Contribuyente', 'RFC', 'Correo', 'Regímenes', 'Venta de Planes', ...(canDiagnostico ? ['Diagnóstico'] : [])].map((h) => (
+                      <th
+                        key={h}
+                        className="px-5 py-3 text-left font-extrabold"
+                        style={{ color: 'var(--ink-700)', background: 'var(--card)' }}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span>{h}</span>
+                          {h === 'Venta de Planes' && (
+                            <div className="relative group/tooltip inline-flex items-center">
+                              <span className="cursor-help inline-flex items-center text-amber-500 hover:text-amber-600 dark:text-amber-400 transition-colors">
+                                <Info size={14} />
+                              </span>
+                              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover/tooltip:flex flex-col w-max px-3 py-2 bg-zinc-900/95 dark:bg-zinc-800/95 text-white text-[11.5px] font-medium leading-relaxed rounded-xl shadow-2xl backdrop-blur-md border border-zinc-700/50 pointer-events-none z-50 text-center animate-in fade-in zoom-in-95 duration-150">
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 -mb-1 border-4 border-transparent border-b-zinc-900/95 dark:border-b-zinc-800/95" />
+                                <span className="whitespace-nowrap">No se consideran las ventas de regularizaciones, trámites,</span>
+                                <span className="whitespace-nowrap">declaraciones anuales ni complementarias.</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {list.items.map((t) => (
+                    <tr key={t.taxpayerId} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td className="px-5 py-4">
+                        {canExpediente ? (
+                          <button
+                            type="button"
+                            onClick={() => setExpedienteId(t.taxpayerId)}
+                            title="Abrir expediente del contribuyente"
+                            className="text-left cursor-pointer group"
+                          >
+                            <div
+                              className="font-semibold group-hover:underline underline-offset-2"
+                              style={{ color: 'var(--ink-900)' }}
+                            >
+                              {t.legalName || t.rfc}
+                            </div>
+                          </button>
+                        ) : (
+                          <div className="font-semibold" style={{ color: 'var(--ink-900)' }}>
+                            {t.legalName}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
+                        <code style={{ ...MONO, fontSize: '11px', color: 'var(--ink-700)' }}>{t.rfc}</code>
+                        {isDeactivated(t.accountStatusId) && (
+                          <div className="mt-1">
+                            <AccountStatusChip accountStatusId={t.accountStatusId} deactivatedAt={t.deactivatedAt} hideActive />
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="text-sm" style={{ color: 'var(--ink-700)' }}>
+                          {t.email}
+                        </div>
+                        {t.phone && (
+                          <div className="text-[11.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                            📞 {t.phone}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
+                        <RegimenesCell regimenes={t.regimenes} />
+                      </td>
+                      <td className="px-5 py-4">
+                        <VentasPagadasCell ventas={t.ventasPagadas} />
+                      </td>
+                      {canDiagnostico && (
+                        <td className="px-5 py-4">
+                          <button
+                            type="button"
+                            onClick={() => setDiagTarget(t)}
+                            title="Ver diagnósticos: si corre uno ahora y el histórico"
+                            aria-label={`Diagnósticos de ${t.legalName || t.rfc}`}
+                            className="inline-flex items-center justify-center h-8 w-8 rounded-lg cursor-pointer active:scale-[0.94] hover:bg-[var(--ink-50)]"
+                            style={{
+                              color: 'var(--ink-500)',
+                              border: '1px solid var(--border)',
+                              transition: 'transform 140ms cubic-bezier(0.23, 1, 0.32, 1), background-color 150ms ease',
+                            }}
+                          >
+                            <Stethoscope size={15} />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {list.items.length === 0 ? (
+              <div className="text-center py-8 shrink-0">
+                <div style={{ color: 'var(--ink-500)' }}>No se encontraron contribuyentes</div>
+              </div>
+            ) : (
+              <Pagination
+                page={list.page}
+                totalPages={list.totalPages}
+                total={list.total}
+                skip={list.skip}
+                take={list.take}
+                itemCount={list.items.length}
+                onPrev={list.prevPage}
+                onNext={list.nextPage}
+              />
+            )}
+          </>
+        )}
+      </Card>
+
+      {canDiagnostico && (
+        <DiagnosticoHistorialModal
+          open={diagTarget !== null}
+          onOpenChange={(o) => !o && setDiagTarget(null)}
+          taxpayerId={diagTarget?.taxpayerId ?? null}
+          legalName={diagTarget?.legalName}
+          rfc={diagTarget?.rfc}
+          permissions={permissions}
+        />
+      )}
+    </div>
+  )
+}

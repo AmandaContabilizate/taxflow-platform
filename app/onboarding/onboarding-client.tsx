@@ -1,16 +1,15 @@
 'use client'
 
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import SatCredentialsForm from '@/components/sat-credentials-form'
-import type { FiscalRegime } from '@/lib/types'
 
 interface Props {
-  regimes: FiscalRegime[]
   existingRfc?: string
   hasCredentials: boolean
 }
 
-export default function OnboardingClient({ regimes, existingRfc, hasCredentials }: Props) {
+export default function OnboardingClient({ existingRfc, hasCredentials }: Props) {
   const router = useRouter()
 
   return (
@@ -22,17 +21,14 @@ export default function OnboardingClient({ regimes, existingRfc, hasCredentials 
       >
         <div>
           <div className="flex items-center gap-2.5 mb-12">
-            <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center"
-              style={{ background: 'var(--brand-500)' }}
-            >
-              <span
-                className="text-lg font-black text-white"
-                style={{ fontFamily: 'var(--font-display)' }}
-              >
-                C
-              </span>
-            </div>
+            <Image
+              src="/logo.png"
+              alt="Contabilízate"
+              width={36}
+              height={36}
+              priority
+              className="w-9 h-9 select-none"
+            />
             <span
               className="text-base font-black text-white"
               style={{ fontFamily: 'var(--font-display)' }}
@@ -47,9 +43,31 @@ export default function OnboardingClient({ regimes, existingRfc, hasCredentials 
           >
             Conecta tu cuenta del SAT
           </h2>
-          <p className="text-sm font-semibold mb-8" style={{ color: 'rgba(255,255,255,0.6)' }}>
+          <p className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.6)' }}>
             Elige cómo quieres vincularte, detectamos tu régimen automáticamente y te mostramos el plan ideal.
           </p>
+
+          <div className="flex items-center gap-3 mb-8 mt-2">
+            <a
+              href="https://www.youtube.com/watch?v=iifS2LLieMU"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-bold hover:underline"
+              style={{ color: 'var(--brand-400)' }}
+            >
+              ¿Qué es la CIEC?
+            </a>
+            <span style={{ color: 'rgba(255,255,255,0.25)' }}>·</span>
+            <a
+              href="https://www.bbva.mx/educacion-financiera/empresa/cuenta-empresarial-que-es-la-e-firma.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-bold hover:underline"
+              style={{ color: 'var(--brand-400)' }}
+            >
+              ¿Qué es la e.firma?
+            </a>
+          </div>
 
           {/* Method cards */}
           <div className="flex flex-col gap-3 mb-10">
@@ -63,7 +81,7 @@ export default function OnboardingClient({ regimes, existingRfc, hasCredentials 
             >
               <div
                 className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
-                style={{ background: 'rgba(14,209,138,0.15)' }}
+                style={{ background: 'rgba(0,211,161,0.15)' }}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand-400)" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               </div>
@@ -81,7 +99,7 @@ export default function OnboardingClient({ regimes, existingRfc, hasCredentials 
             >
               <div
                 className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
-                style={{ background: 'rgba(14,209,138,0.15)' }}
+                style={{ background: 'rgba(0,211,161,0.15)' }}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand-400)" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="M9 15l3 3 3-3"/></svg>
               </div>
@@ -107,7 +125,7 @@ export default function OnboardingClient({ regimes, existingRfc, hasCredentials 
               <div key={item.text} className="flex items-center gap-3">
                 <span
                   className="w-7 h-7 rounded-lg flex items-center justify-center text-sm flex-shrink-0"
-                  style={{ background: 'rgba(14,209,138,0.12)', color: 'var(--brand-400)' }}
+                  style={{ background: 'rgba(0,211,161,0.12)', color: 'var(--brand-400)' }}
                 >
                   {item.icon}
                 </span>
@@ -128,14 +146,13 @@ export default function OnboardingClient({ regimes, existingRfc, hasCredentials 
       <div className="flex-1 flex flex-col items-center justify-center p-6 lg:p-12 overflow-y-auto">
         {/* Mobile header */}
         <div className="flex items-center gap-2 mb-8 lg:hidden">
-          <div
-            className="w-8 h-8 rounded-xl flex items-center justify-center"
-            style={{ background: 'var(--ink-900)' }}
-          >
-            <span className="text-base font-black" style={{ color: 'var(--brand-400)', fontFamily: 'var(--font-display)' }}>
-              C
-            </span>
-          </div>
+          <Image
+            src="/logo.png"
+            alt="Contabilízate"
+            width={32}
+            height={32}
+            className="w-8 h-8 select-none"
+          />
           <span className="text-base font-black" style={{ fontFamily: 'var(--font-display)', color: 'var(--foreground)' }}>
             Contabilízate
           </span>
@@ -143,9 +160,8 @@ export default function OnboardingClient({ regimes, existingRfc, hasCredentials 
 
         <div className="w-full max-w-lg">
           <SatCredentialsForm
-            regimes={regimes}
             existingRfc={existingRfc}
-            onComplete={() => router.push('/planes')}
+            onComplete={() => router.push('/dashboard')}
           />
         </div>
       </div>

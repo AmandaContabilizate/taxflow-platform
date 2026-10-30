@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.algoryt.AppContabox",
+      "sha256_cert_fingerprints": [
+        "3C:53:B7:D8:B5:D3:EA:43:8E:1B:55:47:E7:7B:24:51:5F:A3:BB:CC:79:20:BD:BF:D0:BE:19:3E:0A:2F:65:80",
+        "C7:85:3C:26:AE:FC:E1:1A:81:F9:FE:02:5A:47:4E:5F:A8:B8:15:E0:1E:2A:4C:E8:2A:39:E9:02:F3:31:88:3C"
+      ]
+    }
+  }
+]

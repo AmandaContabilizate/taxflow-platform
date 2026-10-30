@@ -1,0 +1,689 @@
+/**
+ * Contratos del Centro de Operaciones (microservicio Reports).
+ * - Declaraciones pagadas pendientes (`/declarations/paid-pending`).
+ * - Trámites adicionales vendidos (`/sales/procedures`).
+ * - Resumen de ventas (`/sales/summary`).
+ */
+
+/** Cálculos fiscales de una declaración (IVA/ISR ya parseados). */
+export interface DeclarationCalculations {
+  declarationId: number;
+  iva: Record<string, unknown> | null;
+  isr: Record<string, unknown> | null;
+  /** Id interno de Users.TaxRegimes (E3). */
+  taxRegimeId?: number | null;
+  /** Código SAT ("625", "626"): decide qué parser se aplica a `iva`/`isr` (E3). */
+  regimeSatCode?: string | null;
+  regimeName?: string | null;
+}
+
+/** Montos del backend: number o string decimal ("438.49"). */
+export type Money = number | string | null;
+
+/**
+ * Item de `GET /declarations` (DeclaracionListItemDto). Desde 2026-07 viene
+ * envuelto en `Paged<T>`; antes era un array pelón.
+ */
+export interface DeclarationListItem {
+  id: number;
+  taxpayerId: number;
+  rfc: string;
+  fiscalYear: number;
+  /** Catalogs.Period: 101-112 mensual, 201-206 bimestral, 501 anual. */
+  periodValueId: number;
+  statusId: number;
+  statusCode: string;
+  totalDeclaration: Money;
+  assignedAt: string | null;
+  submittedAt: string | null;
+  consumoStatusId: number | null;
+  /** Razón social / nombre del contribuyente. */
+  legalName: string | null;
+  /** `Catalogs.Period.Description`. */
+  periodo: string | null;
+  taxRegimeId: number | null;
+  /** Código SAT del régimen (601, 605, 625…). */
+  regimeSatCode: string | null;
+  regimeName: string | null;
+  /** `StatusDeclaration.Description`. */
+  statusLabel: string | null;
+  /** Contador asignado hoy al contribuyente (TaxpayerAccountant activo). Null = sin asignar. */
+  accountantUserId?: string | null;
+  accountantName?: string | null;
+  createdAt?: string | null;
+}
+
+/**
+ * Fila de `GET /declarations/logs` (DeclaracionLogDto): bitácora de cambios de
+ * estatus de `Declarations.DeclarationLog`. Array plano, no paginado.
+ */
+export interface DeclarationLog {
+  id: number;
+  declarationId: number;
+  oldStatusId: number | null;
+  newStatusId: number;
+  changedAt: string;
+  changedBy: string;
+  /** `client-report` | `manual` | `contador-resend` | `contador-reopen` | `accountant-upload` | `ai-poster` | `portal-scrape`… */
+  source: string;
+  note: string | null;
+}
+
+/** Respuesta de `POST declarations/{id}/reopen`. */
+export interface ReopenDeclarationResult {
+  declarationId: number;
+  /** Con el que estaba antes: 3, 9 u 11. */
+  previousStatusId: number;
+  /** La fila que queda en manos del contador: 15 en la complementaria (venía de 3), 17 si venía de 9 u 11. */
+  statusId: number;
+  statusCode: string | null;
+  /** true si venía de Presentada: la siguiente presentación será complementaria. */
+  wasSubmitted: boolean;
+  /** Complementaria creada al reabrir una Presentada: es la que se trabaja. null si venía de 9 u 11. */
+  complementDeclarationId: number | null;
+  complementNumber: number | null;
+}
+
+/** Respuesta de `POST declarations/{id}/resend-to-client` (E2). */
+export interface ResendDeclarationResult {
+  declarationId: number;
+  /** Siempre 9 (EnRevisionCliente) en un 200. */
+  statusId: number;
+  statusCode: string | null;
+  /** false si ya estaba en 9 (idempotente): no hubo cambio de estatus. */
+  changed: boolean;
+  /** false = estatus actualizado pero el correo falló; reintentable. */
+  emailSent: boolean;
+}
+
+/**
+ * Renglón de `WithholdsDetails` dentro de un CFDI de retenciones.
+ */
+export interface RetencionDetalle {
+  /** c_Impuesto del SAT: "001", "002", "003". */
+  retentionTaxCode: string | null;
+  /** Ya resuelto por el backend: 001 ISR, 002 IVA, 003 IEPS. */
+  impuesto: string | null;
+  retentionBaseAmount: Money;
+  retentionAmount: Money;
+  retentionPaymentType: string | null;
+}
+
+/**
+ * Bloque `Invoices.Withholds` de un CFDI de retenciones. El periodo que declara
+ * el propio comprobante puede NO coincidir con el de la declaración.
+ */
+export interface Retencion {
+  year: number;
+  beginMonth: number;
+  endMonth: number;
+  totalOperationAmount: Money;
+  totalTaxableAmount: Money;
+  totalExemptAmount: Money;
+  totalWithheldAmount: Money;
+  detalle: RetencionDetalle[];
+}
+
+/**
+ * Item de `GET /declarations/{id}/invoices` (DeclaracionFacturaDto): factura del
+ * periodo + su clasificación (LEFT JOIN, por eso `clasificada`).
+ */
+export interface DeclarationInvoice {
+  invoiceId: number;
+  uuid: string;
+  serie: string | null;
+  folio: string | null;
+  /** Fecha del CFDI. Para nómina NO es la que define el periodo. */
+  invoiceDate: string;
+  emitterRfc: string;
+  emitterName: string;
+  /** Ojo: en la tabla es ReceivedRfc, no Receiver. */
+  receivedRfc: string;
+  receiverName: string;
+  /** true = emitida, false = recibida. */
+  isIssued: boolean;
+  subTotal: Money;
+  total: Money;
+  /** Suma de PaymentComplements.PaidAmount. Solo tipo Pago (invoiceTypeId 4); null en los demás y en Pago sin complemento. subTotal/total siguen en 0 por regla del SAT. */
+  paidAmount: Money;
+  /**
+   * UUID de las facturas que liquida el complemento (un CFDI de pago puede liquidar
+   * varias). Solo tipo Pago; vacío o ausente = no hay factura padre en el sistema.
+   */
+  parentInvoiceUuids?: string[] | null;
+  /** 1 I, 2 E, 3 T, 4 P, 5 N. */
+  invoiceTypeId: number;
+  tipoComprobante: string;
+  esNomina: boolean;
+  /** Solo si es nómina; es la fecha que define el periodo. */
+  fechaPagoNomina: string | null;
+  cfdiUsageId: number | null;
+  cfdiUsageCode: string | null;
+  cfdiUsageName: string | null;
+  receiverRegimeId: number | null;
+  receiverRegimeCode: string | null;
+  receiverRegimeName: string | null;
+  /** E3: factura de otro régimen del contribuyente, visible pero no computable. */
+  esOtroRegimen: boolean;
+  /** PPD sin complemento: descargada, visible, pero no computable hasta que se pague. Independiente de esOtroRegimen. */
+  esPpdSinComplemento: boolean;
+  wayOfPaymentId: number | null;
+  paymentMethodId: number | null;
+  /** `Catalogs.PaymentMethod.Code` (PUE/PPD). */
+  paymentMethodCode: string | null;
+  /** ej. "Pago en una sola exhibición". */
+  paymentMethodName: string | null;
+  /** código SAT c_FormaPago (01, 03, 04, 28, 99…). */
+  wayOfPaymentCode: string | null;
+  /** ej. "Tarjeta de crédito". Pintar esto, no el id crudo. */
+  wayOfPaymentName: string | null;
+  /** IVA trasladado. `0` = sin IVA. `null` solo si no se pudo determinar. */
+  ivaAmount: Money;
+  /** Descripción del primer concepto + " (+N)" si hay más de uno. `null` sin conceptos. */
+  conceptosResumen: string | null;
+  /** Siempre viaja. */
+  conceptosCount: number;
+  /** Solo viene poblado si se pidió `includeConcepts=true`. */
+  conceptos: DeclarationInvoiceConcepto[] | null;
+  /**
+   * `DeclarationInvoice.IsValid`: la validez con la que la factura entró a esta
+   * declaración. Es la que usó el cálculo.
+   */
+  isValid: boolean | null;
+  /** Bandera explícita: no inferir por nulls. */
+  clasificada: boolean;
+  isDeducible: boolean | null;
+  /**
+   * true = gasto, false = ingreso. NO habla de deducibilidad: un ingreso
+   * clasificado puede traer isGasto=false con isDeducible=true.
+   */
+  isGasto: boolean | null;
+  clasificacion: string | null;
+  actividad: string | null;
+  /** Viene de `DeclarationInvoice.Note`, con fallback al motivo de uuid_clasificado. */
+  motivo: string | null;
+  /**
+   * true si el CFDI tiene renglones en `Invoices.Withholds`. Los comprobantes de
+   * retenciones no traen TipoDeComprobante, así que esta es la única marca.
+   */
+  esRetencion?: boolean;
+  /** Suma de `TotalWithheldAmount`. null si no es retención. */
+  totalRetenido?: Money;
+  /** Vacío si no es retención (1-N: un CFDI puede traer varios bloques). */
+  retenciones?: Retencion[];
+}
+
+/** Renglón de `Invoices.Concepts` de una factura (`ConceptoFacturaDto`). */
+export interface DeclarationInvoiceConcepto {
+  productCode: string | null;
+  description: string | null;
+  quantity: Money;
+  unitPrice: Money;
+  subtotal: Money;
+  discount: Money;
+}
+
+/** Lista blanca de `sortBy` server-side de `GET .../invoices` (E2). */
+export type InvoiceSortBy = "invoiceDate" | "total";
+export type InvoiceSortDir = "asc" | "desc";
+
+/**
+ * Mínimo que necesita `DeclarationDetail` para pintarse. `PaidPendingDeclaration`
+ * lo cumple estructuralmente; el flujo por contribuyente lo arma a mano.
+ */
+export interface DeclarationSubject {
+  declarationId: number;
+  rfc: string;
+  legalName: string;
+  periodo: string;
+  fiscalYear: number;
+  accountantName: string | null;
+  ciecState?: number | null;
+}
+
+/** Actividad económica del contribuyente dentro del régimen (DeclaracionActividadDto). */
+export interface DeclarationActivity {
+  activityId: number;
+  description: string | null;
+}
+
+/** Datos generales de una declaración (DeclaracionGeneralDto). */
+export interface DeclarationGeneral {
+  taxpayerId: number;
+  rfc: string;
+  legalName: string;
+  email: string | null;
+  phone: string | null;
+  fiscalYear: number;
+  periodValueId: number;
+  periodo: string;
+  periodicityId: number;
+  periodicity: string;
+  taxRegimeId: number;
+  regimeSatCode: string | null;
+  regimeName: string | null;
+  statusId: number;
+  statusCode: string;
+  statusDescription: string;
+  accumulatedIncome: Money;
+  personalDeductions: Money;
+  taxableBase: Money;
+  lowerLimit: Money;
+  surplus: Money;
+  rate: Money;
+  result: Money;
+  fixedQuota: Money;
+  annualTax: Money;
+  employmentSubsidy: Money;
+  withheldTax: Money;
+  favorableTax: Money;
+  totalDeclaration: Money;
+  createdAt: string | null;
+  updatedAt: string | null;
+  submittedAt: string | null;
+  assignedAt: string | null;
+  acknowledgmentPdfUrl: string | null;
+  paymentLinePdfUrl: string | null;
+  paymentAcknowledgmentPdfUrl: string | null;
+  accountantUserId: string | null;
+  accountantName: string | null;
+  ciecState?: number | null;
+  /** Actividades económicas del contribuyente en el régimen de esta declaración. */
+  activities: DeclarationActivity[];
+  /** `DeclarationSummary.Ingresos`; fallback `Declaration.AccumulatedIncome`. */
+  ingresosBrutos: Money;
+  /**
+   * Derivado de facturas deducibles del periodo. `null` = no determinable (p.
+   * ej. régimen 605, sin `PeriodValueId` o sin corrida del clasificador) — NO
+   * es un 0 inventado; `0` real cuando sí hay corrida pero nada deducible entró.
+   */
+  gastosDeducibles: Money;
+  /** `DeclarationSummary.IvaCargo`; `null` si no hay fila de summary. */
+  ivaCargo: Money;
+  /** `DeclarationSummary.IvaFavor`; `null` si no hay fila de summary. */
+  ivaFavor: Money;
+  /** `Declaration.AnnualTax`: ISR a cargo, ya neto de retenciones. Nunca el total con IVA. */
+  isrCalculado: Money;
+}
+
+/** Respuesta paginada del backend (skip/take/total). */
+export interface Paged<T> {
+  items: T[];
+  total: number;
+  skip: number;
+  take: number;
+}
+
+/**
+ * Totales del universo FILTRADO COMPLETO que devuelve el endpoint de facturas,
+ * no de la página cargada. Los CFDI de Egreso (notas de crédito) ya vienen
+ * restados: sumarlos al derecho era lo que hacía que la franja de totales no
+ * cuadrara contra Ingresos Brutos.
+ */
+/** Un grupo de comprobantes del listado que no entra al cálculo, con el motivo ya redactado. */
+export interface InvoiceExcluido {
+  motivo: string;
+  comprobantes: number;
+  subTotal: number;
+}
+
+/**
+ * El cuadre contra Ingresos Brutos: `subTotal` son las emitidas de ingreso del régimen que sí
+ * entran al cálculo y `excluidos` explica el resto del listado. El listado es más ancho que el
+ * cálculo a propósito (incluye otro régimen, PPD sin complemento, inactivas y recibidas), así
+ * que sin esta línea el Subtotal de la franja no puede igualar el encabezado.
+ */
+export interface InvoiceCuadre {
+  subTotal: number;
+  comprobantes: number;
+  excluidos: InvoiceExcluido[];
+}
+
+export interface InvoiceTotales {
+  subTotal: number;
+  total: number;
+  comprobantes: number;
+  /** Cuántas notas de crédito hay en el universo y cuánto restan, para poder explicarlo en pantalla. */
+  egresos: number;
+  egresosSubTotal: number;
+  /** Ausente cuando el back no puede calcularlo exacto (universo que puede traer constancias). */
+  cuadre?: InvoiceCuadre;
+}
+
+/** Página + totales del periodo. `totales` va opcional: si el back no lo manda, la pantalla cae a los de la página. */
+export interface PagedConTotales<T> extends Paged<T> {
+  totales?: InvoiceTotales;
+}
+
+/** Tipo de declaración pendiente. 2 = plan a futuro, 1 = regularización. */
+export const DECLARATION_KIND = {
+  REGULARIZATION: 1,
+  FUTURE_PLAN: 2,
+} as const;
+
+export type DeclarationKind =
+  (typeof DECLARATION_KIND)[keyof typeof DECLARATION_KIND];
+
+/**
+ * Item de `/declarations/paid-pending` (mismo DTO para kind 1 y 2).
+ *
+ * Teléfono/correo/nombre salen del usuario dueño de la cuenta (Taxpayer.User).
+ * El contador es el snapshot histórico fijado al activarse el pago (Stripe).
+ */
+export interface PaidPendingDeclaration {
+  declarationId: number;
+  taxpayerId: number;
+  rfc: string;
+  legalName: string;
+  email: string;
+  phone: string | null;
+  fiscalYear: number;
+  periodValueId: number | null;
+  periodo: string;
+  /** 1 = Mensual, 2 = Bimestral, 3 = Anual. */
+  periodicityId: number | null;
+  /** "Mensual" / "Bimestral" / "Anual". */
+  periodicity: string | null;
+  statusId: number;
+  statusCode: string;
+  declarationKind: number;
+  saleItemId: number;
+  saleId: number;
+  saleDate: string;
+  /** Fecha de activación (pago Stripe). */
+  assignedAt: string;
+  accountantUserId: string | null;
+  accountantName: string | null;
+}
+
+/** Motivo derivado por el que una venta pagada no se ha activado (GET sales/por-activar). */
+export type VentaPorActivarMotivo =
+  | "SinCiec"
+  | "CiecSinVerificar"
+  | "CiecInvalida"
+  | "SinConstancia"
+  | "ConstanciaSinRegimen"
+  | "RegimenNoCoincide"
+  | "ListaParaActivar";
+
+/** Venta pagada con plan a futuro sin declaraciones creadas (spec-ventas-por-activar). */
+export interface VentaPorActivar {
+  saleId: number;
+  saleDate: string;
+  amount: number;
+  checkoutId: string | null;
+  /** "App del cliente" · "Backoffice" · "Liga de pago". */
+  origen: string;
+  /** Correo del vendedor que registró la venta; null si la hizo el cliente en la app. */
+  vendedor: string | null;
+  taxpayerId: number;
+  rfc: string;
+  legalName: string | null;
+  email: string | null;
+  phone: string | null;
+  planes: string[];
+  contadorNombre: string | null;
+  /** 0 sin verificar · 1 válida · 2 inválida. */
+  ciecEstado: number;
+  tieneCiecCapturada: boolean;
+  tieneConstancia: boolean;
+  constanciaVerificada: boolean;
+  queFalta: VentaPorActivarMotivo;
+  diasDesdePago: number;
+  /**
+   * Precio de lista del plan que lleva el cobro (el "precio anterior" de AdjustSalePlan). Ausente en un
+   * back viejo. `amount` no sirve para comparar contra la lista: va neto de cupón/créditos y, desde el
+   * 19-oct, en suscripción ya trae el 10 % menos.
+   */
+  precioLista?: number;
+}
+
+export interface VentasPorActivarPage extends Paged<VentaPorActivar> {
+  porMotivo: Record<string, number>;
+}
+
+/** Item de `/sales/procedures` (trámites adicionales vendidos). */
+export interface ProcedureSale {
+  id: number;
+  saleItemId: number;
+  saleId: number;
+  taxpayerId: number;
+  rfc: string;
+  legalName: string;
+  email: string;
+  productId: number;
+  productName: string;
+  statusId: number;
+  status: string;
+  assignedToUserId: number | null;
+  resultPdfUrl: string | null;
+  notes: string | null;
+  completedAt: string | null;
+  createdAt: string;
+}
+
+/** Producto incluido en una venta (`SaleItem` + plan). */
+export interface ProductoVenta {
+  subscriptionId: number;
+  nombre: string;
+  descripcion: string;
+  cantidad: number;
+}
+
+/** Item de `/sales/summary` (VentaResumenCuentaDto). */
+export interface VentaResumen {
+  saleId: number;
+  saleDate: string;
+  amount: number;
+  rfc: string;
+  taxpayerId: number;
+  userId: string;
+  userFullName: string;
+  userEmail: string;
+  paymentIntentId: string | null;
+  productos: ProductoVenta[];
+  /** Estatus (Catalogs.StatusSale): 1 En proceso, 2 Pagado, 3 Cancelado. */
+  statusSaleId: number;
+  /** Nombre del estatus tal como está en el catálogo de la BD. */
+  estatus: string | null;
+  /** Código de promoción/descuento aplicado en la compra (null si no usó). */
+  discountCode: string | null;
+  /** % del código tipo Porcentaje (null en códigos tipo Declaraciones). */
+  discountPercent: number | null;
+  /** Teléfono de contacto del usuario titular de la cuenta. */
+  userPhone?: string | null;
+  /** cs_... de la sesión de checkout en Stripe (null si no trajo). */
+  checkoutId?: string | null;
+}
+
+/** Declaración pendiente de la cartera (panel del contador). */
+export interface DeclaracionPendiente {
+  declarationId: number;
+  rfc: string | null;
+  legalName: string | null;
+  fiscalYear: number;
+  periodValueId: number;
+  totalDeclaration: number | null;
+  estatus: string;
+  fechaLimite: string;
+}
+
+/** CIEC actualizada recientemente en la cartera. */
+export interface CiecActualizada {
+  rfc: string | null;
+  legalName: string | null;
+  fecha: string;
+}
+
+/** Respuesta de `/declarations/contador-dashboard`. */
+export interface ContadorDashboard {
+  carteraAsignada: number;
+  porPresentar: number;
+  vencenEstaSemana: number;
+  /** Compradas aún sin trabajar (estatus 15 EnProceso). */
+  enProceso: number;
+  presentadas: number;
+  ciecInvalidas: number;
+  declaracionesPorPresentar: DeclaracionPendiente[];
+  ciecActualizadas: CiecActualizada[];
+}
+
+/** Fila del desglose por contador (panel de gerencia contable). */
+export interface ContadorDesglose {
+  accountantUserId: string;
+  nombre: string;
+  email: string;
+  cartera: number;
+  porPresentar: number;
+  presentadas: number;
+  ciecBloqueadas: number;
+  avancePorcentaje: number;
+}
+
+/** Respuesta de `/declarations/gerencia-contable-dashboard`. */
+export interface GerenciaContableDashboard {
+  carteraTotal: number;
+  porPresentar: number;
+  presentadas: number;
+  ciecInvalidas: number;
+  /** Compradas aún sin trabajar (estatus 15 EnProceso); subconjunto de porPresentar. */
+  enProceso: number;
+  desglose: ContadorDesglose[];
+}
+
+/** Colaborador del equipo de operaciones (contador) con su carga del periodo. */
+export interface EquipoOperacionesMiembro {
+  userId: string;
+  nombre: string;
+  email: string;
+  cartera: number;
+  porPresentar: number;
+  vencidas: number;
+  presentadas: number;
+  ciecInvalidas: number;
+  avancePorcentaje: number;
+}
+
+/** Respuesta de `/declarations/equipo-operaciones`. */
+export interface EquipoOperaciones {
+  poolContadores: number;
+  contadoresConCartera: number;
+  carteraTotal: number;
+  porPresentarTotal: number;
+  vencidasTotal: number;
+  presentadasTotal: number;
+  ciecInvalidasTotal: number;
+  avanceArea: number;
+  miembros: EquipoOperacionesMiembro[];
+}
+
+export type TipoRenovacion = "subscription" | "one_time";
+
+/**
+ * Item de `/sales/upcoming-renewals` (VentaPorVencerDto).
+ * En `one_time` los campos de suscripción vienen null y `fechaEstimada` es true.
+ */
+export interface VentaPorVencer {
+  userId: string;
+  fullName: string;
+  email: string;
+  phoneNumber: string | null;
+  taxpayerId: number;
+  rfc: string;
+  legalName: string;
+  planId: number;
+  planNombre: string;
+  planDescripcion: string | null;
+  billingPeriod: string;
+  planPrecio: number;
+  moneda: string;
+  fechaVencimiento: string;
+  diasParaVencer: number;
+  /** true cuando la fecha se calculó en SQL y no vino de Stripe. */
+  fechaEstimada: boolean;
+  tipo: TipoRenovacion;
+  saleId: number;
+  saleDate: string;
+  amount: number;
+  checkoutId: string | null;
+  paymentIntentId: string | null;
+  stripeSubscriptionId: string | null;
+  estatusSuscripcion: string | null;
+  /** false = el cliente ya canceló en Stripe: contacto urgente. */
+  renovaraAutomaticamente: boolean | null;
+  montoProximoCobro: number | null;
+}
+
+/** Respuesta de `/sales/detail/{saleId}` (VentaDetalleStripeDto). */
+export interface VentaDetalleStripe {
+  saleId: number;
+  rfc: string;
+  taxpayerId: number;
+  saleDate: string;
+  amount: number;
+  userId: string;
+  userFullName: string;
+  userEmail: string;
+  checkoutId: string | null;
+  paymentIntentId: string | null;
+  stripeSubscriptionId: string | null;
+  stripeCustomerId: string | null;
+}
+
+/** Respuesta de `/declarations/{id}/report-link`. `url` apunta al FrontendUrl
+ *  del back y no lleva `&preview=1`: para la vista previa se arma con `token`. */
+export interface DeclarationReportLink {
+  url: string;
+  token: string;
+}
+
+/** Estado derivado de una liga de pago emitida desde el backoffice (GET sales/ligas-pago). */
+export type LigaPagoEstado = "Vigente" | "Vencida" | "Pagada" | "Cancelada";
+
+/** Venta armada desde el backoffice con liga de pago (spec-liga-de-pago-vendedor). */
+export interface LigaPago {
+  saleId: number;
+  saleDate: string;
+  amount: number;
+  taxpayerId: number;
+  rfc: string;
+  legalName: string | null;
+  email: string | null;
+  phone: string | null;
+  planes: string[];
+  emitidaPorUserId: string;
+  emitidaPorNombre: string | null;
+  emitidaPorEmail: string | null;
+  ligaVenceAt: string | null;
+  estado: LigaPagoEstado;
+  /** Fecha de pago si Pagada, de cancelación si Cancelada. */
+  updatedAt: string;
+  tieneConstancia: boolean;
+  /** "Suscripción" (primer cobro, solo tarjeta, 23 h) · "Pago único" (48 h). */
+  tipo: "Suscripción" | "Pago único";
+}
+
+export interface LigasPagoPage extends Paged<LigaPago> {
+  porEstado: Record<string, number>;
+}
+
+/** Item de `/sales/coverage-renewals` (Declarations.vw_RenovacionesCobertura). */
+export interface RenovacionCobertura {
+  rfc: string;
+  cliente: string;
+  correo: string;
+  telefono: string;
+  regimen: string;
+  regimenNombre: string;
+  taxpayerId: number;
+  taxRegimeId: number;
+  ultimoMesCubierto: number;
+  finIdx: number;
+  mesesParaVencer: number;
+  estado: string;
+  futurasPendientes: number;
+  ultimaCompra: string | null;
+  anio: number;
+  mes: number;
+  periodoTexto: string;
+}
