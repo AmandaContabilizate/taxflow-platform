@@ -5,12 +5,18 @@ import { useEffect, useMemo, useState } from 'react'
 import { getMyDeclarationReport } from '@/features/declaration-report/actions'
 import type { DeclarationReport } from '@/features/declaration-report/types'
 import { getClientDeclarationInvoices } from '@/features/declarations/actions/getClientDeclarationInvoices.action'
-import type { ClientDeclarationInvoice, ClientDeclarationSubject } from '@/features/declarations/types'
+import { getDeclarationFilings } from '@/features/declarations/actions/getDeclarationFilings.action'
+import type {
+  ClientDeclarationInvoice,
+  ClientDeclarationSubject,
+  DeclarationFiling,
+} from '@/features/declarations/types'
 import { DISPLAY, MONO } from '../constants'
 import { Modal } from '../modal'
 import { DeclarationReportPanel } from './declaration-report-panel'
-import { Badge, Card } from '../ui'
-import { declarationStatusBadge, fmtDate, resolvePdfUrl } from './parts'
+import { SatReadingButton } from './declaration-sat-reading'
+import { Badge, Card, Tabs } from '../ui'
+import { declarationStatusBadge, filingLabel, filingTitle, fmtDate, money, resolvePdfUrl } from './parts'
 
 interface Props {
   declaration: ClientDeclarationSubject
@@ -25,11 +31,6 @@ interface Props {
 type Origen = '' | 'true' | 'false'
 type Deducible = '' | 'si' | 'no' | 'pendiente'
 
-const money = (n: number | null | undefined) =>
-  n == null || !Number.isFinite(n)
-    ? '—'
-    : n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2 })
-
 /**
  * Detalle de una declaración para el contribuyente.
  *
@@ -37,7 +38,44 @@ const money = (n: number | null | undefined) =>
  * de sus CFDI del periodo y si cada uno quedó deducible, nunca la clasificación ni
  * las herramientas de recálculo.
  */
-export function ClientDeclarationDetail({ declaration: d, onBack, readOnly = false }: Props) {
+export function ClientDeclarationDetail({ declaration, onBack, readOnly = false }: Props) {
+  // Presentaciones del periodo (Normal + complementarias): una pestaña por cada una cuando hay
+  // más de una. El listado solo trae una fila por periodo. Si no cargan, la pantalla queda como
+  // antes, sin pestañas, con la declaración que se abrió.
+  const [filings, setFilings] = useState<DeclarationFiling[]>([])
+  const [activeId, setActiveId] = useState(declaration.declarationId)
+
+  useEffect(() => {
+    let cancelled = false
+    setActiveId(declaration.declarationId)
+    setFilings([])
+    void (async () => {
+      const res = await getDeclarationFilings(declaration.declarationId, declaration.taxpayerId)
+      if (cancelled) return
+      setFilings(res.success ? res.value.items : [])
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [declaration.declarationId, declaration.taxpayerId])
+
+  const filing = filings.find((f) => f.declarationId === activeId)
+  // La pestaña activa manda: estatus, fecha, PDFs, reporte y facturas son de ESA presentación.
+  const d: ClientDeclarationSubject = filing
+    ? {
+        ...declaration,
+        declarationId: filing.declarationId,
+        statusCode: filing.statusCode,
+        statusLabel: filing.statusLabel,
+        submittedAt: filing.submittedAt,
+        acknowledgmentPdfUrl: filing.acknowledgmentPdfUrl,
+        paymentLinePdfUrl: filing.paymentLinePdfUrl,
+        paymentAcknowledgmentPdfUrl: filing.paymentAcknowledgmentPdfUrl,
+        complementNumber: filing.complementNumber,
+      }
+    : declaration
+  const isComplement = (d.complementNumber ?? 0) > 0
+
   const [invoices, setInvoices] = useState<ClientDeclarationInvoice[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -56,6 +94,7 @@ export function ClientDeclarationDetail({ declaration: d, onBack, readOnly = fal
     // no es el dueño; pedirlo solo produciría un 403 en el log por cada apertura.
     if (readOnly || isCancelled) return
     let cancelled = false
+    setReport(null)
     void (async () => {
       const res = await getMyDeclarationReport(d.declarationId)
       if (cancelled) return
@@ -131,22 +170,37 @@ export function ClientDeclarationDetail({ declaration: d, onBack, readOnly = fal
           </div>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             <Badge kind={status.kind}>{status.label}</Badge>
+            {isComplement && <Badge>{filingLabel(d.complementNumber)}</Badge>}
             {d.regimeName && <Badge kind="default">{d.regimeName}</Badge>}
           </div>
         </div>
       </div>
 
-      <Card>
-        <div className="p-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Dato label="Periodo" value={d.periodo} />
-          <Dato label="Ejercicio" value={String(d.fiscalYear)} />
-          <Dato label="Periodicidad" value={d.periodicity ?? 'No definida'} />
-          <Dato label="Presentada el" value={d.submittedAt ? fmtDate(d.submittedAt) : 'Aún no'} />
+      {filings.length > 1 && (
+        <div className="overflow-x-auto">
+          <Tabs
+            items={filings.map((f) => (f.isCurrent ? `${filingLabel(f.complementNumber)} · Vigente` : filingLabel(f.complementNumber)))}
+            active={Math.max(0, filings.findIndex((f) => f.declarationId === activeId))}
+            onChange={(i) => setActiveId(filings[i].declarationId)}
+          />
         </div>
+      )}
+
+      <Card>
+        {/* Franja de metadatos: el periodo ya está en el título. */}
+        <dl className="px-5 py-3.5 flex flex-wrap gap-x-6 gap-y-2.5" style={{ borderBottom: '1px solid var(--border)' }}>
+          <Meta label="Ejercicio" value={String(d.fiscalYear)} />
+          <Meta label="Periodicidad" value={d.periodicity ?? 'No definida'} />
+          <Meta label="Presentada el" value={d.submittedAt ? fmtDate(d.submittedAt) : 'Aún no'} />
+          {filing && <Meta label="Folio SAT" value={filing.operationNumber ?? 'Aún no'} mono={!!filing.operationNumber} />}
+          {filing && isComplement && (
+            <Meta label="Tipo de complementaria" value={filing.complementaryType ?? 'No definido'} />
+          )}
+        </dl>
         {/* Accion principal de la pantalla: el calculo completo va en un modal, no apilado
             encima del listado de facturas. */}
         {isCancelled ? (
-          <div className="px-5 pb-5">
+          <div className="px-5 pt-4">
             <div
               className="rounded-xl px-3.5 py-3 flex items-start gap-2 text-[12.5px] font-semibold"
               style={{ background: 'var(--coral-soft)', color: 'var(--violet-ink)', border: '1px solid var(--border)' }}
@@ -160,66 +214,55 @@ export function ClientDeclarationDetail({ declaration: d, onBack, readOnly = fal
             </div>
           </div>
         ) : readOnly ? (
-          <p className="px-5 pb-5 text-[12.5px]" style={{ color: 'var(--ink-500)' }}>
+          <p className="px-5 pt-4 text-[12.5px]" style={{ color: 'var(--ink-500)' }}>
             El cliente ve aquí el botón <b>Ver detalle de la declaración</b>, que abre su cálculo completo
             {' '}(con autorizar y &quot;Tengo una duda&quot;). Solo él puede abrirlo desde su cuenta.
           </p>
-        ) : (
-        <div className="px-5 pb-5">
-          <button
-            type="button"
-            onClick={() => setReportOpen(true)}
-            disabled={!report}
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-[13.5px] font-extrabold transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ background: 'var(--brand-700)', color: '#fff' }}
-          >
-            <FileText size={16} />
-            {report ? 'Ver detalle de la declaración' : 'Cargando el detalle…'}
-          </button>
-          <p className="text-[12.5px] mt-2" style={{ color: 'var(--ink-500)' }}>
-            {report?.canAuthorize
-              ? 'Revisa el cálculo completo y autorízalo, o mándanos tu duda.'
-              : 'Revisa el cálculo completo de este periodo.'}
-          </p>
-        </div>
-        )}
+        ) : null}
 
-        {(d.acknowledgmentPdfUrl || d.paymentLinePdfUrl || d.paymentAcknowledgmentPdfUrl) && (
-          <div className="px-5 pb-5 flex items-center gap-3 flex-wrap">
-            {d.acknowledgmentPdfUrl && (
-              <a
-                href={resolvePdfUrl(d.acknowledgmentPdfUrl) ?? d.acknowledgmentPdfUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12.5px] font-bold transition hover:opacity-90"
-                style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
-              >
-                <Download size={15} /> Descargar acuse
-              </a>
-            )}
-            {d.paymentLinePdfUrl && (
-              <a
-                href={resolvePdfUrl(d.paymentLinePdfUrl) ?? d.paymentLinePdfUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12.5px] font-bold transition hover:opacity-90"
-                style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
-              >
-                <Download size={15} /> Descargar línea de captura
-              </a>
-            )}
-            {d.paymentAcknowledgmentPdfUrl && (
-              <a
-                href={resolvePdfUrl(d.paymentAcknowledgmentPdfUrl) ?? d.paymentAcknowledgmentPdfUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12.5px] font-bold transition hover:opacity-90"
-                style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
-              >
-                <Download size={15} /> Descargar comprobante de pago
-              </a>
-            )}
-          </div>
+        {/* Una sola barra: la acción principal y, a su lado, Datos SAT y los PDFs. */}
+        <div className="px-5 py-4 flex items-center gap-2 flex-wrap">
+          {!isCancelled && !readOnly && (
+            <button
+              type="button"
+              onClick={() => setReportOpen(true)}
+              disabled={!report}
+              title={
+                report?.canAuthorize
+                  ? 'Revisa el cálculo completo y autorízalo, o mándanos tu duda.'
+                  : 'Revisa el cálculo completo de este periodo.'
+              }
+              className="inline-flex items-center gap-2 h-8 px-3.5 rounded-lg text-[13px] font-extrabold transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: 'var(--brand-700)', color: '#fff' }}
+            >
+              <FileText size={15} />
+              {report ? 'Ver detalle de la declaración' : 'Cargando el detalle…'}
+            </button>
+          )}
+          <SatReadingButton
+            declarationId={d.declarationId}
+            taxpayerId={d.taxpayerId}
+            title={filingTitle(d.periodo, d.complementNumber)}
+            variant="detail"
+          />
+          {d.acknowledgmentPdfUrl && (
+            <PdfLink href={d.acknowledgmentPdfUrl} label="Acuse" title="Descargar acuse" />
+          )}
+          {d.paymentLinePdfUrl && (
+            <PdfLink href={d.paymentLinePdfUrl} label="Línea de captura" title="Descargar línea de captura" />
+          )}
+          {d.paymentAcknowledgmentPdfUrl && (
+            <PdfLink
+              href={d.paymentAcknowledgmentPdfUrl}
+              label="Comprobante de pago"
+              title="Descargar comprobante de pago"
+            />
+          )}
+        </div>
+        {!isCancelled && !readOnly && report?.canAuthorize && (
+          <p className="px-5 -mt-2 pb-4 text-[12.5px]" style={{ color: 'var(--ink-500)' }}>
+            Revisa el cálculo completo y autorízalo, o mándanos tu duda.
+          </p>
         )}
       </Card>
 
@@ -432,16 +475,31 @@ export function ClientDeclarationDetail({ declaration: d, onBack, readOnly = fal
   )
 }
 
-function Dato({ label, value }: { label: string; value: string }) {
+function Meta({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
   return (
-    <div className="rounded-2xl p-3.5" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
-      <div className="text-[11.5px] font-semibold" style={{ color: 'var(--ink-500)' }}>
+    <div className="min-w-0">
+      <dt className="text-[10.5px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
         {label}
-      </div>
-      <div className="text-[14.5px] font-extrabold mt-1" style={{ color: 'var(--ink-900)' }}>
+      </dt>
+      <dd className="text-[13.5px] font-bold mt-0.5 break-all" style={{ color: 'var(--ink-900)', ...(mono ? MONO : {}) }}>
         {value}
-      </div>
+      </dd>
     </div>
+  )
+}
+
+function PdfLink({ href, label, title }: { href: string; label: string; title: string }) {
+  return (
+    <a
+      href={resolvePdfUrl(href) ?? href}
+      target="_blank"
+      rel="noreferrer"
+      title={title}
+      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12.5px] font-bold transition hover:opacity-90"
+      style={{ background: 'var(--card)', border: '1px solid var(--border-strong)', color: 'var(--foreground)' }}
+    >
+      <Download size={14} /> {label}
+    </a>
   )
 }
 

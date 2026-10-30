@@ -579,6 +579,14 @@ export const API_ROUTES = {
     // Vista del cliente (backoffice, claim Gerencia.VistaCliente): el mismo /all que ve el
     // cliente, pedido por un gerente para un contribuyente ajeno. Solo lectura.
     ALL_ESPEJO: (taxpayerId: number) => `/espejo/${taxpayerId}/all`,
+    // Pestañas del detalle: Normal + cada complementaria del periodo de la declaración.
+    FILINGS: (declarationId: number) => `/${declarationId}/filings`,
+    FILINGS_ESPEJO: (taxpayerId: number, declarationId: number) =>
+      `/espejo/${taxpayerId}/${declarationId}/filings`,
+    // Modal "Datos del SAT": lo leído de acuse / línea de captura / recibo bancario.
+    SAT_READING: (declarationId: number) => `/${declarationId}/sat-reading`,
+    SAT_READING_ESPEJO: (taxpayerId: number, declarationId: number) =>
+      `/espejo/${taxpayerId}/${declarationId}/sat-reading`,
     COMMENTS: (declarationId: number) => `/${declarationId}/comments`,
     RECALCULATE: "/recalculate",
     ISSUED_INVOICES_DECLARATION: (p: DeclarationPeriodInvoicesParams) =>

@@ -8,6 +8,7 @@ import type { ClientDeclarationSubject } from '@/features/declarations/types'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Badge, Card, Divider } from '../ui'
 import { DeclarationComments } from './declaration-comments'
+import { SatReadingButton } from './declaration-sat-reading'
 import {
   DeclarationFilters,
   KIND_FUTURE_PLAN,
@@ -16,6 +17,7 @@ import {
   TabError,
   TabLoading,
   declarationStatusBadge,
+  filingTitle,
   monthYear,
   regularizationBadge,
   resolvePdfUrl,
@@ -152,6 +154,7 @@ export function TodasTab({ onViewDetail, currentUser }: Props) {
                           <Download size={14} /> Pago
                         </a>
                       )}
+                      <SatReadingButton declarationId={d.declarationId} title={filingTitle(title, d.complementNumber)} />
                       <button
                         onClick={() =>
                           onViewDetail({
@@ -168,6 +171,7 @@ export function TodasTab({ onViewDetail, currentUser }: Props) {
                             paymentLinePdfUrl: d.paymentLinePdfUrl,
                             paymentAcknowledgmentPdfUrl: d.paymentAcknowledgmentPdfUrl,
                             submittedAt: d.submittedAt,
+                            complementNumber: d.complementNumber,
                           })
                         }
                         className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-bold transition hover:opacity-90"
