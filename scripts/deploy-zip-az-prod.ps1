@@ -11,7 +11,7 @@
 
       1. Genera el zip (scripts/build-deploy-zip.ps1 -> npm run build + empaqueta
          .next/standalone). Ese script aborta si el arbol esta sucio, el branch
-         no es 'dev', o Node no coincide con .nvmrc.
+         no es 'main', o Node no coincide con .nvmrc.
       2. Pide confirmacion explicita (va a tocar produccion).
       3. Verifica (assert, no toggle) que prod sigue en modo codigo.
       4. Sube el zip con `az webapp deploy --clean true --track-status true`
