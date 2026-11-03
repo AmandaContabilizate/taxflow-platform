@@ -25,18 +25,25 @@ const COMBOS: { key: ComboKey; label: string }[] = [
 
 // Dominio del backend por combo: 0 gris (nunca pedido), 1 verde (completo), 2 azul (en curso:
 // DownloadRequest sin terminar o todavía en la cola interna de scrapers), 3 rojo (el intento más
-// reciente terminó en Error/Expired). Ver GetPeriodDownloadStatusQuery.cs.
+// reciente terminó en Error/Expired), 4 parcial (descarga temprana del día 1 completada hasta fin de
+// mes; la cola día 1-6 del mes siguiente la pide el reconcile desde el día 7). Ver
+// GetPeriodDownloadStatusQuery.cs.
+const GRIS = 'var(--ink-200, var(--border))'
+const VERDE = 'var(--accent-500, #10b981)'
 const COMBO_COLOR: Record<number, string> = {
-  0: 'var(--ink-200, var(--border))',
-  1: 'var(--accent-500, #10b981)',
+  0: GRIS,
+  1: VERDE,
   2: 'var(--sky-500, #0ea5e9)',
   3: 'var(--danger-500, #ef4444)',
+  // Parcial = segmento a la mitad: sin color nuevo, se lee por forma.
+  4: `linear-gradient(90deg, ${VERDE} 50%, ${GRIS} 50%)`,
 }
 const COMBO_LABEL: Record<number, string> = {
   0: 'pendiente',
   1: 'descargado',
   2: 'en curso',
   3: 'falló',
+  4: 'descarga temprana hasta fin de mes; se completa a partir del día 7 del mes siguiente',
 }
 
 /**
@@ -67,11 +74,14 @@ export const DescargasSatStatus = memo(function DescargasSatStatus({ declaration
   const completados = COMBOS.filter((c) => status[c.key] === 1).length
   const faltantes = COMBOS.filter((c) => status[c.key] !== 1)
   const done = faltantes.length === 0
+  const hayTemprana = faltantes.some((c) => status[c.key] === 4)
 
   const title = done
     ? 'Los 4 archivos SAT del periodo ya se descargaron.'
-    : `Falta: ${faltantes.map((c) => c.label).join(', ')}. ` +
-      'Tras encolar una descarga puede tardar unos minutos en reflejarse.'
+    : `Falta: ${faltantes.map((c) => (status[c.key] === 4 ? `${c.label} (días 1-6 del mes siguiente)` : c.label)).join(', ')}. ` +
+      (hayTemprana
+        ? 'La descarga temprana del día 1 llega hasta fin de mes; el resto se pide solo a partir del día 7.'
+        : 'Tras encolar una descarga puede tardar unos minutos en reflejarse.')
 
   return (
     <span
