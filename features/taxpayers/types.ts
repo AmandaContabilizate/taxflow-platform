@@ -101,9 +101,6 @@ export interface ExpedienteCliente {
   legalName: string
   email: string | null
   phone: string | null
-  /** `Catalogs.AccountStatus`; 2/3 = contribuyente dado de baja (origin/dev). */
-  accountStatusId?: number | null
-  deactivatedAt?: string | null
   createdAt: string
   /** 1 = CIEC válida, 2 = inválida, 0 = sin verificar. */
   passwordState: number
@@ -122,6 +119,18 @@ export interface ExpedienteCliente {
   efirmas: Efirma[]
   /** Ventas pendientes de cobro (ligas del vendedor y checkouts a medias). */
   ventasAbiertas: ExpedienteVentaAbierta[]
+  /** Baja (ARCO): 1 activo, 2 baja (Soft), 3 baja definitiva (Hard). */
+  accountStatusId: AccountStatusId
+  deactivatedAt: string | null
+}
+
+/** Catalogs.AccountStatus. */
+export type AccountStatusId = 1 | 2 | 3
+
+export const ACCOUNT_STATUS_LABEL: Record<AccountStatusId, string> = {
+  1: 'Activo',
+  2: 'Baja',
+  3: 'Baja definitiva',
 }
 
 export interface CiecValidacion {

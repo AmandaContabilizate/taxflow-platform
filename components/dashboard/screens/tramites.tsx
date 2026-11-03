@@ -127,7 +127,7 @@ export function TramitesScreen({ onContratar, go }: TramitesScreenProps) {
       )}
 
       {satProcedures.length > 0 && (
-        <div>
+        <div data-tour="tramites-list">
           <div className="text-[18px] font-bold mb-1" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
             Trámites con el SAT
           </div>

@@ -21,6 +21,12 @@ export default async function DashboardPage() {
   const email = cookieStore.get('email')?.value ?? user.email ?? ''
   const rfc = cookieStore.get('rfc')?.value ?? user.rfc ?? null
   const phoneNumber = userInfo?.phoneMobile ?? null
+  // Sesiones anteriores a la cookie (o el puente SSO sin el dato) caen al /validate.
+  const emailChangeBlockedBy =
+    cookieStore.get('emailChangeBlockedBy')?.value ??
+    (user.emailChangeBlocked ? (user.emailChangeBlockedReason || '1') : null)
+  // Server-only (sin NEXT_PUBLIC_): se prende/apaga en App Settings sin rebuild.
+  const tutorialAutostart = process.env.TUTORIAL_AUTOSTART_ENABLED === 'true'
 
   return (
     <Dashboard
@@ -31,6 +37,8 @@ export default async function DashboardPage() {
       permissions={permissions}
       userId={userId}
       phoneNumber={phoneNumber}
+      emailChangeBlockedBy={emailChangeBlockedBy}
+      tutorialAutostart={tutorialAutostart}
     />
   )
 }

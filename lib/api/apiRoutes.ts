@@ -149,8 +149,17 @@ export const API_ROUTES = {
     REMOVE_ROLE: "/remove-role",
     ROLES: (userId: string) => `/${encodeURIComponent(userId)}/roles`,
     SWITCH_ROLE: "/switch-role",
-    /** POST users (Identity). Desactiva la cuenta del usuario autenticado (isActive = 0). */
+    /** POST users (Identity). Baja Soft de TODOS los contribuyentes y de la cuenta (flujo legado, solo contraseña). */
     DELETE_ACCOUNT: "/delete-account",
+    /** GET users (Identity). Contribuyentes activos del usuario con su saldo prepagado, para el modal de baja. */
+    MY_TAXPAYERS_DEACTIVATION_PREVIEW: "/me/taxpayers/deactivation-preview",
+    /** POST users (Identity). Baja Soft de uno, varios o todos mis contribuyentes (RFC + motivo + contraseña). */
+    MY_TAXPAYERS_DEACTIVATE: "/me/taxpayers/deactivate",
+    // Cambio de correo del propio usuario (Identity, [Authorize]). Sin estado en el back:
+    // newEmail viaja en los tres porque el código TOTP está ligado a ese correo.
+    EMAIL_CHANGE_REQUEST: "/email-change/request",
+    EMAIL_CHANGE_RESEND: "/email-change/resend",
+    EMAIL_CHANGE_CONFIRM: "/email-change/confirm",
   },
   // Equipo comercial — módulo de comisiones. apiType "team" (Identity)
   TEAM: {
@@ -243,6 +252,11 @@ export const API_ROUTES = {
     UPLOAD_TAX_CERTIFICATE: "/uploadTaxCertificate",
     // Backoffice: el vendedor/gerente sube la constancia de un contribuyente ajeno (multipart: file).
     UPLOAD_TAX_CERTIFICATE_STAFF: (taxpayerId: number) => `/${taxpayerId}/uploadTaxCertificate`,
+    // Baja del contribuyente (ARCO) desde el expediente. Contador.DeactivateTaxpayer; Hard además
+    // Admin.HardDeleteTaxpayer. apiType "taxpayers"
+    DEACTIVATION_PREVIEW: (taxpayerId: number) => `/${taxpayerId}/deactivation-preview`,
+    DEACTIVATE: (taxpayerId: number) => `/${taxpayerId}/deactivate`,
+    DEACTIVATION_REASONS: "/deactivation-reasons",
     // Credenciales del contribuyente (tab Credenciales del expediente). apiType "taxpayers"
     SAT_PASSWORD: (rfc: string) => `/sat-password?rfc=${encodeURIComponent(rfc)}`,
     RFC_STATUS: (rfc: string) => `/rfc-status?rfc=${encodeURIComponent(rfc)}`,
@@ -541,6 +555,8 @@ export const API_ROUTES = {
   DIAGNOSTICO: {
     RUN_CLIENTE: (rfc: string) => `/cliente?rfc=${encodeURIComponent(rfc)}`,
     CAN_RUN_CLIENTE: (rfc: string) => `/cliente/puede-ejecutar?rfc=${encodeURIComponent(rfc)}`,
+    // ¿Terminó el diagnóstico del propio cliente? Candado de compra: sin terminar solo trámites.
+    ESTADO_CLIENTE: (rfc: string) => `/cliente/estado?rfc=${encodeURIComponent(rfc)}`,
     RUN_VENDEDOR: (taxpayerId: number) => `/vendedor/${taxpayerId}`,
     CAN_RUN_VENDEDOR: (taxpayerId: number) => `/vendedor/puede-ejecutar/${taxpayerId}`,
     // Declaraciones pendientes (13/14) que el diagnóstico encontró — backoffice.
@@ -565,6 +581,14 @@ export const API_ROUTES = {
     // Vista del cliente (backoffice, claim Gerencia.VistaCliente): el mismo /all que ve el
     // cliente, pedido por un gerente para un contribuyente ajeno. Solo lectura.
     ALL_ESPEJO: (taxpayerId: number) => `/espejo/${taxpayerId}/all`,
+    // Pestañas del detalle: Normal + cada complementaria del periodo de la declaración.
+    FILINGS: (declarationId: number) => `/${declarationId}/filings`,
+    FILINGS_ESPEJO: (taxpayerId: number, declarationId: number) =>
+      `/espejo/${taxpayerId}/${declarationId}/filings`,
+    // Modal "Datos del SAT": lo leído de acuse / línea de captura / recibo bancario.
+    SAT_READING: (declarationId: number) => `/${declarationId}/sat-reading`,
+    SAT_READING_ESPEJO: (taxpayerId: number, declarationId: number) =>
+      `/espejo/${taxpayerId}/${declarationId}/sat-reading`,
     COMMENTS: (declarationId: number) => `/${declarationId}/comments`,
     RECALCULATE: "/recalculate",
     ISSUED_INVOICES_DECLARATION: (p: DeclarationPeriodInvoicesParams) =>

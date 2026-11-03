@@ -4,6 +4,7 @@ import { UserPlus, Loader2, Check, TrendingUp } from 'lucide-react'
 import { satSyncLabel } from './fiscal-score.utils'
 import { RFCSelector } from './rfc-selector'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
+import { HelpButton } from './tutorial/HelpButton'
 import { useFiscalScore } from '@/features/declarations/hooks/useFiscalScore'
 import type { GoFn } from './types'
 
@@ -20,7 +21,7 @@ export function DashboardHeader({ go }: DashboardHeaderProps) {
       <div className="flex items-center gap-3">
         {/* Indicador de diagnóstico en proceso */}
         {score?.isReconciling || step === 'connecting' || step === 'checking' ? (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(115,57,253, 0.1)', color: 'var(--violet-ink)' }}>
+          <div data-tour="diag-indicator" className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(115,57,253, 0.1)', color: 'var(--violet-ink)' }}>
             <Loader2 size={16} className="animate-spin" />
             <span className="text-[12px] font-medium whitespace-nowrap">
               {satSyncLabel(step)}…
@@ -30,7 +31,7 @@ export function DashboardHeader({ go }: DashboardHeaderProps) {
 
         {/* Mensaje de éxito cuando termina */}
         {score && !score.isReconciling && step === 'ready' && (
-          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl h-10 animate-in fade-in slide-in-from-left-4 duration-300" style={{ background: 'white', border: '1px solid #E7E4F4', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)' }}>
+          <div data-tour="diag-indicator" className="flex items-center gap-2 px-3 py-2.5 rounded-xl h-10 animate-in fade-in slide-in-from-left-4 duration-300" style={{ background: 'white', border: '1px solid #E7E4F4', whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)' }}>
             <TrendingUp size={16} style={{ color: '#00AD87', flexShrink: 0 }} />
             <div className="text-[12px] font-bold" style={{ color: '#00AD87' }}>
               Diagnóstico actualizado
@@ -45,8 +46,10 @@ export function DashboardHeader({ go }: DashboardHeaderProps) {
       {/* Acciones del Header: Notificaciones y Agregar RFC */}
       <div className="flex items-center gap-2">
         <NotificationBell />
+        <HelpButton />
 
         <button
+          data-tour="add-rfc"
           onClick={() => go?.('estatus-sat')}
           className="rounded-full flex items-center justify-center transition-all duration-200 hover:shadow-lg"
           style={{

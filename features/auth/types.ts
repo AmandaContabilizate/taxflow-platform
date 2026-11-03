@@ -20,6 +20,10 @@ export interface LoginResponse {
   email?: string;
   fullName?: string;
   rfc?: string;
+  /** true si entró por el iframe de un partner: no puede cambiar su correo. */
+  emailChangeBlocked?: boolean;
+  /** Nombre del partner que administra el acceso (p. ej. "MEDIKIT"). */
+  emailChangeBlockedReason?: string | null;
 }
 
 export interface CurrentUser {
@@ -27,6 +31,24 @@ export interface CurrentUser {
   email?: string;
   fullName?: string;
   rfc?: string;
+  emailChangeBlocked?: boolean;
+  emailChangeBlockedReason?: string | null;
+}
+
+/** POST /api/Users/email-change/request y /resend */
+export interface EmailChangeRequestResponse {
+  maskedNewEmail: string;
+  resendAvailableAt: string; // ISO
+}
+
+export interface EmailChangeError {
+  statusCode: number;
+  message: string;
+  errorCode?: string;
+  /** INVALID_CODE: intentos que quedan antes de EMAIL_CHANGE_TOO_MANY_ATTEMPTS. */
+  attemptsLeft?: number;
+  /** EMAIL_CHANGE_BLOCKED_PARTNER_LOGIN: nombre del partner. */
+  partner?: string;
 }
 
 export interface UserInfo {

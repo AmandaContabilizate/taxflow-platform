@@ -12,7 +12,7 @@ import {
   DECLARATION_STATUSES_WORKED,
   DECLARATION_STATUS_LEGACY,
 } from '@/features/cancellations/types'
-import { getErrorMessage, hasErrorCode } from '@/lib/api'
+import { getErrorMessage, hasErrorCode } from '@/lib/api/errorMessages'
 import { declarationStatusBadge } from '../declaraciones/parts'
 import { Modal } from '../modal'
 import { Badge } from '../ui'

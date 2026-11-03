@@ -14,8 +14,8 @@
     habia divergido). Lo invoca scripts/deploy-zip-az-prod.ps1.
 
 .PARAMETER AllowBranch
-    Permite construir desde una rama distinta de 'dev' (la rama de release).
-    Sin este switch, el script aborta si HEAD no esta en 'dev'.
+    Permite construir desde una rama distinta de 'main' (la rama de release).
+    Sin este switch, el script aborta si HEAD no esta en 'main'.
 
 .EXAMPLE
     .\scripts\build-deploy-zip.ps1
@@ -53,7 +53,7 @@ try {
     $Timestamp  = Get-Date -Format "yyyy-MM-ddTHH-mm-ss"
     $OutputZip  = Join-Path $OutputDir "taxflow-platform-$Timestamp.zip"
 
-    $ReleaseBranch = "dev"
+    $ReleaseBranch = "main"
 
     # --- Guard: version de Node = la del runtime de Azure (.nvmrc) ---
     $NvmrcPath = Join-Path $Root ".nvmrc"

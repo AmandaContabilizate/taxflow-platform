@@ -104,10 +104,34 @@ export function monthYear(fiscalYear: number, month: number): string {
   return `${MONTHS[month - 1] ?? ''} ${fiscalYear}`.trim()
 }
 
+/** "Normal" / "Complementaria N" según `ComplementNumber` (0 = Normal). */
+export function filingLabel(complementNumber: number | null | undefined): string {
+  return (complementNumber ?? 0) > 0 ? `Complementaria ${complementNumber}` : 'Normal'
+}
+
+/** Periodo + presentación, solo si es complementaria: "Marzo 2026 · Complementaria 1". */
+export function filingTitle(periodo: string, complementNumber: number | null | undefined): string {
+  return (complementNumber ?? 0) > 0 ? `${periodo} · ${filingLabel(complementNumber)}` : periodo
+}
+
 export function fmtDate(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
   return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+export const money = (n: number | null | undefined) =>
+  n == null || !Number.isFinite(n)
+    ? '—'
+    : n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2 })
+
+/** Rubro o dato que no vino (en los datos del SAT, `null` = el PDF no lo trae). */
+export function SinDatos() {
+  return (
+    <span className="italic" style={{ color: 'var(--ink-500)' }}>
+      Sin datos
+    </span>
+  )
 }
 
 /**

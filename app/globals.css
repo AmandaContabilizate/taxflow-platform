@@ -127,6 +127,11 @@
   --nav-active-icon-bg: rgba(6,255,148,0.16);
   --nav-active-icon-fg: #06FF94;
   --nav-active-hint: rgba(255,255,255,0.65);
+
+  /* Tutorial guiado (Guest) */
+  --tutorial-backdrop: rgba(34,17,88,0.55);
+  --tutorial-ring: #00D3A1;
+  --tutorial-ring-glow: rgba(0,211,161,0.45);
 }
 
 .dark {
@@ -228,6 +233,10 @@
   --nav-active-icon-bg: rgba(255,255,255,0.18);
   --nav-active-icon-fg: #06FF94;
   --nav-active-hint: rgba(255,255,255,0.75);
+
+  --tutorial-backdrop: rgba(6,3,20,0.70);
+  --tutorial-ring: #06FF94;
+  --tutorial-ring-glow: rgba(6,255,148,0.40);
 }
 
 @theme inline {
@@ -294,6 +303,20 @@
 
 .animate-slide-in-left {
   animation: slide-in-left 0.5s ease-out both;
+}
+
+/* Tutorial guiado: borde que late alrededor del elemento resaltado. */
+@keyframes tutorial-ring-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px var(--tutorial-ring), 0 0 0 6px var(--tutorial-ring-glow); }
+  50%      { box-shadow: 0 0 0 2px var(--tutorial-ring), 0 0 0 12px transparent; }
+}
+
+.tutorial-ring {
+  animation: tutorial-ring-pulse 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tutorial-ring { animation: none; box-shadow: 0 0 0 3px var(--tutorial-ring); }
 }
 
 /* Reporte público (/reporte): "descargar en PDF" es el diálogo de impresión del

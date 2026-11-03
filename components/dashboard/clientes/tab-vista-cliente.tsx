@@ -6,6 +6,7 @@ import { getAllDeclarationsEspejo } from '@/features/declarations/actions/getAll
 import type { AllDeclarationItem, ClientDeclarationSubject } from '@/features/declarations/types'
 import { MONO } from '../constants'
 import { ClientDeclarationDetail } from '../declaraciones/client-declaration-detail'
+import { SatReadingButton } from '../declaraciones/declaration-sat-reading'
 import {
   DeclarationFilters,
   KIND_FUTURE_PLAN,
@@ -14,6 +15,7 @@ import {
   TabError,
   TabLoading,
   declarationStatusBadge,
+  filingTitle,
   monthYear,
   regularizationBadge,
   resolvePdfUrl,
@@ -202,6 +204,8 @@ export function TabVistaCliente({ taxpayerId, legalName }: Props) {
                           <td className="px-3 py-3">
                             <ClientButtons
                               d={d}
+                              taxpayerId={taxpayerId}
+                              title={filingTitle(title, d.complementNumber)}
                               onDetail={() =>
                                 setDetail({
                                   declarationId: d.declarationId,
@@ -217,6 +221,8 @@ export function TabVistaCliente({ taxpayerId, legalName }: Props) {
                                   paymentLinePdfUrl: d.paymentLinePdfUrl,
                                   paymentAcknowledgmentPdfUrl: d.paymentAcknowledgmentPdfUrl,
                                   submittedAt: d.submittedAt,
+                                  complementNumber: d.complementNumber,
+                                  taxpayerId,
                                 })
                               }
                             />
@@ -251,10 +257,21 @@ export function TabVistaCliente({ taxpayerId, legalName }: Props) {
 
 /**
  * Los botones que el cliente tiene en cada renglón de "Todas", con las mismas condiciones
- * que su pantalla: Comentarios y Ver detalle siempre; Acuse / Línea de captura / Pago solo
- * si existe el PDF. Los PDF abren de verdad (útil para soporte); los demás son solo señal.
+ * que su pantalla: Comentarios, Datos del SAT y Ver detalle siempre; Acuse / Línea de captura /
+ * Pago solo si existe el PDF. Los PDF y Datos del SAT abren de verdad (útil para soporte); los
+ * demás son solo señal.
  */
-function ClientButtons({ d, onDetail }: { d: AllDeclarationItem; onDetail: () => void }) {
+function ClientButtons({
+  d,
+  taxpayerId,
+  title,
+  onDetail,
+}: {
+  d: AllDeclarationItem
+  taxpayerId: number
+  title: string
+  onDetail: () => void
+}) {
   const chip = 'inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11.5px] font-bold'
   const plain = { background: 'var(--ink-50)', color: 'var(--ink-600)', border: '1px solid var(--border)' }
   const link = { background: 'var(--card)', color: 'var(--foreground)', border: '1px solid var(--border-strong)' }
@@ -278,6 +295,7 @@ function ClientButtons({ d, onDetail }: { d: AllDeclarationItem; onDetail: () =>
           <Download size={12} /> Pago
         </a>
       )}
+      <SatReadingButton declarationId={d.declarationId} taxpayerId={taxpayerId} title={title} variant="chip" />
       <button
         type="button"
         onClick={onDetail}

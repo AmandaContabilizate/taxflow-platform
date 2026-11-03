@@ -2,7 +2,7 @@
 
 import { Elements } from '@stripe/react-stripe-js'
 import type { Stripe } from '@stripe/stripe-js'
-import { Check, CheckCircle2, Coins, Gift, Loader2, Minus, Plus, TicketPercent } from 'lucide-react'
+import { Check, CheckCircle2, Coins, Gift, Loader2, Minus, Plus, Stethoscope, TicketPercent } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Dialog,
@@ -16,6 +16,8 @@ import { getStripePublishableKey } from '@/features/account/actions/getStripePub
 import { previewDiscountCode } from '@/features/account/actions/previewDiscountCode.action'
 import { registerSaleNew } from '@/features/account/actions/registerSaleNew.action'
 import { getReferralCreditBalance } from '@/features/referrals/actions/getReferralCreditBalance.action'
+import { useDiagnosticoEstado } from '@/features/diagnostico/hooks/useDiagnosticoEstado'
+import type { DiagnosticoEstadoCliente } from '@/features/diagnostico/types'
 import {
   formatMXN,
   isAvailableForMode,
@@ -35,6 +37,7 @@ import {
 } from '@/features/account/types'
 import { getStripe } from '@/lib/stripe-client'
 import { DISPLAY } from '../constants'
+import { isTutorialUiEvent } from '../tutorial/tutorial-dom'
 import { Badge, Btn } from '../ui'
 import { PaymentForm } from './payment-form'
 import { SetupForm } from './setup-form'
@@ -52,6 +55,9 @@ const BALANCE_TIMEOUT_MS = 8000
 
 /** Identidad estable para el caso "sin tramites": un `[]` nuevo por render reabre el bucle. */
 const EMPTY_PROCEDURES: Plan[] = []
+const EMPTY_PLANS: Plan[] = []
+const EMPTY_REGULARIZATIONS: PlansCatalog['regularizations'] = []
+const EMPTY_COMPLEMENTS: PlansCatalog['complementRegularizations'] = []
 
 interface PlanPickerModalProps {
   open: boolean
@@ -102,7 +108,11 @@ export function PlanPickerModal({
   // cuando el backend tarda (p. ej. base de staging dormida).
   const balancePromiseRef = useRef<Promise<number>>(Promise.resolve(0))
 
-  const planList = catalog.futurePlans
+  // Candado por diagnóstico: hasta que termine, el robot no ha detectado qué hay que
+  // regularizar, así que solo se venden trámites (pago único). Mientras carga o si falla, puesto.
+  const diagnostico = useDiagnosticoEstado(rfc, open)
+  const locked = !diagnostico.terminado
+  const planList = locked ? EMPTY_PLANS : catalog.futurePlans
   // Los tramites no se venden dentro de una suscripcion: son cargos de una sola vez y
   // cobrarlos de forma recurrente le renovaria al cliente un tramite que ya se hizo.
   // Se contratan en el modo de pago unico o desde la pantalla de Tramites.
@@ -112,8 +122,8 @@ export function PlanPickerModal({
     () => (paymentMode === 0 ? EMPTY_PROCEDURES : catalog.additionalProcedures),
     [paymentMode, catalog.additionalProcedures],
   )
-  const regularizations = catalog.regularizations
-  const complements = catalog.complementRegularizations
+  const regularizations = locked ? EMPTY_REGULARIZATIONS : catalog.regularizations
+  const complements = locked ? EMPTY_COMPLEMENTS : catalog.complementRegularizations
 
   const selectedPlan = useMemo(
     () => planList.find((p) => p.id === selectedPlanId) ?? null,
@@ -214,6 +224,11 @@ export function PlanPickerModal({
     setSelectedDecls((prev) => keepSelectableForMode(regularizations, prev, paymentMode))
     setSelectedComplements((prev) => keepSelectableForMode(complements, prev, paymentMode))
   }, [open, paymentMode, selectedPlan, procedures, regularizations, complements])
+
+  // Con candado solo hay trámites, y esos solo se venden en pago único.
+  useEffect(() => {
+    if (open && locked && paymentMode === 0) setPaymentMode(1)
+  }, [open, locked, paymentMode])
 
   // En suscripción el price recurrente de Stripe ya trae el 10% de descuento;
   // el catálogo solo expone el precio de lista, así que lo descontamos aquí.
@@ -427,6 +442,9 @@ export function PlanPickerModal({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
+        onPointerDownOutside={(e) => isTutorialUiEvent(e) && e.preventDefault()}
+        onInteractOutside={(e) => isTutorialUiEvent(e) && e.preventDefault()}
+        onFocusOutside={(e) => isTutorialUiEvent(e) && e.preventDefault()}
         className={
           (step === 'cart'
             ? 'sm:max-w-3xl '
@@ -486,8 +504,12 @@ export function PlanPickerModal({
 
         {step === 'cart' && (
           <>
+            {locked && <DiagnosticoLockNotice loading={diagnostico.loading} estado={diagnostico.estado} />}
+
             {/* Modo de pago — fijo arriba */}
+            {!locked && (
             <div
+              data-tour="picker-modes"
               className="grid grid-cols-2 gap-1 p-1 rounded-2xl flex-shrink-0"
               style={{ background: 'var(--muted)' }}
             >
@@ -526,10 +548,12 @@ export function PlanPickerModal({
                 )
               })}
             </div>
+            )}
 
             {/* Catálogo — única zona que scrollea */}
-            <div className="flex-1 min-h-0 overflow-y-auto -mx-1 px-1 flex flex-col gap-6 py-1">
+            <div data-tour="picker-catalog" className="flex-1 min-h-0 overflow-y-auto -mx-1 px-1 flex flex-col gap-6 py-1">
               {/* Planes */}
+              {!locked && (
               <div className="flex flex-col gap-3">
                 <div className="text-[12px] font-extrabold uppercase tracking-wider" style={{ color: 'var(--ink-500)' }}>
                   Elige tu plan
@@ -604,6 +628,7 @@ export function PlanPickerModal({
                   })}
                 </div>
               </div>
+              )}
 
               {/* Trámites adicionales — por cantidad */}
               {procedures.length > 0 && (
@@ -955,5 +980,33 @@ export function PlanPickerModal({
         )}
       </DialogContent>
     </Dialog>
+  )
+}
+
+/**
+ * Sustituye planes y regularizaciones mientras el diagnóstico no termina: dice por qué solo hay
+ * trámites y cuándo se desbloquea el resto, para que el cliente no piense que faltan productos.
+ */
+function DiagnosticoLockNotice({ loading, estado }: { loading: boolean; estado: DiagnosticoEstadoCliente | null }) {
+  const texto = loading
+    ? 'Revisando el estado de tu diagnóstico…'
+    : estado?.estado === 'EnCurso'
+      ? 'Tu diagnóstico está en curso: seguimos revisando tu información con el SAT. Mientras tanto solo puedes contratar trámites adicionales. Los planes y las regularizaciones se desbloquean en cuanto termine.'
+      : estado?.estado === 'Abortado'
+        ? 'Tu último diagnóstico no pudo terminar. Por ahora solo puedes contratar trámites adicionales; vuelve a ejecutarlo desde Diagnóstico para desbloquear los planes y las regularizaciones.'
+        : 'Aún no tienes un diagnóstico terminado. Por ahora solo puedes contratar trámites adicionales; los planes y las regularizaciones se desbloquean cuando termine tu diagnóstico.'
+  return (
+    <div
+      data-tour="picker-lock"
+      className="rounded-2xl p-4 flex items-start gap-3 text-[13px] leading-snug flex-shrink-0"
+      style={{ background: 'var(--muted)', color: 'var(--ink-700)' }}
+    >
+      {loading ? (
+        <Loader2 size={16} className="mt-0.5 shrink-0 animate-spin" style={{ color: 'var(--ink-500)' }} />
+      ) : (
+        <Stethoscope size={16} className="mt-0.5 shrink-0" style={{ color: 'var(--ink-500)' }} />
+      )}
+      <span>{texto}</span>
+    </div>
   )
 }

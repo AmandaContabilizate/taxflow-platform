@@ -21,6 +21,11 @@ export async function GET(request: NextRequest) {
   const userId = params.get("userId") ?? undefined;
   const expiresAt = params.get("expiresAt") ?? undefined;
   const refreshToken = params.get("temp") ?? undefined;
+  // Puente SSO de partners: si el back no manda el dato, /validate lo resuelve en /dashboard.
+  const emailChangeBlockedParam = params.get("emailChangeBlocked");
+  const emailChangeBlocked =
+    emailChangeBlockedParam == null ? undefined : emailChangeBlockedParam.toLowerCase() === "true";
+  const emailChangeBlockedReason = params.get("emailChangeBlockedReason") ?? undefined;
 
   if (!token) {
     return NextResponse.redirect(new URL(PUBLIC_ROUTES.LOGIN, resolveRedirectBase(request.url)));
@@ -30,7 +35,7 @@ export async function GET(request: NextRequest) {
 
   await clearSessionCookies();
   await setSessionCookies(
-    { token, refreshToken, email, fullName, userId, rfc, expiresAt },
+    { token, refreshToken, email, fullName, userId, rfc, expiresAt, emailChangeBlocked, emailChangeBlockedReason },
     { embedded: isEmbedded },
   );
 
