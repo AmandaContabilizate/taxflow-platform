@@ -17,7 +17,7 @@ import {
 import { createRole } from '@/features/roles/actions/createRole.action'
 import { updateRole } from '@/features/roles/actions/updateRole.action'
 import { getClaimsCatalog } from '@/features/roles/actions/getClaimsCatalog.action'
-import type { ClaimsDepartmentDto, RoleOverviewDto } from '@/features/roles/types'
+import type { ClaimCatalogItemDto, ClaimsDepartmentDto, RoleOverviewDto } from '@/features/roles/types'
 import { DISPLAY, MASTER_NAV_SECTIONS, MODULE_CLAIMS } from '../constants'
 import { Btn, Card } from '../ui'
 
@@ -43,6 +43,66 @@ SECTION_BY_MODULE.set('Sistema interno', 'SISTEMA')
 // agrupan por contigüidad); Portal del cliente cierra la lista como su propia sección.
 MODULE_ORDER.set('Sistema interno', 850)
 MODULE_ORDER.set('Portal del cliente', 900)
+
+/**
+ * Lo mismo, pero por AspNetDepartaments.ModuleKey (= id del ítem del sidebar). Es el amarre
+ * bueno: renombrar una etiqueta del menú ya no saca la tarjeta de su sección. Los cajones sin
+ * pantalla llevan sección propia. Ver ContaboxPro.Backend/docs/permisos-y-departamentos.md.
+ */
+const SECTION_BY_KEY = new Map<string, string>()
+const ORDER_BY_KEY = new Map<string, number>()
+const LABEL_BY_KEY = new Map<string, string>()
+{
+  let i = 0
+  for (const s of MASTER_NAV_SECTIONS) {
+    for (const item of s.items) {
+      if (s.section) SECTION_BY_KEY.set(item.id, s.section)
+      ORDER_BY_KEY.set(item.id, i++)
+      LABEL_BY_KEY.set(item.id, item.label)
+    }
+  }
+}
+const DRAWERS: { key: string; label: string; section: string; order: number }[] = [
+  { key: 'cuenta', label: 'Cuenta y sesión', section: 'SISTEMA', order: 840 },
+  { key: 'sistema-interno', label: 'Sistema interno', section: 'SISTEMA', order: 850 },
+  { key: 'legado', label: 'Permisos sin uso', section: 'SISTEMA', order: 860 },
+  { key: 'portal-cliente', label: 'Portal del cliente', section: 'APP DEL CLIENTE', order: 900 },
+]
+for (const d of DRAWERS) {
+  SECTION_BY_KEY.set(d.key, d.section)
+  ORDER_BY_KEY.set(d.key, d.order)
+  LABEL_BY_KEY.set(d.key, d.label)
+}
+const UNPLACED_KEY = '__otros'
+const UNPLACED_SECTION = 'OTROS'
+
+/** Bloque dentro de una pantalla: sus claims de apertura (sub = null) o un subdepartamento. */
+interface ModuleGroup {
+  key: string
+  label: string | null
+  sortOrder: number
+  claims: ClaimCatalogItemDto[]
+}
+
+/** Tarjeta del editor: una pantalla del sidebar (o cajón) con sus subdepartamentos. */
+interface ModuleNode {
+  key: string
+  label: string
+  section: string
+  order: number
+  groups: ModuleGroup[]
+  /** Claims de departamentos sin ModuleKey (alguien los sembró fuera del menú). */
+  unplaced?: boolean
+}
+
+function nodeClaims(n: ModuleNode): ClaimCatalogItemDto[] {
+  return n.groups.flatMap((g) => g.claims)
+}
+
+/** Nombre técnico del permiso (ClaimValue); ClaimType suele ser genérico. */
+function claimKey(c: ClaimCatalogItemDto): string {
+  return c.claimValue || c.claimType
+}
 
 interface RoleEditorProps {
   /** Rol a editar; null = crear uno nuevo. */
@@ -86,7 +146,7 @@ const SECTION_HUES = [
  * Se deriva del claim, no hay metadato en el catálogo.
  */
 const ACTION_VERB_RE =
-  /^(Create|Update|Delete|Assign|Reassign|Approve|Manage|Send|Activate|Deactivate|Remove|Edit|Change|Load|Upload|Cancel|Add|Set|Generate|Process|Import|Export|Execute|Invite|Authorize|Run)/i
+  /^(Create|Update|Delete|Assign|Reassign|Approve|Manage|Send|Activate|Deactivate|Remove|Edit|Change|Load|Upload|Cancel|Add|Set|Generate|Process|Import|Export|Execute|Invite|Authorize|Run|Redeem|Force|Reactivar|Emitir|HardDelete|Adjust)/i
 
 function isActionClaim(claimType: string): boolean {
   const action = claimType.split('.').pop() ?? claimType
@@ -202,60 +262,91 @@ export function RoleEditor({ role, onSaved, onCancel }: RoleEditorProps) {
   }, [])
 
   /**
-   * Fusiona departamentos con el MISMO nombre en una sola card y elimina
-   * permisos duplicados (por id) dentro de cada grupo.
+   * Árbol del editor con la forma del sidebar: Sección → Pantalla → Subdepartamento.
+   * Con backend nuevo agrupa por moduleKey ('<id>' = pantalla, '<id>/<slug>' = sub); los
+   * departamentos sin moduleKey (claims sembrados fuera del menú) van a la sección "Otros". Con backend viejo
+   * (sin moduleKey) cae al agrupado anterior por nombre de departamento.
    */
-  const merged = useMemo<ClaimsDepartmentDto[]>(() => {
-    const map = new Map<string, ClaimsDepartmentDto>()
-    for (const dep of departments) {
-      const key = dep.departmentName
-      const existing = map.get(key)
-      if (!existing) {
-        const seen = new Set<number>()
-        const claims = dep.claims.filter((c) => (seen.has(c.id) ? false : (seen.add(c.id), true)))
-        map.set(key, { ...dep, claims })
-      } else {
-        const seen = new Set(existing.claims.map((c) => c.id))
-        for (const c of dep.claims) {
-          if (!seen.has(c.id)) {
-            existing.claims.push(c)
-            seen.add(c.id)
-          }
+  const nodes = useMemo<ModuleNode[]>(() => {
+    if (departments.length === 0) return []
+    const keyed = departments.some((d) => !!d.moduleKey)
+    const byKey = new Map<string, ModuleNode>()
+    const seenClaims = new Set<number>()
+
+    const nodeFor = (key: string, fallbackLabel: string, unplaced = false): ModuleNode => {
+      let n = byKey.get(key)
+      if (!n) {
+        n = {
+          key,
+          label: LABEL_BY_KEY.get(key) ?? fallbackLabel,
+          section: unplaced
+            ? UNPLACED_SECTION
+            : (SECTION_BY_KEY.get(key) ?? SECTION_BY_MODULE.get(fallbackLabel) ?? 'OTROS'),
+          order: unplaced ? 1000 : (ORDER_BY_KEY.get(key) ?? MODULE_ORDER.get(fallbackLabel) ?? 800),
+          groups: [],
+          unplaced,
         }
+        byKey.set(key, n)
       }
+      return n
     }
+    const groupFor = (n: ModuleNode, key: string, label: string | null, sortOrder: number): ModuleGroup => {
+      let g = n.groups.find((x) => x.key === key)
+      if (!g) {
+        g = { key, label, sortOrder, claims: [] }
+        n.groups.push(g)
+      }
+      return g
+    }
+
+    for (const dep of departments) {
+      const claims = dep.claims.filter((c) => (seenClaims.has(c.id) ? false : (seenClaims.add(c.id), true)))
+      if (claims.length === 0) continue
+      if (!keyed) {
+        groupFor(nodeFor(dep.departmentName, dep.departmentName), '', null, -1).claims.push(...claims)
+        continue
+      }
+      if (!dep.moduleKey) {
+        const n = nodeFor(UNPLACED_KEY, 'Otros', true)
+        groupFor(n, `dep:${dep.departmentId}`, dep.departmentName, 0).claims.push(...claims)
+        continue
+      }
+      const slash = dep.moduleKey.indexOf('/')
+      const screenKey = slash < 0 ? dep.moduleKey : dep.moduleKey.slice(0, slash)
+      const n = nodeFor(screenKey, dep.departmentName)
+      const g =
+        slash < 0
+          ? groupFor(n, '', null, -1)
+          : groupFor(n, dep.moduleKey, dep.departmentName, dep.sortOrder ?? 99)
+      g.claims.push(...claims)
+    }
+
     // Módulos del sidebar sin permisos todavía: se muestran deshabilitados para
     // que el administrador vea el mapa completo del backoffice. Excepción: un
-    // módulo cuyos permisos YA existen en el catálogo (administrados desde otro
-    // departamento, p. ej. Deducibilidad forzada dentro de Centro de operaciones)
+    // módulo cuyos permisos YA existen en el catálogo (administrados desde otra
+    // pantalla, p. ej. Regularizaciones abre con el claim de Centro de operaciones)
     // no lleva cuadro vacío — decir "sin permisos aún" ahí sería falso.
-    if (departments.length > 0) {
-      const claimsEnCatalogo = new Set(
-        Array.from(map.values()).flatMap((d) => d.claims.map((c) => c.claimValue)),
-      )
-      for (const s of MASTER_NAV_SECTIONS) {
-        for (const item of s.items) {
-          if (map.has(item.label)) continue
-          const suyos = MODULE_CLAIMS[item.id] ?? []
-          if (suyos.length > 0 && suyos.some((v) => claimsEnCatalogo.has(v))) continue
-          map.set(item.label, {
-            departmentId: -1,
-            departmentName: item.label,
-            departmentCode: '',
-            claims: [],
-          })
-        }
+    const claimsEnCatalogo = new Set(departments.flatMap((d) => d.claims.map((c) => c.claimValue)))
+    for (const s of MASTER_NAV_SECTIONS) {
+      for (const item of s.items) {
+        const key = keyed ? item.id : item.label
+        if (byKey.has(key)) continue
+        const suyos = MODULE_CLAIMS[item.id] ?? []
+        if (suyos.length > 0 && suyos.some((v) => claimsEnCatalogo.has(v))) continue
+        nodeFor(key, item.label)
       }
     }
 
-    // Orden del sidebar (independiente del orden en que responda el API)
-    return Array.from(map.values()).sort(
-      (a, b) =>
-        (MODULE_ORDER.get(a.departmentName) ?? 800) - (MODULE_ORDER.get(b.departmentName) ?? 800),
-    )
+    // Orden del sidebar (independiente del orden en que responda el API); dentro de cada
+    // pantalla, primero los claims que la abren y luego los subdepartamentos por SortOrder.
+    const list = Array.from(byKey.values())
+    for (const n of list) {
+      n.groups.sort((a, b) => a.sortOrder - b.sortOrder || (a.label ?? '').localeCompare(b.label ?? ''))
+    }
+    return list.sort((a, b) => a.order - b.order)
   }, [departments])
 
-  const totalClaims = useMemo(() => merged.reduce((n, d) => n + d.claims.length, 0), [merged])
+  const totalClaims = useMemo(() => nodes.reduce((n, d) => n + nodeClaims(d).length, 0), [nodes])
 
   // claimCatalogId → claimValue del catálogo, para armar el body de PUT /roles.
   const claimValueById = useMemo(() => {
@@ -268,28 +359,32 @@ export function RoleEditor({ role, onSaved, onCancel }: RoleEditorProps) {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return merged
-    return merged
-      .map((d) => ({
-        ...d,
-        claims: d.claims.filter(
-          (c) =>
-            c.claimType.toLowerCase().includes(q) ||
-            (c.description ?? '').toLowerCase().includes(q) ||
-            claimLabel(c.claimType, c.description).toLowerCase().includes(q),
-        ),
+    if (!q) return nodes
+    const matches = (c: ClaimCatalogItemDto) =>
+      claimKey(c).toLowerCase().includes(q) ||
+      (c.description ?? '').toLowerCase().includes(q) ||
+      claimLabel(claimKey(c), c.description).toLowerCase().includes(q)
+    return nodes
+      .map((n) => ({
+        ...n,
+        groups: n.groups
+          .map((g) => ({
+            ...g,
+            // Buscar el nombre del subdepartamento trae todos sus permisos.
+            claims: (g.label ?? '').toLowerCase().includes(q) ? g.claims : g.claims.filter(matches),
+          }))
+          .filter((g) => g.claims.length > 0),
       }))
-      .filter((d) => d.claims.length > 0)
-  }, [merged, query])
+      .filter((n) => n.groups.length > 0)
+  }, [nodes, query])
 
   // Módulos agrupados por sección del sidebar (cada sección es colapsable).
   const sections = useMemo(() => {
-    const list: { section: string; deps: ClaimsDepartmentDto[] }[] = []
+    const list: { section: string; deps: ModuleNode[] }[] = []
     for (const dep of filtered) {
-      const sec = SECTION_BY_MODULE.get(dep.departmentName) ?? 'OTROS'
       const last = list[list.length - 1]
-      if (last && last.section === sec) last.deps.push(dep)
-      else list.push({ section: sec, deps: [dep] })
+      if (last && last.section === dep.section) last.deps.push(dep)
+      else list.push({ section: dep.section, deps: [dep] })
     }
     return list
   }, [filtered])
@@ -303,8 +398,9 @@ export function RoleEditor({ role, onSaved, onCancel }: RoleEditorProps) {
     })
   }
 
-  function toggleDepartment(dep: ClaimsDepartmentDto) {
-    const ids = dep.claims.map((c) => c.id)
+  /** "Todos"/"Quitar" de una pantalla completa o de un solo subdepartamento. */
+  function toggleClaims(claims: ClaimCatalogItemDto[]) {
+    const ids = claims.map((c) => c.id)
     const allOn = ids.every((id) => selected.has(id))
     setSelected((prev) => {
       const next = new Set(prev)
@@ -323,24 +419,20 @@ export function RoleEditor({ role, onSaved, onCancel }: RoleEditorProps) {
     })
   }
 
-  const sectionNames = useMemo(
-    () =>
-      Array.from(new Set(merged.map((d) => SECTION_BY_MODULE.get(d.departmentName) ?? 'OTROS'))),
-    [merged],
-  )
+  const sectionNames = useMemo(() => Array.from(new Set(nodes.map((d) => d.section))), [nodes])
 
   // Al abrir el editor todo inicia contraído (una sola vez, cuando llega el catálogo);
   // el buscador sigue expandiendo automáticamente mientras hay texto.
   const collapseInitialized = useRef(false)
   useEffect(() => {
-    if (collapseInitialized.current || merged.length === 0) return
+    if (collapseInitialized.current || nodes.length === 0) return
     collapseInitialized.current = true
-    setCollapsed(new Set(merged.map((d) => d.departmentName)))
+    setCollapsed(new Set(nodes.map((d) => d.key)))
     setCollapsedSections(new Set(sectionNames))
-  }, [merged, sectionNames])
+  }, [nodes, sectionNames])
 
   const allCollapsed =
-    (merged.length > 0 && merged.every((d) => collapsed.has(d.departmentName))) ||
+    (nodes.length > 0 && nodes.every((d) => collapsed.has(d.key))) ||
     (sectionNames.length > 0 && sectionNames.every((s) => collapsedSections.has(s)))
 
   function toggleCollapseAll() {
@@ -348,7 +440,7 @@ export function RoleEditor({ role, onSaved, onCancel }: RoleEditorProps) {
       setCollapsed(new Set())
       setCollapsedSections(new Set())
     } else {
-      setCollapsed(new Set(merged.map((d) => d.departmentName)))
+      setCollapsed(new Set(nodes.map((d) => d.key)))
       setCollapsedSections(new Set(sectionNames))
     }
   }
@@ -363,7 +455,7 @@ export function RoleEditor({ role, onSaved, onCancel }: RoleEditorProps) {
   }
 
   function selectAll() {
-    setSelected(new Set(merged.flatMap((d) => d.claims.map((c) => c.id))))
+    setSelected(new Set(nodes.flatMap((d) => nodeClaims(d).map((c) => c.id))))
   }
 
   function clearAll() {
@@ -626,9 +718,9 @@ export function RoleEditor({ role, onSaved, onCancel }: RoleEditorProps) {
             <div className="flex flex-col gap-3">
               {sections.map(({ section, deps }, secIdx) => {
                 const isSecCollapsed = collapsedSections.has(section) && !query
-                const secClaims = deps.reduce((n, d) => n + d.claims.length, 0)
+                const secClaims = deps.reduce((n, d) => n + nodeClaims(d).length, 0)
                 const secOn = deps.reduce(
-                  (n, d) => n + d.claims.filter((c) => selected.has(c.id)).length,
+                  (n, d) => n + nodeClaims(d).filter((c) => selected.has(c.id)).length,
                   0,
                 )
                 const hue = SECTION_HUES[secIdx % SECTION_HUES.length]
@@ -695,26 +787,26 @@ export function RoleEditor({ role, onSaved, onCancel }: RoleEditorProps) {
                     }}
                   >
                   {deps.map((dep) => {
-                    const ids = dep.claims.map((c) => c.id)
+                    const claims = nodeClaims(dep)
+                    const ids = claims.map((c) => c.id)
                     const on = ids.filter((id) => selected.has(id)).length
                     const allOn = on === ids.length && ids.length > 0
-                    const isCollapsed = collapsed.has(dep.departmentName) && !query
-                    // División tipo mockup: qué se puede VER vs qué se puede HACER.
-                    const grupos = [
-                      { label: 'Consulta', items: dep.claims.filter((c) => !isActionClaim(c.claimType)) },
-                      { label: 'Acciones', items: dep.claims.filter((c) => isActionClaim(c.claimType)) },
-                    ].filter((g) => g.items.length > 0)
+                    const isCollapsed = collapsed.has(dep.key) && !query
+                    // Encabezado por bloque solo cuando la pantalla tiene subdepartamentos (o es
+                    // la tarjeta de "sin ubicar", donde cada bloque es un departamento legacy).
+                    const showGroupHeaders = dep.groups.length > 1 || dep.groups.some((g) => g.label !== null)
+                    const isDrawer = DRAWERS.some((d) => d.key === dep.key)
 
                     // Módulo del sidebar sin permisos configurables todavía
                     if (ids.length === 0) {
                       return (
                         <div
-                          key={dep.departmentName}
+                          key={dep.key}
                           className="rounded-2xl px-3.5 py-2.5 flex items-center gap-2 flex-wrap"
                           style={{ border: '1px dashed var(--border-strong)', opacity: 0.7 }}
                         >
                           <span className="text-[12.5px] font-extrabold" style={{ color: 'var(--ink-500)' }}>
-                            {dep.departmentName}
+                            {dep.label}
                           </span>
                           <span
                             className="text-[10.5px] font-bold px-1.5 py-0.5 rounded-full"
@@ -730,15 +822,15 @@ export function RoleEditor({ role, onSaved, onCancel }: RoleEditorProps) {
                     }
                     return (
                   <div
-                    key={dep.departmentName}
+                    key={dep.key}
                     className="rounded-2xl overflow-hidden"
                     style={{ border: '1px solid var(--border)' }}
                   >
-                    {/* Header del departamento */}
+                    {/* Header de la pantalla */}
                     <div className="flex items-center gap-2 px-3.5 py-2.5" style={{ background: 'var(--muted)' }}>
                       <button
                         type="button"
-                        onClick={() => toggleCollapse(dep.departmentName)}
+                        onClick={() => toggleCollapse(dep.key)}
                         aria-expanded={!isCollapsed}
                         className="flex items-center gap-2 flex-1 min-w-0 text-left cursor-pointer rounded-lg -mx-1 px-1 py-0.5 active:scale-[0.99] role-collapse-toggle"
                       >
@@ -752,7 +844,7 @@ export function RoleEditor({ role, onSaved, onCancel }: RoleEditorProps) {
                           }}
                         />
                         <span className="text-[12.5px] font-extrabold truncate" style={{ color: 'var(--ink-900)' }}>
-                          {dep.departmentName}
+                          {dep.label}
                         </span>
                         <span
                           className="text-[10.5px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
@@ -768,7 +860,7 @@ export function RoleEditor({ role, onSaved, onCancel }: RoleEditorProps) {
                       </button>
                       <button
                         type="button"
-                        onClick={() => toggleDepartment(dep)}
+                        onClick={() => toggleClaims(claims)}
                         className="text-[11.5px] font-bold px-2 py-1 rounded-lg transition hover:opacity-80 flex-shrink-0"
                         style={{ color: 'var(--brand-700)' }}
                       >
@@ -794,29 +886,60 @@ export function RoleEditor({ role, onSaved, onCancel }: RoleEditorProps) {
                         }}
                         aria-hidden={isCollapsed}
                       >
-                        {grupos.map((g) => (
-                          <Fragment key={`${dep.departmentName}-${g.label}`}>
-                            <div
-                              className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.08em] px-1.5 pt-1.5"
-                              style={{ color: 'var(--ink-500)', gridColumn: '1 / -1' }}
-                            >
-                              {/* Punto de color: sky = consulta, coral = acciones */}
-                              <span
-                                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                                style={{ background: g.label === 'Consulta' ? 'var(--sky)' : 'var(--coral)' }}
-                              />
-                              {g.label}
-                            </div>
-                            {g.items.map((c) => {
+                        {dep.unplaced && (
+                          <div
+                            className="text-[11.5px] px-1.5 pt-1 pb-1.5"
+                            style={{ color: 'var(--ink-500)', gridColumn: '1 / -1' }}
+                          >
+                            Permisos que no pertenecen a ninguna pantalla del menú. Lo ideal es moverlos a su
+                            pantalla o subdepartamento (docs/permisos-y-departamentos.md del backend).
+                          </div>
+                        )}
+                        {dep.groups.map((g) => {
+                          const gOn = g.claims.filter((c) => selected.has(c.id)).length
+                          const gAllOn = gOn === g.claims.length
+                          return (
+                          <Fragment key={`${dep.key}-${g.key}`}>
+                            {showGroupHeaders && (
+                              <div
+                                className="flex items-center gap-1.5 px-1.5 pt-2"
+                                style={{ gridColumn: '1 / -1' }}
+                              >
+                                {/* Punto de color: sky = abre la pantalla, violet = subdepartamento */}
+                                <span
+                                  className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                  style={{ background: g.label === null ? 'var(--sky)' : 'var(--violet)' }}
+                                />
+                                <span
+                                  className="text-[10.5px] font-extrabold uppercase tracking-[0.08em]"
+                                  style={{ color: 'var(--ink-700)' }}
+                                >
+                                  {g.label ?? (isDrawer ? 'Generales' : 'Abre la pantalla')}
+                                </span>
+                                <span className="text-[10.5px] font-bold" style={{ color: 'var(--ink-400)' }}>
+                                  {gOn}/{g.claims.length}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleClaims(g.claims)}
+                                  className="ml-auto text-[11px] font-bold px-1.5 py-0.5 rounded-md transition hover:opacity-80"
+                                  style={{ color: 'var(--brand-700)' }}
+                                >
+                                  {gAllOn ? 'Quitar' : 'Todos'}
+                                </button>
+                              </div>
+                            )}
+                            {g.claims.map((c) => {
                               const active = selected.has(c.id)
+                              const action = isActionClaim(claimKey(c))
                               return (
                                 <button
-                                  key={`${dep.departmentName}-${c.id}`}
+                                  key={`${dep.key}-${c.id}`}
                                   type="button"
                                   onClick={() => toggle(c.id)}
                                   role="switch"
                                   aria-checked={active}
-                                  title={c.claimType}
+                                  title={claimKey(c)}
                                   className="rounded-xl px-3 py-2.5 flex items-center gap-3 text-left cursor-pointer active:scale-[0.99]"
                                   style={{
                                     // Card activa en verde suave (pedido explícito): el fondo
@@ -833,13 +956,25 @@ export function RoleEditor({ role, onSaved, onCancel }: RoleEditorProps) {
                                       className="block text-[12.5px] font-semibold leading-tight"
                                       style={{ color: 'var(--ink-900)' }}
                                     >
-                                      {claimLabel(c.claimType, c.description)}
+                                      {claimLabel(claimKey(c), c.description)}
                                     </span>
-                                    <span
-                                      className="block text-[10px] font-mono mt-0.5 truncate"
-                                      style={{ color: 'var(--ink-400)' }}
-                                    >
-                                      {c.claimType}
+                                    <span className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                                      {/* Qué se puede VER (consulta) vs qué se puede HACER (acción) */}
+                                      <span
+                                        className="text-[9.5px] font-extrabold uppercase tracking-[0.06em] px-1 rounded flex-shrink-0"
+                                        style={{
+                                          background: action ? 'var(--coral-soft)' : 'var(--sky-soft)',
+                                          color: 'var(--ink-700)',
+                                        }}
+                                      >
+                                        {action ? 'Acción' : 'Consulta'}
+                                      </span>
+                                      <span
+                                        className="block text-[10px] font-mono truncate"
+                                        style={{ color: 'var(--ink-400)' }}
+                                      >
+                                        {claimKey(c)}
+                                      </span>
                                     </span>
                                   </span>
                                   {/* Switch (palanca) — solo anima background y transform */}
@@ -862,7 +997,8 @@ export function RoleEditor({ role, onSaved, onCancel }: RoleEditorProps) {
                               )
                             })}
                           </Fragment>
-                        ))}
+                          )
+                        })}
                       </div>
                       </div>
                     </div>
