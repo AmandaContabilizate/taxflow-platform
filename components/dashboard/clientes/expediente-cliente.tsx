@@ -39,6 +39,7 @@ import {
   type StaffDeactivationPreview,
 } from '@/features/taxpayers/actions/taxpayerDeactivation.action'
 import { DeactivateTaxpayerModal } from './deactivate-taxpayer-modal'
+import { StaffEmailChangeModal } from './staff-email-change-modal'
 import { DISPLAY, MONO } from '../constants'
 import { AccountStatusChip } from '../cancelaciones/parts'
 import { Badge, Btn, Card, CiecUpdateModal, CiecValidationBadge, ErrorState, NoAccessState, Tabs, isForbiddenError } from '../ui'
@@ -153,6 +154,8 @@ export function ExpedienteCliente({ taxpayerId, permissions, onBack, initialTab 
   const canVistaCliente = permissions.includes('Gerencia.VistaCliente')
   // Baja del contribuyente (ARCO), junto a la CIEC. Hard lo decide el back (Admin.HardDeleteTaxpayer).
   const canDeactivate = permissions.includes('Contador.DeactivateTaxpayer')
+  // Cambio del correo de acceso de la cuenta del cliente (SAC / gerencia / admin).
+  const canChangeEmail = permissions.includes('Contador.UpdateClientEmail')
   const tabs = useMemo(() => {
     const t = [TAB_RESUMEN]
     if (canCredentials) t.push(TAB_CREDENCIALES)
@@ -172,6 +175,7 @@ export function ExpedienteCliente({ taxpayerId, permissions, onBack, initialTab 
   const [error, setError] = useState<string | null>(null)
   const [showCiecModal, setShowCiecModal] = useState(false)
   const [updateCiecRfc, setUpdateCiecRfc] = useState<string | null>(null)
+  const [showEmailModal, setShowEmailModal] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -273,7 +277,13 @@ export function ExpedienteCliente({ taxpayerId, permissions, onBack, initialTab 
 
       <Tabs items={tabs} active={tab} onChange={setTab} />
 
-      {activeTab === TAB_RESUMEN && <TabResumen data={data} ciecOk={ciecOk} />}
+      {activeTab === TAB_RESUMEN && (
+        <TabResumen
+          data={data}
+          ciecOk={ciecOk}
+          onChangeEmail={canChangeEmail ? () => setShowEmailModal(true) : undefined}
+        />
+      )}
       {/* La baja vive en Credenciales, pero esa pestaña exige Contador.GetSatPassword: quien solo
           tiene el permiso de baja (p. ej. SAC) la encuentra aquí. */}
       {activeTab === TAB_RESUMEN && canDeactivate && !canCredentials && (
@@ -329,6 +339,17 @@ export function ExpedienteCliente({ taxpayerId, permissions, onBack, initialTab 
       )}
       {activeTab === TAB_VISTA_CLIENTE && canVistaCliente && (
         <TabVistaCliente taxpayerId={taxpayerId} legalName={data.legalName} />
+      )}
+
+      {canChangeEmail && (
+        <StaffEmailChangeModal
+          isOpen={showEmailModal}
+          onClose={() => setShowEmailModal(false)}
+          taxpayerId={data.taxpayerId}
+          onChanged={(newEmail) => {
+            setData((prev) => (prev ? { ...prev, email: newEmail } : prev))
+          }}
+        />
       )}
 
       {showCiecModal && updateCiecRfc && (
@@ -503,7 +524,7 @@ function EquipoChip({ nombre, rol }: { nombre: string | null; rol: string }) {
   )
 }
 
-function TabResumen({ data, ciecOk }: { data: ExpedienteCliente; ciecOk: boolean }) {
+function TabResumen({ data, ciecOk, onChangeEmail }: { data: ExpedienteCliente; ciecOk: boolean; onChangeEmail?: () => void }) {
   const presentadas = data.periodos.filter((p) => p.presentada).length
   return (
     <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))' }}>
@@ -519,7 +540,16 @@ function TabResumen({ data, ciecOk }: { data: ExpedienteCliente; ciecOk: boolean
               ? data.regimenes.map((r) => `${r.name}${r.satCode ? ` (${r.satCode})` : ''}`).join(' · ')
               : '—'}
           </Dato>
-          <Dato label="Correo">{data.email ?? '—'}</Dato>
+          <Dato label="Correo">
+            <span className="inline-flex items-center gap-2 flex-wrap">
+              <span className="break-all">{data.email ?? '—'}</span>
+              {onChangeEmail && (
+                <Btn size="sm" kind="ghost" onClick={onChangeEmail}>
+                  Cambiar
+                </Btn>
+              )}
+            </span>
+          </Dato>
           <Dato label="Teléfono">{data.phone ?? '—'}</Dato>
           <Dato label="Fecha de creación">{fmtDate(data.createdAt)}</Dato>
           <Dato label="Ventas pagadas">{String(data.ventasPagadas)}</Dato>
