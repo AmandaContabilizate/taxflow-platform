@@ -542,6 +542,11 @@ ROLE_NAV.administrator = MASTER_NAV_SECTIONS.flatMap((s) => s.items)
  * endpoints. Un módulo SIN entrada aquí no aparece para nadie (aún no tiene
  * permisos configurables, p. ej. Partnership, Bandeja, Upsell); cuando reciba
  * su primer claim, se agrega aquí y se administra desde Roles y permisos.
+ *
+ * El claim se siembra en el backend en el departamento con ModuleKey = id del ítem
+ * (o '<id>/<slug>' si se usa dentro de la pantalla). Pregunta en qué pantalla y
+ * subdepartamento va antes de crearlo: ver AGENTS.md y
+ * ContaboxPro.Backend/docs/permisos-y-departamentos.md.
  */
 export const MODULE_CLAIMS: Record<string, string[]> = {
   // El item Dashboard del sidebar usa id 'home' (la pantalla del cliente y la

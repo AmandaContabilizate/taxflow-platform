@@ -923,7 +923,7 @@ function PurchasedTable({
                     {[
                       'Ejercicio',
                       'Periodo',
-                      'Creado',
+                      'Asignada a venta',
                       'Régimen',
                       ...(mode === 'all' ? ['Tipo'] : []),
                       'Estatus',
@@ -949,8 +949,8 @@ function PurchasedTable({
                         <td className="px-5 py-4 font-semibold" style={{ color: 'var(--ink-900)' }}>{d.fiscalYear}</td>
                         <td className="px-5 py-4" style={{ color: 'var(--ink-700)' }}>{periodLabel(d.periodValueId)}</td>
                         <td className="px-5 py-4 whitespace-nowrap text-[13px] tabular-nums" style={{ color: 'var(--ink-700)' }}>
-                          {d.createdAt
-                            ? new Date(d.createdAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
+                          {d.saleAssignedAt
+                            ? new Date(d.saleAssignedAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
                             : '—'}
                         </td>
                         <td className="px-5 py-4" style={{ color: 'var(--ink-700)' }}>{d.taxRegimeName ?? '—'}</td>

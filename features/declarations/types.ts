@@ -685,7 +685,10 @@ export interface TaxpayerDeclarationItem {
   legalName?: string | null
   /** Semáforo de posteo; sólo viene en estatus 11 (PorPresentar). */
   postingReadiness?: PostingReadiness | null
+  /** `Declaration.CreteAt`: alta de la fila; puede ser anterior a la compra (se reutilizan filas del scraper). */
   createdAt?: string | null
+  /** `SaleDeclaration.AssignedAt` de la liga activa: cuándo se asignó la declaración a la venta. */
+  saleAssignedAt?: string | null
   /** `Users.Taxpayers.PasswordState`: 0 sin verificar, 1 válida, 2 inválida. */
   ciecState?: number
   /** 0 = presentación normal; > 0 = número de complementaria. */

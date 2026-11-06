@@ -50,7 +50,10 @@ export interface DeclarationListItem {
   /** Contador asignado hoy al contribuyente (TaxpayerAccountant activo). Null = sin asignar. */
   accountantUserId?: string | null;
   accountantName?: string | null;
+  /** `Declaration.CreteAt`: alta de la fila. */
   createdAt?: string | null;
+  /** `SaleDeclaration.AssignedAt` de la liga activa; null si la declaración no está comprada. */
+  saleAssignedAt?: string | null;
 }
 
 /**

@@ -62,6 +62,15 @@ export interface ClaimsDepartmentDto {
   departmentId: number;
   departmentName: string;
   departmentCode: string;
+  /**
+   * Id del ítem del sidebar (pantalla), '<id>/<slug>' (subdepartamento) o cajón sin pantalla
+   * ('portal-cliente', 'cuenta', 'sistema-interno', 'legado'). null = departamento legacy sin
+   * ubicar. Ausente en backends anteriores a AlignDepartmentsToSidebarModules.
+   */
+  moduleKey?: string | null;
+  /** Subdepartamento → departamento pantalla. */
+  parentId?: number | null;
+  sortOrder?: number | null;
   claims: ClaimCatalogItemDto[];
 }
 
