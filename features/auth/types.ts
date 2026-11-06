@@ -41,6 +41,20 @@ export interface EmailChangeRequestResponse {
   resendAvailableAt: string; // ISO
 }
 
+/** GET staff/taxpayers/{id}/email-change-preview. `blockedReason` != null → no se puede cambiar. */
+export interface StaffEmailChangePreview {
+  userId: string;
+  currentEmail: string;
+  rfcs: string[];
+  blockedReason: string | null;
+}
+
+export interface StaffEmailChangeResult {
+  userId: string;
+  oldEmail: string;
+  newEmail: string;
+}
+
 export interface EmailChangeError {
   statusCode: number;
   message: string;
