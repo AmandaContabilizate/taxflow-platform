@@ -85,3 +85,57 @@ export interface IvaFavorBalancesError {
 export function appliedInSystem(b: Pick<IvaFavorBalance, 'applications'>): number {
   return (b.applications ?? []).reduce((acc, a) => acc + (Number(a.appliedAmount) || 0), 0)
 }
+
+// ---------- Saldos leídos de los acuses del SAT (GET api/IvaFavorBalances/sat/{declarationId}) ----------
+
+/** `SatFavorApplicationPayloadDto`: declaración cuyo acuse aplicó parte del saldo. */
+export interface SatFavorApplication {
+  fiscalYear: number
+  month: number
+  declarationId: number
+  operationNumber: string | null
+  /** "Creditable" (acreditamiento) / "Compensation" (compensación). */
+  kind: string
+  amount: number
+}
+
+/** `SatFavorBalancePayloadDto`: saldo de un mes anterior según el acuse del SAT, con remanente > 0. */
+export interface SatFavorBalance {
+  fiscalYear: number
+  month: number
+  declarationId: number
+  complementNumber: number
+  operationNumber: string | null
+  declarationType: string | null
+  complementaryType: string | null
+  /** ISO 8601 con offset (hora de la Ciudad de México). */
+  presentedAt: string | null
+  originalAmount: number
+  /** Lo aplicado en acuses anteriores y, en el 612, en meses sin acuse según nuestro cálculo. */
+  appliedAmount: number
+  remainingAmount: number
+  applications: SatFavorApplication[]
+}
+
+/** `IvaFavorBalancePayloadDto`: saldo de nuestro cálculo de un mes que todavía no tiene acuse leído. */
+export interface CalculatedFavorBalance {
+  id: number
+  originFiscalYear: number
+  originMonth: number
+  operationNumber: string | null
+  declarationType: string | null
+  presentedDate: string | null
+  originalAmount: number
+  remainingAmount: number
+  originDeclarationId: number | null
+}
+
+/** `SatFavorBalancesForDeclarationDto`. En el 612 son los mismos saldos que recibe el clasificador. */
+export interface SatFavorBalancesForDeclaration {
+  declarationId: number
+  fiscalYear: number
+  month: number
+  iva: SatFavorBalance[]
+  isr: SatFavorBalance[]
+  calculated: CalculatedFavorBalance[]
+}

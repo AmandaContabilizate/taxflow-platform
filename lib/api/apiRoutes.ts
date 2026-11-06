@@ -769,6 +769,8 @@ export const API_ROUTES = {
     LIST: (rfc: string) => `?rfc=${encodeURIComponent(rfc)}`,
     CREATE: "",
     UPDATE: (id: number) => `/${id}`,
+    /** Saldos del SAT (acuses leídos) disponibles para la declaración. */
+    SAT: (declarationId: number) => `/sat/${declarationId}`,
   },
   // Cancelación comercial de declaraciones y clientes (módulo Cancelaciones, gerencia de ventas).
   // Lectura en Reports (apiType "cancellations_reports"), escritura de declaraciones en Procedures

@@ -19,6 +19,7 @@ import {
 } from '@/features/iva-favor-balances/types'
 import { MONO } from '../constants'
 import { Badge, Card } from '../ui'
+import { SaldosFavorSatCard } from './saldos-favor-sat-card'
 import {
   InlineNotice,
   MES_OPCIONES,
@@ -272,13 +273,15 @@ export const SaldosFavorIvaTab = memo(function SaldosFavorIvaTab({
         </InlineNotice>
       )}
 
+      <SaldosFavorSatCard declarationId={declarationId} />
+
       <Card>
         <PanelHeader612
-          title="Saldos a favor de IVA"
+          title="Saldos registrados en el sistema"
           subtitle={
             query.isSuccess
-              ? `${saldos.length} saldo${saldos.length === 1 ? '' : 's'} · remanente total ${fmtMoney(totalRemanente)}`
-              : 'Se aplican del más antiguo al más reciente, sin pasar del IVA a cargo'
+              ? `${saldos.length} saldo${saldos.length === 1 ? '' : 's'} · remanente total ${fmtMoney(totalRemanente)} · los de meses con acuse leído se toman del SAT`
+              : 'Captura manual y saldos de nuestro cálculo'
           }
           right={
             !form && (

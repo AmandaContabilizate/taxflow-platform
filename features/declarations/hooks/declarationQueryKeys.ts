@@ -69,6 +69,8 @@ export const declarationKeys = {
   fixedAssets: (id: number, rfc: string) => ['decl', id, 'fixed-assets', rfc] as const,
   /** 612: saldos a favor de IVA. El recálculo registra aplicaciones y el saldo generado. */
   ivaFavorBalances: (id: number, rfc: string) => ['decl', id, 'iva-favor', rfc] as const,
+  /** Saldos a favor leídos de los acuses del SAT, vistos desde la declaración. */
+  satFavorBalances: (id: number) => ['decl', id, 'sat-favor'] as const,
 }
 
 export const catalogKeys = {
