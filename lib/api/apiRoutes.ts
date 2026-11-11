@@ -160,6 +160,10 @@ export const API_ROUTES = {
     EMAIL_CHANGE_REQUEST: "/email-change/request",
     EMAIL_CHANGE_RESEND: "/email-change/resend",
     EMAIL_CHANGE_CONFIRM: "/email-change/confirm",
+    // Cambio de correo de un cliente por staff desde el expediente (policy Contador.UpdateClientEmail).
+    // El correo es de la cuenta: afecta a todos sus RFCs (el preview los lista).
+    STAFF_EMAIL_CHANGE_PREVIEW: (taxpayerId: number) => `/staff/taxpayers/${taxpayerId}/email-change-preview`,
+    STAFF_EMAIL_CHANGE: (taxpayerId: number) => `/staff/taxpayers/${taxpayerId}/email`,
   },
   // Equipo comercial — módulo de comisiones. apiType "team" (Identity)
   TEAM: {
