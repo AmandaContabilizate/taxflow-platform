@@ -779,6 +779,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
           taxRegimeId={general?.taxRegimeId ?? null}
           periodo={`${periodo} ${ejercicio}`}
           recalc={recalc}
+          es612={es612}
         />
       )}
       {tab === 3 &&

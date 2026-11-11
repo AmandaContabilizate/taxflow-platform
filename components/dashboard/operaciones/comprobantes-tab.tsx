@@ -16,6 +16,7 @@ import { type ReactNode, memo, useCallback, useEffect, useMemo, useRef, useState
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { InvoiceFilterKey, WithholdingFilterKey } from '@/features/declarations/hooks/declarationQueryKeys'
 import {
+  useDeclarationCalculations,
   useDeclarationInvoices,
   useDeclarationWithholdings,
 } from '@/features/declarations/hooks/useDeclarationQueries'
@@ -31,6 +32,7 @@ import type {
 } from '@/features/operations/types'
 import { Pagination } from '../clientes/parts'
 import { MONO } from '../constants'
+import { type Json, num } from './calc-read'
 import { Card } from '../ui'
 import { useUrlState } from '../url-state'
 import { type ColumnKey, COLUMN_DEFS, type ColumnDef } from './column-defs'
@@ -768,6 +770,19 @@ export const ComprobantesTab = memo(function ComprobantesTab({
     retSkip,
   )
   const page = invQ.isError ? EMPTY_PAGE : (invQ.data ?? EMPTY_PAGE)
+
+  // IVA de TODA la declaración, del último cálculo (misma caché que la pestaña Cálculos), para
+  // no confundirlo con "IVA (en esta página)". Llaves: 612/626 (IVAAcreditableDelPeriodo,
+  // TotalIvaCobradoDelPeriodo, y sus alias totalIvaCreditable/totalTaxe16) y 625
+  // (ivaExpenseTotal/ivaCaused). Sin cálculo, no se muestra nada.
+  const calcQ = useDeclarationCalculations(declarationId, consulta)
+  const ivaDeclaracion = useMemo(() => {
+    const iva = (calcQ.data?.iva ?? null) as Json | null
+    return {
+      acreditable: num(iva, ['IVAAcreditableDelPeriodo', 'totalIvaCreditable', 'ivaExpenseTotal']),
+      trasladado: num(iva, ['TotalIvaCobradoDelPeriodo', 'totalTaxe16', 'ivaCaused']),
+    }
+  }, [calcQ.data])
   const loading = invQ.isPending
   const error = invQ.error?.message ?? null
   const retPage = retQ.isError ? EMPTY_PAGE : (retQ.data ?? EMPTY_PAGE)
@@ -1117,6 +1132,12 @@ export const ComprobantesTab = memo(function ComprobantesTab({
                   : []),
                 ...(effectiveColSet.has('iva')
                   ? ([['IVA (en esta página)', totales.ivaResuelto ? money(totales.iva) : '—']] as [string, string][])
+                  : []),
+                ...(origen !== 'false' && ivaDeclaracion.trasladado != null
+                  ? ([['IVA trasladado (total de la declaración)', money(ivaDeclaracion.trasladado)]] as [string, string][])
+                  : []),
+                ...(origen !== 'true' && ivaDeclaracion.acreditable != null
+                  ? ([['IVA acreditable (total de la declaración)', money(ivaDeclaracion.acreditable)]] as [string, string][])
                   : []),
               ]}
               nota={<CuadreNota cuadre={totales.cuadre} />}

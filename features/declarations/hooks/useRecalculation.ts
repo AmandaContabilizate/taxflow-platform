@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createFixedAsset } from '@/features/fixed-assets/actions/createFixedAsset.action'
 import { recalculateDeclaration } from '../actions/recalculateDeclaration.action'
 import type { ClassificationAdjustment, RecalcScopeState, RecalculationResult } from '../types'
 
@@ -42,6 +43,10 @@ export function useRecalculation(
   // desmonta al cambiar de tab y el contador perdía lo que había corregido sin mandarlo.
   const [adjustments, setAdjustments] = useState<Record<string, ClassificationAdjustment>>({})
   const [scopeByUuid, setScopeByUuid] = useState<Record<string, RecalcScopeState>>({})
+  // 612: gastos que el contador pidió registrar como activo fijo (UUID → FixedAssetType.Code). Se
+  // dan de alta ANTES del recálculo para que esa misma corrida cree la capa y saque el monto de
+  // compras y gastos; la depreciación empieza el mes siguiente.
+  const [assetMarks, setAssetMarks] = useState<Record<string, string>>({})
 
   // El callback llega como función inline: se guarda en un ref para no reconstruir `run`.
   const onSuccessRef = useRef(onSuccess)
@@ -59,7 +64,7 @@ export function useRecalculation(
   const ready = Boolean(target.rfc && target.periodValueId && target.regimeSatCode)
 
   const run = useCallback(
-    async (adjustments: ClassificationAdjustment[] = []) => {
+    async (adjustments: ClassificationAdjustment[] = [], assets: { uuid: string; assetTypeCode: string }[] = []) => {
       if (runningRef.current) return
       if (!ready) {
         setError('La declaración no tiene periodo o régimen asignado: no se puede recalcular.')
@@ -75,6 +80,24 @@ export function useRecalculation(
       // deploy nuevo) rechazaba la promesa: el spinner se quedaba contando para siempre y los
       // clics siguientes salían en silencio por el `runningRef`.
       try {
+        for (const a of assets) {
+          const created = await createFixedAsset({
+            rfc: target.rfc,
+            declarationId: target.declarationId,
+            invoiceUuid: a.uuid,
+            assetTypeCode: a.assetTypeCode,
+          })
+          // Ya era activo (confirmado, sugerido o descartado): no se duplica; se cambia en Gastos.
+          if (!created.success && created.error.code !== 'FIXED_ASSET_ALREADY_EXISTS') {
+            setError(`No se pudo registrar como activo fijo el comprobante ${a.uuid}: ${created.error.message}`)
+            return
+          }
+          setAssetMarks((prev) => {
+            const { [a.uuid]: _drop, ...rest } = prev
+            return rest
+          })
+        }
+
         const res = await recalculateDeclaration({
           declarationId: target.declarationId,
           rfc: target.rfc,
@@ -123,8 +146,10 @@ export function useRecalculation(
       setAdjustments,
       scopeByUuid,
       setScopeByUuid,
+      assetMarks,
+      setAssetMarks,
     }),
-    [running, startedAt, result, error, ready, run, adjustments, scopeByUuid],
+    [running, startedAt, result, error, ready, run, adjustments, scopeByUuid, assetMarks],
   )
 }
 

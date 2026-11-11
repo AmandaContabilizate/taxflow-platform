@@ -9,6 +9,7 @@ import {
 } from '@/features/declarations/hooks/useDeclarationQueries'
 import type { PeriodInvoicesKey } from '@/features/declarations/hooks/declarationQueryKeys'
 import type { Recalculation } from '@/features/declarations/hooks/useRecalculation'
+import { useFixedAssetTypes, useFixedAssets } from '@/features/fixed-assets/hooks/useFixedAssets'
 import { periodMonthRange } from '@/features/declarations/periods'
 import type {
   ClassificationAdjustment,
@@ -27,6 +28,7 @@ import {
 } from './comprobantes-tab'
 import { type ColumnKey, COLUMN_DEFS } from './column-defs'
 import { ColumnsModal, FilterSelect } from './filter-columns'
+import { CLASIFICACION_A_ACTIVO } from './parts-612'
 import { RecalcSeconds } from './recalc-seconds'
 import { MONO } from '../constants'
 import { Card } from '../ui'
@@ -44,6 +46,17 @@ interface Props {
   recalc: Recalculation
   /** Solo lectura: se ve el resultado pero no se reclasifica ni se dispara el cálculo. */
   readOnly?: boolean
+  /** 612: ofrece registrar como activo fijo los gastos clasificados en una categoría de activo. */
+  es612?: boolean
+}
+
+/** Opción "registrar como activo fijo" de una fila (solo 612). */
+interface AssetOption {
+  /** FixedAssetType.Code que le toca por su clasificación. */
+  code: string
+  /** Estatus del activo que ya existe para ese UUID; `null` si no hay. */
+  existing: string | null
+  marked: boolean
 }
 
 type Deducible = '' | 'true' | 'false'
@@ -146,6 +159,7 @@ export const RecalculoTab = memo(function RecalculoTab({
   periodo,
   recalc,
   readOnly = false,
+  es612 = false,
 }: Props) {
   const { params, setParams } = useUrlState()
 
@@ -154,7 +168,7 @@ export const RecalculoTab = memo(function RecalculoTab({
   // Ajustes y alcance por fila (E2/E7) viven en `recalc` para sobrevivir al cambio de
   // pestaña. El alcance va aparte porque elegirlo, por sí solo, no es un cambio que se
   // deba mandar (ver `hasChanges`).
-  const { adjustments, setAdjustments, scopeByUuid, setScopeByUuid } = recalc
+  const { adjustments, setAdjustments, scopeByUuid, setScopeByUuid, assetMarks, setAssetMarks } = recalc
 
   // Filtros de comprobantes, pero EN CLIENTE: el EP de recálculo no los
   // soporta y ya trae el universo completo del periodo en memoria.
@@ -204,6 +218,18 @@ export const RecalculoTab = memo(function RecalculoTab({
   const categoriesQ = useClassificationCategories(!readOnly)
   const categories = categoriesQ.data ?? EMPTY_CATEGORIES
 
+  // 612: activos ya registrados del contribuyente (por UUID de origen) y tipos que existen en el
+  // catálogo; una categoría cuyo tipo no está en BD no ofrece la opción.
+  const assetsEnabled = es612 && !readOnly
+  const { query: assetsQ } = useFixedAssets(assetsEnabled ? declarationId : 0, assetsEnabled ? rfc : '')
+  const typesQ = useFixedAssetTypes(assetsEnabled)
+  const assetStatusByUuid = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const a of assetsQ.data ?? []) if (a.originUuid) map.set(a.originUuid.toUpperCase(), a.status)
+    return map
+  }, [assetsQ.data])
+  const typeCodes = useMemo(() => new Set((typesQ.data ?? []).map((t) => t.code)), [typesQ.data])
+
   const invoiceByUuid = useMemo(() => {
     const map: Record<string, DeclarationPeriodInvoice> = {}
     for (const inv of invoices) map[inv.uuid] = inv
@@ -233,6 +259,12 @@ export const RecalculoTab = memo(function RecalculoTab({
         }),
     [adjustments, scopeByUuid, invoiceByUuid, productCodeByUuid],
   )
+
+  const pendingAssets = useMemo(
+    () => Object.entries(assetMarks).map(([uuid, assetTypeCode]) => ({ uuid, assetTypeCode })),
+    [assetMarks],
+  )
+  const pendingCount = pending.length + pendingAssets.length
 
   // Alcance != "declaration" sin ninguna clave resuelta: el back respondería
   // 422. Se bloquea el botón antes de mandarlo.
@@ -318,18 +350,55 @@ export const RecalculoTab = memo(function RecalculoTab({
     [setAdjustments],
   )
 
+  /** Opción de activo fijo que le toca a un comprobante por su clasificación, o null si no aplica. */
+  const assetOptionFor = useCallback(
+    (inv: DeclarationPeriodInvoice, classification: string | null | undefined): AssetOption | null => {
+      if (!assetsEnabled || inv.isIssued || inv.tipoComprobante !== 1) return null
+      const code = classification ? CLASIFICACION_A_ACTIVO[classification] : undefined
+      if (!code || !typeCodes.has(code)) return null
+      return {
+        code,
+        existing: assetStatusByUuid.get(inv.uuid.toUpperCase()) ?? null,
+        marked: assetMarks[inv.uuid] != null,
+      }
+    },
+    [assetsEnabled, typeCodes, assetStatusByUuid, assetMarks],
+  )
+
+  const toggleAsset = useCallback(
+    (uuid: string, code: string | null) =>
+      setAssetMarks((prev) => {
+        const { [uuid]: _drop, ...rest } = prev
+        return code ? { ...rest, [uuid]: code } : rest
+      }),
+    [setAssetMarks],
+  )
+
+  // Al elegir una categoría de activo se marca "registrar como activo fijo" (el contador la
+  // puede desmarcar); al cambiarla a otra, se desmarca.
+  const changeClassification = useCallback(
+    (uuid: string, classification: string | undefined) => {
+      patch(uuid, { classification })
+      const inv = invoiceByUuid[uuid]
+      const opt = inv && classification ? assetOptionFor(inv, classification) : null
+      toggleAsset(uuid, opt && !opt.existing ? opt.code : null)
+    },
+    [patch, invoiceByUuid, assetOptionFor, toggleAsset],
+  )
+
   const clearRow = useCallback(
     (uuid: string) => {
       setAdjustments((prev) => {
         const { [uuid]: _drop, ...rest } = prev
         return rest
       })
+      toggleAsset(uuid, null)
       setScopeByUuid((prev) => {
         const { [uuid]: _drop, ...rest } = prev
         return rest
       })
     },
-    [setAdjustments, setScopeByUuid],
+    [setAdjustments, setScopeByUuid, toggleAsset],
   )
 
   /** "Todos" es la única opción que toca datos de terceros: exige confirmación. */
@@ -390,11 +459,12 @@ export const RecalculoTab = memo(function RecalculoTab({
 
             {!readOnly && (
               <div className="flex items-center gap-2 flex-wrap">
-                {pending.length > 0 && (
+                {pendingCount > 0 && (
                   <button
                     onClick={() => {
                       setAdjustments({})
                       setScopeByUuid({})
+                      setAssetMarks({})
                     }}
                     disabled={recalc.running}
                     className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-[12.5px] font-bold transition hover:opacity-90 disabled:opacity-50"
@@ -404,12 +474,12 @@ export const RecalculoTab = memo(function RecalculoTab({
                       color: 'var(--foreground)',
                     }}
                   >
-                    <Undo2 size={15} /> Descartar {pending.length} ajuste
-                    {pending.length === 1 ? '' : 's'}
+                    <Undo2 size={15} /> Descartar {pendingCount} ajuste
+                    {pendingCount === 1 ? '' : 's'}
                   </button>
                 )}
                 <button
-                  onClick={() => void recalc.run(pending)}
+                  onClick={() => void recalc.run(pending, pendingAssets)}
                   disabled={recalc.running || !recalc.ready || hasScopeError}
                   className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition hover:opacity-95 active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100"
                   style={{
@@ -426,8 +496,8 @@ export const RecalculoTab = memo(function RecalculoTab({
                   ) : (
                     <>
                       <RotateCcw size={15} />
-                      {pending.length > 0
-                        ? `Recalcular con ${pending.length} ajuste${pending.length === 1 ? '' : 's'}`
+                      {pendingCount > 0
+                        ? `Recalcular con ${pendingCount} ajuste${pendingCount === 1 ? '' : 's'}`
                         : 'Recalcular'}
                     </>
                   )}
@@ -671,8 +741,11 @@ export const RecalculoTab = memo(function RecalculoTab({
                         gastos={gastos}
                         ingresos={ingresos}
                         onPatch={patch}
+                        onClassification={changeClassification}
                         onClear={clearRow}
                         onScope={setScope}
+                        asset={assetOptionFor(inv, adjustments[inv.uuid]?.classification ?? inv.classification)}
+                        onToggleAsset={toggleAsset}
                       />
                     )
                   })}
@@ -722,8 +795,12 @@ interface RecalcRowProps {
   gastos: ClassificationCategory[]
   ingresos: ClassificationCategory[]
   onPatch: (uuid: string, change: Partial<ClassificationAdjustment>) => void
+  onClassification: (uuid: string, classification: string | undefined) => void
   onClear: (uuid: string) => void
   onScope: (uuid: string, scope: ClassificationAdjustmentScope) => void
+  /** 612: opción de registrar el gasto como activo fijo; `null` si no aplica. */
+  asset: AssetOption | null
+  onToggleAsset: (uuid: string, code: string | null) => void
 }
 
 const RecalcRow = memo(function RecalcRow({
@@ -740,8 +817,11 @@ const RecalcRow = memo(function RecalcRow({
   gastos,
   ingresos,
   onPatch,
+  onClassification,
   onClear,
   onScope,
+  asset,
+  onToggleAsset,
 }: RecalcRowProps) {
   // Otro régimen (E3) y PPD sin complemento: visibles, no computables, sin ajustes.
   const rowDisabled = baseDisabled || inv.isOtherRegime || inv.isPpdWithoutComplement
@@ -908,11 +988,7 @@ const RecalcRow = memo(function RecalcRow({
             ) : null}
             <select
               value={adj?.classification ?? ''}
-              onChange={(e) =>
-                onPatch(inv.uuid, {
-                  classification: e.target.value || undefined,
-                })
-              }
+              onChange={(e) => onClassification(inv.uuid, e.target.value || undefined)}
               disabled={rowDisabled}
               className="w-full px-2.5 py-2 rounded-lg text-[12.5px] disabled:opacity-60"
               style={{
@@ -981,6 +1057,24 @@ const RecalcRow = memo(function RecalcRow({
               />
             )}
 
+            {asset &&
+              (asset.existing ? (
+                <span className="text-[11.5px]" style={{ color: 'var(--ink-500)' }}>
+                  Ya es activo fijo ({asset.existing}); se administra en la pestaña Gastos.
+                </span>
+              ) : (
+                <label className="flex items-start gap-2 text-[12px] cursor-pointer" style={{ color: 'var(--ink-700)' }}>
+                  <input
+                    type="checkbox"
+                    checked={asset.marked}
+                    onChange={(e) => onToggleAsset(inv.uuid, e.target.checked ? asset.code : null)}
+                    disabled={rowDisabled}
+                    className="mt-0.5"
+                  />
+                  <span>Registrar como activo fijo: se deprecia desde el mes siguiente</span>
+                </label>
+              ))}
+
             <ScopeSelector
               state={scopeState ?? DEFAULT_SCOPE_STATE}
               productCode={productCode}
@@ -989,7 +1083,7 @@ const RecalcRow = memo(function RecalcRow({
               onScopeChange={(scope) => onScope(inv.uuid, scope)}
             />
 
-            {adj && hasChanges(adj) && (
+            {((adj && hasChanges(adj)) || asset?.marked) && (
               <button
                 onClick={() => onClear(inv.uuid)}
                 disabled={running}

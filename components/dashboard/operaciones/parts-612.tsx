@@ -8,6 +8,23 @@ import { money, percent } from './calc-read'
 
 export const REGIMEN_612 = '612'
 
+/**
+ * Categoría del catálogo de clasificaciones → tipo de activo fijo (`FixedAssetType.Code`). Misma
+ * tabla que `CLASIFICACION_A_TIPO` del clasificador (app/domain/fiscal/activos_fijos.py). Si el
+ * contador reclasifica un gasto en una de estas, Recálculo le ofrece registrarlo como activo fijo
+ * para que se deprecie (sin el umbral de monto de las sugerencias).
+ */
+export const CLASIFICACION_A_ACTIVO: Readonly<Record<string, string>> = {
+  'Automóvil': 'AUTOMOVIL',
+  'Automóvil Eléctrico': 'AUTOMOVIL_ELECTRICO',
+  'Equipo de cómputo': 'EQUIPO_COMPUTO',
+  'Mobiliario y equipo': 'MOBILIARIO_EQUIPO',
+  'Gastos de instalación': 'GASTOS_INSTALACION',
+  'Gastos preoperativos': 'GASTOS_PREOPERATIVOS',
+  'Maquinaria y equipo': 'MAQUINARIA_EQUIPO',
+  'Edificios y construcciones': 'EDIFICIOS_CONSTRUCCIONES',
+}
+
 const MESES = [
   'Enero',
   'Febrero',
