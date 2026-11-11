@@ -149,6 +149,8 @@ export const API_ROUTES = {
     REMOVE_ROLE: "/remove-role",
     ROLES: (userId: string) => `/${encodeURIComponent(userId)}/roles`,
     SWITCH_ROLE: "/switch-role",
+    /** GET users (Identity). Roles del propio usuario, sin AssignRole: selector "Cambiar de rol". */
+    MY_ROLES: "/me/roles",
     /** POST users (Identity). Baja Soft de TODOS los contribuyentes y de la cuenta (flujo legado, solo contraseña). */
     DELETE_ACCOUNT: "/delete-account",
     /** GET users (Identity). Contribuyentes activos del usuario con su saldo prepagado, para el modal de baja. */
@@ -561,6 +563,9 @@ export const API_ROUTES = {
     CAN_RUN_CLIENTE: (rfc: string) => `/cliente/puede-ejecutar?rfc=${encodeURIComponent(rfc)}`,
     // ¿Terminó el diagnóstico del propio cliente? Candado de compra: sin terminar solo trámites.
     ESTADO_CLIENTE: (rfc: string) => `/cliente/estado?rfc=${encodeURIComponent(rfc)}`,
+    // Pasos del diagnóstico (credenciales, constancia, opinión, declaraciones, compra) para el
+    // modal "i" de Diagnóstico y la redirección después del login.
+    PASOS_CLIENTE: (rfc: string) => `/cliente/pasos?rfc=${encodeURIComponent(rfc)}`,
     RUN_VENDEDOR: (taxpayerId: number) => `/vendedor/${taxpayerId}`,
     CAN_RUN_VENDEDOR: (taxpayerId: number) => `/vendedor/puede-ejecutar/${taxpayerId}`,
     // Declaraciones pendientes (13/14) que el diagnóstico encontró — backoffice.

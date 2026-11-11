@@ -52,6 +52,8 @@ export const PUBLIC_NONAUTH_ROUTES: string[] = [
 
 export const PUBLIC_NO_AUTH_PATTERNS: RegExp[] = [
   /^\/api\/webhooks(\/.*)?$/, // webhooks de Stripe etc.
+  // Previsualizaciones con datos simulados (app/dev/*): solo existen en `next dev`.
+  ...(process.env.NODE_ENV === "development" ? [/^\/dev(\/.*)?$/] : []),
 ];
 
 export function isPublicDynamicRoute(pathname: string): boolean {

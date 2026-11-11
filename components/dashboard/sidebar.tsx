@@ -2,14 +2,16 @@
 
 import type { ComponentType } from 'react'
 import { useState, useEffect } from 'react'
-import { ChevronDown, LogOut, Moon, Plus, Sun, PanelLeftClose, PanelLeftOpen, UserPlus, PlusCircle, X } from 'lucide-react'
+import { ArrowLeftRight, ChevronDown, LogOut, Moon, Plus, Sun, PanelLeftClose, PanelLeftOpen, UserPlus, PlusCircle, X } from 'lucide-react'
 import Image from 'next/image'
 import { useTheme } from 'next-themes'
+import { myRoleLabel, useMyRoles } from '@/features/roles/hooks/useMyRoles'
 import { useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import { useNotifications } from '@/hooks/useNotifications'
 import { DISPLAY, MONO, ROLE_NAV, roleNavSections, normalizeRole } from './constants'
 import type { GoFn, NavDef, Screen } from './types'
 import { RFCSelector } from './rfc-selector'
+import { RoleSwitcherModal } from './roles/role-switcher'
 
 interface SidebarProps {
   screen: Screen
@@ -41,6 +43,10 @@ export function Sidebar({
   onToggleCollapse,
 }: SidebarProps) {
   const [mounted, setMounted] = useState(false)
+  // Rol activo + ícono de cambio solo con 2 o más roles; con uno no se pinta nada.
+  const myRoles = useMyRoles()
+  const [roleModalOpen, setRoleModalOpen] = useState(false)
+  const activeRoleLabel = myRoles.active ? myRoleLabel(myRoles.active) : null
   useEffect(() => {
     setMounted(true)
   }, [])
@@ -250,7 +256,7 @@ export function Sidebar({
           className={`mt-3 flex-shrink-0 rounded-2xl flex items-center gap-2.5 transition-all duration-300 ${collapsed ? 'p-2 justify-center flex-col gap-2' : 'p-3.5'}`}
           style={{ background: 'var(--sidebar-accent)', border: '1.5px solid var(--sidebar-border)' }}
         >
-          {!collapsed && (
+          {!collapsed && !myRoles.canSwitch && (
             <button onClick={() => go('cuenta')} className="flex items-center gap-2.5 flex-1 min-w-0 text-left transition-all duration-200 hover:opacity-80 rounded-lg p-1 -m-1">
               <div
                 className="w-9 h-9 rounded-full text-white font-extrabold flex items-center justify-center flex-shrink-0 transition-all duration-200"
@@ -269,6 +275,42 @@ export function Sidebar({
                 </div>
               </div>
             </button>
+          )}
+          {!collapsed && myRoles.canSwitch && (
+            // Con varios roles: avatar y nombre llevan a Mi cuenta; la línea del rol abre el cambio
+            // (botones hermanos, no anidados).
+            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+              <button
+                onClick={() => go('cuenta')}
+                aria-label="Mi cuenta"
+                className="w-9 h-9 rounded-full text-white font-extrabold flex items-center justify-center flex-shrink-0 transition-all duration-200 hover:opacity-80"
+                style={{
+                  background: 'linear-gradient(135deg,#00D3A1,#00AD87)',
+                  boxShadow: '0 4px 12px rgba(0,211,161,0.25)',
+                  ...DISPLAY
+                }}
+              >
+                {initials}
+              </button>
+              <div className="min-w-0 flex-1">
+                <button
+                  onClick={() => go('cuenta')}
+                  className="block max-w-full font-bold text-[13px] truncate text-left transition-opacity hover:opacity-80"
+                >
+                  {firstName}
+                </button>
+                <button
+                  onClick={() => setRoleModalOpen(true)}
+                  aria-label="Cambiar de rol"
+                  title={`Rol activo: ${activeRoleLabel ?? ''} · Cambiar de rol`}
+                  className="flex items-center gap-1 max-w-full text-[11px] font-bold transition-opacity hover:opacity-80"
+                  style={{ color: 'var(--brand-600)' }}
+                >
+                  <span className="truncate">{activeRoleLabel}</span>
+                  <ArrowLeftRight size={12} className="flex-shrink-0" />
+                </button>
+              </div>
+            </div>
           )}
           {collapsed && (
             <button
@@ -290,6 +332,18 @@ export function Sidebar({
               {initials}
             </button>
           )}
+          {collapsed && myRoles.canSwitch && (
+            <button
+              onClick={() => setRoleModalOpen(true)}
+              aria-label="Cambiar de rol"
+              title={`Rol activo: ${activeRoleLabel ?? ''} · Cambiar de rol`}
+              className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-opacity hover:opacity-80"
+              style={{ background: 'var(--brand-100)', color: 'var(--brand-900)' }}
+            >
+              <ArrowLeftRight size={16} />
+            </button>
+          )}
+          <RoleSwitcherModal isOpen={roleModalOpen} onClose={() => setRoleModalOpen(false)} />
           <button
             onClick={onLogout}
             disabled={signingOut}

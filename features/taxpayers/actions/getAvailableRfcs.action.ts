@@ -3,6 +3,7 @@
 import { ApiError, fetchGet } from "@/lib/api";
 import { API_ROUTES } from "@/lib/api/apiRoutes";
 import { type Result, err, ok } from "@/lib/common";
+import { getDiagnosticoMock } from "@/features/diagnostico/mocks/getDiagnosticoMock";
 
 export interface AvailableRfc {
   rfc: string;
@@ -37,6 +38,9 @@ interface GetAvailableRfcsError {
 export async function getAvailableRfcs(): Promise<
   Result<AvailableRfc[], GetAvailableRfcsError>
 > {
+  const mock = await getDiagnosticoMock();
+  if (mock) return ok(mock.rfcs);
+
   try {
     const data = await fetchGet<AvailableRfcsResponse>(
       API_ROUTES.TAXPAYERS.AVAILABLE_RFCS,
