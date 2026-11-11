@@ -32,7 +32,13 @@ import {
   getTaxCertificateMetadata,
   type DocumentMetadata,
 } from '@/features/taxpayers/actions/getDocumentMetadata.action'
-import { ACCOUNT_STATUS_LABEL, type ExpedienteCliente, type ExpedientePeriodo } from '@/features/taxpayers/types'
+import {
+  ACCOUNT_STATUS_LABEL,
+  type ExpedienteCliente,
+  type ExpedientePeriodo,
+  type ExpedienteRegimen,
+} from '@/features/taxpayers/types'
+import { formatDay } from './regimenes-baja-section'
 import {
   getStaffDeactivationPreview,
   type DeactivationResult,
@@ -535,11 +541,7 @@ function TabResumen({ data, ciecOk, onChangeEmail }: { data: ExpedienteCliente; 
         </div>
         <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Dato label="RFC"><code style={{ ...MONO, fontSize: '12.5px' }}>{data.rfc}</code></Dato>
-          <Dato label="Régimen">
-            {data.regimenes.length > 0
-              ? data.regimenes.map((r) => `${r.name}${r.satCode ? ` (${r.satCode})` : ''}`).join(' · ')
-              : '—'}
-          </Dato>
+          <RegimenesResumen regimenes={data.regimenes} />
           <Dato label="Correo">
             <span className="inline-flex items-center gap-2 flex-wrap">
               <span className="break-all">{data.email ?? '—'}</span>
@@ -580,6 +582,80 @@ function TabResumen({ data, ciecOk, onChangeEmail }: { data: ExpedienteCliente; 
           />
         </div>
       </Card>
+    </div>
+  )
+}
+
+const bySatCode = (a: ExpedienteRegimen, b: ExpedienteRegimen) =>
+  (a.satCode ?? '').localeCompare(b.satCode ?? '', 'es', { numeric: true })
+
+/** Sin fecha al final; "yyyy-MM-dd" ordena bien como texto. */
+const byStartDate = (a: ExpedienteRegimen, b: ExpedienteRegimen) =>
+  a.startDate === b.startDate ? 0 : a.startDate == null ? 1 : b.startDate == null ? -1 : a.startDate.localeCompare(b.startDate)
+
+/**
+ * Campo "Régimen" del resumen: sólo los activos (por clave SAT). Los dados de baja quedan detrás de
+ * "Ver historial", con su fecha de alta y de baja; abierto, el campo toma el ancho de la tarjeta.
+ */
+function RegimenesResumen({ regimenes }: { regimenes: ExpedienteRegimen[] }) {
+  const [showHistory, setShowHistory] = useState(false)
+  const activos = useMemo(() => regimenes.filter((r) => r.isActive).sort(bySatCode), [regimenes])
+  const inactivos = useMemo(() => regimenes.filter((r) => !r.isActive).sort(byStartDate), [regimenes])
+  const historyOpen = showHistory && inactivos.length > 0
+
+  return (
+    <div className={historyOpen ? 'sm:col-span-2' : undefined}>
+      <div className="text-[10.5px] font-extrabold uppercase tracking-wide mb-0.5" style={{ color: 'var(--ink-400)' }}>
+        {activos.length > 1 ? 'Regímenes' : 'Régimen'}
+      </div>
+      <div className="text-[13.5px] font-semibold flex flex-col gap-0.5" style={{ color: 'var(--ink-900)' }}>
+        {activos.length > 0 ? (
+          activos.map((r) => (
+            <div key={r.taxPayerTaxRegimeId}>
+              {r.satCode && <code style={{ ...MONO, fontSize: '12px', marginRight: 6 }}>{r.satCode}</code>}
+              {r.name}
+            </div>
+          ))
+        ) : (
+          <span style={{ color: 'var(--ink-500)' }}>Sin régimen activo</span>
+        )}
+      </div>
+
+      {inactivos.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowHistory((v) => !v)}
+          aria-expanded={historyOpen}
+          className="mt-1 text-[12px] font-bold underline underline-offset-2 cursor-pointer"
+          style={{ color: 'var(--brand-700)' }}
+        >
+          {historyOpen ? 'Ocultar historial' : `Ver historial (${inactivos.length})`}
+        </button>
+      )}
+
+      {historyOpen && (
+        <div className="mt-2 overflow-x-auto rounded-lg" style={{ border: '1px solid var(--border)' }}>
+          <table className="w-full text-[12.5px]">
+            <thead>
+              <tr style={{ background: 'var(--ink-50, var(--input))', color: 'var(--ink-500)' }}>
+                {['Fecha de alta', 'Fecha de baja', 'Clave SAT', 'Descripción'].map((h) => (
+                  <th key={h} className="text-left font-bold px-3 py-1.5 whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {inactivos.map((r) => (
+                <tr key={r.taxPayerTaxRegimeId} style={{ borderTop: '1px solid var(--border)', color: 'var(--ink-700)' }}>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{formatDay(r.startDate)}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{formatDay(r.endDate)}</td>
+                  <td className="px-3 py-1.5"><code style={{ ...MONO, fontSize: '11.5px' }}>{r.satCode ?? '—'}</code></td>
+                  <td className="px-3 py-1.5">{r.name}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }

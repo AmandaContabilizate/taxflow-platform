@@ -95,6 +95,17 @@ export interface ExpedientePeriodo {
  * resumen + equipo + productos + periodos. Las credenciales van aparte
  * (endpoints de Identity con sus propios claims).
  */
+/** Liga contribuyente-régimen del expediente. Fechas DateOnly ("2024-03-31"); endDate puede faltar en ligas migradas. */
+export interface ExpedienteRegimen {
+  taxPayerTaxRegimeId: number
+  id: number
+  satCode: string | null
+  name: string
+  isActive: boolean
+  startDate: string | null
+  endDate: string | null
+}
+
 export interface ExpedienteCliente {
   taxpayerId: number
   rfc: string
@@ -104,7 +115,8 @@ export interface ExpedienteCliente {
   createdAt: string
   /** 1 = CIEC válida, 2 = inválida, 0 = sin verificar. */
   passwordState: number
-  regimenes: { id: number; satCode: string | null; name: string }[]
+  /** Activos por clave SAT, luego los dados de baja por fecha de alta (el back ya los manda así). */
+  regimenes: ExpedienteRegimen[]
   contadorUserId: string | null
   contadorNombre: string | null
   contadorEmail: string | null

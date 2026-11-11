@@ -15,6 +15,8 @@ import { PaymentsPanel } from '../cuenta/payments-panel';
 import { SecurityForm } from '../cuenta/security-form';
 import { DeleteAccountForm } from '../cuenta/delete-account-form';
 import { EmailChangeForm, partnerBlockedText } from '../cuenta/email-change-form';
+import { RoleSwitcher } from '../roles/role-switcher';
+import { useMyRoles } from '@/features/roles/hooks/useMyRoles';
 import { DISPLAY, MONO } from '../constants';
 import type { GoFn } from '../types';
 import { Btn, Card, CiecUpdateModal, Divider } from '../ui';
@@ -41,6 +43,8 @@ interface Props {
   /** Nombre del partner que administra el acceso (iframe); null si puede cambiar su correo. */
   emailChangeBlockedBy?: string | null;
   isClient?: boolean;
+  /** Dar de baja su propia contabilidad: solo roles cliente (el staff da de baja a otros desde el backoffice). */
+  canSelfDeactivate?: boolean;
   go: GoFn;
   onLogout: () => void;
   signingOut: boolean;
@@ -70,8 +74,9 @@ function ciecEstadoTexto(
   return { titulo: 'Sin CIEC capturada', detalle: 'Conecta tu SAT para activar tu información fiscal' };
 }
 
-export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber, emailChangeBlockedBy = null, isClient = true, go, onLogout, signingOut }: Props) {
+export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber, emailChangeBlockedBy = null, isClient = true, canSelfDeactivate = false, go, onLogout, signingOut }: Props) {
   const router = useRouter();
+  const myRoles = useMyRoles();
   const { theme, setTheme } = useTheme();
   const { selectedRfc, selectedRfcInfo } = useRfcStore();
   const [plan, setPlan] = useState<ActivePlan | null>(null);
@@ -301,6 +306,18 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
 
       {/* Listas */}
       <div className='flex-1 min-w-0 w-full flex flex-col gap-6'>
+        {myRoles.canSwitch && (
+          <Section title='Rol activo'>
+            <Card>
+              <div className='p-4'>
+                <p className='text-[12.5px] mb-3' style={{ color: 'var(--ink-500)' }}>
+                  Tienes varios roles. El activo define tu menú y tus permisos, y es con el que entras al iniciar sesión.
+                </p>
+                <RoleSwitcher />
+              </div>
+            </Card>
+          </Section>
+        )}
         {isClient && (
         <Section title='Gestión'>
           <Card>
@@ -456,18 +473,20 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
           <LogOut size={16} /> {signingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
         </Btn>
 
-        <Section title='Zona de riesgo'>
-          <Card>
-            <AccountRow
-              Icon={Trash2}
-              iconBg='var(--danger-soft)'
-              iconColor='var(--danger)'
-              title='Eliminar mi cuenta'
-              subtitle='Desactiva tu cuenta y cierra tu acceso'
-              onClick={() => setShowDeleteModal(true)}
-            />
-          </Card>
-        </Section>
+        {canSelfDeactivate && (
+          <Section title='Zona de riesgo'>
+            <Card>
+              <AccountRow
+                Icon={Trash2}
+                iconBg='var(--danger-soft)'
+                iconColor='var(--danger)'
+                title='Dar de baja mi contabilidad'
+                subtitle='Da de baja uno o todos tus RFC'
+                onClick={() => setShowDeleteModal(true)}
+              />
+            </Card>
+          </Section>
+        )}
 
         <div
           className='text-center text-[11px] font-semibold'
@@ -521,13 +540,15 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
         <SecurityForm />
       </Modal>
 
-      {/* Modal de Eliminar cuenta */}
-      <Modal
-        isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-        title='Eliminar cuenta'>
-        <DeleteAccountForm />
-      </Modal>
+      {/* Modal de baja de la contabilidad (solo roles cliente) */}
+      {canSelfDeactivate && (
+        <Modal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          title='Dar de baja mi contabilidad'>
+          <DeleteAccountForm />
+        </Modal>
+      )}
     </div>
   );
 }

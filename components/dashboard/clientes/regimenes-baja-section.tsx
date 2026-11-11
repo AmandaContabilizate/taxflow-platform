@@ -9,7 +9,7 @@ import {
 import type { ActivityCatalogItem, InactiveRegimeActivities } from '@/features/taxpayers/types'
 
 /** "2024-03-31" → "31 mar 2024" sin corrimiento de zona horaria (DateOnly del backend). */
-function formatDay(value: string | null): string {
+export function formatDay(value: string | null): string {
   if (!value) return '—'
   const [y, m, d] = value.split('-').map(Number)
   if (!y || !m || !d) return value

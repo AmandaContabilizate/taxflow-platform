@@ -1,6 +1,6 @@
 'use client'
 
-import { AlertCircle, Calendar, CheckCircle2, Loader2, RefreshCw, Zap } from 'lucide-react'
+import { AlertCircle, ArrowRight, Calendar, CheckCircle2, Info, Loader2, RefreshCw, ShoppingBag, Zap } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { getIssuedInvoices, getMonthlyBills, getMonthlyIncome } from '@/features/dashboard/actions'
 import { formatMoney, formatNumber } from '@/features/dashboard/tools/helpers'
@@ -8,6 +8,7 @@ import { getRegularizations } from '@/features/declarations/actions/getRegulariz
 import { useFiscalScore } from '@/features/declarations/hooks/useFiscalScore'
 import { canRunDiagnosticoCliente } from '@/features/diagnostico/actions/canRunDiagnostico.action'
 import { runDiagnosticoCliente } from '@/features/diagnostico/actions/runDiagnostico.action'
+import { useDiagnosticoPasos } from '@/features/diagnostico/hooks/useDiagnosticoPasos'
 import type { CanRunDiagnostico } from '@/features/diagnostico/types'
 import type { Regularizations } from '@/features/declarations/types'
 import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
@@ -17,6 +18,7 @@ import { fiscalStatus } from '../fiscal-score.utils'
 import type { GoFn } from '../types'
 import { Badge, Btn, Card, CiecWarningBanner, Divider, HelpBox, Pill, SummaryStat, VideoSlot } from '../ui'
 import { getCiecBlockStatus, isConnectedByEfirmaOnly, isSatConnected } from '../sat-connection.utils'
+import { DiagnosticoPasosModal } from '../diagnostico/diagnostico-pasos-modal'
 import { CiecBlockedScreen } from './ciec-blocked'
 import { NeedsSatConnect } from './needs-sat-connect'
 
@@ -28,6 +30,8 @@ export function DiagnosticoScreen({ go }: Props) {
   const { hasRfc, loading: loadingRfc } = useHasRfc()
   const { selectedRfc, selectedRfcInfo } = useRfcStore()
   const { score, loading, step, refresh } = useFiscalScore()
+  const diagPasos = useDiagnosticoPasos(selectedRfc)
+  const [showPasos, setShowPasos] = useState(false)
 
   // ===== Diagnóstico bajo demanda (spec-tab-diagnostico-expediente §3.2) =====
   // El check se consulta SIEMPRE antes de pintar el botón; el POST revalida igual.
@@ -186,7 +190,7 @@ export function DiagnosticoScreen({ go }: Props) {
 
       <div
         data-tour="diag-hero"
-        className="rounded-3xl p-7 lg:p-8"
+        className="relative rounded-3xl p-7 lg:p-8"
         style={{
           background:
             step === 'ready' && status && !sinDeclaraciones && !corriendo
@@ -203,6 +207,16 @@ export function DiagnosticoScreen({ go }: Props) {
           }`,
         }}
       >
+        <button
+          type="button"
+          onClick={() => setShowPasos(true)}
+          aria-label="Ver pasos del diagnóstico"
+          title="Ver pasos del diagnóstico"
+          className="absolute top-4 right-4 p-2 rounded-full transition-colors hover:bg-white/60"
+          style={{ color: 'var(--ink-600)' }}
+        >
+          <Info size={20} />
+        </button>
         {step === 'loading' ? (
           <div className="flex items-center gap-2 text-[15px]" style={{ color: 'var(--ink-500)' }}>
             <Loader2 size={18} className="animate-spin" /> Analizando tu situación fiscal…
@@ -338,6 +352,49 @@ export function DiagnosticoScreen({ go }: Props) {
           </>
         ) : null}
       </div>
+
+      {diagPasos.pasos?.soloFaltaCompra && (
+        <div
+          className="rounded-3xl p-6 lg:p-7 flex flex-col sm:flex-row sm:items-center gap-4"
+          style={{
+            background: 'linear-gradient(135deg, var(--brand-500) 0%, var(--brand-600) 100%)',
+            boxShadow: '0 12px 32px -12px rgba(0, 173, 135, 0.55)',
+          }}
+        >
+          <div className="flex items-start gap-3 flex-1">
+            <ShoppingBag size={28} className="shrink-0" style={{ color: '#fff' }} />
+            <div>
+              <div className="text-[20px] lg:text-[22px] font-extrabold leading-tight" style={{ ...DISPLAY, color: '#fff' }}>
+                Tu diagnóstico está listo
+              </div>
+              <div className="text-[13.5px] mt-1" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                Elige tu plan y nosotros nos encargamos de ponerte al corriente con el SAT.
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => go('plan')}
+            className="inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-[15px] font-bold transition-transform hover:scale-[1.03] active:scale-[0.98]"
+            style={{ background: '#fff', color: 'var(--brand-600)' }}
+          >
+            Hacer mi compra <ArrowRight size={18} />
+          </button>
+        </div>
+      )}
+
+      <DiagnosticoPasosModal
+        isOpen={showPasos}
+        onClose={() => setShowPasos(false)}
+        pasos={diagPasos.pasos}
+        loading={diagPasos.loading}
+        error={diagPasos.error}
+        score={score}
+        onIrAMiPlan={() => {
+          setShowPasos(false)
+          go('plan')
+        }}
+      />
 
       <div>
         <div className="text-[18px] font-bold mb-1" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
