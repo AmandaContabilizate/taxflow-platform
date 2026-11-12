@@ -37,6 +37,8 @@ interface TaxpayerListQuery {
   periodMonth?: number
   /** Id de `DeclarationStatus` (`Declarations.Declaration.IdStatusDeclaration`). "En proceso" = 15. */
   statusId?: number
+  /** AspNetUsers.SystemOriginId del cliente (2 = godin). Con godin el back incluye las declaraciones 605. */
+  origins?: number[]
   /** Nivel del semáforo de posteo (solo con `statusId: 11`); el back evalúa todo y pagina en memoria. */
   readiness?: "ok" | "warning" | "blocked"
   /** Estado de la CIEC del contribuyente: 0 sin verificar, 1 válida, 2 inválida. */
@@ -73,6 +75,7 @@ function taxpayerListQuery(p: TaxpayerListQuery): URLSearchParams {
   if (p.ciecState != null) qs.set("ciecState", String(p.ciecState))
   if (p.presentacion) qs.set("presentacion", p.presentacion)
   if (p.includeReadinessCounts) qs.set("includeReadinessCounts", "true")
+  if (p.origins?.length) qs.set("origins", p.origins.join(","))
   return qs
 }
 
@@ -104,6 +107,8 @@ export interface ExportDeclarationsReportQuery {
   ciecState?: 0 | 1 | 2
   /** Se ignora en el backend si el caller no tiene el claim AssignAccountant. */
   accountantUserId?: string
+  /** AspNetUsers.SystemOriginId del cliente (2 = godin); con godin incluye sus declaraciones 605. */
+  origins?: number[]
 }
 
 function exportReportQuery(p: ExportDeclarationsReportQuery): string {
@@ -116,6 +121,7 @@ function exportReportQuery(p: ExportDeclarationsReportQuery): string {
   if (p.month) qs.set("month", String(p.month))
   if (p.ciecState != null) qs.set("ciecState", String(p.ciecState))
   if (p.accountantUserId) qs.set("accountantUserId", p.accountantUserId)
+  if (p.origins?.length) qs.set("origins", p.origins.join(","))
   const s = qs.toString()
   return `/export-report${s ? `?${s}` : ""}`
 }
@@ -299,9 +305,12 @@ export const API_ROUTES = {
       skip?: number
       take?: number
       consulta?: boolean
+      /** AspNetUsers.SystemOriginId del cliente (2 = godin). */
+      origins?: number[]
     }) => {
       const qs = new URLSearchParams()
       if (params.rfc) qs.set("rfc", params.rfc)
+      if (params.origins?.length) qs.set("origins", params.origins.join(","))
       if (params.regimeId) qs.set("regimeId", String(params.regimeId))
       if (params.year) qs.set("year", String(params.year))
       if (params.periodValueId) qs.set("periodValueId", String(params.periodValueId))
@@ -479,8 +488,9 @@ export const API_ROUTES = {
     LIST: (skip = 0, take = 100, rfc?: string, regimeId?: number, minSales?: number) =>
       `?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${regimeId ? `&regimeId=${regimeId}` : ""
       }${minSales ? `&minSales=${minSales}` : ""}`,
-    WITH_PAID_SALES: (skip = 0, take = 100, rfc?: string, minSales?: number) =>
-      `/with-paid-sales?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${minSales ? `&minSales=${minSales}` : ""}`,
+    // origins: AspNetUsers.SystemOriginId (2 = godin), CSV; ausente = todos los orígenes.
+    WITH_PAID_SALES: (skip = 0, take = 100, rfc?: string, minSales?: number, origins?: number[]) =>
+      `/with-paid-sales?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${minSales ? `&minSales=${minSales}` : ""}${origins?.length ? `&origins=${origins.join(",")}` : ""}`,
     // Excel del padrón de contribuyentes, mismos filtros que LIST, sin paginar.
     LIST_EXPORT: (rfc?: string, regimeId?: number, minSales?: number) => {
       const qs = new URLSearchParams()
@@ -491,10 +501,11 @@ export const API_ROUTES = {
       return `/export${s ? `?${s}` : ""}`
     },
     // Excel del padrón de clientes con compras, mismos filtros que WITH_PAID_SALES, sin paginar.
-    WITH_PAID_SALES_EXPORT: (rfc?: string, minSales?: number) => {
+    WITH_PAID_SALES_EXPORT: (rfc?: string, minSales?: number, origins?: number[]) => {
       const qs = new URLSearchParams()
       if (rfc) qs.set("rfc", rfc)
       if (minSales) qs.set("minSales", String(minSales))
+      if (origins?.length) qs.set("origins", origins.join(","))
       const s = qs.toString()
       return `/with-paid-sales/export${s ? `?${s}` : ""}`
     },

@@ -18,11 +18,13 @@ export async function getClientsWithPaidSales(params: {
   rfc?: string;
   /** Mínimo de ventas pagadas; el endpoint ya exige 1, así que sólo aplica con 2+. */
   minSales?: number;
+  /** AspNetUsers.SystemOriginId (2 = godin); ausente = todos los orígenes. */
+  origins?: number[];
 }): Promise<Result<Paged<ClientListItem>, ClientsError>> {
-  const { skip = 0, take = 100, rfc, minSales } = params;
+  const { skip = 0, take = 100, rfc, minSales, origins } = params;
   try {
     const data = await fetchGet<Paged<ClientListItem>>(
-      API_ROUTES.TAXPAYERS_OPS.WITH_PAID_SALES(skip, take, rfc?.trim() || undefined, minSales),
+      API_ROUTES.TAXPAYERS_OPS.WITH_PAID_SALES(skip, take, rfc?.trim() || undefined, minSales, origins),
       "taxpayers_reports",
     );
     return ok(data ?? EMPTY);

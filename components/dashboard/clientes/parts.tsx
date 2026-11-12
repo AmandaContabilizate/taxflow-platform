@@ -197,6 +197,43 @@ export function MinSalesFilter({
   )
 }
 
+/** Catalogs.SystemsOrigin: 2 = godin (portal de asalariados, régimen 605). */
+export const ORIGEN_GODIN = 2
+
+export type OrigenFiltro = '' | 'godin'
+
+/** `origins` que espera el backend para el valor del filtro (undefined = todos). */
+export function originsFor(value: OrigenFiltro): number[] | undefined {
+  return value === 'godin' ? [ORIGEN_GODIN] : undefined
+}
+
+/**
+ * Filtro por origen de registro del cliente. "Godin" = asalariados que contrataron su
+ * declaración anual desde godin.contabilizate.com (no son personal de Contabilízate).
+ */
+export function OriginFilter({
+  value,
+  onChange,
+  className = '',
+}: {
+  value: OrigenFiltro
+  onChange: (v: OrigenFiltro) => void
+  className?: string
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as OrigenFiltro)}
+      title="Origen del cliente"
+      className={`px-3 py-2.5 rounded-lg text-[13px] font-semibold ${className}`}
+      style={SELECT_STYLE}
+    >
+      <option value="">Todos los orígenes</option>
+      <option value="godin">Solo Godin (asalariados)</option>
+    </select>
+  )
+}
+
 /** Filtros compartidos del padrón: RFC + régimen + ventas pagadas. */
 export function TaxpayerFilters({
   rfc,

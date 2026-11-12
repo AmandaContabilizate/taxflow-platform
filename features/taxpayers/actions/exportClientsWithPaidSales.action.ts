@@ -17,11 +17,12 @@ interface ExportClientsError {
 export async function exportClientsWithPaidSales(params: {
   rfc?: string;
   minSales?: number;
+  origins?: number[];
 }): Promise<Result<DownloadableFile, ExportClientsError>> {
-  const { rfc, minSales } = params;
+  const { rfc, minSales, origins } = params;
   try {
     const { blob, filename } = await fetchGetBlob(
-      API_ROUTES.TAXPAYERS_OPS.WITH_PAID_SALES_EXPORT(rfc?.trim() || undefined, minSales),
+      API_ROUTES.TAXPAYERS_OPS.WITH_PAID_SALES_EXPORT(rfc?.trim() || undefined, minSales, origins),
       "taxpayers_reports",
     );
     const buffer = Buffer.from(await blob.arrayBuffer());

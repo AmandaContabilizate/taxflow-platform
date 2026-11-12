@@ -8,7 +8,7 @@ import type { DeclarationListItem, DeclarationSubject, Paged } from '@/features/
 import { declarationStatusBadge } from '../declaraciones/parts'
 import { AccountantCell } from '../operaciones/accountant-cell'
 import { DeclarationDetail } from '../operaciones/declaration-detail'
-import { Pagination } from '../clientes/parts'
+import { OriginFilter, type OrigenFiltro, originsFor, Pagination } from '../clientes/parts'
 import { MONO } from '../constants'
 import { useHasPermission } from '../permissions'
 import { numParam, useUrlState } from '../url-state'
@@ -44,6 +44,8 @@ export function DeclaracionesRechazadasScreen({ currentUser }: { currentUser: Cu
   const declarationId = numParam(params, 'decl')
   const rfcParam = params.get('rfc')
   const skip = numParam(params, 'skip') ?? 0
+  // Origen del cliente: "godin" = asalariados de godin.contabilizate.com.
+  const origen: OrigenFiltro = params.get('origen') === 'godin' ? 'godin' : ''
 
   const [page, setPage] = useState<Paged<DeclarationListItem>>(emptyPage)
   const [loading, setLoading] = useState(true)
@@ -68,6 +70,7 @@ export function DeclaracionesRechazadasScreen({ currentUser }: { currentUser: Cu
         skip,
         take: TAKE,
         consulta: soloConsulta,
+        origins: originsFor(origen),
       })
       if (cancelled) return
       if (res.success) setPage(res.value)
@@ -80,7 +83,7 @@ export function DeclaracionesRechazadasScreen({ currentUser }: { currentUser: Cu
     return () => {
       cancelled = true
     }
-  }, [declarationId, skip, soloConsulta])
+  }, [declarationId, skip, soloConsulta, origen])
 
   const openDeclaration = (item: DeclarationListItem) => {
     setSubject({
@@ -127,6 +130,11 @@ export function DeclaracionesRechazadasScreen({ currentUser }: { currentUser: Cu
               ? 'Cargando…'
               : `${page.total} ${page.total === 1 ? 'declaración rechazada' : 'declaraciones rechazadas'}`}
           </div>
+          <OriginFilter
+            value={origen}
+            onChange={(v) => setParams({ origen: v || null, skip: null }, { replace: true })}
+            className="py-2 text-[12.5px]"
+          />
         </div>
 
         {error ? (

@@ -17,7 +17,7 @@ import type {
 } from '@/features/declarations/types'
 import type { DeclarationSubject } from '@/features/operations/types'
 import { declarationStatusBadge } from '../declaraciones/parts'
-import { Pagination } from '../clientes/parts'
+import { OriginFilter, type OrigenFiltro, originsFor, Pagination } from '../clientes/parts'
 import { DISPLAY, MONO } from '../constants'
 import { Badge, type BadgeKind, Btn, Card, CiecUpdateModal, CiecValidationBadge, ErrorState, HelpBox } from '../ui'
 import { buildUrl, numParam, useUrlState } from '../url-state'
@@ -126,6 +126,14 @@ const KIND_BY_MODE: Record<Mode, 1 | 2 | undefined> = {
 }
 
 export const TIPO_LABEL: Record<number, string> = { 1: 'Regularización', 2: 'A futuro' }
+
+/**
+ * Filtro "Solo Godin" (?origen=godin), en las tres vistas y en ambos niveles (el back acepta
+ * `origins` en grupos, detalle y exportación, e incluye las 605 de godin cuando se pide).
+ */
+function origenFromParams(_mode: Mode, params: URLSearchParams): OrigenFiltro {
+  return params.get('origen') === 'godin' ? 'godin' : ''
+}
 
 /** Filtro por contador, gerencia (E1): mismo claim y patrón que Mis clientes. */
 const ASSIGN_PERMISSION = 'AssignAccountant'
@@ -288,6 +296,8 @@ function TaxpayerGroups({
   const periodYearRaw = params.get('pyear') ?? ''
   const periodMonthRaw = params.get('pmonth') ?? ''
   const { statusId, selectValue: statusSelectValue } = statusFilterFromParams(mode, params)
+  // Origen del cliente en la URL (?origen=godin) para que el nivel 2 lo herede.
+  const origen = origenFromParams(mode, params)
 
   const [page, setPage] = useState<PagedDeclarations<TaxpayerGroup>>(emptyPage(TAKE))
   const [skip, setSkip] = useState(0)
@@ -347,6 +357,7 @@ function TaxpayerGroups({
         periodMonth,
         statusId,
         accountantUserId: isManager ? contadorFiltro || undefined : undefined,
+        origins: originsFor(origen),
       })
       if (cancelled) return
       if (res.success) setPage(res.value)
@@ -359,11 +370,16 @@ function TaxpayerGroups({
     return () => {
       cancelled = true
     }
-  }, [mode, kind, query, skip, onlyUpcoming, upcomingExact, periodYear, periodMonth, statusId, isManager, contadorFiltro])
+  }, [mode, kind, query, skip, onlyUpcoming, upcomingExact, periodYear, periodMonth, statusId, isManager, contadorFiltro, origen])
 
   const changeContador = (value: string) => {
     setSkip(0)
     setContadorFiltro(value)
+  }
+
+  const changeOrigen = (value: OrigenFiltro) => {
+    setSkip(0)
+    setParams({ origen: value || null }, { replace: true })
   }
 
   const changePeriodMode = (next: PeriodMode) => {
@@ -432,6 +448,8 @@ function TaxpayerGroups({
                   ))}
               </select>
             )}
+
+            <OriginFilter value={origen} onChange={changeOrigen} className="sm:w-[220px] outline-none cursor-pointer" />
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -680,7 +698,7 @@ function TaxpayerGroups({
         isOpen={exportOpen}
         onClose={() => setExportOpen(false)}
         kind={kind}
-        initial={{ search: query || undefined }}
+        initial={{ search: query || undefined, origins: originsFor(origen) }}
         statusOptions={[]}
       />
 
@@ -738,6 +756,7 @@ function PurchasedTable({
   // cuadra con la lista expandida (E1). regularization ignora periodo por completo.
   const { periodMode, periodYear, periodMonth } = periodFilterFromParams(mode, params)
   const { statusId } = statusFilterFromParams(mode, params)
+  const origen = origenFromParams(mode, params)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -753,6 +772,7 @@ function PurchasedTable({
       periodYear,
       periodMonth,
       statusId,
+      origins: originsFor(origen),
     })
     if (res.success) setPage(res.value)
     else {
@@ -760,7 +780,7 @@ function PurchasedTable({
       setPage(emptyPage(TAKE))
     }
     setLoading(false)
-  }, [mode, kind, rfc, skip, regimeId, periodMode, periodYear, periodMonth, statusId])
+  }, [mode, kind, rfc, skip, regimeId, periodMode, periodYear, periodMonth, statusId, origen])
 
   useEffect(() => {
     void load()
@@ -1049,6 +1069,7 @@ function PurchasedTable({
           month: exportMonth,
           taxRegimeId: regimeId || undefined,
           statusId,
+          origins: originsFor(origen),
         }}
         statusOptions={statusOptions}
       />
