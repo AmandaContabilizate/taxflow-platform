@@ -13,3 +13,5 @@ export { completeUserProfile } from "./completeProfile.action";
 export { checkEmailExists } from "./checkEmailExists.action";
 export { deleteAccount } from "./deleteAccount.action";
 export { deleteAccountPublic } from "./deleteAccountPublic.action";
+export { getCompanyInvite } from "./getCompanyInvite.action";
+export { setCompanyInvitePassword } from "./setCompanyInvitePassword.action";

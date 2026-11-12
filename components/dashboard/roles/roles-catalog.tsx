@@ -186,6 +186,7 @@ export function RolesCatalog() {
                           </Badge>
                         )}
                         {r.isSystem && <Badge kind="amber">Sistema</Badge>}
+                        {r.partnershipName && <Badge kind="sky">Empresa · {r.partnershipName}</Badge>}
                       </div>
                     </td>
                     <td className="px-5 py-4">

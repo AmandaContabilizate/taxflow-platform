@@ -49,7 +49,15 @@ export type Screen =
   | 'equipo'
   // Catálogos comerciales del módulo de comisiones
   | 'partners'
+  // Cola del gerente: personas de empresa listas para activar (spec-perfil-empresa §5.4)
+  | 'empresas-activaciones'
+  // Vista interna de empresas (Gerencia Comercial / soporte), solo lectura
+  | 'empresas-vista'
   | 'codigos-descuento'
+  // Catálogo de productos: planes, trámites y servicios (Backoffice.ReadProductos / ManageProductos)
+  | 'productos'
+  // Cola de aprovisionamiento de servicios adicionales (Backoffice.AprovisionamientoServicios)
+  | 'aprovisionamiento'
   | 'reportes-ejecutivos'
   | 'operaciones'
   | 'declaraciones-rechazadas'
@@ -62,6 +70,14 @@ export type Screen =
   | 'ventas'
   | 'roles'
   | 'partnership'
+  // Portal "Mi empresa" (spec-perfil-empresa): usuarios de la alianza, menú por claims Empresa.*
+  | 'empresa-resumen'
+  | 'empresa-personas'
+  | 'empresa-invitaciones'
+  | 'empresa-carga-masiva'
+  | 'empresa-diagnostico'
+  | 'empresa-facturacion'
+  | 'empresa-usuarios'
   | 'reglas-deducibilidad'
   // Bandeja global de actividades sin régimen (Gerente de Operaciones)
   | 'actividades-pendientes'
@@ -71,6 +87,9 @@ export type Screen =
 export type RoleKey =
   | 'guest'
   | 'external-provider'
+  // Roles Empresa.* (ResponsableFiscal, RecursosHumanos, Operaciones, Auditor, ConsultaEjecutiva):
+  // usuarios de una alianza; su menú sale solo de sus claims Empresa.*.
+  | 'empresa'
   | 'developer'
   | 'administrator'
   | 'seller'

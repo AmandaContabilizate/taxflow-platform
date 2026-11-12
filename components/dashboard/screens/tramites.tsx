@@ -11,8 +11,11 @@ import {
   type AdditionalProceduresCatalog,
   type Plan,
 } from '@/features/account/types'
+import { getMyServices } from '@/features/servicios/actions/misServicios.action'
+import { MY_SERVICE_STATUS, type MyServices } from '@/features/servicios/types'
 import { useHasRfc, useRfcStore } from '@/features/taxpayers/stores/rfcStore'
 import { DISPLAY, MONO } from '../constants'
+import { ProviderLogo } from '../productos/provider-logo'
 import type { GoFn } from '../types'
 import { Btn, Card, CiecWarningBanner, Divider, HelpBox } from '../ui'
 import {
@@ -65,20 +68,23 @@ export function TramitesScreen({ onContratar, go }: TramitesScreenProps) {
   const [catalog, setCatalog] = useState<AdditionalProceduresCatalog>(EMPTY_ADDITIONAL_PROCEDURES)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Servicios adicionales (Timbrame, Venvers, Doc2Sign): los que ya tiene, los pague él o su empresa.
+  const [services, setServices] = useState<MyServices | null>(null)
 
   useEffect(() => {
     let cancelled = false
     void (async () => {
-      const res = await getAdditionalProcedures()
+      const [res, svc] = await Promise.all([getAdditionalProcedures(), getMyServices(selectedRfcInfo?.rfc ?? null)])
       if (cancelled) return
       if (res.success) setCatalog(res.value)
       else setError(res.error.message)
+      if (svc.success) setServices(svc.value)
       setLoading(false)
     })()
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [selectedRfcInfo?.rfc])
 
   if (loadingRfc) return null
   if (!hasRfc) return <NeedsSatConnect go={go} feature="ver trámites adicionales" />
@@ -123,6 +129,49 @@ export function TramitesScreen({ onContratar, go }: TramitesScreenProps) {
           style={{ background: 'var(--card-muted)', border: '1px solid var(--border)', color: 'var(--ink-500)' }}
         >
           Por ahora no hay trámites adicionales disponibles.
+        </div>
+      )}
+
+      {services && services.contracted.length > 0 && (
+        <div data-tour="servicios-list">
+          <div className="text-[18px] font-bold mb-1" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
+            Tus servicios
+          </div>
+          <div className="text-[13.5px] mb-4" style={{ color: 'var(--ink-500)' }}>
+            Herramientas de otros proveedores que usas desde tu cuenta de Contabilízate.
+          </div>
+          <Card>
+            <div>
+              {services.contracted.map((s, i, arr) => {
+                const byCompany = s.payerType === 2
+                const ends = s.endsAt ? new Date(s.endsAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }) : null
+                return (
+                  <div key={s.subscriptionId}>
+                    <div className="flex items-center gap-3 px-4 py-4">
+                      <ProviderLogo src={s.logoUrl} providerKey={s.providerKey} label={s.name} size={44} className="flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-[14.5px]">{s.name}</div>
+                        <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--ink-500)' }}>
+                          {byCompany ? `Lo paga ${s.payerName ?? 'tu empresa'}` : `Lo pagas tú · ${formatMXN(s.priceMxn)}`}
+                          {' · '}
+                          {MY_SERVICE_STATUS[s.status] ?? ''}
+                          {ends ? ` · ${s.status === 4 ? 'hasta' : 'renueva'} ${ends}` : ''}
+                        </div>
+                      </div>
+                      {s.accessUrl && s.status === 2 ? (
+                        <a href={s.accessUrl} target="_blank" rel="noreferrer" className="inline-flex items-center h-9 px-4 rounded-full text-[13px] font-bold" style={{ background: 'var(--brand-50)', color: 'var(--brand-700)' }}>
+                          Entrar
+                        </a>
+                      ) : s.status === 1 ? (
+                        <span className="text-[12px] font-semibold" style={{ color: 'var(--ink-400)' }}>Activando…</span>
+                      ) : null}
+                    </div>
+                    {i < arr.length - 1 && <Divider />}
+                  </div>
+                )
+              })}
+            </div>
+          </Card>
         </div>
       )}
 

@@ -96,6 +96,9 @@ export function Sidebar({
       )}
 
       <aside
+        // Portal "Mi empresa": barra azul marino para distinguir la sesión de empresa del backoffice
+        // (tema en globals.css: aside[data-portal="empresa"]).
+        data-portal={roleKey === 'external-provider' || roleKey === 'empresa' ? 'empresa' : undefined}
         className={`fixed lg:sticky top-0 left-0 h-screen shrink-0 z-[80] flex flex-col py-5 transition-all duration-300 lg:translate-x-0 ${collapsed ? 'w-[80px] px-2' : 'w-[260px] px-4'} ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
         style={{
           background: 'var(--sidebar)',
@@ -516,7 +519,8 @@ function NavItem({ id, label, Icon, active, onClick, hint, badge, collapsed = fa
         data-tour={id ? `nav-${id}` : undefined}
         onClick={onClick}
         title={label}
-        className="flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 mx-auto group relative"
+        data-active={active ? 'true' : undefined}
+        className="nav-item flex items-center justify-center w-10 h-10 rounded-lg mx-auto group relative"
         style={
           active
             ? {
@@ -554,7 +558,8 @@ function NavItem({ id, label, Icon, active, onClick, hint, badge, collapsed = fa
     <button
       data-tour={id ? `nav-${id}` : undefined}
       onClick={onClick}
-      className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left transition w-full relative group"
+      data-active={active ? 'true' : undefined}
+      className="nav-item flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left w-full relative group"
       style={
         active
           ? { background: 'var(--nav-active-bg)', color: 'var(--nav-active-fg)', boxShadow: 'var(--sh-ink)' }
@@ -562,7 +567,7 @@ function NavItem({ id, label, Icon, active, onClick, hint, badge, collapsed = fa
       }
     >
       <span
-        className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+        className="nav-item-icon w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
         style={{
           background: active ? 'var(--nav-active-icon-bg)' : 'var(--ink-50)',
           color: active ? 'var(--nav-active-icon-fg)' : 'var(--ink-700)',

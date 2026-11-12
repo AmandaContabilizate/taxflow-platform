@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AlertCircle, ArrowLeft, Check, Loader2, Search, UserMinus, UserPlus, X } from 'lucide-react'
+import { getPartners } from '@/features/partners/actions/getPartners.action'
+import type { Partner } from '@/features/partners/types'
 import { assignRole } from '@/features/roles/actions/assignRole.action'
 import { getRoleUsers } from '@/features/roles/actions/getRoleUsers.action'
 import { removeRole } from '@/features/roles/actions/removeRole.action'
-import { roleLabel, type RoleOverviewDto, type RoleUserDto } from '@/features/roles/types'
+import { isCompanyRole, roleLabel, type RoleOverviewDto, type RoleUserDto } from '@/features/roles/types'
 import { getUsers } from '@/features/users/actions/getUsers.action'
 import type { UserListItem } from '@/features/users/types'
 import { Badge, Btn, Card } from '../ui'
@@ -47,6 +49,19 @@ export function RoleUsersPanel({ role, onBack, onChanged }: Props) {
   // Bandeja de por asignar + proceso
   const [staged, setStaged] = useState<StagedUser[]>([])
   const [assigning, setAssigning] = useState(false)
+
+  // Roles de empresa (AdminPartnership / Empresa.*): el usuario debe quedar ligado a UNA alianza.
+  // Sin esto el rol se asignaba sin alianza y el módulo de la empresa respondía "sin acceso".
+  const companyRole = isCompanyRole(role)
+  const [partners, setPartners] = useState<Partner[]>([])
+  const [partnershipId, setPartnershipId] = useState<number | ''>('')
+  useEffect(() => {
+    if (!companyRole) return
+    void (async () => {
+      const res = await getPartners()
+      if (res.success) setPartners(res.value.filter((p) => p.isActive))
+    })()
+  }, [companyRole])
 
   // Bajas: la confirmación vive en la fila (nunca un confirm() del navegador)
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
@@ -129,7 +144,11 @@ export function RoleUsersPanel({ role, onBack, onChanged }: Props) {
     for (const s of staged) {
       if (s.status === 'done') continue
       setStaged((prev) => prev.map((p) => (p.userId === s.userId ? { ...p, status: 'assigning' } : p)))
-      const res = await assignRole({ userId: s.userId, roleId: role.id })
+      const res = await assignRole({
+        userId: s.userId,
+        roleId: role.id,
+        partnershipId: companyRole && partnershipId !== '' ? partnershipId : undefined,
+      })
       anyOk = anyOk || res.success
       setStaged((prev) =>
         prev.map((p) =>
@@ -203,6 +222,28 @@ export function RoleUsersPanel({ role, onBack, onChanged }: Props) {
         <div className="text-[12px] font-bold mb-2" style={{ color: 'var(--ink-700)' }}>
           Asignar este rol a más usuarios
         </div>
+        {companyRole && (
+          <div className="mb-3 max-w-[420px]">
+            <label className="block text-[12px] font-bold mb-1.5" style={{ color: 'var(--ink-700)' }}>
+              Alianza / empresa a la que pertenecen
+            </label>
+            <select
+              value={partnershipId}
+              onChange={(e) => setPartnershipId(e.target.value === '' ? '' : Number(e.target.value))}
+              disabled={assigning}
+              className="w-full px-3 py-2 rounded-xl text-[13px] outline-none cursor-pointer"
+              style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+            >
+              <option value="">Selecciona la alianza…</option>
+              {partners.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+            <div className="text-[11.5px] mt-1" style={{ color: 'var(--ink-400)' }}>
+              Este rol es de empresa: el usuario queda ligado a esa alianza y solo ve lo suyo. Si ya pertenece a una, se usa la suya.
+            </div>
+          </div>
+        )}
         <div className="relative max-w-[420px]">
           <Search size={14} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-500)' }} />
           <input
@@ -356,6 +397,8 @@ export function RoleUsersPanel({ role, onBack, onChanged }: Props) {
                     {u.fullName || u.email}
                   </span>
                   {u.isDefault && <Badge kind="brand">Rol activo</Badge>}
+                  {u.partnershipName && <Badge kind="default">{u.partnershipName}</Badge>}
+                  {companyRole && !u.partnershipId && <Badge kind="default">Sin alianza</Badge>}
                 </div>
                 <div className="text-[12px] truncate" style={{ color: 'var(--ink-500)' }}>
                   {u.email}

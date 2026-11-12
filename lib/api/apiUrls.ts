@@ -46,7 +46,21 @@ export const API_BASE_URLS = {
   users_reports: `${BASE_REPORTS}/users`,
   team: `${BASE_IDENTITY}/team`,
   partners: `${BASE_PROCEDURES}/partners`,
+  // Perfil Empresa, lado backoffice (perfil de empresa de una alianza). Sin /SQLServer.
+  empresas: `${BASE_PROCEDURES}/empresas`,
+  // Perfil Empresa, lado empresa ("Mi empresa": la alianza sale del token). Sin /SQLServer.
+  empresa: `${BASE_PROCEDURES}/empresa`,
+  // Lado de la persona: "Empresas que pueden ver mi información" (consentimiento). Sin /SQLServer.
+  mis_empresas: `${BASE_PROCEDURES}/mis-empresas`,
+  // Usuarios de mi empresa (Identity): alta, rol y baja de quien entra al portal de la empresa. Sin /SQLServer.
+  empresa_usuarios: `${BASE_IDENTITY}/empresa-usuarios`,
   discount_codes: `${BASE_PROCEDURES}/discount-codes`,
+  /** Catálogo de productos (planes, trámites, servicios): ABC en Procedures. */
+  subscription_plan_admin: `${BASE_PROCEDURES}/subscription-plan-admin`,
+  /** Cola de aprovisionamiento de servicios adicionales (Procedures). */
+  aprovisionamiento: `${BASE_PROCEDURES}/aprovisionamiento`,
+  /** Servicios adicionales del cliente (Trámites → Servicios). */
+  mis_servicios: `${BASE_PROCEDURES}/mis-servicios`,
   commissions: `${BASE_PROCEDURES}/commissions`,
   assignments: `${BASE_PROCEDURES}/assignments`,
   notification_prefs: `${BASE_PROCEDURES}/Notification${DbOrigin}`,

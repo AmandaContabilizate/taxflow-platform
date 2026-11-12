@@ -36,6 +36,9 @@ export interface RoleOverviewDto {
   isSystem: boolean;
   /** Cuántos usuarios tienen asignado este rol. */
   usersCount: number;
+  /** Alianza dueña del rol (Perfil Empresa, paso 12b); null = rol global. */
+  partnershipId?: number | null;
+  partnershipName?: string | null;
   claims: RoleClaimDto[];
 }
 
@@ -95,6 +98,9 @@ export interface RoleUserDto {
   email: string;
   /** true = este rol es el ACTIVO del usuario (el que carga su token al entrar). */
   isDefault: boolean;
+  /** Alianza/empresa a la que está ligado el usuario (Perfil Empresa); null = ninguna. */
+  partnershipId: number | null;
+  partnershipName: string | null;
 }
 
 export interface GetRoleUsersResponse {
@@ -109,6 +115,10 @@ export interface CreateRolePayload {
   displayName?: string | null;
   description: string | null;
   claimCatalogIds: number[];
+  /** Mismo contenido que claimCatalogIds en el formato que lee CreateRoleCommand (`claims[].claimCatalogId`). */
+  claims?: UpdateRoleClaimDto[];
+  /** Rol propio de una alianza: el backend lo renombra "Empresa.<Código>.<Nombre>" y solo acepta permisos Empresa.* */
+  partnershipId?: number | null;
 }
 
 /**
@@ -135,6 +145,14 @@ export interface UpdateRolePayload {
 export interface UserRolePayload {
   userId: string;
   roleId: string;
+  /** Obligatorio al asignar un rol de empresa (AdminPartnership / Empresa.*) a un usuario sin alianza. */
+  partnershipId?: number;
+}
+
+/** Roles que solo tienen sentido ligados a una alianza/empresa (misma regla que el backend). */
+export function isCompanyRole(role: { name: string }): boolean {
+  const n = role.name.trim().toLowerCase();
+  return n === 'adminpartnership' || n.startsWith('empresa.');
 }
 
 /** PUT /{userId}/roles — reemplazo en bloque + rol por defecto. */

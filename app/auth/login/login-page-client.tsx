@@ -11,12 +11,16 @@ import {
   verifyEmailCode,
   completeUserProfile,
   checkEmailExists,
+  getCompanyInvite,
+  setCompanyInvitePassword,
 } from "@/features/auth/actions";
+import type { CompanyInviteInfo } from "@/features/auth/types";
 import { useReferralCodeCheck } from "@/hooks/use-referral-code-check";
 import { getPasswordErrors } from "@/features/auth/lib/passwordPolicy";
 import { PROTECTED_ROUTES, PUBLIC_ROUTES } from "@/lib/routes";
 
-type Mode = "login" | "register";
+// "invite": liga de empresa (?ref=EMP-…) cuya cuenta ya existe; la persona solo define su contraseña.
+type Mode = "login" | "register" | "invite";
 type RegisterStep = "form" | "verify";
 
 interface LoginPageClientProps {
@@ -98,14 +102,70 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
   const [error, setError] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // Invitación de empresa (?ref=EMP-…) con la cuenta ya creada por la empresa.
+  const [invite, setInvite] = useState<CompanyInviteInfo | null>(null);
+  const [inviteRef, setInviteRef] = useState("");
 
   // Liga de referido (?ref=CBX-XXXXXX): prellena el código y abre el registro.
+  // Liga de empresa (?ref=EMP-…): la cuenta ya existe → definir contraseña (o iniciar sesión si ya la tiene).
+  // Invitaciones anteriores a ese flujo (persona sin cuenta) siguen abriendo el registro con el código.
   useEffect(() => {
     const ref = params.get("ref");
     if (!ref) return;
-    setReferralCode(ref.trim().toUpperCase());
+    const code = ref.trim().toUpperCase();
+    setReferralCode(code);
     setMode("register");
+    if (!code.startsWith("EMP-")) return;
+
+    let cancelled = false;
+    void getCompanyInvite(code).then((info) => {
+      if (cancelled) return;
+      if (info.status === "set-password") {
+        setInvite(info);
+        setInviteRef(code);
+        setEmail(info.email ?? "");
+        setMode("invite");
+      } else if (info.status === "login") {
+        setEmail(info.email ?? "");
+        setMode("login");
+        setError("Tu cuenta ya tiene contraseña. Inicia sesión para continuar.");
+      } else if (info.status === "invalid") {
+        setMode("login");
+        setError("La liga de invitación ya no es válida. Pide a tu empresa que te la reenvíe.");
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [params]);
+
+  async function handleInvitePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (password !== confirmPassword) {
+      setError("Las contraseñas no coinciden");
+      return;
+    }
+    const passwordErrors = getPasswordErrors(password);
+    if (passwordErrors.length > 0) {
+      setError(passwordErrors[0]);
+      return;
+    }
+    setLoading(true);
+    const res = await setCompanyInvitePassword({ ref: inviteRef, password, rememberMe });
+    if (!res.success) {
+      setLoading(false);
+      if (res.error.errorCode === "INVITE_ALREADY_USED") {
+        setMode("login");
+        setError("Tu cuenta ya tiene contraseña. Inicia sesión o recupérala.");
+        return;
+      }
+      const flat = Object.values(res.error.fieldErrors).flat();
+      setError(flat[0] ?? "No se pudo definir la contraseña.");
+      return;
+    }
+    router.push(res.value);
+  }
 
   function switchMode(next: Mode) {
     setMode(next);
@@ -398,7 +458,109 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
               </div>
             )}
 
-            {mode === "login" ? (
+            {mode === "invite" && invite ? (
+              <form onSubmit={handleInvitePassword} className="mt-6 space-y-4">
+                <div
+                  className="rounded-2xl px-4 py-3 text-sm"
+                  style={{ background: "#F3F1FA", color: "#221158" }}
+                >
+                  <p className="font-black">
+                    Hola{invite.fullName ? `, ${invite.fullName}` : ""}
+                  </p>
+                  <p className="mt-1 font-semibold" style={{ color: "#857AC0" }}>
+                    {invite.companyName ?? "Tu empresa"} ya creó tu cuenta en Contabilízate con el correo{" "}
+                    <span className="break-all" style={{ color: "#00AD87" }}>{invite.email}</span>.
+                    Define tu contraseña para entrar.
+                  </p>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="invitePassword"
+                    className="mb-2 block text-sm font-bold"
+                    style={{ color: "#221158" }}
+                  >
+                    Contraseña
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="invitePassword"
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="new-password"
+                      minLength={8}
+                      required
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="h-11 w-full rounded-xl px-4 pr-11 text-sm outline-none transition"
+                      style={{
+                        background: "#F3F1FA",
+                        border: "1px solid rgba(34,17,88,0.08)",
+                        color: "#221158",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((s) => !s)}
+                      className="absolute inset-y-0 right-3 inline-flex items-center"
+                      style={{ color: "#857AC0" }}
+                      aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="inviteConfirmPassword"
+                    className="mb-2 block text-sm font-bold"
+                    style={{ color: "#221158" }}
+                  >
+                    Confirmar contraseña
+                  </label>
+                  <input
+                    id="inviteConfirmPassword"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    minLength={8}
+                    required
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="h-11 w-full rounded-xl px-4 text-sm outline-none transition"
+                    style={{
+                      background: "#F3F1FA",
+                      border: "1px solid rgba(34,17,88,0.08)",
+                      color: "#221158",
+                    }}
+                  />
+                </div>
+
+                <label
+                  className="flex items-center gap-2 text-xs font-semibold select-none cursor-pointer"
+                  style={{ color: "#221158" }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="h-4 w-4 rounded"
+                    style={{ accentColor: "#00AD87" }}
+                  />
+                  Recuérdame
+                </label>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="h-11 w-full rounded-xl text-sm font-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
+                  style={{ background: "#00AD87", color: "#FFFFFF" }}
+                >
+                  {loading ? "Guardando..." : "Definir contraseña y entrar"}
+                </button>
+              </form>
+            ) : mode === "login" ? (
               <form onSubmit={handleLogin} className="mt-6 space-y-4">
                 <div>
                   <label

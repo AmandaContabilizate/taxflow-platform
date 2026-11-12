@@ -144,9 +144,15 @@ export const API_ROUTES = {
     FORGOT_PASSWORD: (systemOriginId?: number) =>
       systemOriginId == null ? "/forgot-password" : `/forgot-password/${systemOriginId}`,
     RESET_PASSWORD: "/reset-password",
+    /** GET users (Identity), anónimo. Estado de la liga de invitación de empresa (?ref=EMP-…). */
+    COMPANY_INVITE: (ref: string) => `/company-invite/${encodeURIComponent(ref)}`,
+    /** POST users (Identity), anónimo. Define la contraseña de la cuenta creada por la invitación e inicia sesión. */
+    COMPANY_INVITE_SET_PASSWORD: "/company-invite/set-password",
     UPDATE_PASSWORD: "/UpdatePassword",
     ASSIGN_ROLE: "/assign-role",
     REMOVE_ROLE: "/remove-role",
+    /** POST users (Identity). Alta administrativa: el server genera la contraseña y manda el correo. Claim CreateUser. */
+    CREATE_USER: "/create-user",
     ROLES: (userId: string) => `/${encodeURIComponent(userId)}/roles`,
     SWITCH_ROLE: "/switch-role",
     /** GET users (Identity). Roles del propio usuario, sin AssignRole: selector "Cambiar de rol". */
@@ -180,7 +186,93 @@ export const API_ROUTES = {
     CREATE: "",
     UPDATE: (id: number) => `/${id}`,
   },
+  // Perfil Empresa (backoffice). apiType "empresas" (Procedures). Claim Backoffice.ManageEmpresas.
+  EMPRESAS: {
+    LIST: "",
+    PERFIL: (partnershipId: number) => `/${partnershipId}/perfil`,
+    PRECIOS: (partnershipId: number) => `/${partnershipId}/precios`,
+    ACTIVACIONES_PENDIENTES: "/activaciones/pendientes",
+    ACTIVAR_PERSONA: (partnershipId: number, personId: number) => `/${partnershipId}/personas/${personId}/activar`,
+    LOTES: "/lotes",
+    LOTE: (batchId: number) => `/lotes/${batchId}`,
+    LOTES_PROPONER: "/lotes/proponer",
+    LOTE_APROBAR: (batchId: number) => `/lotes/${batchId}/aprobar`,
+    LOTE_CANCELAR: (batchId: number) => `/lotes/${batchId}/cancelar`,
+    LOTE_EJECUTAR: (batchId: number) => `/lotes/${batchId}/ejecutar`,
+    LOTE_REINTENTAR: (batchId: number) => `/lotes/${batchId}/reintentar`,
+    ESTADOS_CUENTA: "/estados-cuenta",
+    ESTADO_CUENTA: (statementId: number) => `/estados-cuenta/${statementId}`,
+    ESTADOS_CUENTA_CERRAR: "/estados-cuenta/cerrar",
+    ESTADO_CUENTA_PAGADO: (statementId: number) => `/estados-cuenta/${statementId}/pagado`,
+  },
+  // "Mi empresa" (portal de la empresa). apiType "empresa" (Procedures)
+  EMPRESA: {
+    RESUMEN: "/resumen",
+    PERSONAS: "/personas",
+    PERSONAS_INVITAR: "/personas/invitar",
+    PERSONA_BAJA: (personId: number) => `/personas/${personId}/baja`,
+    PERSONA_EXPEDIENTE: (personId: number) => `/personas/${personId}/expediente`,
+    /** PDF de la constancia u opinión de la persona (según su autorización). */
+    PERSONA_DOCUMENTO: (personId: number, tipo: 'constancia' | 'opinion') => `/personas/${personId}/documentos/${tipo}`,
+    /** Tablero "Listas del SAT" (69-B vía SíConf). */
+    LISTAS_SAT: "/listas-sat",
+    FACTURACION: "/facturacion",
+    FACTURACION_DETALLE: (statementId: number) => `/facturacion/${statementId}`,
+    /** Servicios adicionales por persona (spec-servicios-adicionales §5.2). */
+    SERVICIOS: "/personas/servicios",
+    SERVICIOS_CONTRATAR: "/personas/servicios/contratar",
+    SERVICIO_BAJA: (subscriptionId: number) => `/personas/servicios/${subscriptionId}/baja`,
+  },
+  // Usuarios de mi empresa. apiType "empresa_usuarios" (Identity)
+  EMPRESA_USUARIOS: {
+    LIST: "",
+    CREAR: "",
+    ROL: (userId: string) => `/${userId}/rol`,
+    BAJA: (userId: string) => `/${userId}/baja`,
+    ALTA: (userId: string) => `/${userId}/alta`,
+  },
+  // Servicios adicionales del cliente. apiType "mis_servicios" (Procedures)
+  MIS_SERVICIOS: {
+    LIST: (rfc?: string) => (rfc ? `?rfc=${encodeURIComponent(rfc)}` : ""),
+  },
+  // Lado de la persona. apiType "mis_empresas" (Procedures)
+  MIS_EMPRESAS: {
+    LIST: "",
+    CONSENTIMIENTO: (personId: number) => `/${personId}/consentimiento`,
+    REVOCAR: (personId: number) => `/${personId}/consentimiento/revocar`,
+  },
   // Códigos de descuento. apiType "discount_codes" (Procedures)
+  /** Catálogo de productos (apiType subscription_plan_admin, Procedures). Claims Backoffice.ReadProductos / ManageProductos. */
+  /** Aprovisionamiento de servicios (apiType aprovisionamiento, Procedures). Claim Backoffice.AprovisionamientoServicios. */
+  APROVISIONAMIENTO: {
+    COLA: (p: { status?: number; provider?: string; take?: number }) => {
+      const s = new URLSearchParams();
+      if (p.status != null) s.set("status", String(p.status));
+      if (p.provider) s.set("provider", p.provider);
+      if (p.take) s.set("take", String(p.take));
+      const q = s.toString();
+      return `/cola${q ? `?${q}` : ""}`;
+    },
+    BITACORA: (p: { subscriptionId?: number; provider?: string; take?: number }) => {
+      const s = new URLSearchParams();
+      if (p.subscriptionId != null) s.set("subscriptionId", String(p.subscriptionId));
+      if (p.provider) s.set("provider", p.provider);
+      if (p.take) s.set("take", String(p.take));
+      const q = s.toString();
+      return `/bitacora${q ? `?${q}` : ""}`;
+    },
+    HECHO: (jobId: number) => `/tareas/${jobId}/hecho`,
+    REINTENTAR: (jobId: number) => `/tareas/${jobId}/reintentar`,
+    PROCESAR: (jobId: number) => `/tareas/${jobId}/procesar`,
+    CICLO: "/ciclo",
+  },
+  PRODUCTOS: {
+    LIST: "",
+    CREATE: "",
+    UPDATE: (id: number) => `/${id}`,
+    SET_REGIMES: (id: number) => `/${id}/regimes`,
+    DELETE: (id: number) => `/${id}`,
+  },
   DISCOUNT_CODES: {
     LIST: "",
     LOOKUPS: "/lookups",
