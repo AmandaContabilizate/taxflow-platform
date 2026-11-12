@@ -350,3 +350,295 @@
 .benefit-item:nth-child(2).animate-slide-in-left { animation-delay: 0.15s; }
 .benefit-item:nth-child(3).animate-slide-in-left { animation-delay: 0.25s; }
 .benefit-item:nth-child(4).animate-slide-in-left { animation-delay: 0.35s; }
+
+/* ------------------------------------------------------------------
+   Portal "Mi empresa" (spec-perfil-empresa): la barra lateral de los usuarios
+   de una alianza (AdminPartnership y roles Empresa.*) va en tinta (#221158, el mismo color del botón primario,
+   decisión de Amanda 2026-11-10) con el activo en violeta. Solo redefine las variables que usa el
+   sidebar; el resto de la pantalla no cambia. Mismo tema en claro y oscuro.
+   ------------------------------------------------------------------ */
+aside[data-portal="empresa"] {
+  --sidebar: #221158;
+  --sidebar-foreground: #ECE8FA;
+  --sidebar-border: rgba(255, 255, 255, 0.10);
+  --sidebar-accent: rgba(255, 255, 255, 0.08);
+  --sidebar-accent-foreground: #ECE8FA;
+  --ink-900: #ffffff;
+  --ink-700: #DDD6F3;
+  --ink-600: #C6BCEA;
+  --ink-500: #A398D4;
+  --ink-400: #8578BE;
+  --ink-50: rgba(255, 255, 255, 0.08);
+  --nav-active-bg: #7339FD;
+  --nav-active-fg: #ffffff;
+  --nav-active-icon-bg: rgba(255, 255, 255, 0.18);
+  --nav-active-icon-fg: #4DFFCF;
+  --nav-active-hint: rgba(255, 255, 255, 0.7);
+  --sh-ink: 0 8px 20px -6px rgba(115, 57, 253, 0.55);
+  color-scheme: dark;
+}
+
+/* ---------- Micro-interacciones base (design engineering) ----------
+   Curvas con intención: ease-out fuerte para entradas y respuesta al clic. Solo transform/opacity. */
+:root {
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Cualquier cosa que se presiona responde: scale(0.97) al :active. */
+.ui-press {
+  transition: transform 160ms var(--ease-out-strong), background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+.ui-press:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* Modal: el panel entra desde casi su tamaño (nunca desde 0) y el fondo se funde. */
+@keyframes ui-modal-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes ui-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.ui-modal-panel {
+  animation: ui-modal-in 220ms var(--ease-out-strong) both;
+  transform-origin: center; /* los modales no tienen disparador: se quedan centrados */
+}
+.ui-modal-overlay {
+  animation: ui-fade-in 180ms ease-out both;
+}
+
+/* Bloques que aparecen al cambiar de opción (p. ej. campos por tipo de producto):
+   un desplazamiento mínimo evita el "salto" sin hacer esperar. */
+@keyframes ui-section-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.ui-section-enter {
+  animation: ui-section-in 180ms var(--ease-out-strong) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-press, .ui-press:active:not(:disabled) { transform: none; }
+  .ui-modal-panel, .ui-section-enter { animation: ui-fade-in 150ms ease-out both; }
+}
+
+/* ---------- Perfil Empresa: lenguaje visual del prototipo (perfil-empresa-contabilizate.html) ----------
+   Mismos tokens de marca de la app; aquí viven solo los colores semánticos (verde / ámbar / rojo / azul /
+   púrpura) y las piezas que el prototipo define por CSS: chips, pills, tabla, tabs subrayadas, panel
+   lateral y anillo de puntaje. Alcance: pantallas de Mi empresa y la vista interna de empresas. */
+:root {
+  --emp-green: #0C8F5C;
+  --emp-green-bg: #E4F9EF;
+  --emp-amber: #B86E00;
+  --emp-amber-bg: #FFF4E0;
+  --emp-red: #D32B3D;
+  --emp-red-bg: #FDEAEC;
+  --emp-blue: #2F66D0;
+  --emp-blue-bg: #E8EFFE;
+  --emp-purple: #6001F7;
+  --emp-purple-bg: #EDE1FF;
+  --emp-gray-bg: #EFEDF6;
+  --emp-surface-2: #F8F7FD;
+  --emp-chip-fg: #6B6491;
+  --emp-ink: #1E0F5C;
+  --emp-turq: #06FF94;
+  --emp-turq-dark: #00CC76;
+  --emp-shadow: 0 4px 20px rgba(30,15,92,0.06);
+  --emp-shadow-lg: 0 12px 40px rgba(30,15,92,0.14);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+.dark {
+  --emp-green: #3DDB9A;
+  --emp-green-bg: #0E2E22;
+  --emp-amber: #F5B84C;
+  --emp-amber-bg: #3A2C10;
+  --emp-red: #FF6B7A;
+  --emp-red-bg: #3A1620;
+  --emp-blue: #7FA6FF;
+  --emp-blue-bg: #122447;
+  --emp-purple: #C9A9FF;
+  --emp-purple-bg: #33206B;
+  --emp-gray-bg: #241A4C;
+  --emp-surface-2: #211258;
+  --emp-chip-fg: #B4ABDE;
+  --emp-ink: #6001F7;
+  --emp-shadow: 0 4px 20px rgba(0,0,0,0.35);
+  --emp-shadow-lg: 0 12px 40px rgba(0,0,0,0.5);
+}
+
+/* Pills de estado: 11.5px, negrita, cápsula. El color dice el estado, el texto lo nombra. */
+.emp-pill { display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:700; padding:4px 10px; border-radius:20px; white-space:nowrap; line-height:1.3; }
+.emp-pill-green { background:var(--emp-green-bg); color:var(--emp-green); }
+.emp-pill-amber { background:var(--emp-amber-bg); color:var(--emp-amber); }
+.emp-pill-red { background:var(--emp-red-bg); color:var(--emp-red); }
+.emp-pill-blue { background:var(--emp-blue-bg); color:var(--emp-blue); }
+.emp-pill-purple { background:var(--emp-purple-bg); color:var(--emp-purple); }
+.emp-pill-gray { background:var(--emp-gray-bg); color:var(--ink-500); }
+
+/* Chips de filtro: borde suave, activo en tinta. Se pulsan decenas de veces: solo color, sin movimiento. */
+.emp-chip { display:inline-flex; align-items:center; gap:6px; padding:8px 12px; border-radius:11px; border:1px solid var(--border); background:var(--card); font-size:12.5px; font-weight:700; color:var(--emp-chip-fg); cursor:pointer; transition:background-color 150ms ease, color 150ms ease, border-color 150ms ease, transform 160ms var(--ease-out-strong); }
+.emp-chip:hover { background:var(--emp-gray-bg); color:var(--ink-900); }
+.emp-chip:active { transform:scale(0.97); }
+.emp-chip.is-active { background:var(--emp-ink); color:#fff; border-color:var(--emp-ink); }
+.emp-chip.is-active:hover { background:var(--emp-ink); color:#fff; }
+.emp-chip .emp-chip-n { font-weight:600; opacity:.75; }
+
+/* Botones del prototipo: 12px de radio, tinta → púrpura al pasar, scale(.97) al pulsar. */
+.emp-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; font-weight:700; font-size:13.5px; padding:10px 16px; border-radius:12px; border:none; cursor:pointer; white-space:nowrap; transition:transform 160ms var(--ease-out-strong), background-color 150ms ease, color 150ms ease, box-shadow 150ms ease; }
+.emp-btn:active:not(:disabled) { transform:scale(0.97); }
+.emp-btn:disabled { opacity:.45; cursor:not-allowed; }
+.emp-btn-primary { background:var(--emp-ink); color:#fff; }
+.emp-btn-primary:hover:not(:disabled) { background:var(--emp-purple); }
+.emp-btn-accent { background:var(--emp-turq); color:#04371F; }
+.emp-btn-accent:hover:not(:disabled) { background:var(--emp-turq-dark); }
+.emp-btn-ghost { background:var(--emp-surface-2); color:var(--ink-900); border:1px solid var(--border); }
+.emp-btn-ghost:hover:not(:disabled) { background:var(--emp-gray-bg); }
+.emp-btn-danger { background:var(--emp-red-bg); color:var(--emp-red); }
+.emp-btn-sm { padding:7px 12px; font-size:12.5px; border-radius:10px; }
+.emp-icon-btn { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:9px; border:1px solid var(--border); background:var(--card); color:var(--ink-500); cursor:pointer; transition:background-color 150ms ease, color 150ms ease, transform 160ms var(--ease-out-strong); }
+.emp-icon-btn:hover:not(:disabled) { background:var(--emp-surface-2); color:var(--ink-900); }
+.emp-icon-btn:active:not(:disabled) { transform:scale(0.95); }
+.emp-icon-btn:disabled { opacity:.5; cursor:not-allowed; }
+.emp-close-x { background:var(--emp-surface-2); border:none; width:32px; height:32px; border-radius:9px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:var(--ink-500); transition:background-color 150ms ease, color 150ms ease, transform 160ms var(--ease-out-strong); }
+.emp-close-x:hover { background:var(--emp-gray-bg); color:var(--ink-900); }
+.emp-close-x:active { transform:scale(0.95); }
+
+/* Campos de la barra de herramientas. */
+.emp-input { padding:10px 12px; border-radius:11px; border:1px solid var(--border); background:var(--emp-surface-2); font-size:13px; color:var(--ink-900); outline:none; transition:box-shadow 150ms ease, border-color 150ms ease; }
+.emp-input::placeholder { color:var(--ink-400); }
+.emp-input:focus { border-color:var(--emp-purple); box-shadow:0 0 0 3px color-mix(in srgb, var(--emp-purple) 18%, transparent); }
+.emp-select { padding:9px 34px 9px 12px; border-radius:11px; border:1px solid var(--border); background-color:var(--emp-surface-2); font-size:12.5px; font-weight:600; color:var(--ink-900); outline:none; appearance:none; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239C96BE' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>"); background-repeat:no-repeat; background-position:right 12px center; cursor:pointer; }
+.emp-select:focus { border-color:var(--emp-purple); box-shadow:0 0 0 3px color-mix(in srgb, var(--emp-purple) 18%, transparent); }
+.emp-check { width:16px; height:16px; accent-color:var(--emp-purple); cursor:pointer; }
+
+/* Tarjeta y tabla. */
+.emp-card { background:var(--card); border-radius:18px; padding:20px; box-shadow:var(--emp-shadow); border:1px solid var(--border); }
+.emp-card-flush { padding:0; overflow:hidden; }
+.emp-section-title { font-size:15px; font-weight:800; margin:0 0 2px; color:var(--ink-900); }
+.emp-section-sub { font-size:12.5px; color:var(--ink-500); margin:0 0 14px; }
+.emp-table { width:100%; border-collapse:collapse; }
+.emp-table thead th { text-align:left; font-size:10.5px; font-weight:700; color:var(--ink-400); text-transform:uppercase; letter-spacing:.05em; padding:12px 14px; border-bottom:1px solid var(--border); white-space:nowrap; }
+.emp-table tbody td { padding:13px 14px; border-bottom:1px solid var(--border); font-size:13px; vertical-align:middle; color:var(--ink-900); }
+.emp-table tbody tr { transition:background-color 120ms ease; }
+.emp-table tbody tr:last-child td { border-bottom:none; }
+.emp-table tbody tr:hover { background:var(--emp-surface-2); }
+.emp-table tbody tr.is-selected { background:var(--emp-blue-bg); }
+.emp-table tbody tr.is-inactive td { opacity:.55; }
+.emp-cell-name { background:none; border:none; padding:0; font:inherit; font-weight:700; color:var(--ink-900); cursor:pointer; text-align:left; transition:color 120ms ease; }
+.emp-cell-name:hover { color:var(--emp-purple); }
+.emp-cell-sub { font-size:11.5px; color:var(--ink-400); font-weight:500; margin-top:2px; }
+.emp-mono { font-family:var(--font-mono); font-size:12px; letter-spacing:.02em; }
+.emp-finding-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:11px 0; border-bottom:1px solid var(--border); font-size:13px; }
+.emp-finding-row:last-child { border-bottom:none; }
+.emp-finding-row .emp-finding-left { display:flex; align-items:center; gap:10px; color:var(--ink-500); font-weight:600; min-width:0; }
+.emp-finding-row b { color:var(--ink-900); font-weight:700; text-align:right; }
+.emp-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.emp-dot-red { background:var(--emp-red); }
+.emp-dot-amber { background:var(--emp-amber); }
+.emp-dot-blue { background:var(--emp-blue); }
+.emp-dot-green { background:var(--emp-green); }
+
+/* KPI: etiqueta pequeña con icono, cifra grande, pie. La versión oscura resalta la cifra que manda. */
+.emp-kpi-label { font-size:11px; font-weight:700; color:var(--ink-400); text-transform:uppercase; letter-spacing:.06em; display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.emp-kpi-icon { width:30px; height:30px; border-radius:9px; background:var(--emp-surface-2); display:flex; align-items:center; justify-content:center; color:var(--emp-purple); }
+.emp-kpi-value { font-size:28px; font-weight:800; letter-spacing:-.02em; color:var(--ink-900); font-variant-numeric:tabular-nums; }
+.emp-kpi-foot { font-size:12px; color:var(--ink-500); margin-top:4px; }
+.emp-kpi-dark { background:var(--emp-ink); color:#fff; border-color:transparent; }
+.emp-kpi-dark .emp-kpi-label { color:#C9BFF7; }
+.emp-kpi-dark .emp-kpi-icon { background:rgba(255,255,255,.12); color:var(--emp-turq); }
+.emp-kpi-dark .emp-kpi-value { color:#fff; }
+.emp-kpi-dark .emp-kpi-foot { color:#B7ABE8; }
+
+/* Embudo: barra con degradado tinta → púrpura; el ancho se mueve solo al cargar. */
+.emp-bar-track { height:9px; background:var(--emp-surface-2); border-radius:20px; overflow:hidden; }
+.emp-bar-fill { height:100%; border-radius:20px; background:linear-gradient(90deg, var(--emp-purple), var(--emp-ink)); transition:width 600ms var(--ease-out-strong); }
+.emp-bar-fill.is-turq { background:linear-gradient(90deg, var(--emp-turq-dark), var(--emp-turq)); }
+
+/* Tabs subrayadas del expediente: solo cambia el color, sin movimiento. */
+.emp-tabs { display:flex; gap:4px; border-bottom:1px solid var(--border); overflow-x:auto; }
+.emp-tab { padding:11px 16px; font-size:13px; font-weight:700; color:var(--ink-400); background:none; border:none; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; white-space:nowrap; transition:color 150ms ease, border-color 150ms ease; }
+.emp-tab:hover { color:var(--ink-900); }
+.emp-tab.is-active { color:var(--emp-purple); border-color:var(--emp-purple); }
+
+/* Barra de selección en tinta: lo seleccionado en turquesa. */
+.emp-bulk-bar { display:flex; align-items:center; gap:10px; padding:10px 16px; background:var(--emp-ink); color:#fff; border-radius:14px; flex-wrap:wrap; font-size:13px; }
+.emp-bulk-bar b { color:var(--emp-turq); }
+.emp-bulk-bar .emp-btn-ghost { background:rgba(255,255,255,.1); color:#fff; border-color:rgba(255,255,255,.2); }
+.emp-bulk-bar .emp-btn-ghost:hover:not(:disabled) { background:rgba(255,255,255,.18); }
+
+/* Paginación de cuadritos. */
+.emp-page-btn { min-width:30px; height:30px; padding:0 8px; border-radius:8px; border:1px solid var(--border); background:var(--card); color:var(--ink-500); font-size:12.5px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:background-color 120ms ease; }
+.emp-page-btn.is-active { background:var(--emp-ink); color:#fff; border-color:var(--emp-ink); }
+.emp-page-btn:hover:not(.is-active):not(:disabled) { background:var(--emp-surface-2); }
+.emp-page-btn:disabled { opacity:.4; cursor:not-allowed; }
+
+/* Panel lateral (expediente): entra desde la derecha con la curva de cajón de iOS, sale más rápido. */
+.emp-overlay { position:fixed; inset:0; background:rgba(20,10,50,.45); z-index:88; animation:ui-fade-in 200ms ease-out both; }
+.emp-overlay.is-closing { animation:emp-fade-out 160ms ease-out both; }
+.emp-panel { position:fixed; top:0; right:0; height:100dvh; width:min(760px, 94vw); background:var(--background); z-index:89; box-shadow:var(--emp-shadow-lg); overflow-y:auto; animation:emp-panel-in 260ms var(--ease-drawer) both; }
+.emp-panel.is-closing { animation:emp-panel-out 180ms var(--ease-drawer) both; }
+.emp-panel-inner { padding:22px 28px 60px; }
+@keyframes emp-panel-in { from { transform:translateX(100%); } to { transform:translateX(0); } }
+@keyframes emp-panel-out { from { transform:translateX(0); } to { transform:translateX(100%); } }
+@keyframes emp-fade-out { from { opacity:1; } to { opacity:0; } }
+
+/* Avatar con iniciales y anillo de puntaje. El anillo se llena una vez al abrir: es raro y es información. */
+.emp-avatar { border-radius:50%; background:linear-gradient(135deg, var(--emp-turq), var(--emp-purple)); display:flex; align-items:center; justify-content:center; font-weight:800; color:#fff; flex-shrink:0; letter-spacing:.02em; }
+.emp-ring { position:relative; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; font-weight:800; font-variant-numeric:tabular-nums; }
+.emp-ring svg { position:absolute; inset:0; transform:rotate(-90deg); }
+.emp-ring circle { fill:none; stroke-width:5; stroke-linecap:round; }
+.emp-ring .emp-ring-track { stroke:var(--emp-surface-2); }
+.emp-ring .emp-ring-fill { transition:stroke-dashoffset 700ms var(--ease-out-strong); }
+
+/* Timeline (autorizaciones / actividad) y filas de documentos. */
+.emp-timeline { position:relative; padding-left:26px; }
+.emp-timeline:before { content:''; position:absolute; left:6px; top:4px; bottom:4px; width:2px; background:var(--border); }
+.emp-tl-item { position:relative; padding-bottom:18px; }
+.emp-tl-item:last-child { padding-bottom:0; }
+.emp-tl-dot { position:absolute; left:-26px; top:2px; width:14px; height:14px; border-radius:50%; background:var(--emp-purple); border:3px solid var(--card); }
+.emp-tl-dot.is-muted { background:var(--ink-300); }
+.emp-tl-date { font-size:11px; color:var(--ink-400); font-weight:600; }
+.emp-tl-title { font-size:13.5px; font-weight:700; margin-top:1px; color:var(--ink-900); }
+.emp-tl-desc { font-size:12.5px; color:var(--ink-500); margin-top:2px; }
+.emp-doc-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 0; border-bottom:1px solid var(--border); }
+.emp-doc-row:last-child { border-bottom:none; }
+.emp-doc-icon { width:38px; height:38px; border-radius:10px; background:var(--emp-surface-2); display:flex; align-items:center; justify-content:center; color:var(--emp-purple); flex-shrink:0; }
+.emp-empty { text-align:center; padding:40px 20px; color:var(--ink-500); font-size:13.5px; }
+.emp-empty svg { color:var(--ink-300); margin:0 auto 10px; }
+.emp-note { background:var(--emp-surface-2); border:1px dashed var(--border); border-radius:14px; padding:12px 16px; font-size:12.5px; color:var(--ink-500); }
+
+@media (prefers-reduced-motion: reduce) {
+  .emp-panel { animation:ui-fade-in 150ms ease-out both; }
+  .emp-panel.is-closing { animation:emp-fade-out 150ms ease-out both; }
+  .emp-ring .emp-ring-fill, .emp-bar-fill { transition:none; }
+  .emp-chip:active, .emp-btn:active:not(:disabled), .emp-icon-btn:active:not(:disabled), .emp-close-x:active { transform:none; }
+}
+
+
+/* Navegación lateral (todas las variantes): el menú se pulsa decenas de veces al día, así que solo cambia color
+   (150 ms) y responde al clic con scale(.98); nada se desplaza. El hover va por CSS para no depender de JS. */
+.nav-item { transition: background-color 150ms ease, color 150ms ease, transform 160ms var(--ease-out-strong); }
+.nav-item:hover:not([data-active="true"]) { background: var(--ink-50) !important; }
+.nav-item:active:not(:disabled) { transform: scale(0.98); }
+aside[data-portal="empresa"] .nav-item[data-active="true"] .nav-item-icon { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18); }
+@media (prefers-reduced-motion: reduce) { .nav-item:active:not(:disabled) { transform: none; } }
+
+/* Stepper y zona de carga (prototipo "Carga masiva"). El paso activo en tinta, el hecho en turquesa. */
+.emp-steps { display:flex; align-items:center; gap:0; }
+.emp-step { display:flex; align-items:center; gap:8px; flex:1; min-width:0; }
+.emp-step:last-child { flex:0 0 auto; }
+.emp-step-num { width:28px; height:28px; border-radius:50%; background:var(--emp-surface-2); color:var(--ink-400); display:inline-flex; align-items:center; justify-content:center; font-weight:800; font-size:12px; flex-shrink:0; transition:background-color 200ms ease, color 200ms ease; }
+.emp-step.is-active .emp-step-num { background:var(--emp-ink); color:#fff; }
+.emp-step.is-done .emp-step-num { background:var(--emp-turq); color:#04371F; }
+.emp-step-label { font-size:12.5px; font-weight:700; color:var(--ink-400); white-space:nowrap; transition:color 200ms ease; }
+.emp-step.is-active .emp-step-label, .emp-step.is-done .emp-step-label { color:var(--ink-900); }
+.emp-step-line { flex:1; height:2px; background:var(--border); margin:0 10px; border-radius:2px; position:relative; overflow:hidden; }
+.emp-step-line:after { content:''; position:absolute; inset:0; background:var(--emp-turq-dark); transform:scaleX(0); transform-origin:left; transition:transform 300ms var(--ease-out-strong); }
+.emp-step.is-done .emp-step-line:after { transform:scaleX(1); }
+.emp-upload-zone { border:2px dashed var(--border); border-radius:16px; padding:36px 20px; text-align:center; background:var(--emp-surface-2); cursor:pointer; transition:border-color 150ms ease, background-color 150ms ease; }
+.emp-upload-zone:hover, .emp-upload-zone.is-over { border-color:var(--emp-purple); background:var(--emp-purple-bg); }
+.emp-upload-zone svg { color:var(--emp-purple); margin:0 auto 8px; }
+@media (max-width: 900px) { .emp-step-label { display:none; } .emp-step.is-active .emp-step-label { display:inline; } }
+

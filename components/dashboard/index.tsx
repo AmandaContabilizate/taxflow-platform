@@ -35,6 +35,8 @@ import {
   MonitorDescargasScreen,
   AsignacionesScreen,
   CodigosDescuentoScreen,
+  ProductosScreen,
+  AprovisionamientoScreen,
   ComisionesScreen,
   ConfiguracionScreen,
   DiagnosticoScreen,
@@ -47,6 +49,15 @@ import {
   ManualScreen,
   MarketingScreen,
   DeclaracionesFuturasScreen,
+  EmpresaResumenScreen,
+  EmpresaPersonasScreen,
+  EmpresaInvitacionesScreen,
+  EmpresaCargaMasivaScreen,
+  EmpresaDiagnosticoScreen,
+  EmpresasActivacionesScreen,
+  EmpresaFacturacionScreen,
+  EmpresasVistaScreen,
+  EmpresaUsuariosScreen,
   VentasPorActivarScreen,
   MisClientesScreen,
   NotificacionesScreen,
@@ -91,6 +102,8 @@ const WIDE_SCREENS = new Set<Screen>([
   'contribuyentes',
   'usuarios',
   'codigos-descuento',
+  'productos',
+  'aprovisionamiento',
   'renovaciones',
   'ventas',
   'roles',
@@ -125,6 +138,9 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
   // (sin query), para seguir cayendo en la última pantalla usada.
   const fromUrl = params.get('s')
   const screen: Screen = isScreen(fromUrl) ? fromUrl : 'home'
+  // Portal "Mi empresa": el inicio ya saluda a la empresa dentro del resumen; el encabezado usa el título de Resumen.
+  const roleKeyHeader = normalizeRole(role)
+  const headerScreen: Screen = screen === 'home' && (roleKeyHeader === 'empresa' || roleKeyHeader === 'external-provider') ? 'empresa-resumen' : screen
 
   useEffect(() => {
     if (isScreen(fromUrl)) return
@@ -244,12 +260,12 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
                 <div
                   className='text-[26px] lg:text-[32px] font-extrabold tracking-tight leading-tight'
                   style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
-                  {screen === 'home' ? `Hola, ${firstName} 👋` : (TITLES[screen]?.[0] ?? '')}
+                  {headerScreen === 'home' ? `Hola, ${firstName} 👋` : (TITLES[headerScreen]?.[0] ?? '')}
                 </div>
                 <div
                   className='text-[14px] font-semibold mt-1'
                   style={{ color: 'var(--ink-500)' }}>
-                  {TITLES[screen]?.[1] ?? ''}
+                  {TITLES[headerScreen]?.[1] ?? ''}
                 </div>
               </div>
             </div>
@@ -357,9 +373,33 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
   }
 
   if (!isGuest) {
-    // El proveedor externo solo administra su integración: su inicio es Partnership.
-    if (screen === 'home' && roleKey === 'external-provider') {
-      return <PartnershipScreen />;
+    // Portal "Mi empresa" (spec-perfil-empresa): el inicio de los usuarios de una alianza es el
+    // resumen de su empresa; el AdminPartnership sin claims Empresa.* (token viejo) sigue en Partnership.
+    if (screen === 'home' && (roleKey === 'external-provider' || roleKey === 'empresa')) {
+      return permissions.includes('Empresa.VerResumen') || roleKey === 'empresa'
+        ? <EmpresaResumenScreen />
+        : <PartnershipScreen />;
+    }
+    if (screen === 'empresa-resumen') {
+      return <EmpresaResumenScreen />;
+    }
+    if (screen === 'empresa-personas') {
+      return <EmpresaPersonasScreen canInvite={permissions.includes('Empresa.Invitar')} canContractServices={permissions.includes('Empresa.ContratarServicios')} />;
+    }
+    if (screen === 'empresa-invitaciones') {
+      return <EmpresaInvitacionesScreen canInvite={permissions.includes('Empresa.Invitar')} />;
+    }
+    if (screen === 'empresa-carga-masiva') {
+      return <EmpresaCargaMasivaScreen />;
+    }
+    if (screen === 'empresa-diagnostico') {
+      return <EmpresaDiagnosticoScreen />;
+    }
+    if (screen === 'empresa-facturacion') {
+      return <EmpresaFacturacionScreen />;
+    }
+    if (screen === 'empresa-usuarios') {
+      return <EmpresaUsuariosScreen />;
     }
     if (screen === 'home') {
       // Cada dashboard tiene su propio permiso (Dashboard.*), administrable por rol.
@@ -452,9 +492,22 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
     if (screen === 'partners') {
       return <PartnersScreen />;
     }
+    if (screen === 'empresas-activaciones') {
+      return <EmpresasActivacionesScreen />;
+    }
+    if (screen === 'empresas-vista') {
+      return <EmpresasVistaScreen />;
+    }
     if (screen === 'codigos-descuento') {
       // permissions: Admin.AuthorizeHighDiscount habilita autorizar códigos fuera de tope.
       return <CodigosDescuentoScreen permissions={permissions} />;
+    }
+    if (screen === 'productos') {
+      // Catálogo de productos: ManageProductos habilita alta/edición; ReadProductos solo consulta.
+      return <ProductosScreen permissions={permissions} />;
+    }
+    if (screen === 'aprovisionamiento') {
+      return <AprovisionamientoScreen />;
     }
     if (screen === 'asignaciones') {
       // Claim-driven: quien tiene Admin.ApproveAssignments revisa/aprueba;

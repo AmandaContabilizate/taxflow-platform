@@ -17,6 +17,8 @@ import {
 import { createRole } from '@/features/roles/actions/createRole.action'
 import { updateRole } from '@/features/roles/actions/updateRole.action'
 import { getClaimsCatalog } from '@/features/roles/actions/getClaimsCatalog.action'
+import { getPartners } from '@/features/partners/actions/getPartners.action'
+import type { Partner } from '@/features/partners/types'
 import type { ClaimCatalogItemDto, ClaimsDepartmentDto, RoleOverviewDto } from '@/features/roles/types'
 import { DISPLAY, MASTER_NAV_SECTIONS, MODULE_CLAIMS } from '../constants'
 import { Btn, Card } from '../ui'
@@ -216,6 +218,23 @@ export function RoleEditor({ role, onSaved, onCancel }: RoleEditorProps) {
   const [loadingCatalog, setLoadingCatalog] = useState(false)
   const [catalogError, setCatalogError] = useState<string | null>(null)
 
+  // Perfil Empresa (paso 12b): alianza dueña del rol (solo al crear). Con alianza, el catálogo se acota a Empresa.*
+  const [partnershipId, setPartnershipId] = useState<number | ''>('')
+  const [partners, setPartners] = useState<Partner[]>([])
+  useEffect(() => {
+    if (editing) return
+    void (async () => {
+      const res = await getPartners()
+      if (res.success) setPartners(res.value.filter((p) => p.isActive))
+    })()
+  }, [editing])
+  const scopedDepartments = useMemo<ClaimsDepartmentDto[]>(() => {
+    if (!partnershipId) return departments
+    return departments
+      .map((d) => ({ ...d, claims: d.claims.filter((c) => c.claimValue.startsWith('Empresa.')) }))
+      .filter((d) => d.claims.length > 0)
+  }, [departments, partnershipId])
+
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
@@ -268,8 +287,8 @@ export function RoleEditor({ role, onSaved, onCancel }: RoleEditorProps) {
    * (sin moduleKey) cae al agrupado anterior por nombre de departamento.
    */
   const nodes = useMemo<ModuleNode[]>(() => {
-    if (departments.length === 0) return []
-    const keyed = departments.some((d) => !!d.moduleKey)
+    if (scopedDepartments.length === 0) return []
+    const keyed = scopedDepartments.some((d) => !!d.moduleKey)
     const byKey = new Map<string, ModuleNode>()
     const seenClaims = new Set<number>()
 
@@ -299,7 +318,7 @@ export function RoleEditor({ role, onSaved, onCancel }: RoleEditorProps) {
       return g
     }
 
-    for (const dep of departments) {
+    for (const dep of scopedDepartments) {
       const claims = dep.claims.filter((c) => (seenClaims.has(c.id) ? false : (seenClaims.add(c.id), true)))
       if (claims.length === 0) continue
       if (!keyed) {
@@ -326,7 +345,7 @@ export function RoleEditor({ role, onSaved, onCancel }: RoleEditorProps) {
     // módulo cuyos permisos YA existen en el catálogo (administrados desde otra
     // pantalla, p. ej. Regularizaciones abre con el claim de Centro de operaciones)
     // no lleva cuadro vacío — decir "sin permisos aún" ahí sería falso.
-    const claimsEnCatalogo = new Set(departments.flatMap((d) => d.claims.map((c) => c.claimValue)))
+    const claimsEnCatalogo = new Set(scopedDepartments.flatMap((d) => d.claims.map((c) => c.claimValue)))
     for (const s of MASTER_NAV_SECTIONS) {
       for (const item of s.items) {
         const key = keyed ? item.id : item.label
@@ -344,7 +363,7 @@ export function RoleEditor({ role, onSaved, onCancel }: RoleEditorProps) {
       n.groups.sort((a, b) => a.sortOrder - b.sortOrder || (a.label ?? '').localeCompare(b.label ?? ''))
     }
     return list.sort((a, b) => a.order - b.order)
-  }, [departments])
+  }, [scopedDepartments])
 
   const totalClaims = useMemo(() => nodes.reduce((n, d) => n + nodeClaims(d).length, 0), [nodes])
 
@@ -487,6 +506,9 @@ export function RoleEditor({ role, onSaved, onCancel }: RoleEditorProps) {
           displayName: displayName_,
           description: description_,
           claimCatalogIds: selectedIds,
+          // El backend (CreateRoleCommand) lee `claims` por claimCatalogId; `claimCatalogIds` se conserva por compatibilidad.
+          claims: selectedIds.map((id) => ({ claimCatalogId: id, claimValue: claimValueById.get(id) ?? null })),
+          partnershipId: partnershipId || null,
         })
     setSaving(false)
     if (res.success) onSaved()
@@ -620,13 +642,41 @@ export function RoleEditor({ role, onSaved, onCancel }: RoleEditorProps) {
 
       {/* Body */}
       <div className="px-5 py-5 flex flex-col gap-5">
+        {/* Perfil Empresa (paso 12b): rol propio de una alianza → solo permisos Empresa.* y nombre con prefijo. */}
+        {!editing && (
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--ink-500)' }}>
+              Alianza (opcional) · rol propio de una empresa
+            </span>
+            <select
+              value={partnershipId}
+              onChange={(e) => setPartnershipId(e.target.value ? Number(e.target.value) : '')}
+              className="w-full px-3 py-2.5 rounded-lg text-[14px] outline-none"
+              style={{ background: 'var(--input)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+            >
+              <option value="">Rol global de Contabilízate</option>
+              {partners.map((p) => (
+                <option key={p.id} value={p.id}>{p.name} · {p.code}</option>
+              ))}
+            </select>
+            {partnershipId && (
+              <span className="text-[11.5px]" style={{ color: 'var(--ink-400)' }}>
+                Solo verás permisos Empresa.*; el nombre técnico quedará como Empresa.&lt;código&gt;.&lt;nombre&gt; y solo lo podrá asignar esa alianza.
+              </span>
+            )}
+          </label>
+        )}
+        {editing && role?.partnershipName && (
+          <div className="text-[12.5px]" style={{ color: 'var(--ink-500)' }}>Rol propio de la empresa <b>{role.partnershipName}</b>: solo permisos Empresa.*.</div>
+        )}
+
         {/* Datos básicos */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
           <label className="flex flex-col gap-1.5">
             <span className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--ink-500)' }}>
-              Nombre técnico (inglés)
+              {partnershipId ? 'Nombre (sin espacios)' : 'Nombre técnico (inglés)'}
             </span>
-            <Field value={name} onChange={setName} placeholder="Ej. Accounter" disabled={role?.isSystem || editing} mono />
+            <Field value={name} onChange={setName} placeholder={partnershipId ? 'Ej. Nomina' : 'Ej. Accounter'} disabled={role?.isSystem || editing} mono />
           </label>
           <label className="flex flex-col gap-1.5">
             <span className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--ink-500)' }}>
