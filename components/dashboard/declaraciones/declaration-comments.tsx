@@ -136,7 +136,7 @@ export function DeclarationComments({ declarationId, currentUser, readOnly = fal
                   >
                     {c.authorName}
                     <span className="font-normal" style={{ opacity: 0.75 }}>
-                      · {fmtDate(c.createdAt)}
+                      {c.authorRole ? `· ${c.authorRole} ` : ''}· {fmtDate(c.createdAt)}
                     </span>
                   </div>
                   <div className="text-[13.5px] leading-snug whitespace-pre-wrap break-words">
