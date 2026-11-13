@@ -3,6 +3,7 @@
 import { Bold, Code, Italic, Loader2, Send, Strikethrough } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { getDeclarationComments } from '@/features/declarations/actions/getDeclarationComments.action'
+import { markDeclarationCommentsRead } from '@/features/declarations/actions/markDeclarationCommentsRead.action'
 import { postDeclarationComment } from '@/features/declarations/actions/postDeclarationComment.action'
 import type { DeclarationComment } from '@/features/declarations/types'
 import { formatWhatsappText } from '@/lib/format/whatsappText'
@@ -18,7 +19,12 @@ interface Props {
   currentUser: CurrentUser
   /** Solo lectura (perfil de consulta, SAC): se ve la conversación, sin caja para escribir. */
   readOnly?: boolean
+  /** Declaración cancelada (18/19): el hilo se lee y ya no admite comentarios. */
+  closed?: boolean
 }
+
+/** Mismo tope que el back (Declarations.DeclarationComment.Body). */
+const MAX_LENGTH = 2000
 
 type State =
   | { status: 'loading' }
@@ -32,10 +38,12 @@ const WRAP: Record<'bold' | 'italic' | 'strike' | 'mono', [string, string]> = {
   mono: ['```', '```'],
 }
 
-export function DeclarationComments({ declarationId, currentUser, readOnly = false }: Props) {
+export function DeclarationComments({ declarationId, currentUser, readOnly = false, closed = false }: Props) {
   const [state, setState] = useState<State>({ status: 'loading' })
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState<string | null>(null)
+  const canWrite = !readOnly && !closed
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const load = async () => {
@@ -46,6 +54,10 @@ export function DeclarationComments({ declarationId, currentUser, readOnly = fal
         ? { status: 'ready', comments: res.value }
         : { status: 'error', message: res.error.message },
     )
+    // Abrir el hilo marca leídos los mensajes del otro lado; solo consulta no marca nada.
+    if (res.success && canWrite && res.value.some((c) => c.authorUserId !== currentUser.userId)) {
+      void markDeclarationCommentsRead(declarationId)
+    }
   }
 
   useEffect(() => {
@@ -73,11 +85,14 @@ export function DeclarationComments({ declarationId, currentUser, readOnly = fal
     const text = draft.trim()
     if (!text || sending) return
     setSending(true)
+    setSendError(null)
     const res = await postDeclarationComment(declarationId, text)
     setSending(false)
     if (res.success) {
       setDraft('')
       await load()
+    } else {
+      setSendError(res.error.message)
     }
   }
 
@@ -133,9 +148,11 @@ export function DeclarationComments({ declarationId, currentUser, readOnly = fal
           })}
       </div>
 
-      {readOnly ? (
+      {!canWrite ? (
         <div className="text-[12.5px] px-1" style={{ color: 'var(--ink-500)' }}>
-          Solo consulta: puedes leer la conversación, pero no escribir en ella.
+          {closed
+            ? 'Esta declaración está cancelada: puedes leer la conversación, pero ya no admite comentarios.'
+            : 'Solo consulta: puedes leer la conversación, pero no escribir en ella.'}
         </div>
       ) : (
       <div
@@ -151,7 +168,11 @@ export function DeclarationComments({ declarationId, currentUser, readOnly = fal
         <textarea
           ref={textareaRef}
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => {
+            setDraft(e.target.value)
+            if (sendError) setSendError(null)
+          }}
+          maxLength={MAX_LENGTH}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault()
@@ -163,7 +184,12 @@ export function DeclarationComments({ declarationId, currentUser, readOnly = fal
           className="w-full resize-none rounded-xl px-3 py-2 text-[13.5px] outline-none"
           style={{ background: 'var(--muted)', color: 'var(--foreground)', border: '1px solid var(--border)' }}
         />
-        <div className="flex justify-end">
+        <div className="flex items-center justify-end gap-3">
+          {sendError && (
+            <span role="alert" className="mr-auto text-[12.5px]" style={{ color: 'var(--destructive)' }}>
+              {sendError}
+            </span>
+          )}
           <button
             onClick={() => void handleSend()}
             disabled={!draft.trim() || sending}

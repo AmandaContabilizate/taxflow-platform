@@ -809,7 +809,12 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
         <SaldosFavorIvaTab declarationId={d.declarationId} rfc={rfc} onRequiereRecalculo={setPendienteRecalculo} />
       )}
       {tab === COMMENTS_TAB_INDEX && (
-        <DeclarationComments declarationId={d.declarationId} currentUser={currentUser} readOnly={soloConsulta} />
+        <DeclarationComments
+          declarationId={d.declarationId}
+          currentUser={currentUser}
+          readOnly={soloConsulta}
+          closed={cancelled}
+        />
       )}
 
       <DeclarationHistory logs={logs} loading={logsLoading} />
