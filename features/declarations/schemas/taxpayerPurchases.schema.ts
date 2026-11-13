@@ -33,6 +33,8 @@ const filters = {
   presentacion: z.enum(['normal', 'complementaria']).optional(),
   /** Pide el conteo por nivel del semáforo sobre todo el universo filtrado (solo con `statusId: 11`). */
   includeReadinessCounts: z.boolean().optional(),
+  /** AspNetUsers.SystemOriginId del cliente (2 = godin); ausente = todos los orígenes. */
+  origins: z.array(z.number().int().min(0).max(255)).optional(),
 }
 
 /** Nivel 1: contribuyentes con compras. `search` filtra por RFC o razón social. */
