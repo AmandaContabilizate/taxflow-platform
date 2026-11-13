@@ -20,7 +20,7 @@ export async function getRegularizationTaxpayers(
   }
 
   // `onlyUpcoming` no se manda: el backend de regularizaciones no lo acepta (upcomingExact/periodYear/periodMonth sí).
-  const { search, skip, take, kind, taxRegimeId, upcomingExact, periodYear, periodMonth, statusId, accountantUserId } =
+  const { search, skip, take, kind, taxRegimeId, upcomingExact, periodYear, periodMonth, statusId, accountantUserId, origins } =
     parsed.data
 
   try {
@@ -36,6 +36,7 @@ export async function getRegularizationTaxpayers(
         periodMonth,
         statusId,
         accountantUserId,
+        origins,
       }),
       'declaration',
     )

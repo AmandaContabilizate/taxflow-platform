@@ -24,7 +24,7 @@ export async function getDeclarationsByTaxpayer(
 
   const {
     rfc, skip, take, kind, taxRegimeId, onlyUpcoming, upcomingExact, periodYear, periodMonth, statusId,
-    readiness, ciecState, presentacion, includeReadinessCounts,
+    readiness, ciecState, presentacion, includeReadinessCounts, origins,
   } = parsed.data
 
   try {
@@ -44,6 +44,7 @@ export async function getDeclarationsByTaxpayer(
         ciecState,
         presentacion,
         includeReadinessCounts,
+        origins,
       }),
       'declaration',
     )
