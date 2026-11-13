@@ -42,6 +42,8 @@ export function TodasTab({ onViewDetail, currentUser }: Props) {
   const [commentFor, setCommentFor] = useState<number | null>(null)
 
   const items = state.status === 'ready' ? withoutUnknownStatus(state.data.items) : []
+  const commentItem = commentFor != null ? items.find((d) => d.declarationId === commentFor) : undefined
+  const commentClosed = commentItem?.statusCode === 'RegimeCancelled' || commentItem?.statusCode === 'CommercialCancelled'
   const { filtered, filters } = useDeclarationFilters(items)
 
   if (state.status === 'loading') return <TabLoading label="Cargando tus declaraciones…" />
@@ -195,7 +197,7 @@ export function TodasTab({ onViewDetail, currentUser }: Props) {
             <SheetTitle>Comentarios</SheetTitle>
           </SheetHeader>
           {commentFor != null && (
-            <DeclarationComments declarationId={commentFor} currentUser={currentUser} />
+            <DeclarationComments declarationId={commentFor} currentUser={currentUser} closed={commentClosed} />
           )}
         </SheetContent>
       </Sheet>

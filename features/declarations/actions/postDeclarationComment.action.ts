@@ -25,7 +25,8 @@ export async function postDeclarationComment(
     return ok(data)
   } catch (e) {
     if (e instanceof ApiError) {
-      return err({ statusCode: e.status, message: e.message, code: e.errorCode })
+      const message = e.status === 403 ? 'Tu perfil solo puede consultar los comentarios.' : e.message
+      return err({ statusCode: e.status, message, code: e.errorCode })
     }
     console.error('[postDeclarationComment] Error:', e)
     return err({ statusCode: 500, message: 'No pudimos publicar el comentario.' })

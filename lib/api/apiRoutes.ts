@@ -691,6 +691,7 @@ export const API_ROUTES = {
     SAT_READING_ESPEJO: (taxpayerId: number, declarationId: number) =>
       `/espejo/${taxpayerId}/${declarationId}/sat-reading`,
     COMMENTS: (declarationId: number) => `/${declarationId}/comments`,
+    COMMENTS_READ: (declarationId: number) => `/${declarationId}/comments/read`,
     RECALCULATE: "/recalculate",
     ISSUED_INVOICES_DECLARATION: (p: DeclarationPeriodInvoicesParams) =>
       `/issued-invoices-declaration${periodInvoicesQuery(p)}`,
