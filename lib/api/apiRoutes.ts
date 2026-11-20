@@ -466,6 +466,10 @@ export const API_ROUTES = {
       if (params.includeTotals === false) qs.set("includeTotals", "false")
       return `/${params.declarationId}${params.consulta ? "/consulta" : ""}/invoices?${qs.toString()}`
     },
+    // GET declarations_reports. URL SAS de solo lectura (10 min) al XML del CFDI en el Blob, para
+    // abrirlo desde la pestaña Comprobantes. Se pide en cada clic: no cachear la URL.
+    INVOICE_XML_URL: (params: { declarationId: number; invoiceId: number; consulta?: boolean }) =>
+      `/${params.declarationId}${params.consulta ? "/consulta" : ""}/invoices/${params.invoiceId}/xml-url`,
     // SOLO las constancias de retención del periodo, paginadas sobre su propio
     // universo. Misma forma de respuesta que INVOICES (PagedResult) con
     // esRetencion/totalRetenido/retenciones ya poblados.
