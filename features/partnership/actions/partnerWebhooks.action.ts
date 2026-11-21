@@ -55,6 +55,16 @@ export async function rotateWebhookSecret(id: number): Promise<Result<WebhookEnd
   }
 }
 
+/** Envía un evento webhook.test firmado a ese endpoint (sale en el siguiente minuto). */
+export async function sendWebhookTest(id: number): Promise<Result<true, PartnershipError>> {
+  try {
+    await fetchPost<unknown>(W.TEST(id), undefined, "partnership");
+    return ok(true);
+  } catch (e) {
+    return err(toPartnershipError(e, "No pudimos enviar el evento de prueba."));
+  }
+}
+
 export async function deleteWebhook(id: number): Promise<Result<true, PartnershipError>> {
   try {
     await fetchDelete<void>(W.DELETE(id), "partnership");

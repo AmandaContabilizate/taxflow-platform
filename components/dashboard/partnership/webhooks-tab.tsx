@@ -11,6 +11,7 @@ import {
   getWebhooks,
   redeliverWebhook,
   rotateWebhookSecret,
+  sendWebhookTest,
   updateWebhook,
 } from '@/features/partnership/actions/partnerWebhooks.action'
 import type { PartnerEventTypeItem, WebhookDelivery, WebhookEndpoint } from '@/features/partnership/types'
@@ -118,6 +119,14 @@ export function WebhooksTab() {
                 <div className="flex gap-2 justify-end flex-wrap">
                   <Btn kind="ghost" size="sm" onClick={() => setEditing(e)} disabled={busy !== null}>
                     <Pencil size={14} /> Editar
+                  </Btn>
+                  <Btn
+                    kind="ghost"
+                    size="sm"
+                    disabled={busy !== null || !e.isActive}
+                    onClick={() => act(`test-${e.id}`, () => sendWebhookTest(e.id))}
+                  >
+                    {busy === `test-${e.id}` ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Enviar prueba
                   </Btn>
                   <Btn kind="ghost" size="sm" onClick={() => rotate(e)} disabled={busy !== null}>
                     {busy === `rotate-${e.id}` ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />} Rotar secreto

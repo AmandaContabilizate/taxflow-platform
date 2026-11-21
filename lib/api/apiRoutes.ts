@@ -841,6 +841,7 @@ export const API_ROUTES = {
       CREATE: "/webhooks",
       UPDATE: (id: number) => `/webhooks/${id}`,
       ROTATE: (id: number) => `/webhooks/${id}/rotate-secret`,
+      TEST: (id: number) => `/webhooks/${id}/test`,
       DELETE: (id: number) => `/webhooks/${id}`,
       DELIVERIES: (query: string) => `/webhooks/deliveries${query}`,
       REDELIVER: (deliveryId: number) => `/webhooks/deliveries/${deliveryId}/redeliver`,
