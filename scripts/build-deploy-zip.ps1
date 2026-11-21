@@ -51,7 +51,6 @@ try {
 
     $OutputDir  = Join-Path $Root "deploy"
     $Timestamp  = Get-Date -Format "yyyy-MM-ddTHH-mm-ss"
-    $OutputZip  = Join-Path $OutputDir "taxflow-platform-$Timestamp.zip"
 
     $ReleaseBranch = "main"
 
@@ -70,6 +69,10 @@ try {
     if (-not $AllowBranch -and $Branch -ne $ReleaseBranch) {
         throw "HEAD esta en '$Branch', no en '$ReleaseBranch'. Cambia de rama o pasa -AllowBranch."
     }
+    # Fuera de main/master la rama va en el nombre, despues de la fecha, para no confundir un zip de
+    # prueba con uno de release (deploy-zip-az-prod.ps1 solo toma los que no la traen).
+    $BranchSuffix = if ($Branch -and $Branch -notin @("main", "master", "HEAD")) { "-" + ($Branch -replace '[\\/:*?"<>|]', '-') } else { "" }
+    $OutputZip  = Join-Path $OutputDir "taxflow-platform-$Timestamp$BranchSuffix.zip"
     $Dirty = (git status --porcelain | Out-String).Trim()
     if ($Dirty) {
         throw "Working tree sucio. Commit o stash antes de publicar:`n$Dirty"
