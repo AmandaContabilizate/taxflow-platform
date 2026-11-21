@@ -115,3 +115,60 @@ export interface PartnerRequestLogItem {
   durationMs: number;
   createdAt: string;
 }
+
+// ──────────── Contribuyentes ligados (Partner API v1, Fase 2) ────────────
+
+export type PartnerLinkStatus =
+  | "pending_consent"
+  | "active"
+  | "rejected"
+  | "revoked_by_owner"
+  | "unlinked"
+  | "consent_expired"
+  | "reported_by_owner";
+
+export interface PartnerTaxpayerLink {
+  linkId: number;
+  rfc: string;
+  status: PartnerLinkStatus;
+  externalReference: string | null;
+  linkOrigin: "created_by_partner" | "existing_partner_user" | "owner_consent" | null;
+  consentExpiresAt: string | null;
+  activatedAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  /** Solo con liga activa. */
+  taxpayer: {
+    legalName: string | null;
+    ciec: { status: "missing" | "unverified" | "valid" | "invalid" };
+    efirma: { status: "missing" | "unverified" | "valid" | "invalid" | "expired"; validTo: string | null };
+  } | null;
+}
+
+export interface PartnerTaxpayerPage {
+  items: PartnerTaxpayerLink[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** Página pública /consentimiento/[token]. */
+export interface PartnerConsentInfo {
+  status: "pending" | "accepted" | "rejected" | "expired" | "cancelled" | "invalid";
+  partnerName: string | null;
+  rfc: string | null;
+  legalName: string | null;
+  expiresAt: string | null;
+  permissions: string[];
+}
+
+/** Mi cuenta → Aliados con acceso. */
+export interface OwnerPartnerLink {
+  linkId: number;
+  partnerName: string;
+  rfc: string;
+  status: "pending_consent" | "active";
+  activatedAt: string | null;
+  consentRequestedAt: string | null;
+  consentExpiresAt: string | null;
+}

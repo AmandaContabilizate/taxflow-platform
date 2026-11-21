@@ -28,6 +28,10 @@ export const API_BASE_URLS = {
   referrals: `${BASE_PROCEDURES}/referrals`,
   george: BASE_GEORGE,
   partnership: `${BASE_PROCEDURES}/partnership`,
+  /** Identity: consentimiento de ligas aliado-contribuyente (Partner API v1). */
+  partner_consent: `${BASE_IDENTITY}/partners`,
+  /** Procedures: pantalla Admin Partners (vigilancia de la API para aliados). */
+  admin_partners: `${BASE_PROCEDURES}/admin-partners`,
   // Personal interno: scopes de la Partner API concedidos a cada aliado (Backoffice.ManageEmpresas).
   partnership_admin: `${BASE_PROCEDURES}/partnership-admin`,
   classification_rules_admin: `${BASE_PROCEDURES}/classification-rules-admin`,

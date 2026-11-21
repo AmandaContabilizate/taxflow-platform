@@ -96,6 +96,7 @@ export const TITLES: Record<Screen, [string, string]> = {
   cancelaciones: ['Cancelaciones', 'Baja lógica de declaraciones y clientes'],
   equipo: ['Equipo', 'Tu plantilla comercial. Da de alta nuevos miembros desde aquí.'],
   partners: ['Partners', 'Alta de partners y alianzas B2B2C, con sus códigos automáticos'],
+  'admin-partners': ['Admin Partners', 'Vigilancia de la API para aliados: uso, alertas de abuso, suspensiones y topes por aliado'],
   'empresas-activaciones': ['Activaciones de empresa', 'Personas de empresas listas para activar: venta a futuro pagada por la empresa'],
   'empresas-vista': ['Empresas', 'Resumen, personas y facturación de cada empresa, como los ve su administrador'],
   'codigos-descuento': ['Códigos de descuento', 'Códigos por dueño: ejecutivos, finder fees y partners'],
@@ -287,6 +288,12 @@ const PARTNERS_ITEM: NavDef = {
   label: 'Partners',
   Icon: Briefcase,
   hint: 'Partners y alianzas B2B2C',
+}
+const ADMIN_PARTNERS_ITEM: NavDef = {
+  id: 'admin-partners',
+  label: 'Admin Partners',
+  Icon: ShieldAlert,
+  hint: 'Vigilancia de la API para aliados',
 }
 const EMPRESAS_ACTIVACIONES_ITEM: NavDef = {
   id: 'empresas-activaciones',
@@ -610,6 +617,7 @@ export const MASTER_NAV_SECTIONS: NavSection[] = [
       EQUIPO_ITEM,
       EQUIPO_OPERACIONES_ITEM,
       PARTNERS_ITEM,
+      ADMIN_PARTNERS_ITEM,
       EMPRESAS_VISTA_ITEM,
       EMPRESAS_ACTIVACIONES_ITEM,
       CODIGOS_DESCUENTO_ITEM,
@@ -698,6 +706,8 @@ export const MODULE_CLAIMS: Record<string, string[]> = {
   equipo: ['GerenciaComercial.InviteTeamMember', 'GerenciaComercial.ManageTeamProfiles'],
   // Partners + Perfil de empresa de cada alianza (spec-perfil-empresa): el botón de perfil exige el segundo.
   partners: ['GerenciaComercial.ManagePartners', 'Backoffice.ManageEmpresas'],
+  // Admin Partners: vigilancia de abuso de la API para aliados (alertas, suspensiones, topes).
+  'admin-partners': ['Backoffice.AdminPartners'],
   'empresas-activaciones': ['GerenciaComercial.ActivarPersonasEmpresa'],
   'empresas-vista': ['GerenciaComercial.VistaEmpresa', 'Backoffice.SoporteEmpresas', 'GerenciaComercial.GestionarPersonasEmpresa'],
   // Portal "Mi empresa": claims Empresa.* (AdminPartnership y roles Empresa.*). Personas,

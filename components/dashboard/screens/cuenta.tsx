@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell, ChevronDown, ChevronRight, FilePlus2, Gem, Gift, HelpCircle, IdCard, LogOut, Receipt, ShieldCheck, Trash2, UserRound } from 'lucide-react';
+import { Bell, ChevronDown, ChevronRight, FilePlus2, Gem, Gift, Handshake, HelpCircle, IdCard, LogOut, Receipt, ShieldCheck, Trash2, UserRound } from 'lucide-react';
 import { useEffect, useState, type ComponentType } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
@@ -8,12 +8,15 @@ import { getActivePlan } from '@/features/account/actions/getActivePlan.action';
 import { getSalePayments } from '@/features/account/actions/getSalePayments.action';
 import { periodLabel, type ActivePlan, type SalePayment } from '@/features/account/types';
 import { getAccountantByRfc } from '@/features/assignments/actions/getAccountantByRfc.action';
+import { getMyPartnerLinks } from '@/features/partnership/actions/partnerTaxpayers.action';
+import type { OwnerPartnerLink } from '@/features/partnership/types';
 import { useRfcStore } from '@/features/taxpayers/stores/rfcStore';
 import SatConnectScreen from '@/components/sat-connect-screen';
 import { Modal } from '../modal';
 import { PaymentsPanel } from '../cuenta/payments-panel';
 import { SecurityForm } from '../cuenta/security-form';
 import { DeleteAccountForm } from '../cuenta/delete-account-form';
+import { PartnerAccessPanel } from '../cuenta/partner-access-panel';
 import { EmailChangeForm, partnerBlockedText } from '../cuenta/email-change-form';
 import { RoleSwitcher } from '../roles/role-switcher';
 import { useMyRoles } from '@/features/roles/hooks/useMyRoles';
@@ -92,6 +95,17 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showCiecModal, setShowCiecModal] = useState(false);
+  // Aliados con acceso a los RFC de la cuenta (Partner API). La fila solo aparece si hay alguno.
+  const [partnerLinks, setPartnerLinks] = useState<OwnerPartnerLink[]>([]);
+  const [showPartnersModal, setShowPartnersModal] = useState(false);
+  const loadPartnerLinks = async () => {
+    const res = await getMyPartnerLinks();
+    if (res.success) setPartnerLinks(res.value);
+  };
+  useEffect(() => {
+    void loadPartnerLinks();
+  }, []);
+  const pendingPartnerLinks = partnerLinks.filter((l) => l.status === 'pending_consent').length;
   // El correo confirmado se pinta de inmediato; router.refresh() vuelve a resolver la cookie en /dashboard.
   const [currentEmail, setCurrentEmail] = useState(email);
   useEffect(() => setCurrentEmail(email), [email]);
@@ -457,6 +471,28 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
                 />
               }
             />
+            {partnerLinks.length > 0 && (
+              <>
+                <Divider />
+                <AccountRow
+                  Icon={Handshake}
+                  title='Aliados con acceso'
+                  subtitle={
+                    pendingPartnerLinks > 0
+                      ? `${pendingPartnerLinks} solicitud${pendingPartnerLinks === 1 ? '' : 'es'} por responder`
+                      : `${partnerLinks.length} empresa${partnerLinks.length === 1 ? '' : 's'} con acceso a tus RFC`
+                  }
+                  onClick={() => setShowPartnersModal(true)}
+                  right={
+                    pendingPartnerLinks > 0 ? (
+                      <span className='px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'>
+                        Por responder
+                      </span>
+                    ) : undefined
+                  }
+                />
+              </>
+            )}
             <Divider />
             <AccountRow
               Icon={HelpCircle}
@@ -533,6 +569,14 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
             router.refresh();
           }}
         />
+      </Modal>
+
+      {/* Modal de aliados con acceso (Partner API) */}
+      <Modal
+        isOpen={showPartnersModal}
+        onClose={() => setShowPartnersModal(false)}
+        title='Aliados con acceso'>
+        <PartnerAccessPanel links={partnerLinks} onChanged={() => void loadPartnerLinks()} />
       </Modal>
 
       {/* Modal de Seguridad */}
