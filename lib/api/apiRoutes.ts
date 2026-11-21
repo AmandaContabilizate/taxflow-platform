@@ -163,6 +163,8 @@ export const API_ROUTES = {
     SWITCH_ROLE: "/switch-role",
     /** GET users (Identity). Roles del propio usuario, sin AssignRole: selector "Cambiar de rol". */
     MY_ROLES: "/me/roles",
+    /** GET/PUT users (Identity, solo [Authorize]). Preferencias de UI propias: decoración de temporada. */
+    MY_PREFERENCES: "/me/preferences",
     /** POST users (Identity). Baja Soft de TODOS los contribuyentes y de la cuenta (flujo legado, solo contraseña). */
     DELETE_ACCOUNT: "/delete-account",
     /** GET users (Identity). Contribuyentes activos del usuario con su saldo prepagado, para el modal de baja. */
