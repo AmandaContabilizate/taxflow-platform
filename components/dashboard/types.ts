@@ -50,6 +50,8 @@ export type Screen =
   | 'equipo'
   // Catálogos comerciales del módulo de comisiones
   | 'partners'
+  // Vigilancia de la API para aliados (Backoffice.AdminPartners)
+  | 'admin-partners'
   // Cola del gerente: personas de empresa listas para activar (spec-perfil-empresa §5.4)
   | 'empresas-activaciones'
   // Vista interna de empresas (Gerencia Comercial / soporte), solo lectura

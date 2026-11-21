@@ -67,6 +67,7 @@ import {
   NotificacionesScreen,
   OperacionesScreen,
   PartnersScreen,
+  AdminPartnersScreen,
   PartnershipScreen,
   PermisosScreen,
   PlaceholderScreen,
@@ -504,6 +505,9 @@ function ScreenRouter({ screen, go, rfc, fullName, email, firstName, initials, o
     }
     if (screen === 'partners') {
       return <PartnersScreen />;
+    }
+    if (screen === 'admin-partners') {
+      return <AdminPartnersScreen />;
     }
     if (screen === 'empresas-activaciones') {
       return <EmpresasActivacionesScreen />;

@@ -4,6 +4,12 @@ import { AlertCircle, Building2, Check, Loader2, Plus, Save, Trash2, UserPlus, U
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { getDiscountCodeLookups } from '@/features/discountCodes/actions/getDiscountCodes.action'
 import { createCompanyAdmin } from '@/features/partners/actions/createCompanyAdmin.action'
+import {
+  getPartnerScopeCatalog,
+  getPartnershipScopes,
+  setPartnershipScopes,
+} from '@/features/partnership/actions/partnerScopesAdmin.action'
+import type { PartnerScope } from '@/features/partnership/types'
 import { getCompanyProfile } from '@/features/partners/actions/getCompanyProfile.action'
 import { saveCompanyPrices, saveCompanyProfile } from '@/features/partners/actions/saveCompanyProfile.action'
 import type { CompanyBillingMode, CompanyPriceInput, CompanyProfile, Partner } from '@/features/partners/types'
@@ -18,7 +24,7 @@ interface Props {
   onClose: () => void
 }
 
-const TABS = ['Datos de la empresa', 'Precios pactados', 'Administradores']
+const TABS = ['Datos de la empresa', 'Precios pactados', 'Administradores', 'API para aliados']
 
 const inputStyle = {
   background: 'var(--input)',
@@ -111,8 +117,10 @@ export function CompanyProfileModal({ open, partner, onClose }: Props) {
           <DatosTab profile={profile} onSaved={() => void load(partner.id)} />
         ) : tab === 1 ? (
           <PreciosTab profile={profile} onSaved={() => void load(partner.id)} />
-        ) : (
+        ) : tab === 2 ? (
           <AdminsTab profile={profile} onSaved={() => void load(partner.id)} />
+        ) : (
+          <ApiScopesTab partnershipId={profile.partnershipId} />
         )}
       </div>
     </Modal>
@@ -457,6 +465,84 @@ function AdminsTab({ profile, onSaved }: { profile: CompanyProfile; onSaved: () 
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+/* ============================= API para aliados ============================= */
+/**
+ * Scopes de la Partner API concedidos a la alianza. El administrador de la empresa solo puede repartir
+ * estos entre sus API keys (Integraciones → API Keys); quitar uno lo quita también de sus llaves.
+ */
+function ApiScopesTab({ partnershipId }: { partnershipId: number }) {
+  const [catalog, setCatalog] = useState<PartnerScope[]>([])
+  const [selected, setSelected] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [okMsg, setOkMsg] = useState<string | null>(null)
+
+  useEffect(() => {
+    void (async () => {
+      setLoading(true)
+      const [c, g] = await Promise.all([getPartnerScopeCatalog(), getPartnershipScopes(partnershipId)])
+      if (c.success) setCatalog(c.value)
+      else setError(c.error.message)
+      if (g.success) setSelected(g.value.map((x) => x.code))
+      else setError(g.error.message)
+      setLoading(false)
+    })()
+  }, [partnershipId])
+
+  const toggle = (code: string, on: boolean) =>
+    setSelected((prev) => (on ? [...prev.filter((c) => c !== code), code] : prev.filter((c) => c !== code)))
+
+  const save = async () => {
+    setSaving(true)
+    setError(null)
+    setOkMsg(null)
+    const res = await setPartnershipScopes(partnershipId, selected)
+    setSaving(false)
+    if (res.success) {
+      setSelected(res.value.map((x) => x.code))
+      setOkMsg('Permisos guardados. Las API keys de la empresa ya solo pueden usar estos.')
+    } else {
+      setError(res.error.message)
+    }
+  }
+
+  if (loading)
+    return (
+      <div className="py-10 flex items-center justify-center gap-2" style={{ color: 'var(--ink-500)' }}>
+        <Loader2 size={18} className="animate-spin" /> Cargando permisos…
+      </div>
+    )
+
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-[12.5px]" style={{ color: 'var(--ink-500)' }}>
+        Qué puede hacer esta empresa con la API para aliados. Su administrador reparte estos permisos entre sus API keys
+        en Integraciones. Quitar uno lo retira también de las API keys que ya lo tenían.
+      </p>
+      {error && <Aviso tipo="error">{error}</Aviso>}
+      {okMsg && <Aviso tipo="ok">{okMsg}</Aviso>}
+      <div className="flex flex-col gap-2.5">
+        {catalog.map((s) => (
+          <Check2
+            key={s.code}
+            checked={selected.includes(s.code)}
+            onChange={(v) => toggle(s.code, v)}
+            label={s.code}
+            ayuda={s.description}
+          />
+        ))}
+      </div>
+      <div className="flex justify-end">
+        <button type="button" onClick={() => void save()} disabled={saving} className="px-4 py-2 rounded-full text-[13px] font-bold inline-flex items-center gap-2 cursor-pointer disabled:opacity-50" style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}>
+          {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+          Guardar permisos
+        </button>
+      </div>
     </div>
   )
 }
