@@ -815,8 +815,23 @@ export const API_ROUTES = {
     KEYS: {
       ACTIVE: "/keys",
       GENERATE: "/keys",
+      ALL: "/keys/all",
+      UPLOAD: "/keys/upload",
+      REVOKE: (id: number) => `/keys/${id}/revoke`,
     },
     LOGINS: "/logins",
+    // Partner API v1 (Empresa.IntegracionesApiKeys)
+    API_KEYS: {
+      LIST: "/api-keys",
+      SCOPES: "/api-keys/scopes",
+      CREATE: "/api-keys",
+      REVOKE: (id: number) => `/api-keys/${id}/revoke`,
+    },
+    API_REQUESTS: (days: number) => `/api-requests?days=${days}`,
+  },
+  PARTNERSHIP_ADMIN: {
+    SCOPES_CATALOG: "/scopes",
+    SCOPES: (partnershipId: number) => `/${partnershipId}/scopes`,
   },
   STRIPE: {
     PAYMENT_SHEET: "/payment-sheet",

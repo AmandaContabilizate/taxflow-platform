@@ -74,7 +74,7 @@ export function GenerateKeyModal({ open, onOpenChange, onGenerated }: GenerateKe
                 <DialogDescription className="mt-0.5">
                   {result
                     ? 'Guárdala ahora, no podrás volver a verla.'
-                    : 'Se darán de baja las llaves antiguas y solo quedará activa la nueva.'}
+                    : 'Las llaves anteriores seguirán valiendo 7 días para que actualice sus servidores; después se desactivan solas.'}
                 </DialogDescription>
               </div>
             </div>

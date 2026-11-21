@@ -28,6 +28,8 @@ export const API_BASE_URLS = {
   referrals: `${BASE_PROCEDURES}/referrals`,
   george: BASE_GEORGE,
   partnership: `${BASE_PROCEDURES}/partnership`,
+  // Personal interno: scopes de la Partner API concedidos a cada aliado (Backoffice.ManageEmpresas).
+  partnership_admin: `${BASE_PROCEDURES}/partnership-admin`,
   classification_rules_admin: `${BASE_PROCEDURES}/classification-rules-admin`,
   timbrame: `${BASE_PROCEDURES}/timbrame${DbOrigin}`,
   // 612: activos fijos y saldos a favor de IVA. Sin /SQLServer.

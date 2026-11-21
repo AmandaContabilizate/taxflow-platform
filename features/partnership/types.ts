@@ -49,3 +49,69 @@ export interface PartnershipError {
   statusCode: number;
   message: string;
 }
+
+// ──────────── Partner API v1 ────────────
+
+/** Llave de firma del aliado (SSO y JWT de la Partner API). `keyId` es el `kid` de sus JWT. */
+export interface ProviderKeySummary {
+  providerKeyId: number;
+  keyId: string;
+  source: "Generated" | "Uploaded";
+  validFrom: string;
+  validTo: string | null;
+  createdAt: string;
+  privateKeyPrefijo: string | null;
+  privateKeyPostfijo: string | null;
+  status: "Active" | "Expired" | "Revoked";
+}
+
+export interface UploadPublicKeyRequest {
+  publicKeyPem: string;
+  /** Obligatorio si no es certificado X.509. */
+  expiresInDays?: number;
+}
+
+export interface PartnerScope {
+  code: string;
+  description: string;
+}
+
+export interface PartnerApiKey {
+  id: number;
+  name: string;
+  prefix: string;
+  scopes: string[];
+  expiresAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  status: "Active" | "Expired" | "Revoked";
+}
+
+export interface CreatePartnerApiKeyRequest {
+  name: string;
+  scopes: string[];
+  expiresInDays?: number;
+}
+
+/** `apiKey` llega UNA sola vez; no se puede volver a consultar. */
+export interface CreatedPartnerApiKey {
+  id: number;
+  name: string;
+  prefix: string;
+  apiKey: string;
+  scopes: string[];
+  expiresAt: string;
+}
+
+export interface PartnerRequestLogItem {
+  id: number;
+  credentialType: "ApiKey" | "ProviderKey";
+  credentialId: number;
+  httpMethod: string;
+  path: string;
+  rfc: string | null;
+  statusCode: number;
+  durationMs: number;
+  createdAt: string;
+}

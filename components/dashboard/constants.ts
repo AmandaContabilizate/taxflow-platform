@@ -110,7 +110,7 @@ export const TITLES: Record<Screen, [string, string]> = {
   'tramites-adicionales': ['Trámites adicionales', 'Seguimiento de trámites vendidos a tus clientes'],
   ventas: ['Ventas', 'Resumen de ventas registradas por cuenta'],
   roles: ['Roles y permisos', 'Administra roles, sus permisos y los roles de cada usuario'],
-  partnership: ['Integraciones', 'Administra CORS, llaves SSO y bitácora de logins'],
+  partnership: ['Integraciones', 'Administra CORS, llaves SSO, API keys y bitácora de accesos'],
   'empresa-resumen': ['Resumen', 'Cómo va el seguimiento fiscal de tu empresa'],
   'empresa-personas': ['Personas vinculadas', 'Gestiona invitaciones, diagnóstico y documentación'],
   'empresa-invitaciones': ['Invitaciones', 'Invita personas y da seguimiento a su avance de registro'],
@@ -370,7 +370,7 @@ const PARTNERSHIP_ITEM: NavDef = {
   id: 'partnership',
   label: 'Integraciones',
   Icon: KeyRound,
-  hint: 'CORS, llaves SSO y logins',
+  hint: 'CORS, llaves, API keys y logins',
 }
 // Portal "Mi empresa" (spec-perfil-empresa §5): lo que ve una alianza sobre sus propias personas.
 // Nombres alineados al prototipo HTML (decisión 2026-10-28): Resumen · Personas · Facturación · Usuarios · Integraciones.
@@ -709,7 +709,9 @@ export const MODULE_CLAIMS: Record<string, string[]> = {
   'empresa-diagnostico': ['Empresa.VerExpediente'],
   'empresa-facturacion': ['Empresa.VerFacturacion'],
   'empresa-usuarios': ['Empresa.AdministrarUsuarios'],
-  partnership: ['Empresa.Integraciones'],
+  // Integraciones: abre la pantalla cualquiera de sus permisos (CORS/llaves SSO, API keys, webhooks,
+  // contribuyentes ligados). Cada pestaña se muestra según su propio claim.
+  partnership: ['Empresa.Integraciones', 'Empresa.IntegracionesApiKeys', 'Empresa.IntegracionesWebhooks', 'Empresa.IntegracionesContribuyentes'],
   'codigos-descuento': ['GerenciaComercial.ManageDiscountCodes'],
   productos: ['Backoffice.ReadProductos', 'Backoffice.ManageProductos'],
   aprovisionamiento: ['Backoffice.AprovisionamientoServicios'],
