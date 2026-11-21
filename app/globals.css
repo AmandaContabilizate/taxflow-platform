@@ -350,3 +350,156 @@
 .benefit-item:nth-child(2).animate-slide-in-left { animation-delay: 0.15s; }
 .benefit-item:nth-child(3).animate-slide-in-left { animation-delay: 0.25s; }
 .benefit-item:nth-child(4).animate-slide-in-left { animation-delay: 0.35s; }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Decoración de temporada (components/seasonal/*). Se activa con
+   <html data-season="christmas"> (SeasonalProvider). Discreta y en paleta de
+   marca: no toca --primary ni --brand-*, solo agrega acentos dorados puntuales.
+   Solo se anima transform/opacity (compositor).
+   ───────────────────────────────────────────────────────────────────────────── */
+:root {
+  --season-gold: #E8B54A;
+  --season-berry: #C2414B;
+  --season-snow: #C9C3E3;
+}
+.dark {
+  --season-gold: #F2C76B;
+  --season-berry: #D45A63;
+  --season-snow: rgba(255, 255, 255, 0.85);
+}
+
+/* Acentos */
+html[data-season="christmas"] .seasonal-nav-item[data-active="true"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 22%;
+  bottom: 22%;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--season-gold);
+}
+html[data-season="christmas"] .seasonal-title {
+  position: relative;
+}
+html[data-season="christmas"] .seasonal-title::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -3px;
+  width: 2.5rem;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--season-gold);
+  opacity: 0.85;
+}
+html[data-season="christmas"] .seasonal-avatar {
+  outline: 1.5px solid color-mix(in srgb, var(--season-gold) 70%, transparent);
+  outline-offset: 2px;
+}
+
+/* Arbolito: proporción fija 64×80. Chico ≤ 10% del ancho y ≤ 20% del alto. */
+.seasonal-tree {
+  display: block;
+  aspect-ratio: 64 / 80;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  transform-origin: center;
+}
+.seasonal-tree--small,
+.seasonal-tree--login {
+  width: 10vw;
+  max-width: 16vh; /* alto = 1.25 × ancho ⇒ ≤ 20vh */
+}
+@media (min-width: 768px) {
+  .seasonal-tree--small {
+    width: 6vw;
+  }
+  /* Login en pantallas medianas o más grandes: arbolito más grande. */
+  .seasonal-tree--login {
+    width: clamp(110px, 12vw, 200px);
+    max-width: 30.4vh; /* ≤ 38vh de alto */
+  }
+}
+
+/* Focos y estrella, según nivel de rendimiento ([data-tier] en el botón). */
+@keyframes seasonal-twinkle {
+  from { opacity: 0.35; }
+  to   { opacity: 1; }
+}
+.seasonal-tree[data-tier="high"] .seasonal-light-halo {
+  animation: seasonal-twinkle var(--tw-dur, 3s) ease-in-out var(--tw-delay, 0s) infinite alternate;
+}
+.seasonal-tree[data-tier="medium"] .seasonal-light-halo {
+  opacity: 0.8;
+}
+.seasonal-tree[data-tier="low"] .seasonal-light-halo {
+  display: none;
+}
+@keyframes seasonal-star {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.7; }
+}
+.seasonal-tree:not([data-tier="low"]) .seasonal-star {
+  animation: seasonal-star 4s ease-in-out infinite;
+}
+
+/* Arbolito ⇄ regalo (--dx/--dy = vector al centro del regalo). */
+@keyframes seasonal-tree-leave {
+  to { transform: translate(var(--dx), var(--dy)) scale(0.15); opacity: 0; }
+}
+@keyframes seasonal-tree-enter {
+  from { transform: translate(var(--dx), var(--dy)) scale(0.15); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+.seasonal-tree-leaving {
+  animation: seasonal-tree-leave 450ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+.seasonal-tree-entering {
+  animation: seasonal-tree-enter 450ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* Regalo: discreto, se asoma en hover/focus. */
+.seasonal-gift {
+  opacity: 0.55;
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+.seasonal-gift:hover,
+.seasonal-gift:focus-visible {
+  opacity: 1;
+  transform: translateY(-1px);
+}
+@keyframes seasonal-pop {
+  0%   { transform: scale(0.4); opacity: 0; }
+  70%  { transform: scale(1.12); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 0.55; }
+}
+.seasonal-gift-pop {
+  animation: seasonal-pop 380ms ease-out backwards;
+}
+
+/* Nieve */
+@keyframes seasonal-snow-fall {
+  from { transform: translate3d(0, -5vh, 0); }
+  to   { transform: translate3d(var(--drift, 0px), 105vh, 0); }
+}
+.seasonal-flake {
+  position: absolute;
+  top: 0;
+  border-radius: 9999px;
+  background: var(--season-snow);
+  will-change: transform;
+  animation: seasonal-snow-fall var(--dur, 18s) linear var(--delay, 0s) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seasonal-snow { display: none; }
+  .seasonal-light-halo,
+  .seasonal-star,
+  .seasonal-tree-leaving,
+  .seasonal-tree-entering,
+  .seasonal-gift-pop {
+    animation: none !important;
+  }
+}

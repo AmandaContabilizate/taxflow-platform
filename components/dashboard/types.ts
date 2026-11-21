@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react'
+import type { SeasonalInit } from '@/lib/seasonal'
 
 export type Screen =
   | 'home'
@@ -107,6 +108,8 @@ export interface DashboardProps {
   emailChangeBlockedBy?: string | null
   /** Tutorial de bienvenida al primer ingreso del Guest (TUTORIAL_AUTOSTART_ENABLED). */
   tutorialAutostart?: boolean
+  /** Decoración de temporada: ventana (SEASONAL_THEME*), easter egg y preferencia del usuario. */
+  seasonal?: SeasonalInit
 }
 
 export type GoFn = (s: Screen) => void

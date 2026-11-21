@@ -12,6 +12,7 @@ import { DISPLAY, MONO, ROLE_NAV, roleNavSections, normalizeRole } from './const
 import type { GoFn, NavDef, Screen } from './types'
 import { RFCSelector } from './rfc-selector'
 import { RoleSwitcherModal } from './roles/role-switcher'
+import { LogoOrnament } from '@/components/seasonal/LogoOrnament'
 
 interface SidebarProps {
   screen: Screen
@@ -108,14 +109,17 @@ export function Sidebar({
           style={{ borderBottom: '1px solid var(--sidebar-border)' }}
         >
           <div className="flex items-center gap-2.5 min-w-0">
-            <Image
-              src="/logo.png"
-              alt="Contabilízate"
-              width={36}
-              height={36}
-              priority
-              className="w-9 h-9 flex-shrink-0 select-none"
-            />
+            <span className="relative flex-shrink-0">
+              <Image
+                src="/logo.png"
+                alt="Contabilízate"
+                width={36}
+                height={36}
+                priority
+                className="w-9 h-9 flex-shrink-0 select-none"
+              />
+              <LogoOrnament />
+            </span>
             {!collapsed && (
               <span className="text-[18px] font-extrabold tracking-tight truncate" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
                 contabilízate
@@ -259,7 +263,7 @@ export function Sidebar({
           {!collapsed && !myRoles.canSwitch && (
             <button onClick={() => go('cuenta')} className="flex items-center gap-2.5 flex-1 min-w-0 text-left transition-all duration-200 hover:opacity-80 rounded-lg p-1 -m-1">
               <div
-                className="w-9 h-9 rounded-full text-white font-extrabold flex items-center justify-center flex-shrink-0 transition-all duration-200"
+                className="seasonal-avatar w-9 h-9 rounded-full text-white font-extrabold flex items-center justify-center flex-shrink-0 transition-all duration-200"
                 style={{
                   background: 'linear-gradient(135deg,#00D3A1,#00AD87)',
                   boxShadow: '0 4px 12px rgba(0,211,161,0.25)',
@@ -283,7 +287,7 @@ export function Sidebar({
               <button
                 onClick={() => go('cuenta')}
                 aria-label="Mi cuenta"
-                className="w-9 h-9 rounded-full text-white font-extrabold flex items-center justify-center flex-shrink-0 transition-all duration-200 hover:opacity-80"
+                className="seasonal-avatar w-9 h-9 rounded-full text-white font-extrabold flex items-center justify-center flex-shrink-0 transition-all duration-200 hover:opacity-80"
                 style={{
                   background: 'linear-gradient(135deg,#00D3A1,#00AD87)',
                   boxShadow: '0 4px 12px rgba(0,211,161,0.25)',
@@ -315,7 +319,7 @@ export function Sidebar({
           {collapsed && (
             <button
               onClick={() => go('cuenta')}
-              className="w-10 h-10 rounded-full text-white font-extrabold flex items-center justify-center flex-shrink-0 transition-all duration-200 group"
+              className="seasonal-avatar w-10 h-10 rounded-full text-white font-extrabold flex items-center justify-center flex-shrink-0 transition-all duration-200 group"
               style={{
                 background: 'linear-gradient(135deg,#00D3A1,#00AD87)',
                 boxShadow: '0 4px 12px rgba(0,211,161,0.25)',
@@ -514,9 +518,10 @@ function NavItem({ id, label, Icon, active, onClick, hint, badge, collapsed = fa
     return (
       <button
         data-tour={id ? `nav-${id}` : undefined}
+        data-active={active}
         onClick={onClick}
         title={label}
-        className="flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 mx-auto group relative"
+        className="seasonal-nav-item flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 mx-auto group relative"
         style={
           active
             ? {
@@ -553,8 +558,9 @@ function NavItem({ id, label, Icon, active, onClick, hint, badge, collapsed = fa
   return (
     <button
       data-tour={id ? `nav-${id}` : undefined}
+      data-active={active}
       onClick={onClick}
-      className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left transition w-full relative group"
+      className="seasonal-nav-item flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left transition w-full relative group"
       style={
         active
           ? { background: 'var(--nav-active-bg)', color: 'var(--nav-active-fg)', boxShadow: 'var(--sh-ink)' }
