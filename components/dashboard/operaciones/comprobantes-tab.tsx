@@ -9,17 +9,30 @@ import {
   Check,
   Columns3,
   Copy,
+  FileCode,
   Loader2,
   Search,
 } from 'lucide-react'
-import { type ReactNode, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  type ReactNode,
+  createContext,
+  memo,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { InvoiceFilterKey, WithholdingFilterKey } from '@/features/declarations/hooks/declarationQueryKeys'
 import {
+  useDeclarationCalculations,
   useDeclarationInvoices,
   useDeclarationWithholdings,
 } from '@/features/declarations/hooks/useDeclarationQueries'
 import { getDeclarationInvoices } from '@/features/operations/actions/getDeclarationInvoices.action'
+import { getInvoiceXmlUrl } from '@/features/operations/actions/getInvoiceXmlUrl.action'
 import type {
   DeclarationInvoice,
   DeclarationInvoiceConcepto,
@@ -31,6 +44,7 @@ import type {
 } from '@/features/operations/types'
 import { Pagination } from '../clientes/parts'
 import { MONO } from '../constants'
+import { type Json, num } from './calc-read'
 import { Card } from '../ui'
 import { useUrlState } from '../url-state'
 import { type ColumnKey, COLUMN_DEFS, type ColumnDef } from './column-defs'
@@ -163,13 +177,87 @@ function UuidCopy({ uuid }: { uuid: string }) {
   )
 }
 
+/**
+ * Declaración de la tabla, para pedir el XML sin pasar props a cada fila
+ * memoizada. Null = fuera de la pestaña: no se pinta el enlace.
+ */
+const XmlLinkContext = createContext<{ declarationId: number; consulta: boolean } | null>(null)
+
+/**
+ * Abre el XML del CFDI (Blob privado) en una pestaña nueva. La URL es una SAS de
+ * solo lectura y vida corta que el back firma en cada clic; no se cachea.
+ * Sirve para ver complementos que no se guardan en tablas (p. ej. el estado de
+ * cuenta de combustible de un monedero electrónico).
+ */
+function XmlLink({ invoiceId }: { invoiceId: number }) {
+  const ctx = useContext(XmlLinkContext)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!error) return
+    const t = setTimeout(() => setError(null), 6000)
+    return () => clearTimeout(t)
+  }, [error])
+
+  if (!ctx) return null
+
+  const open = async () => {
+    if (loading) return
+    setLoading(true)
+    setError(null)
+    // La pestaña se abre dentro del gesto del clic; después del await el
+    // navegador la bloquearía como popup no solicitado.
+    const tab = window.open('', '_blank')
+    if (tab) {
+      tab.opener = null
+      tab.document.title = 'XML del comprobante'
+      tab.document.body.textContent = 'Abriendo XML…'
+    }
+    const res = await getInvoiceXmlUrl({ declarationId: ctx.declarationId, invoiceId, consulta: ctx.consulta })
+    setLoading(false)
+    if (res.success) {
+      if (tab && !tab.closed) tab.location.href = res.value.url
+      else window.open(res.value.url, '_blank', 'noopener')
+    } else {
+      if (tab && !tab.closed) tab.close()
+      setError(res.error.message || 'No pudimos abrir el XML.')
+    }
+  }
+
+  return (
+    <span className="inline-flex flex-col items-start gap-0.5">
+      <button
+        type="button"
+        onClick={open}
+        disabled={loading}
+        title={error ?? 'Ver XML del comprobante (se abre en otra pestaña)'}
+        aria-label="Ver XML del comprobante"
+        className="inline-flex items-center gap-1 -mx-1 px-1 py-0.5 rounded text-[10.5px] font-semibold transition-colors hover:bg-[var(--ink-50)] disabled:opacity-60"
+        style={{ color: error ? 'var(--danger-ink)' : 'var(--ink-500)' }}
+      >
+        {loading ? <Loader2 size={11} className="animate-spin" /> : <FileCode size={11} />}
+        XML
+      </button>
+      {error && (
+        <span role="alert" className="text-[10.5px] leading-tight max-w-[200px]" style={{ color: 'var(--danger-ink)' }}>
+          {error}
+        </span>
+      )}
+    </span>
+  )
+}
+
 function FolioCell({ inv }: { inv: DeclarationInvoice }) {
   const folio = [inv.serie, inv.folio].filter(Boolean).join('-')
 
   return (
     <div className="flex flex-col gap-1 min-w-[176px]">
-      <span className="font-semibold" style={{ color: 'var(--ink-900)' }}>
-        {folio || 'Sin folio'}
+      <span className="flex items-start gap-2">
+        <span className="font-semibold" style={{ color: 'var(--ink-900)' }}>
+          {folio || 'Sin folio'}
+        </span>
+        <XmlLink invoiceId={inv.invoiceId} />
       </span>
       {inv.uuid ? (
         <UuidCopy uuid={inv.uuid} />
@@ -768,6 +856,19 @@ export const ComprobantesTab = memo(function ComprobantesTab({
     retSkip,
   )
   const page = invQ.isError ? EMPTY_PAGE : (invQ.data ?? EMPTY_PAGE)
+
+  // IVA de TODA la declaración, del último cálculo (misma caché que la pestaña Cálculos), para
+  // no confundirlo con "IVA (en esta página)". Llaves: 612/626 (IVAAcreditableDelPeriodo,
+  // TotalIvaCobradoDelPeriodo, y sus alias totalIvaCreditable/totalTaxe16) y 625
+  // (ivaExpenseTotal/ivaCaused). Sin cálculo, no se muestra nada.
+  const calcQ = useDeclarationCalculations(declarationId, consulta)
+  const ivaDeclaracion = useMemo(() => {
+    const iva = (calcQ.data?.iva ?? null) as Json | null
+    return {
+      acreditable: num(iva, ['IVAAcreditableDelPeriodo', 'totalIvaCreditable', 'ivaExpenseTotal']),
+      trasladado: num(iva, ['TotalIvaCobradoDelPeriodo', 'totalTaxe16', 'ivaCaused']),
+    }
+  }, [calcQ.data])
   const loading = invQ.isPending
   const error = invQ.error?.message ?? null
   const retPage = retQ.isError ? EMPTY_PAGE : (retQ.data ?? EMPTY_PAGE)
@@ -887,6 +988,9 @@ export const ComprobantesTab = memo(function ComprobantesTab({
       ivaResuelto: ivaResueltos.length > 0,
     }
   }, [visibles, totalesPeriodo])
+
+  // Valor estable: un objeto nuevo en cada render repintaría todas las filas memoizadas.
+  const xmlLinkCtx = useMemo(() => ({ declarationId, consulta }), [declarationId, consulta])
 
   const totalPages = Math.max(1, Math.ceil(vista.page.total / TAKE))
   const currentPage = Math.floor(vista.skip / TAKE) + 1
@@ -1066,9 +1170,11 @@ export const ComprobantesTab = memo(function ComprobantesTab({
                   </tr>
                 </thead>
                 <tbody>
-                  {visibles.map((inv) => (
-                    <RetencionRow key={inv.invoiceId} inv={inv} />
-                  ))}
+                  <XmlLinkContext.Provider value={xmlLinkCtx}>
+                    {visibles.map((inv) => (
+                      <RetencionRow key={inv.invoiceId} inv={inv} />
+                    ))}
+                  </XmlLinkContext.Provider>
                 </tbody>
               </table>
             </div>
@@ -1118,6 +1224,12 @@ export const ComprobantesTab = memo(function ComprobantesTab({
                 ...(effectiveColSet.has('iva')
                   ? ([['IVA (en esta página)', totales.ivaResuelto ? money(totales.iva) : '—']] as [string, string][])
                   : []),
+                ...(origen !== 'false' && ivaDeclaracion.trasladado != null
+                  ? ([['IVA trasladado (total de la declaración)', money(ivaDeclaracion.trasladado)]] as [string, string][])
+                  : []),
+                ...(origen !== 'true' && ivaDeclaracion.acreditable != null
+                  ? ([['IVA acreditable (total de la declaración)', money(ivaDeclaracion.acreditable)]] as [string, string][])
+                  : []),
               ]}
               nota={<CuadreNota cuadre={totales.cuadre} />}
             />
@@ -1164,17 +1276,19 @@ export const ComprobantesTab = memo(function ComprobantesTab({
                   </tr>
                 </thead>
                 <tbody>
-                  {visibles.map((inv) => (
-                    <InvoiceRow
-                      key={inv.invoiceId}
-                      inv={inv}
-                      visibleColumns={visibleColumns}
-                      concepts={conceptsCache[inv.invoiceId]}
-                      conceptsLoading={conceptsLoadingId === inv.invoiceId}
-                      conceptsError={conceptsError}
-                      onLoadConcepts={onLoadConcepts}
-                    />
-                  ))}
+                  <XmlLinkContext.Provider value={xmlLinkCtx}>
+                    {visibles.map((inv) => (
+                      <InvoiceRow
+                        key={inv.invoiceId}
+                        inv={inv}
+                        visibleColumns={visibleColumns}
+                        concepts={conceptsCache[inv.invoiceId]}
+                        conceptsLoading={conceptsLoadingId === inv.invoiceId}
+                        conceptsError={conceptsError}
+                        onLoadConcepts={onLoadConcepts}
+                      />
+                    ))}
+                  </XmlLinkContext.Provider>
                 </tbody>
               </table>
             </div>

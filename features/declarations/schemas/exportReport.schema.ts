@@ -10,6 +10,8 @@ export const exportReportSchema = z.object({
   month: z.number().int().min(1).max(12).optional(),
   ciecState: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(),
   accountantUserId: z.string().trim().min(1).optional(),
+  /** AspNetUsers.SystemOriginId del cliente (2 = godin). Lo impone la pantalla (filtro "Solo Godin"). */
+  origins: z.array(z.number().int().min(0).max(255)).optional(),
 })
 
 export type ExportReportInput = z.input<typeof exportReportSchema>

@@ -17,6 +17,8 @@ export interface SessionClaims {
   role: string | null;
   permissions: string[];
   email: string | null;
+  /** Alianza del usuario de empresa (claim partnership_id, Perfil Empresa). Null para internos y clientes. */
+  partnershipId: number | null;
 }
 
 /**
@@ -24,7 +26,7 @@ export interface SessionClaims {
  * verificar firma: solo decide qué mostrar; los endpoints validan el token).
  */
 export async function readSessionClaims(): Promise<SessionClaims> {
-  const empty: SessionClaims = { role: null, permissions: [], email: null };
+  const empty: SessionClaims = { role: null, permissions: [], email: null, partnershipId: null };
   const token = await getAuthToken();
   if (!token) return empty;
   try {
@@ -39,6 +41,9 @@ export async function readSessionClaims(): Promise<SessionClaims> {
       role: typeof claims.role === "string" ? claims.role : null,
       permissions,
       email: typeof claims.email === "string" ? claims.email : null,
+      partnershipId: Number.isInteger(Number(claims.partnership_id)) && Number(claims.partnership_id) > 0
+        ? Number(claims.partnership_id)
+        : null,
     };
   } catch {
     return empty;

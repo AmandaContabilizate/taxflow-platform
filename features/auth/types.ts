@@ -26,6 +26,18 @@ export interface LoginResponse {
   emailChangeBlockedReason?: string | null;
 }
 
+/**
+ * GET /api/users/company-invite/{ref} (Perfil Empresa). La empresa ya creó la cuenta al invitar:
+ * set-password = falta definir contraseña; login = ya la tiene; register = invitación anterior a este
+ * flujo (persona sin cuenta, se abre el registro); invalid = la liga no sirve.
+ */
+export interface CompanyInviteInfo {
+  status: "set-password" | "login" | "register" | "invalid";
+  email?: string | null;
+  fullName?: string | null;
+  companyName?: string | null;
+}
+
 export interface CurrentUser {
   userId: string;
   email?: string;

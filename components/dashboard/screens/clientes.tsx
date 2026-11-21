@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Download, Info, Loader2, UserCog } from 'lucide-react'
 import { exportClientsWithPaidSales } from '@/features/taxpayers/actions/exportClientsWithPaidSales.action'
 import { getClientsWithPaidSales } from '@/features/taxpayers/actions/getClientsWithPaidSales.action'
@@ -11,6 +11,9 @@ import { AccountStatusChip, isDeactivated } from '../cancelaciones/parts'
 import { Card, ErrorState, HelpBox } from '../ui'
 import {
   MinSalesFilter,
+  OriginFilter,
+  type OrigenFiltro,
+  originsFor,
   Pagination,
   RegimenesCell,
   SearchBar,
@@ -26,7 +29,16 @@ const EXPEDIENTE_PERMISSION = 'GerenciaComercial.ReadExpedienteCliente'
 const DEFAULT_MIN_SALES: number | '' = ''
 
 export function ClientesScreen({ permissions = [] }: { permissions?: string[] }) {
-  const list = usePagedList(getClientsWithPaidSales, 50, DEFAULT_MIN_SALES)
+  const [origen, setOrigenState] = useState<OrigenFiltro>('')
+  const fetcher = useCallback(
+    (p: Parameters<typeof getClientsWithPaidSales>[0]) => getClientsWithPaidSales({ ...p, origins: originsFor(origen) }),
+    [origen],
+  )
+  const list = usePagedList(fetcher, 50, DEFAULT_MIN_SALES)
+  const setOrigen = (v: OrigenFiltro) => {
+    list.resetPage()
+    setOrigenState(v)
+  }
   const canAssign = permissions.includes(ASSIGN_PERMISSION)
   const canExpediente = permissions.includes(EXPEDIENTE_PERMISSION)
   const [target, setTarget] = useState<ClientListItem | null>(null)
@@ -42,6 +54,7 @@ export function ClientesScreen({ permissions = [] }: { permissions?: string[] })
     const res = await exportClientsWithPaidSales({
       rfc: list.rfc.trim() || undefined,
       minSales: list.minSales === '' ? undefined : Number(list.minSales),
+      origins: originsFor(origen),
     })
     setExporting(false)
     if (!res.success) {
@@ -67,7 +80,8 @@ export function ClientesScreen({ permissions = [] }: { permissions?: string[] })
       <HelpBox>
         Padrón de contribuyentes con al menos una venta pagada en Stripe. Desde aquí consultas sus
         compras acumuladas, los planes a futuro contratados y el contador asignado. Con el filtro
-        de ventas puedes acotar a clientes recurrentes (2 o más ventas).
+        de ventas puedes acotar a clientes recurrentes (2 o más ventas); con el de origen, a los
+        asalariados que contrataron su declaración anual en Godin.
       </HelpBox>
 
       <Card className="shrink-0">
@@ -81,6 +95,7 @@ export function ClientesScreen({ permissions = [] }: { permissions?: string[] })
             allLabel="Todos (1 venta o más)"
             className="sm:w-[240px]"
           />
+          <OriginFilter value={origen} onChange={setOrigen} className="sm:w-[220px]" />
         </div>
       </Card>
 

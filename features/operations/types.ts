@@ -640,6 +640,15 @@ export interface DeclarationReportLink {
   token: string;
 }
 
+/** `GET declarations/{id}/invoices/{invoiceId}/xml-url`: SAS de solo lectura al XML del CFDI. */
+export interface InvoiceXmlUrl {
+  /** Caduca en `expiresAt` (~10 min); no guardarla. */
+  url: string;
+  expiresAt: string;
+  /** `{UUID}.xml`. */
+  fileName: string;
+}
+
 /** Estado derivado de una liga de pago emitida desde el backoffice (GET sales/ligas-pago). */
 export type LigaPagoEstado = "Vigente" | "Vencida" | "Pagada" | "Cancelada";
 

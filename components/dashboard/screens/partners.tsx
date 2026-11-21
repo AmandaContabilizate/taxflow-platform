@@ -1,10 +1,11 @@
 'use client'
 
-import { AlertCircle, Briefcase, Loader2, Pencil, Plus } from 'lucide-react'
+import { AlertCircle, Briefcase, Building2, Loader2, Pencil, Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { getPartners } from '@/features/partners/actions/getPartners.action'
 import type { Partner } from '@/features/partners/types'
 import { MONO } from '../constants'
+import { CompanyProfileModal } from '../partners/company-profile-modal'
 import { PartnerModal } from '../partners/partner-modal'
 import { Badge, Card } from '../ui'
 
@@ -21,17 +22,27 @@ export function PartnersScreen() {
   const [error, setError] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Partner | null>(null)
+  // Perfil de empresa de la alianza (spec-perfil-empresa): datos fiscales, cobro, precios y administradores.
+  const [profileFor, setProfileFor] = useState<Partner | null>(null)
 
   const load = async () => {
     setLoading(true)
     setError(null)
-    const res = await getPartners()
-    if (res.success) {
-      setPartners(res.value)
-    } else {
-      setError(res.error.message)
+    try {
+      const res = await getPartners()
+      if (res.success) {
+        setPartners(res.value)
+      } else {
+        setError(res.error.message)
+      }
+    } catch (e) {
+      // Si la acción de servidor no responde (p. ej. el dev server se reinició y el cliente quedó
+      // viejo), mostramos el error con "Reintentar" en vez de dejar el spinner para siempre.
+      console.error('[PartnersScreen] getPartners falló:', e)
+      setError('No pudimos cargar los partners. Recarga la página e inténtalo de nuevo.')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   useEffect(() => {
@@ -159,16 +170,28 @@ export function PartnersScreen() {
                       <Badge kind={p.isActive ? 'brand' : 'default'}>{p.isActive ? 'Activo' : 'Inactivo'}</Badge>
                     </td>
                     <td className="py-3 px-3">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(p)}
-                        title="Editar partner"
-                        aria-label={`Editar partner ${p.name}`}
-                        className="p-1.5 rounded-lg transition hover:bg-[var(--ink-50)] cursor-pointer"
-                        style={{ border: '1px solid var(--border)' }}
-                      >
-                        <Pencil size={14} style={{ color: 'var(--ink-500)' }} />
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => openEdit(p)}
+                          title="Editar partner"
+                          aria-label={`Editar partner ${p.name}`}
+                          className="p-1.5 rounded-lg transition hover:bg-[var(--ink-50)] cursor-pointer"
+                          style={{ border: '1px solid var(--border)' }}
+                        >
+                          <Pencil size={14} style={{ color: 'var(--ink-500)' }} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setProfileFor(p)}
+                          title="Perfil de empresa: datos fiscales, cobro, precios y administradores"
+                          aria-label={`Perfil de empresa de ${p.name}`}
+                          className="p-1.5 rounded-lg transition hover:bg-[var(--ink-50)] cursor-pointer"
+                          style={{ border: '1px solid var(--border)' }}
+                        >
+                          <Building2 size={14} style={{ color: 'var(--ink-500)' }} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -184,6 +207,7 @@ export function PartnersScreen() {
         onClose={() => setModalOpen(false)}
         onSaved={() => void load()}
       />
+      <CompanyProfileModal open={profileFor !== null} partner={profileFor} onClose={() => setProfileFor(null)} />
     </div>
   )
 }

@@ -4,6 +4,7 @@ import {
   Bell,
   BookOpen,
   Briefcase,
+  Building2,
   Calendar,
   CheckSquare,
   Ban,
@@ -24,6 +25,8 @@ import {
   Layers,
   Lightbulb,
   PiggyBank,
+  Package,
+  Workflow,
   Receipt,
   RefreshCw,
   RotateCcw,
@@ -38,7 +41,9 @@ import {
   Target,
   TrendingUp,
   LayoutGrid,
+  UserCog,
   UserPlus,
+  Upload,
   Users,
   Zap,
   Megaphone,
@@ -91,7 +96,11 @@ export const TITLES: Record<Screen, [string, string]> = {
   cancelaciones: ['Cancelaciones', 'Baja lógica de declaraciones y clientes'],
   equipo: ['Equipo', 'Tu plantilla comercial. Da de alta nuevos miembros desde aquí.'],
   partners: ['Partners', 'Alta de partners y alianzas B2B2C, con sus códigos automáticos'],
+  'empresas-activaciones': ['Activaciones de empresa', 'Personas de empresas listas para activar: venta a futuro pagada por la empresa'],
+  'empresas-vista': ['Empresas', 'Resumen, personas y facturación de cada empresa, como los ve su administrador'],
   'codigos-descuento': ['Códigos de descuento', 'Códigos por dueño: ejecutivos, finder fees y partners'],
+  productos: ['Catálogo de productos', 'Planes, trámites adicionales y servicios de proveedores: precios, regímenes y Stripe'],
+  aprovisionamiento: ['Aprovisionamiento', 'Cola de altas y bajas de servicios en Timbrame, Venvers y Doc2Sign: tareas manuales, reintentos y bitácora'],
   'reportes-ejecutivos': ['Reportes ejecutivos', 'KPIs y resultados del área'],
   operaciones: ['Centro de operaciones', 'Gestión y supervisión de declaraciones fiscales'],
   'declaraciones-rechazadas': ['Declaraciones rechazadas', 'Declaraciones que el cliente rechazó y esperan corrección'],
@@ -101,7 +110,14 @@ export const TITLES: Record<Screen, [string, string]> = {
   'tramites-adicionales': ['Trámites adicionales', 'Seguimiento de trámites vendidos a tus clientes'],
   ventas: ['Ventas', 'Resumen de ventas registradas por cuenta'],
   roles: ['Roles y permisos', 'Administra roles, sus permisos y los roles de cada usuario'],
-  partnership: ['Partnership', 'Administra CORS, llaves SSO y bitácora de logins'],
+  partnership: ['Integraciones', 'Administra CORS, llaves SSO y bitácora de logins'],
+  'empresa-resumen': ['Resumen', 'Cómo va el seguimiento fiscal de tu empresa'],
+  'empresa-personas': ['Personas vinculadas', 'Gestiona invitaciones, diagnóstico y documentación'],
+  'empresa-invitaciones': ['Invitaciones', 'Invita personas y da seguimiento a su avance de registro'],
+  'empresa-carga-masiva': ['Carga masiva', 'Invita personas en lote mediante un archivo Excel o CSV'],
+  'empresa-diagnostico': ['Diagnóstico fiscal', 'Tablero consolidado del ecosistema. El semáforo es orientativo y no sustituye una evaluación fiscal especializada'],
+  'empresa-facturacion': ['Facturación', 'Estados de cuenta mensuales y pagos de tu empresa'],
+  'empresa-usuarios': ['Usuarios de mi empresa', 'Quién entra al portal de tu empresa y con qué rol'],
   'reglas-deducibilidad': [
     'Deducibilidad forzada',
     'Overrides de deducibilidad por clave producto/servicio: quién los puso, para quién y por qué',
@@ -272,6 +288,30 @@ const PARTNERS_ITEM: NavDef = {
   Icon: Briefcase,
   hint: 'Partners y alianzas B2B2C',
 }
+const EMPRESAS_ACTIVACIONES_ITEM: NavDef = {
+  id: 'empresas-activaciones',
+  label: 'Activaciones de empresa',
+  Icon: Zap,
+  hint: 'Personas listas para activar',
+}
+const EMPRESAS_VISTA_ITEM: NavDef = {
+  id: 'empresas-vista',
+  label: 'Empresas',
+  Icon: Building2,
+  hint: 'Seguimiento por empresa (solo lectura)',
+}
+const PRODUCTOS_ITEM: NavDef = {
+  id: 'productos',
+  label: 'Catálogo de productos',
+  Icon: Package,
+  hint: 'Planes, trámites y servicios que se venden',
+}
+const APROVISIONAMIENTO_ITEM: NavDef = {
+  id: 'aprovisionamiento',
+  label: 'Aprovisionamiento',
+  Icon: Workflow,
+  hint: 'Altas y bajas en proveedores de servicios',
+}
 const CODIGOS_DESCUENTO_ITEM: NavDef = {
   id: 'codigos-descuento',
   label: 'Códigos de descuento',
@@ -328,9 +368,53 @@ const ROLES_ITEM: NavDef = {
 }
 const PARTNERSHIP_ITEM: NavDef = {
   id: 'partnership',
-  label: 'Partnership',
+  label: 'Integraciones',
   Icon: KeyRound,
   hint: 'CORS, llaves SSO y logins',
+}
+// Portal "Mi empresa" (spec-perfil-empresa §5): lo que ve una alianza sobre sus propias personas.
+// Nombres alineados al prototipo HTML (decisión 2026-10-28): Resumen · Personas · Facturación · Usuarios · Integraciones.
+const EMPRESA_RESUMEN_ITEM: NavDef = {
+  id: 'empresa-resumen',
+  label: 'Resumen',
+  Icon: Building2,
+  hint: 'Cómo va tu empresa',
+}
+const EMPRESA_PERSONAS_ITEM: NavDef = {
+  id: 'empresa-personas',
+  label: 'Personas vinculadas',
+  Icon: Users,
+  hint: 'Personas en seguimiento fiscal',
+}
+const EMPRESA_INVITACIONES_ITEM: NavDef = {
+  id: 'empresa-invitaciones',
+  label: 'Invitaciones',
+  Icon: Send,
+  hint: 'Invita y da seguimiento',
+}
+const EMPRESA_CARGA_MASIVA_ITEM: NavDef = {
+  id: 'empresa-carga-masiva',
+  label: 'Carga masiva',
+  Icon: Upload,
+  hint: 'Personas en lote desde Excel o CSV',
+}
+const EMPRESA_DIAGNOSTICO_ITEM: NavDef = {
+  id: 'empresa-diagnostico',
+  label: 'Diagnóstico fiscal',
+  Icon: Activity,
+  hint: 'Semáforo y hallazgos del ecosistema',
+}
+const EMPRESA_FACTURACION_ITEM: NavDef = {
+  id: 'empresa-facturacion',
+  label: 'Facturación',
+  Icon: Receipt,
+  hint: 'Estados de cuenta y pagos',
+}
+const EMPRESA_USUARIOS_ITEM: NavDef = {
+  id: 'empresa-usuarios',
+  label: 'Usuarios de mi empresa',
+  Icon: UserCog,
+  hint: 'Quién entra y con qué rol',
 }
 const REGLAS_DEDUCIBILIDAD_ITEM: NavDef = {
   id: 'reglas-deducibilidad',
@@ -354,8 +438,11 @@ const MARKETING_ITEM: NavDef = NOTIFICACIONES_ITEM
 
 export const ROLE_NAV: Record<RoleKey, NavDef[]> = {
   guest: GUEST_NAV,
-  // Partner externo con SSO: solo administra su propia integración.
+  // Partner externo con SSO (AdminPartnership): su integración siempre; el resto del portal
+  // "Mi empresa" se suma por claims Empresa.* (ver roleNavSections).
   'external-provider': [DASHBOARD_ITEM, PARTNERSHIP_ITEM],
+  // Roles Empresa.*: nada fijo; todo sale de sus claims.
+  empresa: [DASHBOARD_ITEM],
   // Perfil administrativo / superusuario: administración de roles y padrones.
   // Developer conserva todo lo de Administrator (superusuario técnico).
   developer: [
@@ -477,6 +564,11 @@ const CENTRO_NOTIFICACIONES_ITEM: NavDef = {
  */
 export const MASTER_NAV_SECTIONS: NavSection[] = [
   { section: 'PANEL', items: [DASHBOARD_ITEM, CENTRO_NOTIFICACIONES_ITEM] },
+  // Portal de la empresa (solo aparece con claims Empresa.*; los internos no los tienen).
+  {
+    section: 'MI EMPRESA',
+    items: [EMPRESA_RESUMEN_ITEM, EMPRESA_PERSONAS_ITEM, EMPRESA_INVITACIONES_ITEM, EMPRESA_CARGA_MASIVA_ITEM, EMPRESA_DIAGNOSTICO_ITEM, EMPRESA_FACTURACION_ITEM, EMPRESA_USUARIOS_ITEM, PARTNERSHIP_ITEM],
+  },
   {
     section: 'VENTAS',
     items: [
@@ -518,7 +610,11 @@ export const MASTER_NAV_SECTIONS: NavSection[] = [
       EQUIPO_ITEM,
       EQUIPO_OPERACIONES_ITEM,
       PARTNERS_ITEM,
+      EMPRESAS_VISTA_ITEM,
+      EMPRESAS_ACTIVACIONES_ITEM,
       CODIGOS_DESCUENTO_ITEM,
+      PRODUCTOS_ITEM,
+      APROVISIONAMIENTO_ITEM,
       NOTIFICACIONES_ITEM,
       REPORTES_ITEM,
       ACTIVIDAD_ITEM,
@@ -527,7 +623,8 @@ export const MASTER_NAV_SECTIONS: NavSection[] = [
   },
   {
     section: 'SISTEMA',
-    items: [ROLES_ITEM, CATALOGOS_ITEM, CONFIGURACION_ITEM, PARTNERSHIP_ITEM, MONITOR_DESCARGAS_ITEM],
+    // Partnership (CORS/llaves/logins) vive en MI EMPRESA; aquí ya no, o saldría dos veces.
+    items: [ROLES_ITEM, CATALOGOS_ITEM, CONFIGURACION_ITEM, MONITOR_DESCARGAS_ITEM],
   },
 ]
 
@@ -599,8 +696,23 @@ export const MODULE_CLAIMS: Record<string, string[]> = {
   'tramites-adicionales': ['Contador.ReadTramites'],
   'declaraciones-anuales': ['Contador.ReadDeclaraciones'],
   equipo: ['GerenciaComercial.InviteTeamMember', 'GerenciaComercial.ManageTeamProfiles'],
-  partners: ['GerenciaComercial.ManagePartners'],
+  // Partners + Perfil de empresa de cada alianza (spec-perfil-empresa): el botón de perfil exige el segundo.
+  partners: ['GerenciaComercial.ManagePartners', 'Backoffice.ManageEmpresas'],
+  'empresas-activaciones': ['GerenciaComercial.ActivarPersonasEmpresa'],
+  'empresas-vista': ['GerenciaComercial.VistaEmpresa', 'Backoffice.SoporteEmpresas', 'GerenciaComercial.GestionarPersonasEmpresa'],
+  // Portal "Mi empresa": claims Empresa.* (AdminPartnership y roles Empresa.*). Personas,
+  // Facturación y Usuarios se liberan en sus pasos; mientras, muestran "próximamente".
+  'empresa-resumen': ['Empresa.VerResumen'],
+  'empresa-personas': ['Empresa.VerExpediente', 'Empresa.Invitar'],
+  'empresa-invitaciones': ['Empresa.Invitar'],
+  'empresa-carga-masiva': ['Empresa.Invitar'],
+  'empresa-diagnostico': ['Empresa.VerExpediente'],
+  'empresa-facturacion': ['Empresa.VerFacturacion'],
+  'empresa-usuarios': ['Empresa.AdministrarUsuarios'],
+  partnership: ['Empresa.Integraciones'],
   'codigos-descuento': ['GerenciaComercial.ManageDiscountCodes'],
+  productos: ['Backoffice.ReadProductos', 'Backoffice.ManageProductos'],
+  aprovisionamiento: ['Backoffice.AprovisionamientoServicios'],
   marketing: ['Marketing.SendBroadcast'],
   notificaciones: ['Atencion.SendNotifications'],
   // Administrar roles, no solo verlos (ViewRole lo tienen roles operativos
@@ -644,14 +756,17 @@ export const MODULE_CLAIMS: Record<string, string[]> = {
  */
 export function roleNavSections(roleKey: RoleKey, permissions: string[] = []): NavSection[] {
   if (roleKey === 'guest') return GUEST_NAV_GROUPED
+  const perms = new Set(permissions)
+  const byClaims = (id: string) => MODULE_CLAIMS[id]?.some((c) => perms.has(c)) ?? false
   if (roleKey === 'external-provider') {
-    const allowed = new Set(ROLE_NAV['external-provider'].map((i) => i.id))
+    // AdminPartnership: su nav fijo (Dashboard + Partnership, aunque el token aún no traiga claims)
+    // más el portal "Mi empresa" que le den sus claims Empresa.*.
+    const fixed = new Set(ROLE_NAV['external-provider'].map((i) => i.id))
     return MASTER_NAV_SECTIONS
-      .map((s) => ({ ...s, items: s.items.filter((i) => allowed.has(i.id)) }))
+      .map((s) => ({ ...s, items: s.items.filter((i) => fixed.has(i.id) || byClaims(i.id)) }))
       .filter((s) => s.items.length > 0)
   }
-  const perms = new Set(permissions)
-  const visible = (id: string) => id === 'home' || id === 'centro-notificaciones' || (MODULE_CLAIMS[id]?.some((c) => perms.has(c)) ?? false)
+  const visible = (id: string) => id === 'home' || id === 'centro-notificaciones' || byClaims(id)
   return MASTER_NAV_SECTIONS
     .map((s) => ({ ...s, items: s.items.filter((i) => visible(i.id)) }))
     .filter((s) => s.items.length > 0)
@@ -715,6 +830,13 @@ export function normalizeRole(raw: string | null | undefined): RoleKey {
     case 'adminpartnership':
     case 'admin partnership':
       return 'external-provider'
+    // Roles Empresa.* (spec-perfil-empresa): usuarios de una alianza, menú solo por claims Empresa.*
+    case 'empresa.responsablefiscal':
+    case 'empresa.recursoshumanos':
+    case 'empresa.operaciones':
+    case 'empresa.auditor':
+    case 'empresa.consultaejecutiva':
+      return 'empresa'
     // Autorizador de códigos de descuento: persona de backoffice; el menú se
     // filtra por sus claims (como el administrador), no un nav propio.
     case 'discountcodeauthorizer':

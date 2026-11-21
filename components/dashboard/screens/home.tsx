@@ -26,13 +26,23 @@ export function HomeScreen({ go }: Props) {
 
   if (loading) return null
 
+  // Perfil Empresa: la autorización hacia la empresa se registra sola al vincularse (ya no hay aviso aquí);
+  // la persona la ve o la retira desde Mi cuenta.
   if (!hasRfc) {
-    return <NeedsSatConnect go={go} feature="empezar a gestionar tus impuestos" />
+    return (
+      <div className="flex flex-col gap-6">
+        <NeedsSatConnect go={go} feature="empezar a gestionar tus impuestos" />
+      </div>
+    )
   }
 
   const ciecBlock = getCiecBlockStatus(selectedRfcInfo)
   if (!isSatConnected(selectedRfcInfo) && !ciecBlock) {
-    return <NeedsSatConnect go={go} feature="empezar a gestionar tus impuestos" />
+    return (
+      <div className="flex flex-col gap-6">
+        <NeedsSatConnect go={go} feature="empezar a gestionar tus impuestos" />
+      </div>
+    )
   }
   if (ciecBlock === 'invalid') return <CiecBlockedScreen go={go} state="invalid" />
 

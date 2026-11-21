@@ -29,6 +29,8 @@ export interface ExportInitialFilters {
   month?: number
   taxRegimeId?: number
   statusId?: number
+  /** Filtro de origen de la pantalla (2 = godin). No se edita en el modal: se respeta tal cual. */
+  origins?: number[]
 }
 
 export interface StatusOption {
@@ -126,6 +128,7 @@ export function ExportReportModal({
       statusId: filters.statusId ? Number(filters.statusId) : undefined,
       ciecState: filters.ciecState !== '' ? (Number(filters.ciecState) as 0 | 1 | 2) : undefined,
       accountantUserId: canFilterAccountant ? filters.accountantUserId || undefined : undefined,
+      origins: initial.origins,
     })
     setSubmitting(false)
     if (!res.success) {

@@ -24,8 +24,10 @@ const MESES = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ] as const
 
+/** 101-112 mensual · 501 anual (p. ej. la anual de asalariado de godin). Antes 501 salía "Enero". */
 function periodoLabel(periodValueId: number, year: number): string {
-  const mes = MESES[(periodValueId % 100) - 1]
+  if (periodValueId === 501) return `Anual ${year}`
+  const mes = periodValueId >= 101 && periodValueId <= 112 ? MESES[periodValueId - 101] : undefined
   return mes ? `${mes} ${year}` : `Periodo ${periodValueId} · ${year}`
 }
 

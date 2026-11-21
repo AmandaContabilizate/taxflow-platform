@@ -31,6 +31,7 @@ export async function getDeclarationTaxpayers(
     periodMonth,
     statusId,
     accountantUserId,
+    origins,
   } = parsed.data
 
   try {
@@ -47,6 +48,7 @@ export async function getDeclarationTaxpayers(
         periodMonth,
         statusId,
         accountantUserId,
+        origins,
       }),
       'declaration',
     )

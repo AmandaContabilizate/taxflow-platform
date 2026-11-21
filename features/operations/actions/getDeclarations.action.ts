@@ -50,6 +50,8 @@ export async function getDeclarations(params: {
   take?: number;
   /** true = ruta espejo de solo lectura (claim Contador.ConsultaDeclaraciones). */
   consulta?: boolean;
+  /** AspNetUsers.SystemOriginId del cliente (2 = godin); ausente = todos. */
+  origins?: number[];
 }): Promise<Result<Paged<DeclarationListItem>, OpsError>> {
   const { skip = 0, take = 100 } = params;
   try {

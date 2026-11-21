@@ -7,7 +7,7 @@ import type { PagedDeclarations, TaxpayerDeclarationItem } from '@/features/decl
 import type { DeclarationSubject } from '@/features/operations/types'
 import { getTaxRegimes, type TaxRegime } from '@/features/taxpayers/actions/getTaxRegimes.action'
 import { declarationStatusBadge } from '../declaraciones/parts'
-import { Pagination } from '../clientes/parts'
+import { OriginFilter, type OrigenFiltro, originsFor, Pagination } from '../clientes/parts'
 import { MONO } from '../constants'
 import { DeclarationDetail } from '../operaciones/declaration-detail'
 import { FORCE_POST_CLAIM, ForcePostButton, PostingReadinessIcon } from '../operaciones/posting-readiness'
@@ -88,6 +88,8 @@ export function DeclaracionesPorPresentarScreen({ currentUser }: { currentUser: 
   const ciec: 0 | 1 | 2 | null = ciecParam === 0 || ciecParam === 1 || ciecParam === 2 ? ciecParam : null
   const presentacionParam = params.get('presentacion')
   const presentacion: Presentacion | null = esPresentacion(presentacionParam) ? presentacionParam : null
+  // Origen del cliente: "godin" = asalariados de godin.contabilizate.com (incluye sus anuales 605).
+  const origen: OrigenFiltro = params.get('origen') === 'godin' ? 'godin' : ''
 
   const [page, setPage] = useState(emptyPage)
   const [loading, setLoading] = useState(true)
@@ -126,6 +128,7 @@ export function DeclaracionesPorPresentarScreen({ currentUser }: { currentUser: 
         ciecState: ciec ?? undefined,
         presentacion: presentacion ?? undefined,
         includeReadinessCounts: true,
+        origins: originsFor(origen),
         skip,
         take: TAKE,
       })
@@ -140,7 +143,7 @@ export function DeclaracionesPorPresentarScreen({ currentUser }: { currentUser: 
     return () => {
       cancelled = true
     }
-  }, [canView, declarationId, rfcParam, regimeId, year, month, estado, ciec, presentacion, skip])
+  }, [canView, declarationId, rfcParam, regimeId, year, month, estado, ciec, presentacion, origen, skip])
 
   const setEstado = (value: Semaforo | null) => setParams({ estado: value, skip: null }, { replace: true })
 
@@ -199,7 +202,7 @@ export function DeclaracionesPorPresentarScreen({ currentUser }: { currentUser: 
 
   const totalPages = Math.max(1, Math.ceil(page.total / TAKE))
   const rfcInvalid = rfcParam != null && rfcParam !== '' && !RFC_PATTERN.test(rfcParam)
-  const activeFilters = [rfcParam, regimeId, year || month, estado, ciec != null, presentacion].filter(Boolean).length
+  const activeFilters = [rfcParam, regimeId, year || month, estado, ciec != null, presentacion, origen].filter(Boolean).length
   const filtering = activeFilters > 0
 
   return (
@@ -309,6 +312,12 @@ export function DeclaracionesPorPresentarScreen({ currentUser }: { currentUser: 
                 <option value="normal">Solo normales</option>
                 <option value="complementaria">Solo complementarias</option>
               </select>
+
+              <OriginFilter
+                value={origen}
+                onChange={(v) => setParams({ origen: v || null, skip: null }, { replace: true })}
+                className="py-2 text-[12.5px]"
+              />
     
               {filtering && (
                 <button
@@ -316,7 +325,7 @@ export function DeclaracionesPorPresentarScreen({ currentUser }: { currentUser: 
                   onClick={() => {
                     setRfcInput('')
                     setParams(
-                      { rfc: null, regimen: null, year: null, month: null, estado: null, ciec: null, presentacion: null, skip: null },
+                      { rfc: null, regimen: null, year: null, month: null, estado: null, ciec: null, presentacion: null, origen: null, skip: null },
                       { replace: true },
                     )
                   }}

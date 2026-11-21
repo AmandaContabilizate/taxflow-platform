@@ -37,6 +37,8 @@ interface TaxpayerListQuery {
   periodMonth?: number
   /** Id de `DeclarationStatus` (`Declarations.Declaration.IdStatusDeclaration`). "En proceso" = 15. */
   statusId?: number
+  /** AspNetUsers.SystemOriginId del cliente (2 = godin). Con godin el back incluye las declaraciones 605. */
+  origins?: number[]
   /** Nivel del semáforo de posteo (solo con `statusId: 11`); el back evalúa todo y pagina en memoria. */
   readiness?: "ok" | "warning" | "blocked"
   /** Estado de la CIEC del contribuyente: 0 sin verificar, 1 válida, 2 inválida. */
@@ -73,6 +75,7 @@ function taxpayerListQuery(p: TaxpayerListQuery): URLSearchParams {
   if (p.ciecState != null) qs.set("ciecState", String(p.ciecState))
   if (p.presentacion) qs.set("presentacion", p.presentacion)
   if (p.includeReadinessCounts) qs.set("includeReadinessCounts", "true")
+  if (p.origins?.length) qs.set("origins", p.origins.join(","))
   return qs
 }
 
@@ -104,6 +107,8 @@ export interface ExportDeclarationsReportQuery {
   ciecState?: 0 | 1 | 2
   /** Se ignora en el backend si el caller no tiene el claim AssignAccountant. */
   accountantUserId?: string
+  /** AspNetUsers.SystemOriginId del cliente (2 = godin); con godin incluye sus declaraciones 605. */
+  origins?: number[]
 }
 
 function exportReportQuery(p: ExportDeclarationsReportQuery): string {
@@ -116,6 +121,7 @@ function exportReportQuery(p: ExportDeclarationsReportQuery): string {
   if (p.month) qs.set("month", String(p.month))
   if (p.ciecState != null) qs.set("ciecState", String(p.ciecState))
   if (p.accountantUserId) qs.set("accountantUserId", p.accountantUserId)
+  if (p.origins?.length) qs.set("origins", p.origins.join(","))
   const s = qs.toString()
   return `/export-report${s ? `?${s}` : ""}`
 }
@@ -144,9 +150,15 @@ export const API_ROUTES = {
     FORGOT_PASSWORD: (systemOriginId?: number) =>
       systemOriginId == null ? "/forgot-password" : `/forgot-password/${systemOriginId}`,
     RESET_PASSWORD: "/reset-password",
+    /** GET users (Identity), anónimo. Estado de la liga de invitación de empresa (?ref=EMP-…). */
+    COMPANY_INVITE: (ref: string) => `/company-invite/${encodeURIComponent(ref)}`,
+    /** POST users (Identity), anónimo. Define la contraseña de la cuenta creada por la invitación e inicia sesión. */
+    COMPANY_INVITE_SET_PASSWORD: "/company-invite/set-password",
     UPDATE_PASSWORD: "/UpdatePassword",
     ASSIGN_ROLE: "/assign-role",
     REMOVE_ROLE: "/remove-role",
+    /** POST users (Identity). Alta administrativa: el server genera la contraseña y manda el correo. Claim CreateUser. */
+    CREATE_USER: "/create-user",
     ROLES: (userId: string) => `/${encodeURIComponent(userId)}/roles`,
     SWITCH_ROLE: "/switch-role",
     /** GET users (Identity). Roles del propio usuario, sin AssignRole: selector "Cambiar de rol". */
@@ -182,7 +194,93 @@ export const API_ROUTES = {
     CREATE: "",
     UPDATE: (id: number) => `/${id}`,
   },
+  // Perfil Empresa (backoffice). apiType "empresas" (Procedures). Claim Backoffice.ManageEmpresas.
+  EMPRESAS: {
+    LIST: "",
+    PERFIL: (partnershipId: number) => `/${partnershipId}/perfil`,
+    PRECIOS: (partnershipId: number) => `/${partnershipId}/precios`,
+    ACTIVACIONES_PENDIENTES: "/activaciones/pendientes",
+    ACTIVAR_PERSONA: (partnershipId: number, personId: number) => `/${partnershipId}/personas/${personId}/activar`,
+    LOTES: "/lotes",
+    LOTE: (batchId: number) => `/lotes/${batchId}`,
+    LOTES_PROPONER: "/lotes/proponer",
+    LOTE_APROBAR: (batchId: number) => `/lotes/${batchId}/aprobar`,
+    LOTE_CANCELAR: (batchId: number) => `/lotes/${batchId}/cancelar`,
+    LOTE_EJECUTAR: (batchId: number) => `/lotes/${batchId}/ejecutar`,
+    LOTE_REINTENTAR: (batchId: number) => `/lotes/${batchId}/reintentar`,
+    ESTADOS_CUENTA: "/estados-cuenta",
+    ESTADO_CUENTA: (statementId: number) => `/estados-cuenta/${statementId}`,
+    ESTADOS_CUENTA_CERRAR: "/estados-cuenta/cerrar",
+    ESTADO_CUENTA_PAGADO: (statementId: number) => `/estados-cuenta/${statementId}/pagado`,
+  },
+  // "Mi empresa" (portal de la empresa). apiType "empresa" (Procedures)
+  EMPRESA: {
+    RESUMEN: "/resumen",
+    PERSONAS: "/personas",
+    PERSONAS_INVITAR: "/personas/invitar",
+    PERSONA_BAJA: (personId: number) => `/personas/${personId}/baja`,
+    PERSONA_EXPEDIENTE: (personId: number) => `/personas/${personId}/expediente`,
+    /** PDF de la constancia u opinión de la persona (según su autorización). */
+    PERSONA_DOCUMENTO: (personId: number, tipo: 'constancia' | 'opinion') => `/personas/${personId}/documentos/${tipo}`,
+    /** Tablero "Listas del SAT" (69-B vía SíConf). */
+    LISTAS_SAT: "/listas-sat",
+    FACTURACION: "/facturacion",
+    FACTURACION_DETALLE: (statementId: number) => `/facturacion/${statementId}`,
+    /** Servicios adicionales por persona (spec-servicios-adicionales §5.2). */
+    SERVICIOS: "/personas/servicios",
+    SERVICIOS_CONTRATAR: "/personas/servicios/contratar",
+    SERVICIO_BAJA: (subscriptionId: number) => `/personas/servicios/${subscriptionId}/baja`,
+  },
+  // Usuarios de mi empresa. apiType "empresa_usuarios" (Identity)
+  EMPRESA_USUARIOS: {
+    LIST: "",
+    CREAR: "",
+    ROL: (userId: string) => `/${userId}/rol`,
+    BAJA: (userId: string) => `/${userId}/baja`,
+    ALTA: (userId: string) => `/${userId}/alta`,
+  },
+  // Servicios adicionales del cliente. apiType "mis_servicios" (Procedures)
+  MIS_SERVICIOS: {
+    LIST: (rfc?: string) => (rfc ? `?rfc=${encodeURIComponent(rfc)}` : ""),
+  },
+  // Lado de la persona. apiType "mis_empresas" (Procedures)
+  MIS_EMPRESAS: {
+    LIST: "",
+    CONSENTIMIENTO: (personId: number) => `/${personId}/consentimiento`,
+    REVOCAR: (personId: number) => `/${personId}/consentimiento/revocar`,
+  },
   // Códigos de descuento. apiType "discount_codes" (Procedures)
+  /** Catálogo de productos (apiType subscription_plan_admin, Procedures). Claims Backoffice.ReadProductos / ManageProductos. */
+  /** Aprovisionamiento de servicios (apiType aprovisionamiento, Procedures). Claim Backoffice.AprovisionamientoServicios. */
+  APROVISIONAMIENTO: {
+    COLA: (p: { status?: number; provider?: string; take?: number }) => {
+      const s = new URLSearchParams();
+      if (p.status != null) s.set("status", String(p.status));
+      if (p.provider) s.set("provider", p.provider);
+      if (p.take) s.set("take", String(p.take));
+      const q = s.toString();
+      return `/cola${q ? `?${q}` : ""}`;
+    },
+    BITACORA: (p: { subscriptionId?: number; provider?: string; take?: number }) => {
+      const s = new URLSearchParams();
+      if (p.subscriptionId != null) s.set("subscriptionId", String(p.subscriptionId));
+      if (p.provider) s.set("provider", p.provider);
+      if (p.take) s.set("take", String(p.take));
+      const q = s.toString();
+      return `/bitacora${q ? `?${q}` : ""}`;
+    },
+    HECHO: (jobId: number) => `/tareas/${jobId}/hecho`,
+    REINTENTAR: (jobId: number) => `/tareas/${jobId}/reintentar`,
+    PROCESAR: (jobId: number) => `/tareas/${jobId}/procesar`,
+    CICLO: "/ciclo",
+  },
+  PRODUCTOS: {
+    LIST: "",
+    CREATE: "",
+    UPDATE: (id: number) => `/${id}`,
+    SET_REGIMES: (id: number) => `/${id}/regimes`,
+    DELETE: (id: number) => `/${id}`,
+  },
   DISCOUNT_CODES: {
     LIST: "",
     LOOKUPS: "/lookups",
@@ -301,9 +399,12 @@ export const API_ROUTES = {
       skip?: number
       take?: number
       consulta?: boolean
+      /** AspNetUsers.SystemOriginId del cliente (2 = godin). */
+      origins?: number[]
     }) => {
       const qs = new URLSearchParams()
       if (params.rfc) qs.set("rfc", params.rfc)
+      if (params.origins?.length) qs.set("origins", params.origins.join(","))
       if (params.regimeId) qs.set("regimeId", String(params.regimeId))
       if (params.year) qs.set("year", String(params.year))
       if (params.periodValueId) qs.set("periodValueId", String(params.periodValueId))
@@ -367,6 +468,10 @@ export const API_ROUTES = {
       if (params.includeTotals === false) qs.set("includeTotals", "false")
       return `/${params.declarationId}${params.consulta ? "/consulta" : ""}/invoices?${qs.toString()}`
     },
+    // GET declarations_reports. URL SAS de solo lectura (10 min) al XML del CFDI en el Blob, para
+    // abrirlo desde la pestaña Comprobantes. Se pide en cada clic: no cachear la URL.
+    INVOICE_XML_URL: (params: { declarationId: number; invoiceId: number; consulta?: boolean }) =>
+      `/${params.declarationId}${params.consulta ? "/consulta" : ""}/invoices/${params.invoiceId}/xml-url`,
     // SOLO las constancias de retención del periodo, paginadas sobre su propio
     // universo. Misma forma de respuesta que INVOICES (PagedResult) con
     // esRetencion/totalRetenido/retenciones ya poblados.
@@ -481,8 +586,9 @@ export const API_ROUTES = {
     LIST: (skip = 0, take = 100, rfc?: string, regimeId?: number, minSales?: number) =>
       `?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${regimeId ? `&regimeId=${regimeId}` : ""
       }${minSales ? `&minSales=${minSales}` : ""}`,
-    WITH_PAID_SALES: (skip = 0, take = 100, rfc?: string, minSales?: number) =>
-      `/with-paid-sales?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${minSales ? `&minSales=${minSales}` : ""}`,
+    // origins: AspNetUsers.SystemOriginId (2 = godin), CSV; ausente = todos los orígenes.
+    WITH_PAID_SALES: (skip = 0, take = 100, rfc?: string, minSales?: number, origins?: number[]) =>
+      `/with-paid-sales?skip=${skip}&take=${take}${rfc ? `&rfc=${encodeURIComponent(rfc)}` : ""}${minSales ? `&minSales=${minSales}` : ""}${origins?.length ? `&origins=${origins.join(",")}` : ""}`,
     // Excel del padrón de contribuyentes, mismos filtros que LIST, sin paginar.
     LIST_EXPORT: (rfc?: string, regimeId?: number, minSales?: number) => {
       const qs = new URLSearchParams()
@@ -493,10 +599,11 @@ export const API_ROUTES = {
       return `/export${s ? `?${s}` : ""}`
     },
     // Excel del padrón de clientes con compras, mismos filtros que WITH_PAID_SALES, sin paginar.
-    WITH_PAID_SALES_EXPORT: (rfc?: string, minSales?: number) => {
+    WITH_PAID_SALES_EXPORT: (rfc?: string, minSales?: number, origins?: number[]) => {
       const qs = new URLSearchParams()
       if (rfc) qs.set("rfc", rfc)
       if (minSales) qs.set("minSales", String(minSales))
+      if (origins?.length) qs.set("origins", origins.join(","))
       const s = qs.toString()
       return `/with-paid-sales/export${s ? `?${s}` : ""}`
     },
@@ -601,6 +708,7 @@ export const API_ROUTES = {
     SAT_READING_ESPEJO: (taxpayerId: number, declarationId: number) =>
       `/espejo/${taxpayerId}/${declarationId}/sat-reading`,
     COMMENTS: (declarationId: number) => `/${declarationId}/comments`,
+    COMMENTS_READ: (declarationId: number) => `/${declarationId}/comments/read`,
     RECALCULATE: "/recalculate",
     ISSUED_INVOICES_DECLARATION: (p: DeclarationPeriodInvoicesParams) =>
       `/issued-invoices-declaration${periodInvoicesQuery(p)}`,
@@ -759,6 +867,29 @@ export const API_ROUTES = {
     // .xlsx binario, una hoja por estatus; sin resultados el back manda 400 EXPORT_NO_RESULTS.
     EXPORT: (query: string) => `/export${query ? `?${query}` : ""}`,
     HISTORY: (id: number) => `/${id}/history`,
+  },
+  // apiType "fixed_assets" (Procedures). Activos fijos del 612: catálogo de tipos, lista del
+  // contribuyente (con su origen en la declaración), alta manual, cambios (tipo, estatus, descripción)
+  // y baja (venta o pérdida): POST crea o corrige la baja, DELETE la revierte (vuelve a Confirmado).
+  FIXED_ASSETS: {
+    TYPES: "/types",
+    LIST: (rfc: string, declarationId: number) =>
+      `?rfc=${encodeURIComponent(rfc)}&declarationId=${declarationId}`,
+    CREATE: "",
+    UPDATE: (id: number) => `/${id}`,
+    DISPOSAL: (id: number) => `/${id}/disposal`,
+    // Activo sin factura que ya se deprecia (R7, §11 de Requerimientos/612-calculate.md).
+    CAPTURED: "/captured",
+    CAPTURED_UPDATE: (id: number) => `/captured/${id}`,
+  },
+  // apiType "iva_favor_balances" (Procedures). Saldos a favor de IVA con su origen y sus
+  // aplicaciones; POST = captura manual de meses que el sistema no tiene.
+  IVA_FAVOR_BALANCES: {
+    LIST: (rfc: string) => `?rfc=${encodeURIComponent(rfc)}`,
+    CREATE: "",
+    UPDATE: (id: number) => `/${id}`,
+    /** Saldos del SAT (acuses leídos) disponibles para la declaración. */
+    SAT: (declarationId: number) => `/sat/${declarationId}`,
   },
   // Cancelación comercial de declaraciones y clientes (módulo Cancelaciones, gerencia de ventas).
   // Lectura en Reports (apiType "cancellations_reports"), escritura de declaraciones en Procedures

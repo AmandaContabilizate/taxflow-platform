@@ -6,6 +6,8 @@ import { useDeclarationCalculations } from '@/features/declarations/hooks/useDec
 import { DISPLAY, MONO } from '../constants'
 import { Card } from '../ui'
 import { type Json, money, percent, pick, subObject, toNumber } from './calc-read'
+import { Calculos612 } from './calculos-612'
+import { REGIMEN_612 } from './parts-612'
 
 /* -------------------------------------------------------------------------- */
 /*  Definición de filas                                                        */
@@ -365,10 +367,13 @@ export const CalculosTab = memo(function CalculosTab({
   declarationId,
   readOnly,
   regimeSatCode,
+  rfc = '',
   consulta = false,
 }: {
   declarationId: number
   readOnly?: boolean
+  /** 612: para cruzar los saldos aplicados y las depreciaciones con su origen. */
+  rfc?: string
   /** Fallback de `/general` mientras `/calculations` no responde. */
   regimeSatCode?: string | null
   /** true = perfil de solo consulta: usa la ruta espejo bajo Contador.ConsultaDeclaraciones. */
@@ -394,6 +399,7 @@ export const CalculosTab = memo(function CalculosTab({
   // entra como fallback si el backend todavía no devuelve el campo.
   const satCode = calc?.regimeSatCode ?? regimeSatCode ?? null
   const is626 = satCode === '626'
+  const is612 = satCode === REGIMEN_612
   const rawMonth = pick(isr, ['nameMonth'])
   const nameMonth = typeof rawMonth === 'string' && rawMonth.trim() ? rawMonth : null
   const activeIsr = ISR_TABS[isrTab]
@@ -489,7 +495,15 @@ export const CalculosTab = memo(function CalculosTab({
         </div>
       )}
 
-      {is626 ? (
+      {is612 ? (
+        <Calculos612
+          calc={calc}
+          declarationId={declarationId}
+          rfc={rfc}
+          nameMonth={nameMonth}
+          consulta={consulta || Boolean(readOnly)}
+        />
+      ) : is626 ? (
         <div className="grid gap-4 lg:grid-cols-2 items-start">
           {/* IVA · RESICO (626). Vista de solo lectura en esta iteración. */}
           <Card>
