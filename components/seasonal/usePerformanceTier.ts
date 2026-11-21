@@ -6,9 +6,11 @@ import { useEffect, useState } from 'react'
  * Nivel de efectos que aguanta el equipo. El navegador no expone CPU/GPU, así que se estima:
  *   1. pistas del hardware (núcleos, RAM en Chromium, ahorro de datos),
  *   2. ~60 frames medidos con requestAnimationFrame en reposo,
- *   3. en vivo: frames/tareas largas (> 100 ms) ⇒ baja un nivel (nunca sube en la sesión).
- * Se cachea 7 días en localStorage. Mientras mide reporta 'low' (sin nieve ni brillos) para no
- * agregar jank a la carga. `?seasonal-tier=high|medium|low` lo fuerza (sin tocar el cache).
+ *   3. en vivo: re-mide los FPS cada 20 s (pestaña visible); si DOS mediciones seguidas salen
+ *      por debajo del nivel actual, baja uno, solo para la sesión. No usa "long tasks": esas las
+ *      genera la propia app al cargar datos o cambiar de pantalla y castigaban al dashboard.
+ * La medición inicial se cachea 7 días en localStorage. Mientras mide reporta 'low' (sin nieve ni
+ * brillos) para no agregar jank a la carga. `?seasonal-tier=high|medium|low` lo fuerza (sin cache).
  */
 export type PerformanceTier = 'low' | 'medium' | 'high'
 
@@ -109,7 +111,16 @@ export function usePerformanceTier(enabled: boolean): PerformanceTier {
     const ceiling = hardwareCeiling()
     const run = async () => {
       if (cancelled || document.visibilityState !== 'visible') return
-      const measured = ceiling === 'low' ? 'low' : await measureFrames()
+      let measured: PerformanceTier = ceiling === 'low' ? 'low' : await measureFrames()
+      // Una muestra baja puede ser la propia carga de la página (datos, hidratación): se repite una
+      // vez a los 3 s y se queda la mejor de las dos.
+      if (!cancelled && ceiling !== 'low' && measured !== 'high') {
+        await new Promise((r) => setTimeout(r, 3000))
+        if (!cancelled && document.visibilityState === 'visible') {
+          const retry = await measureFrames()
+          if (ORDER.indexOf(retry) > ORDER.indexOf(measured)) measured = retry
+        }
+      }
       if (cancelled) return
       const result = minTier(ceiling, measured)
       writeCache(result)
@@ -132,40 +143,23 @@ export function usePerformanceTier(enabled: boolean): PerformanceTier {
     }
   }, [enabled])
 
-  // Vigilancia en vivo: ≥ 3 frames/tareas > 100 ms en 10 s ⇒ baja un nivel.
+  // Vigilancia en vivo: re-mide FPS cada 20 s; dos mediciones seguidas peores que el nivel actual
+  // ⇒ baja uno, solo en esta sesión (sin escribir el cache: un mal rato no castiga 7 días).
   useEffect(() => {
     if (!enabled || tier === 'low' || readOverride()) return
-    const supported = typeof PerformanceObserver !== 'undefined'
-      ? PerformanceObserver.supportedEntryTypes ?? []
-      : []
-    const type = supported.includes('long-animation-frame')
-      ? 'long-animation-frame'
-      : supported.includes('longtask')
-        ? 'longtask'
-        : null
-    if (!type) return
-
-    let hits: number[] = []
-    const observer = new PerformanceObserver((list) => {
-      if (document.visibilityState !== 'visible') return
-      const now = performance.now()
-      for (const entry of list.getEntries()) {
-        if (entry.duration > 100) hits.push(now)
-      }
-      hits = hits.filter((t) => now - t <= 10_000)
-      if (hits.length >= 3) {
-        observer.disconnect()
-        const lower = ORDER[Math.max(0, ORDER.indexOf(tier) - 1)]
-        writeCache(lower)
-        setTier(lower)
-      }
-    })
-    try {
-      observer.observe({ type, buffered: false })
-    } catch {
-      return
+    let cancelled = false
+    let strikes = 0
+    const interval = setInterval(async () => {
+      if (cancelled || document.visibilityState !== 'visible') return
+      const measured = await measureFrames()
+      if (cancelled) return
+      strikes = ORDER.indexOf(measured) < ORDER.indexOf(tier) ? strikes + 1 : 0
+      if (strikes >= 2) setTier(ORDER[Math.max(0, ORDER.indexOf(tier) - 1)])
+    }, 20_000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
     }
-    return () => observer.disconnect()
   }, [enabled, tier])
 
   return tier
