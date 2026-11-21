@@ -6,12 +6,13 @@ import { getPartnerApiStatus } from '@/features/partnership/actions/partnerTaxpa
 import { ApiKeysTab } from '../partnership/api-keys-tab'
 import { CorsTab } from '../partnership/cors-tab'
 import { TaxpayersTab } from '../partnership/taxpayers-tab'
+import { WebhooksTab } from '../partnership/webhooks-tab'
 import { KeysTab } from '../partnership/keys-tab'
 import { LoginsTab } from '../partnership/logins-tab'
 import { useHasPermission } from '../permissions'
 import { Tabs } from '../ui'
 
-type TabId = 'cors' | 'keys' | 'api-keys' | 'taxpayers' | 'logins'
+type TabId = 'cors' | 'keys' | 'api-keys' | 'webhooks' | 'taxpayers' | 'logins'
 
 /**
  * Integraciones. CORS, Keys (SSO / llaves de firma) y Logins siguen visibles para el administrador
@@ -21,16 +22,18 @@ type TabId = 'cors' | 'keys' | 'api-keys' | 'taxpayers' | 'logins'
 export function PartnershipScreen() {
   const canApiKeys = useHasPermission('Empresa.IntegracionesApiKeys')
   const canTaxpayers = useHasPermission('Empresa.IntegracionesContribuyentes')
+  const canWebhooks = useHasPermission('Empresa.IntegracionesWebhooks')
   const tabs = useMemo(() => {
     const list: { id: TabId; label: string }[] = [
       { id: 'cors', label: 'CORS' },
       { id: 'keys', label: 'Keys' },
     ]
     if (canApiKeys) list.push({ id: 'api-keys', label: 'API Keys' })
+    if (canWebhooks) list.push({ id: 'webhooks', label: 'Webhooks' })
     if (canTaxpayers) list.push({ id: 'taxpayers', label: 'Contribuyentes' })
     list.push({ id: 'logins', label: 'Ver Logins' })
     return list
-  }, [canApiKeys, canTaxpayers])
+  }, [canApiKeys, canTaxpayers, canWebhooks])
   const [tab, setTab] = useState(0)
   const [apiStatus, setApiStatus] = useState<{ fullySuspended: boolean; onboardingBlocked: boolean } | null>(null)
   useEffect(() => {
@@ -62,6 +65,7 @@ export function PartnershipScreen() {
       {current === 'cors' && <CorsTab />}
       {current === 'keys' && <KeysTab />}
       {current === 'api-keys' && <ApiKeysTab />}
+      {current === 'webhooks' && <WebhooksTab />}
       {current === 'taxpayers' && <TaxpayersTab />}
       {current === 'logins' && <LoginsTab />}
     </div>

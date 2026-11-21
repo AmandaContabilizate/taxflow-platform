@@ -116,6 +116,52 @@ export interface PartnerRequestLogItem {
   createdAt: string;
 }
 
+// ──────────── Webhooks (Partner API v1, Fase 4) ────────────
+
+export interface PartnerEventTypeItem {
+  code: string;
+  description: string;
+}
+
+export interface WebhookEndpoint {
+  id: number;
+  url: string;
+  description: string | null;
+  isActive: boolean;
+  events: string[];
+  secretRotatedAt: string;
+  createdAt: string;
+}
+
+/** `secret` llega UNA sola vez (alta o rotación). */
+export interface WebhookEndpointWithSecret {
+  endpoint: WebhookEndpoint;
+  secret: string;
+}
+
+export interface WebhookEndpointRequest {
+  url: string;
+  description?: string;
+  events: string[];
+  isActive: boolean;
+}
+
+export interface WebhookDelivery {
+  id: number;
+  endpointId: number;
+  eventId: string;
+  eventType: string;
+  rfc: string | null;
+  status: "Pending" | "Delivered" | "Failed" | "Retrying";
+  attempts: number;
+  httpStatus: number | null;
+  lastError: string | null;
+  isManualRedelivery: boolean;
+  createdAt: string;
+  sentAt: string | null;
+  nextAttemptAt: string;
+}
+
 // ──────────── Contribuyentes ligados (Partner API v1, Fase 2) ────────────
 
 export type PartnerLinkStatus =

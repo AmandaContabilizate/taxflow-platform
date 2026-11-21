@@ -834,6 +834,17 @@ export const API_ROUTES = {
       UNLINK: (linkId: number) => `/taxpayers/${linkId}/unlink`,
     },
     API_STATUS: "/api-status",
+    // Partner API v1 (Empresa.IntegracionesWebhooks)
+    WEBHOOKS: {
+      EVENT_TYPES: "/webhooks/event-types",
+      LIST: "/webhooks",
+      CREATE: "/webhooks",
+      UPDATE: (id: number) => `/webhooks/${id}`,
+      ROTATE: (id: number) => `/webhooks/${id}/rotate-secret`,
+      DELETE: (id: number) => `/webhooks/${id}`,
+      DELIVERIES: (query: string) => `/webhooks/deliveries${query}`,
+      REDELIVER: (deliveryId: number) => `/webhooks/deliveries/${deliveryId}/redeliver`,
+    },
   },
   /** Procedures (apiType "admin_partners"): pantalla Admin Partners (Backoffice.AdminPartners). */
   ADMIN_PARTNERS: {
