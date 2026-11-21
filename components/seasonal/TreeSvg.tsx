@@ -111,8 +111,9 @@ export function HatSvg() {
   return (
     <svg viewBox="0 0 20 20" width="100%" height="100%" aria-hidden focusable="false" className="block">
       <path d="M3.5 14.5 C5 8 9 4.2 14.5 3.6 C13 6.4 13.4 10.4 16.5 14.5 Z" fill="var(--season-berry)" />
-      <rect x="2.6" y="13.6" width="14.8" height="3.6" rx="1.8" fill="#FFFFFF" />
-      <circle cx="15.2" cy="3.4" r="2.2" fill="#FFFFFF" />
+      {/* Contorno lavanda suave: sin él, el borde y el pompón blancos desaparecen sobre el sidebar claro. */}
+      <rect x="2.6" y="13.6" width="14.8" height="3.6" rx="1.8" fill="#FFFFFF" stroke="#D9D3EC" strokeWidth="0.7" />
+      <circle cx="15.2" cy="3.4" r="2.2" fill="#FFFFFF" stroke="#D9D3EC" strokeWidth="0.7" />
     </svg>
   )
 }
