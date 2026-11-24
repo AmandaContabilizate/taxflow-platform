@@ -21,6 +21,8 @@ import type {
 import { money } from './calc-read'
 import {
   CatalogCell,
+  UsadaEnCell,
+  usoLabel,
   ConceptosCell,
   FacturasPadre,
   OtroRegimenChip,
@@ -960,9 +962,19 @@ const RecalcRow = memo(function RecalcRow({
           <ClasificacionActual inv={inv} />
         </td>
       )}
+      {visibleColSet.has('regimenEmisor') && (
+        <td className="px-3 py-3 align-top">
+          <CatalogCell name={inv.emitterRegimeName ?? null} id={inv.emitterRegimeCode ?? null} />
+        </td>
+      )}
       {visibleColSet.has('regimenReceptor') && (
         <td className="px-3 py-3 align-top">
           <CatalogCell name={inv.receiverRegimeName} id={inv.receiverRegimeCode} />
+        </td>
+      )}
+      {visibleColSet.has('usadaEn') && (
+        <td className="px-3 py-3 align-top">
+          <UsadaEnCell usos={inv.usedInDeclarations} />
         </td>
       )}
       {visibleColSet.has('usoCfdi') && (
@@ -980,6 +992,9 @@ const RecalcRow = memo(function RecalcRow({
             {inv.isOtherRegime ? (
               <span className="text-[11.5px]" style={{ color: 'var(--ink-500)' }}>
                 No pertenece a esta declaración: no se puede ajustar.
+                {inv.usedInDeclarations && inv.usedInDeclarations.length > 0 && (
+                  <> Ya se calculó en {inv.usedInDeclarations.map(usoLabel).join('; ')}.</>
+                )}
               </span>
             ) : inv.isPpdWithoutComplement ? (
               <span className="text-[11.5px]" style={{ color: 'var(--ink-500)' }}>

@@ -33,6 +33,7 @@ import {
 } from '@/features/declarations/hooks/useDeclarationQueries'
 import { getDeclarationInvoices } from '@/features/operations/actions/getDeclarationInvoices.action'
 import { getInvoiceXmlUrl } from '@/features/operations/actions/getInvoiceXmlUrl.action'
+import type { InvoiceUsage } from '@/features/declarations/types'
 import type {
   DeclarationInvoice,
   DeclarationInvoiceConcepto,
@@ -83,6 +84,9 @@ const DEFAULT_COLUMNS: ColumnKey[] = [
   'iva',
   'total',
   'clasificacion',
+  'regimenEmisor',
+  'regimenReceptor',
+  'usadaEn',
 ]
 
 const money = (v: string | number | null) => {
@@ -391,6 +395,33 @@ export function CatalogCell({ name, id }: { name: string | null; id: number | st
     )
   }
   return <span style={{ color: 'var(--ink-500)' }}>—</span>
+}
+
+/** "625 · Octubre 2026 · Presentada": una declaración donde ya se calculó la factura. */
+export function usoLabel(u: InvoiceUsage): string {
+  const regimen = u.regimeCode ?? u.regimeName ?? 'Régimen ?'
+  const periodo = [u.periodName, u.fiscalYear].filter(Boolean).join(' ')
+  const estatus = u.isPresented ? 'Presentada' : u.statusName
+  return [regimen, periodo, estatus].filter(Boolean).join(' · ')
+}
+
+/** Otras declaraciones (otro régimen u otro periodo) donde ya entró la factura. */
+export function UsadaEnCell({ usos }: { usos?: InvoiceUsage[] | null }) {
+  if (!usos || usos.length === 0) return <span style={{ color: 'var(--ink-500)' }}>—</span>
+  return (
+    <div className="flex flex-col gap-1">
+      {usos.map((u) => (
+        <Chip
+          key={u.declarationId}
+          bg={u.isPresented ? 'var(--violet-soft)' : 'var(--ink-50)'}
+          fg={u.isPresented ? 'var(--violet)' : 'var(--ink-700)'}
+          title={`${u.regimeName ?? ''} · declaración ${u.declarationId}`}
+        >
+          {usoLabel(u)}
+        </Chip>
+      ))}
+    </div>
+  )
 }
 
 interface ConceptoLike {
@@ -738,9 +769,13 @@ const InvoiceRow = memo(function InvoiceRow({
             />
           )}
           {col.key === 'clasificacion' && <ClasificacionCell inv={inv} />}
+          {col.key === 'regimenEmisor' && (
+            <CatalogCell name={inv.emitterRegimeName ?? null} id={inv.emitterRegimeCode ?? null} />
+          )}
           {col.key === 'regimenReceptor' && (
             <CatalogCell name={inv.receiverRegimeName} id={inv.receiverRegimeCode} />
           )}
+          {col.key === 'usadaEn' && <UsadaEnCell usos={inv.usedInDeclarations} />}
           {col.key === 'usoCfdi' && (
             <CatalogCell name={inv.cfdiUsageName} id={inv.cfdiUsageCode ?? inv.cfdiUsageId} />
           )}

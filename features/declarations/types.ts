@@ -426,10 +426,33 @@ export interface DeclarationPeriodInvoice {
   receiverRegimeId: number | null
   receiverRegimeCode: string | null
   receiverRegimeName: string | null
+  emitterRegimeId?: number | null
+  emitterRegimeCode?: string | null
+  emitterRegimeName?: string | null
+  /** Otras declaraciones donde ya se calculó esta factura. Vacío/ausente = ninguna. */
+  usedInDeclarations?: InvoiceUsage[] | null
   /** E3: factura de otro régimen del contribuyente, visible pero no computable. */
   isOtherRegime: boolean
   /** PPD sin complemento: descargada, visible, pero no computable hasta que se pague. Independiente de isOtherRegime. */
   isPpdWithoutComplement: boolean
+}
+
+/**
+ * Otra declaración del contribuyente (otro régimen u otro periodo) en cuyo cálculo ya entró
+ * la factura. La arma el back (InvoiceUsageElsewhere) con DeclarationInvoice; sin canceladas.
+ */
+export interface InvoiceUsage {
+  declarationId: number
+  regimeId: number | null
+  regimeCode: string | null
+  regimeName: string | null
+  fiscalYear: number
+  periodValueId: number | null
+  /** Catalogs.Period.Description, ej. "Octubre". */
+  periodName: string | null
+  statusId: number
+  statusName: string | null
+  isPresented: boolean
 }
 
 export interface DeclarationPeriodInvoiceConcept {

@@ -16,7 +16,9 @@ export type ColumnKey =
   | 'formaPago'
   | 'conceptos'
   | 'clasificacion'
+  | 'regimenEmisor'
   | 'regimenReceptor'
+  | 'usadaEn'
   | 'usoCfdi'
 
 export interface ColumnDef {
@@ -36,6 +38,8 @@ export const COLUMN_DEFS: ColumnDef[] = [
   { key: 'formaPago', label: 'Forma de pago' },
   { key: 'conceptos', label: 'Conceptos' },
   { key: 'clasificacion', label: 'Clasificación' },
+  { key: 'regimenEmisor', label: 'Régimen del emisor' },
   { key: 'regimenReceptor', label: 'Régimen del receptor' },
+  { key: 'usadaEn', label: 'Usada en otro cálculo' },
   { key: 'usoCfdi', label: 'Uso de CFDI' },
 ]
