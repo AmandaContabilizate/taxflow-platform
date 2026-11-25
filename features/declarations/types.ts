@@ -431,6 +431,10 @@ export interface DeclarationPeriodInvoice {
   emitterRegimeName?: string | null
   /** Otras declaraciones donde ya se calculó esta factura. Vacío/ausente = ninguna. */
   usedInDeclarations?: InvoiceUsage[] | null
+  /** Régimen al que el contador asignó la factura a mano; null = el del XML. */
+  assignedRegimeId?: number | null
+  assignedRegimeCode?: string | null
+  assignedRegimeName?: string | null
   /** E3: factura de otro régimen del contribuyente, visible pero no computable. */
   isOtherRegime: boolean
   /** PPD sin complemento: descargada, visible, pero no computable hasta que se pague. Independiente de isOtherRegime. */
@@ -453,6 +457,22 @@ export interface InvoiceUsage {
   statusId: number
   statusName: string | null
   isPresented: boolean
+}
+
+/** Respuesta de POST /{declarationId}/invoices/{invoiceId}/assign-regime. */
+export interface InvoiceRegimeAssignmentResult {
+  invoiceId: number
+  uuid: string
+  regimeId: number
+  regimeCode: string | null
+  regimeName: string | null
+  previousRegimeId: number | null
+  previousRegimeCode: string | null
+  /** Declaraciones de otro régimen, sin presentar, de las que salió la factura. */
+  removedFrom: InvoiceUsage[]
+  /** Declaraciones de otro régimen ya presentadas que la incluyeron; no se modifican. */
+  presentedIn: InvoiceUsage[]
+  message: string
 }
 
 export interface DeclarationPeriodInvoiceConcept {

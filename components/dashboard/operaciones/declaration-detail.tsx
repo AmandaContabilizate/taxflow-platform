@@ -777,6 +777,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
           fiscalYear={ejercicio}
           periodValueId={general?.periodValueId ?? null}
           taxRegimeId={general?.taxRegimeId ?? null}
+          regimeSatCode={general?.regimeSatCode ?? null}
           periodo={`${periodo} ${ejercicio}`}
           recalc={recalc}
           es612={es612}
