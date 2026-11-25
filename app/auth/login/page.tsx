@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { getExternalAuthUrl } from "@/lib/api/apiUrls";
+import { getActiveSeason, isSeasonalEasterEgg } from "@/lib/seasonal";
 import { LoginPageClient } from "./login-page-client";
 
 /**
@@ -17,10 +18,18 @@ import { LoginPageClient } from "./login-page-client";
  */
 export const dynamic = "force-dynamic";
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const googleAuthUrl = getExternalAuthUrl("google");
   const facebookAuthUrl = getExternalAuthUrl("facebook");
   const appleAuthUrl = getExternalAuthUrl("apple");
+  // Decoración de temporada (SEASONAL_THEME* por request) + easter egg ?h=December.
+  // Sin usuario: la preferencia (enabled) la resuelve el cliente desde localStorage.
+  const { h } = await searchParams;
+  const seasonal = { ...getActiveSeason({ easterEgg: isSeasonalEasterEgg(h) }), enabled: null };
 
   return (
     <Suspense fallback={null}>
@@ -28,6 +37,7 @@ export default function LoginPage() {
         googleAuthUrl={googleAuthUrl}
         facebookAuthUrl={facebookAuthUrl}
         appleAuthUrl={appleAuthUrl}
+        seasonal={seasonal}
       />
     </Suspense>
   );

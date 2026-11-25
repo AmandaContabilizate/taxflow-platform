@@ -1,3 +1,5 @@
+import type { InvoiceUsage } from "@/features/declarations/types";
+
 /**
  * Contratos del Centro de Operaciones (microservicio Reports).
  * - Declaraciones pagadas pendientes (`/declarations/paid-pending`).
@@ -166,6 +168,11 @@ export interface DeclarationInvoice {
   receiverRegimeId: number | null;
   receiverRegimeCode: string | null;
   receiverRegimeName: string | null;
+  emitterRegimeId?: number | null;
+  emitterRegimeCode?: string | null;
+  emitterRegimeName?: string | null;
+  /** Otras declaraciones donde ya se calculó esta factura. Vacío/ausente = ninguna. */
+  usedInDeclarations?: InvoiceUsage[] | null;
   /** E3: factura de otro régimen del contribuyente, visible pero no computable. */
   esOtroRegimen: boolean;
   /** PPD sin complemento: descargada, visible, pero no computable hasta que se pague. Independiente de esOtroRegimen. */
@@ -638,6 +645,15 @@ export interface VentaDetalleStripe {
 export interface DeclarationReportLink {
   url: string;
   token: string;
+}
+
+/** `GET declarations/{id}/invoices/{invoiceId}/xml-url`: SAS de solo lectura al XML del CFDI. */
+export interface InvoiceXmlUrl {
+  /** Caduca en `expiresAt` (~10 min); no guardarla. */
+  url: string;
+  expiresAt: string;
+  /** `{UUID}.xml`. */
+  fileName: string;
 }
 
 /** Estado derivado de una liga de pago emitida desde el backoffice (GET sales/ligas-pago). */

@@ -48,7 +48,10 @@ try {
         throw "build-deploy-zip.ps1 fallo (exit code $LASTEXITCODE)."
     }
 
+    # Solo zips de release (sin rama en el nombre): los de otras ramas llevan "-<rama>" despues de la
+    # fecha (ver build-deploy-zip.ps1) y nunca deben llegar a produccion.
     $Zip = Get-ChildItem -Path (Join-Path $Root "deploy") -Filter "taxflow-platform-*.zip" -File |
+        Where-Object { $_.Name -match '^taxflow-platform-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.zip$' } |
         Sort-Object LastWriteTime -Descending | Select-Object -First 1
     if (-not $Zip) {
         throw "No se encontro ningun zip en deploy/ tras el build."
