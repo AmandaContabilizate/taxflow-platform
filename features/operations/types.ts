@@ -177,6 +177,13 @@ export interface DeclarationInvoice {
   esOtroRegimen: boolean;
   /** PPD sin complemento: descargada, visible, pero no computable hasta que se pague. Independiente de esOtroRegimen. */
   esPpdSinComplemento: boolean;
+  /**
+   * Sin régimen en el XML (recibidas 3.3) y el contribuyente tiene varios regímenes:
+   * visible, no computable hasta que el contador la asigne a un régimen.
+   */
+  requiresRegimeAssignment?: boolean;
+  /** Versión del CFDI: "3.3", "4.0" (retenciones: "1.0", "2.0"). */
+  cfdiVersion?: string | null;
   wayOfPaymentId: number | null;
   paymentMethodId: number | null;
   /** `Catalogs.PaymentMethod.Code` (PUE/PPD). */

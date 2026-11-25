@@ -20,6 +20,7 @@ export type ColumnKey =
   | 'regimenReceptor'
   | 'usadaEn'
   | 'usoCfdi'
+  | 'version'
 
 export interface ColumnDef {
   key: ColumnKey
@@ -42,4 +43,6 @@ export const COLUMN_DEFS: ColumnDef[] = [
   { key: 'regimenReceptor', label: 'Régimen del receptor' },
   { key: 'usadaEn', label: 'Usada en otro cálculo' },
   { key: 'usoCfdi', label: 'Uso de CFDI' },
+  // Columna "VERSION CFDI" del catálogo del contador: 3.3 o 4.0 (retenciones: 1.0 o 2.0).
+  { key: 'version', label: 'Versión CFDI' },
 ]

@@ -41,6 +41,7 @@ import {
   FacturasPadre,
   OtroRegimenChip,
   PpdSinComplementoChip,
+  SinRegimenChip,
 } from './comprobantes-tab'
 import { type ColumnKey, COLUMN_DEFS } from './column-defs'
 import { ColumnsModal, FilterSelect } from './filter-columns'
@@ -345,12 +346,15 @@ export const RecalculoTab = memo(function RecalculoTab({
       iva: list.reduce((acc, i) => acc + (i.ivaAmount ?? 0), 0),
       total: list.reduce((acc, i) => acc + (Number.isFinite(i.total) ? i.total : 0), 0),
     })
-    const computables = invoices.filter((i) => !i.isOtherRegime && !i.isPpdWithoutComplement)
+    const computables = invoices.filter(
+      (i) => !i.isOtherRegime && !i.isPpdWithoutComplement && !i.requiresRegimeAssignment,
+    )
     return {
       clasificadas: sum(computables.filter((i) => i.isDeductible != null)),
       sinClasificar: sum(computables.filter((i) => i.isDeductible == null)),
       conjunto: sum(computables),
       otroRegimen: sum(invoices.filter((i) => i.isOtherRegime)),
+      sinRegimen: sum(invoices.filter((i) => i.requiresRegimeAssignment)),
     }
   }, [invoices])
   const sinClasificar = totales.sinClasificar.count
@@ -921,14 +925,18 @@ const RecalcRow = memo(function RecalcRow({
   onAssign,
 }: RecalcRowProps) {
   // Otro régimen (E3) y PPD sin complemento: visibles, no computables, sin ajustes.
-  const rowDisabled = baseDisabled || inv.isOtherRegime || inv.isPpdWithoutComplement
+  const rowDisabled =
+    baseDisabled || inv.isOtherRegime || inv.isPpdWithoutComplement || !!inv.requiresRegimeAssignment
   return (
     <tr
       ref={measureRef}
       data-index={index}
       style={{
         borderBottom: '1px solid var(--border)',
-        background: inv.isOtherRegime || inv.isPpdWithoutComplement ? 'var(--muted)' : undefined,
+        background:
+          inv.isOtherRegime || inv.isPpdWithoutComplement || inv.requiresRegimeAssignment
+            ? 'var(--muted)'
+            : undefined,
       }}
     >
       <td className="px-3 py-3 whitespace-nowrap align-top" style={{ color: 'var(--ink-900)' }}>
@@ -1077,6 +1085,11 @@ const RecalcRow = memo(function RecalcRow({
           <span style={{ color: 'var(--ink-700)' }}>{inv.uso ?? '—'}</span>
         </td>
       )}
+      {visibleColSet.has('version') && (
+        <td className="px-3 py-3 align-top">
+          <span style={{ color: 'var(--ink-700)' }}>{inv.cfdiVersion ?? '—'}</span>
+        </td>
+      )}
       <td className="px-3 py-3 align-top min-w-[230px]">
         {readOnly ? (
           <span style={{ ...MONO, color: 'var(--ink-900)' }}>
@@ -1095,6 +1108,24 @@ const RecalcRow = memo(function RecalcRow({
                   )}
                 </span>
                 {/* Canceladas y PPD sin complemento no entran a ningún cálculo: no se asignan. */}
+                {inv.statusComprobante !== 2 && !inv.isPpdWithoutComplement && (
+                  <button
+                    type="button"
+                    onClick={() => onAssign(inv)}
+                    disabled={baseDisabled}
+                    className="self-start px-2.5 py-1.5 rounded-lg text-[12px] font-semibold disabled:opacity-60"
+                    style={{ background: 'var(--brand-50)', color: 'var(--brand-700)', border: '1px solid var(--border)' }}
+                  >
+                    Asignar a este régimen
+                  </button>
+                )}
+              </div>
+            ) : inv.requiresRegimeAssignment ? (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[11.5px]" style={{ color: 'var(--ink-500)' }}>
+                  La factura no trae régimen{inv.cfdiVersion ? ` (CFDI ${inv.cfdiVersion})` : ''} y el
+                  contribuyente tiene varios regímenes. Asígnala al que corresponda para que entre al cálculo.
+                </span>
                 {inv.statusComprobante !== 2 && !inv.isPpdWithoutComplement && (
                   <button
                     type="button"
@@ -1435,7 +1466,13 @@ function BloqueTotales({ label, t }: { label: string; t: TotalesBloque }) {
 const TotalesRecalculo = memo(function TotalesRecalculo({
   totales,
 }: {
-  totales: { clasificadas: TotalesBloque; sinClasificar: TotalesBloque; conjunto: TotalesBloque; otroRegimen: TotalesBloque }
+  totales: {
+    clasificadas: TotalesBloque
+    sinClasificar: TotalesBloque
+    conjunto: TotalesBloque
+    otroRegimen: TotalesBloque
+    sinRegimen: TotalesBloque
+  }
 }) {
   return (
     <div className="flex flex-col gap-3">
@@ -1452,6 +1489,14 @@ const TotalesRecalculo = memo(function TotalesRecalculo({
           <BloqueTotales label="Otro régimen" t={totales.otroRegimen} />
         </div>
       )}
+      {totales.sinRegimen.count > 0 && (
+        <div className="pt-1" style={{ borderTop: '1px dashed var(--border-strong)' }}>
+          <p className="text-[11px] mb-1.5" style={{ color: 'var(--ink-500)' }}>
+            Sin régimen en el XML: no entran al cálculo hasta que las asignes a un régimen:
+          </p>
+          <BloqueTotales label="Sin régimen" t={totales.sinRegimen} />
+        </div>
+      )}
     </div>
   )
 })
@@ -1459,6 +1504,9 @@ const TotalesRecalculo = memo(function TotalesRecalculo({
 function ClasificacionActual({ inv }: { inv: DeclarationPeriodInvoice }) {
   if (inv.isOtherRegime) {
     return <OtroRegimenChip motivo={inv.reason} />
+  }
+  if (inv.requiresRegimeAssignment) {
+    return <SinRegimenChip motivo={inv.reason} />
   }
   if (inv.isPpdWithoutComplement) {
     return <PpdSinComplementoChip motivo={inv.reason} />
