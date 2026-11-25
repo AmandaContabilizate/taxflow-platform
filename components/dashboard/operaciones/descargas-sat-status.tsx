@@ -25,8 +25,9 @@ const COMBOS: { key: ComboKey; label: string }[] = [
 
 // Dominio del backend por combo: 0 gris (nunca pedido), 1 verde (completo), 2 azul (en curso:
 // DownloadRequest sin terminar o todavía en la cola interna de scrapers), 3 rojo (el intento más
-// reciente terminó en Error/Expired), 4 parcial (descarga temprana del día 1 completada hasta fin de
-// mes; la cola día 1-6 del mes siguiente la pide el reconcile desde el día 7). Ver
+// reciente terminó en Error/Expired, o el intento murió antes de crear la solicitud), 4 parcial
+// (descarga temprana del día 1 completada hasta fin de mes; la cola día 1-6 del mes siguiente la pide
+// el reconcile desde el día 7 — el texto lleva la fecha concreta, ver colaDelPeriodo). Ver
 // GetPeriodDownloadStatusQuery.cs.
 const GRIS = 'var(--ink-200, var(--border))'
 const VERDE = 'var(--accent-500, #10b981)'
@@ -43,7 +44,34 @@ const COMBO_LABEL: Record<number, string> = {
   1: 'descargado',
   2: 'en curso',
   3: 'falló',
-  4: 'descarga temprana hasta fin de mes; se completa a partir del día 7 del mes siguiente',
+}
+
+const MESES = [
+  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+]
+
+/**
+ * Fecha concreta de la cola del periodo: día 7 del mes siguiente (DownloadCoverageRange.TailDay + 1).
+ * Antes decía "del mes siguiente" y se leía contra HOY: una regularización de septiembre vista en
+ * noviembre parecía esperar al 7 de diciembre. Se arma con números (sin `new Date('YYYY-MM-DD')`,
+ * que se interpreta UTC y en México pinta el día anterior).
+ */
+function colaDelPeriodo(fiscalYear: number, period: number): { mes: string; etiqueta: string; yaAbrio: boolean } {
+  const mesN = period - 100 // 101..112 → 1..12
+  const anioSig = mesN === 12 ? fiscalYear + 1 : fiscalYear
+  const mesSig = mesN === 12 ? 1 : mesN + 1
+  const mes = MESES[mesSig - 1] ?? ''
+  const hoy = new Date()
+  const hoyNum = hoy.getFullYear() * 10000 + (hoy.getMonth() + 1) * 100 + hoy.getDate()
+  return { mes, etiqueta: `7 de ${mes} de ${anioSig}`, yaAbrio: hoyNum >= anioSig * 10000 + mesSig * 100 + 7 }
+}
+
+function etiquetaParcial(fiscalYear: number, period: number): string {
+  const cola = colaDelPeriodo(fiscalYear, period)
+  return cola.yaAbrio
+    ? `descarga temprana hasta fin de mes; falta del 1 al 6 de ${cola.mes}, se vuelve a pedir en la siguiente revisión automática`
+    : `descarga temprana hasta fin de mes; se completa a partir del ${cola.etiqueta}`
 }
 
 /**
@@ -75,12 +103,17 @@ export const DescargasSatStatus = memo(function DescargasSatStatus({ declaration
   const faltantes = COMBOS.filter((c) => status[c.key] !== 1)
   const done = faltantes.length === 0
   const hayTemprana = faltantes.some((c) => status[c.key] === 4)
+  const cola = colaDelPeriodo(status.fiscalYear, status.period)
+  const labelDe = (estado: number) =>
+    estado === 4 ? etiquetaParcial(status.fiscalYear, status.period) : (COMBO_LABEL[estado] ?? 'pendiente')
 
   const title = done
     ? 'Los 4 archivos SAT del periodo ya se descargaron.'
-    : `Falta: ${faltantes.map((c) => (status[c.key] === 4 ? `${c.label} (días 1-6 del mes siguiente)` : c.label)).join(', ')}. ` +
+    : `Falta: ${faltantes.map((c) => (status[c.key] === 4 ? `${c.label} (días 1-6 de ${cola.mes})` : c.label)).join(', ')}. ` +
       (hayTemprana
-        ? 'La descarga temprana del día 1 llega hasta fin de mes; el resto se pide solo a partir del día 7.'
+        ? cola.yaAbrio
+          ? `La descarga temprana del día 1 llega hasta fin de mes; los días 1-6 de ${cola.mes} se vuelven a pedir en la siguiente revisión automática.`
+          : `La descarga temprana del día 1 llega hasta fin de mes; el resto se pide a partir del ${cola.etiqueta}.`
         : 'Tras encolar una descarga puede tardar unos minutos en reflejarse.')
 
   return (
@@ -94,7 +127,7 @@ export const DescargasSatStatus = memo(function DescargasSatStatus({ declaration
         {COMBOS.map((c) => (
           <span
             key={c.key}
-            title={`${c.label}: ${COMBO_LABEL[status[c.key]] ?? 'pendiente'}`}
+            title={`${c.label}: ${labelDe(status[c.key])}`}
             className="h-[5px] w-[13px] rounded-full"
             style={{
               background: COMBO_COLOR[status[c.key]] ?? COMBO_COLOR[0],
