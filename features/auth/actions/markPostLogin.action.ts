@@ -14,3 +14,9 @@ export async function markPostLogin() {
     secure: process.env.NODE_ENV === "production",
   });
 }
+
+/** Quita la marca: el SSO pidió una pantalla de llegada y no debe mandarse a Diagnóstico. */
+export async function clearPostLogin() {
+  const cookieStore = await cookies();
+  cookieStore.delete(POST_LOGIN_COOKIE);
+}

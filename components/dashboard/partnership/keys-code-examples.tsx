@@ -303,7 +303,7 @@ export function KeysCodeExamples({ providerName, identityBaseUrl }: KeysCodeExam
       redirect: {
         label: 'Redirect (302)',
         description:
-          'Su servidor responde con un 302 hacia Contabox; el usuario navega fuera de su sitio, se crea la sesión y aterriza en el dashboard de Contabox (sin URL de retorno personalizada).',
+          'Su servidor responde con un 302 hacia Contabox; el usuario navega fuera de su sitio, se crea la sesión y aterriza en el dashboard de Contabox. Con &screen=plan aterriza directo en «Mi plan» (no se aceptan URLs de retorno).',
         code: `# Respuesta HTTP que debe emitir su servidor tras firmar el JWT:
 HTTP/1.1 302 Found
 Location: ${identityBaseUrl}/public/validate?token={TOKEN_JWT}
@@ -322,7 +322,13 @@ exit;
 
 // El usuario es redirigido a Contabox, se crea la sesión y aterriza en el
 // dashboard de Contabox. A diferencia del iframe, navega fuera de su sitio.
-// NUNCA genere el token en el frontend: la llave privada permanece en su servidor.`,
+// NUNCA genere el token en el frontend: la llave privada permanece en su servidor.
+
+
+# --- Llevar al usuario directo a «Mi plan» (para que compre o renueve) ---
+# Agregue system=4 y screen=plan (funciona igual en el src del iframe).
+# Valores permitidos de screen: plan. Un valor desconocido se ignora y entra al inicio.
+Location: ${identityBaseUrl}/public/validate?token={TOKEN_JWT}&system=4&screen=plan`,
       },
     }),
     [identityBaseUrl],
