@@ -87,6 +87,7 @@ const DEFAULT_COLUMNS: ColumnKey[] = [
   'regimenEmisor',
   'regimenReceptor',
   'usadaEn',
+  'version',
 ]
 
 const money = (v: string | number | null) => {
@@ -303,6 +304,10 @@ function ClasificacionCell({ inv }: { inv: DeclarationInvoice }) {
     return <OtroRegimenChip motivo={inv.motivo} />
   }
 
+  if (inv.requiresRegimeAssignment) {
+    return <SinRegimenChip motivo={inv.motivo} />
+  }
+
   if (inv.esPpdSinComplemento) {
     return <PpdSinComplementoChip motivo={inv.motivo} />
   }
@@ -361,6 +366,18 @@ function ClasificacionCell({ inv }: { inv: DeclarationInvoice }) {
 }
 
 /** E3: la fila no pertenece al régimen de la declaración, es visible pero no computable. */
+/**
+ * Sin régimen en el XML (recibidas 3.3, sin RegimenFiscalReceptor) con varios regímenes
+ * activos: el contador la asigna a mano en Recálculo. No entra al cálculo mientras tanto.
+ */
+export function SinRegimenChip({ motivo }: { motivo: string | null }) {
+  return (
+    <Chip bg="var(--coral-soft)" fg="var(--violet-ink)" title={motivo ?? undefined}>
+      Sin régimen: asígnala
+    </Chip>
+  )
+}
+
 export function OtroRegimenChip({ motivo }: { motivo: string | null }) {
   return (
     <Chip bg="var(--ink-50)" fg="var(--ink-500)" title={motivo ?? undefined}>
@@ -661,7 +678,8 @@ const InvoiceRow = memo(function InvoiceRow({
     <tr
       style={{
         borderBottom: '1px solid var(--border)',
-        background: inv.esOtroRegimen || inv.esPpdSinComplemento ? 'var(--muted)' : undefined,
+        background:
+          inv.esOtroRegimen || inv.esPpdSinComplemento || inv.requiresRegimeAssignment ? 'var(--muted)' : undefined,
       }}
     >
       <td className="px-3 py-3 whitespace-nowrap align-top">
@@ -778,6 +796,9 @@ const InvoiceRow = memo(function InvoiceRow({
           {col.key === 'usadaEn' && <UsadaEnCell usos={inv.usedInDeclarations} />}
           {col.key === 'usoCfdi' && (
             <CatalogCell name={inv.cfdiUsageName} id={inv.cfdiUsageCode ?? inv.cfdiUsageId} />
+          )}
+          {col.key === 'version' && (
+            <span style={{ color: 'var(--ink-700)' }}>{inv.cfdiVersion ?? '—'}</span>
           )}
         </td>
       ))}
