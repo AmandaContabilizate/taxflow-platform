@@ -17,6 +17,9 @@ export interface DeclarationCalculations {
   /** Código SAT ("625", "626"): decide qué parser se aplica a `iva`/`isr` (E3). */
   regimeSatCode?: string | null;
   regimeName?: string | null;
+  /** 612 médico: sus servicios están exentos y el IVA no se toma en cuenta. */
+  ivaNoAplica?: boolean;
+  ivaNoAplicaActividad?: string | null;
 }
 
 /** Montos del backend: number o string decimal ("438.49"). */

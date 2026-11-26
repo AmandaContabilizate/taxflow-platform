@@ -18,6 +18,7 @@ import {
   commentDeclarationReport,
   commentMyDeclarationReport,
 } from '@/features/declaration-report/actions'
+import { leyendaIvaNoAplicaCliente } from '@/features/declaration-report/lib/ivaNoAplica'
 import {
   buildDetailBlocks,
   formatMoney,
@@ -88,10 +89,10 @@ export function ReportView({
 
   const blocks = useMemo(
     () => [
-      ...buildDetailBlocks(report.ivaDetail, 'iva'),
+      ...(report.ivaNoAplica ? [] : buildDetailBlocks(report.ivaDetail, 'iva')),
       ...buildDetailBlocks(report.isrDetail, 'isr'),
     ],
-    [report.ivaDetail, report.isrDetail],
+    [report.ivaDetail, report.isrDetail, report.ivaNoAplica],
   )
 
   // ISR e IVA se muestran por separado: son impuestos distintos y el contribuyente los
@@ -101,7 +102,7 @@ export function ReportView({
   const total = toNumber(report.totalDeclaration) ?? isrCargo + ivaCargo
   // En pago definitivo no hay saldo a favor ni retención de IVA que acreditar: no se pintan.
   const ivaDefinitiva = isIvaDefinitiva(report.ivaDetail)
-  const ivaFavor = ivaDefinitiva ? 0 : toNumber(report.ivaFavor) ?? 0
+  const ivaFavor = ivaDefinitiva || report.ivaNoAplica ? 0 : toNumber(report.ivaFavor) ?? 0
   const canReturn = report.canAuthorize
 
   async function handleAuthorize() {
@@ -221,6 +222,7 @@ export function ReportView({
                     {formatMoney(isrCargo)}
                   </p>
                 </div>
+                {!report.ivaNoAplica && (
                 <div
                   className="rounded-2xl px-3.5 py-3"
                   style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.14)' }}
@@ -232,6 +234,7 @@ export function ReportView({
                     {formatMoney(ivaCargo)}
                   </p>
                 </div>
+                )}
               </div>
             )}
 
@@ -254,6 +257,15 @@ export function ReportView({
             )}
           </div>
 
+          {report.ivaNoAplica && (
+            <p
+              className="mx-6 mt-4 rounded-2xl px-4 py-3 text-[13px] leading-[19px]"
+              style={{ background: 'var(--sky-soft)', color: 'var(--ink-700)' }}
+            >
+              {leyendaIvaNoAplicaCliente(report.ivaNoAplicaActividad)}
+            </p>
+          )}
+
           <dl className="px-6 pb-1 pt-4">
             <IdRow label="RFC" value={report.rfc} mono />
             <IdRow label="Contribuyente" value={report.legalName} />
@@ -264,7 +276,7 @@ export function ReportView({
             {toNumber(report.isrRetenido) ? (
               <IdRow label="ISR retenido" value={formatMoney(report.isrRetenido)} />
             ) : null}
-            {!ivaDefinitiva && toNumber(report.ivaRetenido) ? (
+            {!ivaDefinitiva && !report.ivaNoAplica && toNumber(report.ivaRetenido) ? (
               <IdRow label="IVA retenido" value={formatMoney(report.ivaRetenido)} />
             ) : null}
             {toNumber(report.personalDeductions) ? (

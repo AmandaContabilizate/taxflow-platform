@@ -11,6 +11,7 @@ import {
   Table2,
 } from 'lucide-react'
 import { memo, useMemo, useState } from 'react'
+import { leyendaIvaNoAplicaContador } from '@/features/declaration-report/lib/ivaNoAplica'
 import { isIvaDefinitiva } from '@/features/declaration-report/lib/reportDetail'
 import {
   useDeclarationCalculations,
@@ -21,7 +22,7 @@ import { DISPLAY, MONO } from '../constants'
 import { Card } from '../ui'
 import { read612 } from './calc-612'
 import { type Json, money, num, percent, subObject } from './calc-read'
-import { REGIMEN_612 } from './parts-612'
+import { REGIMEN_612, InlineNotice } from './parts-612'
 
 /* -------------------------------------------------------------------------- */
 /*  Lectura de los cálculos                                                    */
@@ -462,6 +463,7 @@ export const ResumenDeclaracion = memo(function ResumenDeclaracion({ declaration
   const range = periodRange(general?.periodValueId, general?.fiscalYear ?? fiscalYear)
   const presentadaHace = daysAgo(general?.submittedAt ?? null)
   const fmt = (n: number | null) => (n == null ? '—' : money(n))
+  const sinIva = calc?.ivaNoAplica === true
 
   if (loading) {
     return (
@@ -508,11 +510,12 @@ export const ResumenDeclaracion = memo(function ResumenDeclaracion({ declaration
         <div className="grid gap-2.5 sm:grid-cols-2">
           <Metric label="Ingresos del periodo" value={fmt(r.ingresos)} />
           <Metric label="Egresos deducibles" value={fmt(r.egresos)} />
-          <Metric label="IVA trasladado" value={fmt(r.ivaTrasladado)} />
-          <Metric label="IVA acreditable" value={fmt(r.ivaAcreditable)} />
+          {!sinIva && <Metric label="IVA trasladado" value={fmt(r.ivaTrasladado)} />}
+          {!sinIva && <Metric label="IVA acreditable" value={fmt(r.ivaAcreditable)} />}
           <Metric label="ISR calculado" value={fmt(r.isrCargo)} />
-          <Metric label="IVA a pagar" value={fmt(r.ivaPagar)} />
+          {!sinIva && <Metric label="IVA a pagar" value={fmt(r.ivaPagar)} />}
         </div>
+        {sinIva && <InlineNotice>{leyendaIvaNoAplicaContador(calc?.ivaNoAplicaActividad)}</InlineNotice>}
 
         {/* Total */}
         <div>
@@ -611,6 +614,7 @@ export const ResumenDeclaracion = memo(function ResumenDeclaracion({ declaration
                 value={fmt(r.isrCargo)}
                 last={false}
               />
+              {!sinIva && (
               <StepRow
                 index={3}
                 title={r.ivaDefinitiva ? 'IVA a cargo (pago definitivo)' : 'IVA neto'}
@@ -619,11 +623,12 @@ export const ResumenDeclaracion = memo(function ResumenDeclaracion({ declaration
                 value={fmt(r.ivaPagar)}
                 last={false}
               />
+              )}
               <StepRow
-                index={4}
+                index={sinIva ? 3 : 4}
                 title="Total a pagar"
-                formula="ISR a cargo + IVA a pagar"
-                operands={`${fmt(r.isrCargo)} + ${fmt(r.ivaPagar)}`}
+                formula={sinIva ? 'ISR a cargo' : 'ISR a cargo + IVA a pagar'}
+                operands={sinIva ? fmt(r.isrCargo) : `${fmt(r.isrCargo)} + ${fmt(r.ivaPagar)}`}
                 value={fmt(r.total)}
                 last
               />
