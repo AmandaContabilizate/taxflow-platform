@@ -824,8 +824,65 @@ export const API_ROUTES = {
     KEYS: {
       ACTIVE: "/keys",
       GENERATE: "/keys",
+      ALL: "/keys/all",
+      UPLOAD: "/keys/upload",
+      REVOKE: (id: number) => `/keys/${id}/revoke`,
     },
     LOGINS: "/logins",
+    // Partner API v1 (Empresa.IntegracionesApiKeys)
+    API_KEYS: {
+      LIST: "/api-keys",
+      SCOPES: "/api-keys/scopes",
+      CREATE: "/api-keys",
+      REVOKE: (id: number) => `/api-keys/${id}/revoke`,
+    },
+    API_REQUESTS: (days: number) => `/api-requests?days=${days}`,
+    // Partner API v1 (Empresa.IntegracionesContribuyentes)
+    TAXPAYERS: {
+      LIST: (query: string) => `/taxpayers${query}`,
+      UNLINK: (linkId: number) => `/taxpayers/${linkId}/unlink`,
+    },
+    API_STATUS: "/api-status",
+    // Partner API v1 (Empresa.IntegracionesWebhooks)
+    WEBHOOKS: {
+      EVENT_TYPES: "/webhooks/event-types",
+      LIST: "/webhooks",
+      CREATE: "/webhooks",
+      UPDATE: (id: number) => `/webhooks/${id}`,
+      ROTATE: (id: number) => `/webhooks/${id}/rotate-secret`,
+      TEST: (id: number) => `/webhooks/${id}/test`,
+      DELETE: (id: number) => `/webhooks/${id}`,
+      DELIVERIES: (query: string) => `/webhooks/deliveries${query}`,
+      REDELIVER: (deliveryId: number) => `/webhooks/deliveries/${deliveryId}/redeliver`,
+    },
+  },
+  /** Procedures (apiType "admin_partners"): pantalla Admin Partners (Backoffice.AdminPartners). */
+  ADMIN_PARTNERS: {
+    OVERVIEW: "/overview",
+    ALERTS: (query: string) => `/alerts${query}`,
+    ALERT_REVIEW: (id: number) => `/alerts/${id}/review`,
+    ALERT_DISMISS: (id: number) => `/alerts/${id}/dismiss`,
+    DETAIL: (partnershipId: number) => `/partners/${partnershipId}`,
+    SUSPEND: (partnershipId: number) => `/partners/${partnershipId}/suspend`,
+    BLOCK_ONBOARDING: (partnershipId: number) => `/partners/${partnershipId}/block-onboarding`,
+    LIFT: (partnershipId: number, restrictionId: number) => `/partners/${partnershipId}/restrictions/${restrictionId}/lift`,
+    LIMITS: (partnershipId: number) => `/partners/${partnershipId}/limits`,
+  },
+  /** Identity (apiType "partner_consent"): consentimiento del dueño del RFC. */
+  PARTNER_CONSENT: {
+    CONSENT: (token: string) => `/consent/${encodeURIComponent(token)}`,
+    CONSENT_ACCEPT: (token: string) => `/consent/${encodeURIComponent(token)}/accept`,
+    CONSENT_REJECT: (token: string) => `/consent/${encodeURIComponent(token)}/reject`,
+    CONSENT_REPORT: (token: string) => `/consent/${encodeURIComponent(token)}/report`,
+    MY_LINKS: "/my-links",
+    MY_LINK_ACCEPT: (linkId: number) => `/my-links/${linkId}/accept`,
+    MY_LINK_REJECT: (linkId: number) => `/my-links/${linkId}/reject`,
+    MY_LINK_REVOKE: (linkId: number) => `/my-links/${linkId}/revoke`,
+    MY_LINK_REPORT: (linkId: number) => `/my-links/${linkId}/report`,
+  },
+  PARTNERSHIP_ADMIN: {
+    SCOPES_CATALOG: "/scopes",
+    SCOPES: (partnershipId: number) => `/${partnershipId}/scopes`,
   },
   STRIPE: {
     PAYMENT_SHEET: "/payment-sheet",

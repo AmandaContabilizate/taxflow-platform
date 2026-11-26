@@ -10,6 +10,7 @@ import { Btn, Card } from '../ui'
 import { GenerateKeyModal } from './generate-key-modal'
 import { KeysCodeExamples } from './keys-code-examples'
 import { KeysSignOutExamples } from './keys-signout-examples'
+import { SigningKeysCard } from './signing-keys-card'
 
 export function KeysTab() {
   const [activeKey, setActiveKey] = useState<ProviderKeyItem | null>(null)
@@ -18,6 +19,7 @@ export function KeysTab() {
   const [error, setError] = useState<string | null>(null)
   const [identityBaseUrl, setIdentityBaseUrl] = useState<string>('')
   const [modalOpen, setModalOpen] = useState(false)
+  const [keysVersion, setKeysVersion] = useState(0)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -45,6 +47,7 @@ export function KeysTab() {
       providerName: result.providerName,
     })
     if (result.providerName) setProviderName(result.providerName)
+    setKeysVersion((v) => v + 1)
   }
 
   return (
@@ -91,6 +94,8 @@ export function KeysTab() {
       </div>
 
       <GenerateKeyModal open={modalOpen} onOpenChange={setModalOpen} onGenerated={handleGenerated} />
+
+      <SigningKeysCard refreshToken={keysVersion} />
 
       <KeysCodeExamples providerName={providerName} identityBaseUrl={identityBaseUrl} />
       <KeysSignOutExamples providerName={providerName} identityBaseUrl={identityBaseUrl} />

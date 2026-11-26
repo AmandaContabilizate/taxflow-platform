@@ -1,9 +1,10 @@
 import { decodeJwt } from "jose";
 import { NextResponse, type NextRequest } from "next/server";
 import { clearSessionCookies, setSessionCookies } from "@/features/auth/actions";
-import { markPostLogin } from "@/features/auth/actions/markPostLogin.action";
+import { clearPostLogin, markPostLogin } from "@/features/auth/actions/markPostLogin.action";
 import { isDashboardDestination } from "@/features/auth/lib/postLoginCookie";
 import { resolveLoginDestination } from "@/features/auth/lib/resolveLoginDestination";
+import { resolveSsoLanding } from "@/features/auth/lib/ssoLandingScreen";
 import { PROTECTED_ROUTES, PUBLIC_ROUTES, resolveRedirectBase } from "@/lib/routes";
 
 /**
@@ -48,6 +49,15 @@ export async function GET(request: NextRequest) {
     fullName,
     fallback: PROTECTED_ROUTES.DASHBOARD,
   });
+
+  // SSO de aliados con pantalla de llegada (p. ej. screen=plan → «Mi plan»): manda sobre el inicio y sobre la
+  // redirección automática a Diagnóstico. Si el usuario aún debe completar onboarding/perfil, eso va primero.
+  const landing = isDashboardDestination(destination) ? resolveSsoLanding(params.get("screen")) : null;
+  if (landing) {
+    await clearPostLogin();
+    return NextResponse.redirect(new URL(landing, resolveRedirectBase(request.url)));
+  }
+
   if (isDashboardDestination(destination)) await markPostLogin();
 
   return NextResponse.redirect(new URL(destination, resolveRedirectBase(request.url)));
