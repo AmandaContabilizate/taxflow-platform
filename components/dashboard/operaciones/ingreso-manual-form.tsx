@@ -1,20 +1,13 @@
 'use client'
 
+import { Loader2 } from 'lucide-react'
+import { useClassificationCategories } from '@/features/declarations/hooks/useDeclarationQueries'
 import type { ManualIncome, ManualIncomeIvaRate } from '@/features/declarations/types'
 import { FieldLabel, inputStyle } from '../cancelaciones/parts'
 import { money } from '../declaraciones/parts'
 import { DatePicker } from '../date-picker'
 import { MONO } from '../constants'
 import { InlineNotice } from './parts-612'
-
-export const CATEGORIAS_625 = [
-  'Transporte terrestre de pasajeros',
-  'Entrega de alimentos preparados',
-  'Entrega de bienes (distintos de alimentos preparados)',
-  'Hospedaje',
-  'Otro tipo de servicios',
-  'Comercio de bienes',
-]
 
 export const TASAS: { value: ManualIncomeIvaRate; label: string }[] = [
   { value: '16', label: '16 %' },
@@ -28,12 +21,11 @@ export interface IngresoForm {
   concepto: string
   subtotal: string
   tasa: ManualIncomeIvaRate
-  categoria: string
-  rfc: string
-  nombre: string
+  classificationId: string
+  contraparte: string
 }
 
-export const FORM_VACIO: IngresoForm = { fecha: '', concepto: '', subtotal: '', tasa: '16', categoria: '', rfc: '', nombre: '' }
+export const FORM_VACIO: IngresoForm = { fecha: '', concepto: '', subtotal: '', tasa: '16', classificationId: '', contraparte: '' }
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const iso = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
@@ -56,6 +48,7 @@ export function IngresoManualCampos({
   form,
   onChange,
   es625,
+  open,
   rango,
   iva,
   total,
@@ -64,11 +57,14 @@ export function IngresoManualCampos({
   form: IngresoForm
   onChange: (patch: Partial<IngresoForm>) => void
   es625: boolean
+  open: boolean
   rango: { min?: string; max?: string }
   iva: number
   total: number
   error: string | null
 }) {
+  const categoriesQ = useClassificationCategories(es625 && open)
+  const categorias = (categoriesQ.data ?? []).filter((c) => !c.isExpense)
   return (
     <div className="flex flex-col gap-3">
       <div>
@@ -82,10 +78,16 @@ export function IngresoManualCampos({
       {es625 && (
         <div>
           <FieldLabel>Tipo de servicio</FieldLabel>
-          <select value={form.categoria} onChange={(e) => onChange({ categoria: e.target.value })} className={`${field} cursor-pointer`} style={inputStyle}>
-            <option value="">Selecciona…</option>
-            {CATEGORIAS_625.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
+          {categoriesQ.isLoading ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : categoriesQ.isError ? (
+            <InlineNotice kind="error">No se pudo cargar el catálogo de tipos de servicio.</InlineNotice>
+          ) : (
+            <select value={form.classificationId} onChange={(e) => onChange({ classificationId: e.target.value })} className={`${field} cursor-pointer`} style={inputStyle}>
+              <option value="">Selecciona…</option>
+              {categorias.map((c) => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
+            </select>
+          )}
         </div>
       )}
       <div className="grid grid-cols-2 gap-3">
@@ -109,15 +111,9 @@ export function IngresoManualCampos({
         <span className="font-semibold">Total</span>
         <span className="font-semibold" style={{ ...MONO, textAlign: 'right' }}>{money(total)}</span>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <FieldLabel hint="(opcional)">RFC de la contraparte</FieldLabel>
-          <input value={form.rfc} maxLength={13} onChange={(e) => onChange({ rfc: e.target.value })} className={`${field} uppercase`} style={{ ...inputStyle, ...MONO }} />
-        </div>
-        <div>
-          <FieldLabel hint="(opcional)">Nombre</FieldLabel>
-          <input value={form.nombre} maxLength={300} onChange={(e) => onChange({ nombre: e.target.value })} className={field} style={inputStyle} />
-        </div>
+      <div>
+        <FieldLabel hint="(opcional)">Contraparte</FieldLabel>
+        <input value={form.contraparte} maxLength={300} onChange={(e) => onChange({ contraparte: e.target.value })} className={field} style={inputStyle} />
       </div>
       {error && <InlineNotice kind="error">{error}</InlineNotice>}
     </div>
