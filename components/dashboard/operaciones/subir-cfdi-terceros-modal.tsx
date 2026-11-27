@@ -1,6 +1,6 @@
 'use client'
 
-import { FileUp, Loader2, Trash2 } from 'lucide-react'
+import { FileUp, Loader2, Trash2, UploadCloud } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { invalidateDeclarationData } from '@/features/declarations/hooks/useDeclarationQueries'
@@ -13,7 +13,7 @@ import { Modal } from '../modal'
 import { Btn } from '../ui'
 import { InlineNotice } from './parts-612'
 
-const MAX_XML_BYTES = 1024 * 1024
+const MAX_XML_BYTES = 900 * 1024
 
 function ResultadoSubida({ r }: { r: ThirdPartyInvoiceResult }) {
   return (
@@ -54,7 +54,7 @@ function SubirCfdiTercerosModal({ open, onClose, declarationId }: { open: boolea
     setResult(null)
     if (f && f.size > MAX_XML_BYTES) {
       setFile(null)
-      setError('El archivo no debe exceder 1 MB.')
+      setError('El archivo no debe exceder 900 KB.')
       return
     }
     setError(null)
@@ -67,13 +67,25 @@ function SubirCfdiTercerosModal({ open, onClose, declarationId }: { open: boolea
     setError(null)
     const formData = new FormData()
     formData.append('file', file)
-    const res = await uploadThirdPartyInvoice(declarationId, formData)
-    setUploading(false)
-    if (!res.success) return setError(res.error.message)
-    setResult(res.value)
+    try {
+      const res = await uploadThirdPartyInvoice(declarationId, formData)
+      if (!res.success) return setError(res.error.message)
+      setResult(res.value)
+      setFile(null)
+      if (inputRef.current) inputRef.current.value = ''
+      void invalidateDeclarationData(queryClient, declarationId)
+    } catch {
+      setError('No se pudo subir el archivo. Intenta de nuevo.')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const another = () => {
+    setResult(null)
+    setError(null)
     setFile(null)
     if (inputRef.current) inputRef.current.value = ''
-    void invalidateDeclarationData(queryClient, declarationId)
   }
 
   return (
@@ -85,9 +97,15 @@ function SubirCfdiTercerosModal({ open, onClose, declarationId }: { open: boolea
       footer={
         <div className="flex justify-end gap-2">
           <Btn kind="ghost" size="sm" onClick={close}>{result ? 'Cerrar' : 'Cancelar'}</Btn>
-          <Btn size="sm" onClick={upload} disabled={!file || uploading}>
-            {uploading ? <Loader2 size={14} className="animate-spin" /> : <FileUp size={14} />} Subir
-          </Btn>
+          {result ? (
+            <Btn size="sm" onClick={another}>
+              <FileUp size={14} /> Subir otro
+            </Btn>
+          ) : (
+            <Btn size="sm" onClick={upload} disabled={!file || uploading}>
+              {uploading ? <Loader2 size={14} className="animate-spin" /> : <FileUp size={14} />} Subir
+            </Btn>
+          )}
         </div>
       }
     >
@@ -97,9 +115,18 @@ function SubirCfdiTercerosModal({ open, onClose, declarationId }: { open: boolea
           type="file"
           accept=".xml,text/xml"
           onChange={(e) => pick(e.target.files?.[0])}
-          className="text-[13px]"
-          style={{ color: 'var(--foreground)' }}
+          className="hidden"
         />
+        {!result && (
+          <div
+            onClick={() => inputRef.current?.click()}
+            className="p-3.5 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-1 cursor-pointer transition hover:opacity-90 text-center text-[13px]"
+            style={{ background: 'var(--card)', borderColor: file ? 'var(--sky)' : 'var(--border-strong)', color: 'var(--ink-700)' }}
+          >
+            <UploadCloud size={20} style={{ color: file ? 'var(--sky)' : 'var(--ink-400)' }} />
+            {file ? <span className="font-semibold" style={{ color: 'var(--ink-900)' }}>{file.name}</span> : <span>Haz clic para elegir el XML</span>}
+          </div>
+        )}
         {error && <InlineNotice kind="error">{error}</InlineNotice>}
         {result && <ResultadoSubida r={result} />}
       </div>

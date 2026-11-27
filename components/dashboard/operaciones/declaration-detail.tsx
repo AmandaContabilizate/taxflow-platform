@@ -762,6 +762,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
             !soloConsulta &&
             general != null &&
             !cancelled &&
+            ['612', '625', '626'].includes(general.regimeSatCode ?? '') &&
             general.statusId !== DECLARATION_STATUS.SUBMITTED &&
             !PRESENTED_CODES.has(general.statusCode ?? '')
           }

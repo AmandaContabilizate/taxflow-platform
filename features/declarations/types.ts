@@ -264,6 +264,7 @@ export interface RecalculatedClassification {
 export interface RecalculationInputSummary {
   issuedXmlCount: number
   receivedXmlCount: number
+  thirdPartyXmlCount?: number
   totalXmlCount: number
   manualDeductions: number
   yearToDateIvaFavor: number | null
