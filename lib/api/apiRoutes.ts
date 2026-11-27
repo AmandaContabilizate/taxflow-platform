@@ -710,6 +710,10 @@ export const API_ROUTES = {
     COMMENTS: (declarationId: number) => `/${declarationId}/comments`,
     COMMENTS_READ: (declarationId: number) => `/${declarationId}/comments/read`,
     RECALCULATE: "/recalculate",
+    THIRD_PARTY_INVOICES: (declarationId: number) =>
+      `/${declarationId}/third-party-invoices`,
+    THIRD_PARTY_INVOICE: (declarationId: number, invoiceId: number) =>
+      `/${declarationId}/third-party-invoices/${invoiceId}`,
     // Un CFDI, un régimen: asigna la factura al régimen de la declaración.
     ASSIGN_INVOICE_REGIME: (declarationId: number, invoiceId: number) =>
       `/${declarationId}/invoices/${invoiceId}/assign-regime`,

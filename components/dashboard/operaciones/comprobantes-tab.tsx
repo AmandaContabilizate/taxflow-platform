@@ -46,7 +46,8 @@ import type {
 import { Pagination } from '../clientes/parts'
 import { MONO } from '../constants'
 import { type Json, num } from './calc-read'
-import { Card } from '../ui'
+import { Badge, Card } from '../ui'
+import { QuitarCfdiTerceros, SubirCfdiTercerosButton } from './subir-cfdi-terceros-modal'
 import { useUrlState } from '../url-state'
 import { type ColumnKey, COLUMN_DEFS, type ColumnDef } from './column-defs'
 import { ColumnsModal, FilterSelect } from './filter-columns'
@@ -186,7 +187,7 @@ function UuidCopy({ uuid }: { uuid: string }) {
  * Declaración de la tabla, para pedir el XML sin pasar props a cada fila
  * memoizada. Null = fuera de la pestaña: no se pinta el enlace.
  */
-const XmlLinkContext = createContext<{ declarationId: number; consulta: boolean } | null>(null)
+const XmlLinkContext = createContext<{ declarationId: number; consulta: boolean; puedeEditarTerceros: boolean } | null>(null)
 
 /**
  * Abre el XML del CFDI (Blob privado) en una pestaña nueva. La URL es una SAS de
@@ -255,6 +256,7 @@ function XmlLink({ invoiceId }: { invoiceId: number }) {
 
 function FolioCell({ inv }: { inv: DeclarationInvoice }) {
   const folio = [inv.serie, inv.folio].filter(Boolean).join('-')
+  const ctx = useContext(XmlLinkContext)
 
   return (
     <div className="flex flex-col gap-1 min-w-[176px]">
@@ -262,8 +264,14 @@ function FolioCell({ inv }: { inv: DeclarationInvoice }) {
         <span className="font-semibold" style={{ color: 'var(--ink-900)' }}>
           {folio || 'Sin folio'}
         </span>
-        <XmlLink invoiceId={inv.invoiceId} />
+        {!inv.esACuentaTerceros && <XmlLink invoiceId={inv.invoiceId} />}
+        {inv.esACuentaTerceros && ctx?.puedeEditarTerceros && (
+          <QuitarCfdiTerceros declarationId={ctx.declarationId} invoiceId={inv.invoiceId} />
+        )}
       </span>
+      {inv.esACuentaTerceros && (
+        <span className="self-start"><Badge kind="sky">A cuenta de terceros</Badge></span>
+      )}
       {inv.uuid ? (
         <UuidCopy uuid={inv.uuid} />
       ) : (
@@ -815,12 +823,15 @@ export const ComprobantesTab = memo(function ComprobantesTab({
   periodo,
   regimeSatCode,
   consulta = false,
+  puedeSubirTerceros = false,
 }: {
   declarationId: number
   periodo: string
   regimeSatCode?: string | null
   /** true = perfil de solo consulta: usa la ruta espejo bajo Contador.ConsultaDeclaraciones. */
   consulta?: boolean
+  /** Declaración sin presentar y perfil con edición: permite subir y quitar CFDI a cuenta de terceros. */
+  puedeSubirTerceros?: boolean
 }) {
   const { params, setParams } = useUrlState()
 
@@ -1046,7 +1057,10 @@ export const ComprobantesTab = memo(function ComprobantesTab({
   }, [visibles, totalesPeriodo])
 
   // Valor estable: un objeto nuevo en cada render repintaría todas las filas memoizadas.
-  const xmlLinkCtx = useMemo(() => ({ declarationId, consulta }), [declarationId, consulta])
+  const xmlLinkCtx = useMemo(
+    () => ({ declarationId, consulta, puedeEditarTerceros: puedeSubirTerceros }),
+    [declarationId, consulta, puedeSubirTerceros],
+  )
 
   const totalPages = Math.max(1, Math.ceil(vista.page.total / TAKE))
   const currentPage = Math.floor(vista.skip / TAKE) + 1
@@ -1069,6 +1083,7 @@ export const ComprobantesTab = memo(function ComprobantesTab({
                 : `${totalPeriodo} comprobantes del período ${periodo}`}
             </p>
           </div>
+          {subTab === 0 && puedeSubirTerceros && <SubirCfdiTercerosButton declarationId={declarationId} />}
           {subTab === 0 && (
             <button
               type="button"

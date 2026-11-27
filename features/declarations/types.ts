@@ -265,6 +265,7 @@ export interface RecalculatedClassification {
 export interface RecalculationInputSummary {
   issuedXmlCount: number
   receivedXmlCount: number
+  thirdPartyXmlCount?: number
   totalXmlCount: number
   manualDeductions: number
   yearToDateIvaFavor: number | null
@@ -384,6 +385,8 @@ export interface DeclarationPeriodInvoice {
   status: string
   /** true = el contribuyente es el emisor. */
   isIssued: boolean
+  /** CFDI a cuenta de terceros: importes de la parte del contribuyente. */
+  isThirdParty?: boolean
   declarationId: number | null
   /** null = todavía no se ha clasificado. */
   isDeductible: boolean | null
@@ -465,6 +468,33 @@ export interface InvoiceUsage {
   statusId: number
   statusName: string | null
   isPresented: boolean
+}
+
+/** Respuesta de POST /{declarationId}/third-party-invoices. */
+export interface ThirdPartyInvoiceResult {
+  invoiceId: number
+  linkId: number
+  uuid: string
+  emitterRfc: string
+  emitterName: string | null
+  receiverRfc: string
+  invoiceDate: string
+  regimeCode: string
+  thirdPartyRegimeCode: string | null
+  conceptsCount: number
+  subTotal: number
+  discount: number
+  transferredIva: number
+  total: number
+  createdInvoice: boolean
+  message: string
+}
+
+/** Respuesta de DELETE /{declarationId}/third-party-invoices/{invoiceId}. */
+export interface ThirdPartyInvoiceRemoval {
+  invoiceId: number
+  removed: boolean
+  message: string
 }
 
 /** Respuesta de POST /{declarationId}/invoices/{invoiceId}/assign-regime. */
