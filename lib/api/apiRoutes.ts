@@ -468,6 +468,9 @@ export const API_ROUTES = {
       if (params.includeTotals === false) qs.set("includeTotals", "false")
       return `/${params.declarationId}${params.consulta ? "/consulta" : ""}/invoices?${qs.toString()}`
     },
+    // GET declarations_reports. Ingresos capturados a mano (sin CFDI), sin paginar.
+    MANUAL_INCOMES: (declarationId: number, consulta = false) =>
+      `/${declarationId}${consulta ? "/consulta" : ""}/manual-incomes`,
     // GET declarations_reports. URL SAS de solo lectura (10 min) al XML del CFDI en el Blob, para
     // abrirlo desde la pestaña Comprobantes. Se pide en cada clic: no cachear la URL.
     INVOICE_XML_URL: (params: { declarationId: number; invoiceId: number; consulta?: boolean }) =>
@@ -714,6 +717,8 @@ export const API_ROUTES = {
       `/${declarationId}/third-party-invoices`,
     THIRD_PARTY_INVOICE: (declarationId: number, invoiceId: number) =>
       `/${declarationId}/third-party-invoices/${invoiceId}`,
+    MANUAL_INCOMES: (declarationId: number) => `/${declarationId}/manual-incomes`,
+    MANUAL_INCOME: (declarationId: number, id: number) => `/${declarationId}/manual-incomes/${id}`,
     // Un CFDI, un régimen: asigna la factura al régimen de la declaración.
     ASSIGN_INVOICE_REGIME: (declarationId: number, invoiceId: number) =>
       `/${declarationId}/invoices/${invoiceId}/assign-regime`,

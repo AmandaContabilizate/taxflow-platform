@@ -2,6 +2,7 @@
 
 import { ApiError, fetchDelete } from '@/lib/api'
 import { API_ROUTES } from '@/lib/api/apiRoutes'
+import { problemDetailMessage } from '@/lib/api/problemDetail'
 import { type Result, err, ok } from '@/lib/common'
 import type { DeclarationsError, ThirdPartyInvoiceRemoval } from '../types'
 
@@ -22,7 +23,7 @@ export async function removeThirdPartyInvoice(
     return ok(data)
   } catch (e) {
     if (e instanceof ApiError) {
-      const message = e.status === 403 ? 'Tu perfil no puede quitar CFDI de la declaración.' : e.message
+      const message = e.status === 403 ? 'Tu perfil no puede quitar CFDI de la declaración.' : problemDetailMessage(e)
       return err({ statusCode: e.status, message, code: e.errorCode })
     }
     console.error('[removeThirdPartyInvoice] Error:', e)

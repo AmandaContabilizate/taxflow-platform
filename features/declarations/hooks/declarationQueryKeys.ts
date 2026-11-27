@@ -61,6 +61,7 @@ export const declarationKeys = {
   ) => ['decl', id, 'withholdings', consulta, filters, { skip, includeTotals }] as const,
   /** `take=1` sin `esRetencion`: el universo combinado, solo para el conteo "N CFDIs en el periodo". */
   invoiceCount: (id: number, consulta: boolean) => ['decl', id, 'invoice-count', consulta] as const,
+  manualIncomes: (id: number, consulta: boolean) => ['decl', id, 'manual-incomes', consulta] as const,
   periodInvoices: (id: number, input: PeriodInvoicesKey) => ['decl', id, 'period-invoices', input] as const,
   reportLink: (id: number) => ['decl', id, 'report-link'] as const,
   downloadCanRun: (id: number) => ['decl', id, 'download-can-run'] as const,
@@ -87,6 +88,7 @@ export const DATA_SEGMENTS: ReadonlySet<string> = new Set([
   'withholdings',
   'invoice-count',
   'period-invoices',
+  'manual-incomes',
   'fixed-assets',
   'iva-favor',
 ])

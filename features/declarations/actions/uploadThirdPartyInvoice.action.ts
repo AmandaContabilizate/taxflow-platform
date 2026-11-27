@@ -2,6 +2,7 @@
 
 import { ApiError, fetchPostMultipart } from '@/lib/api'
 import { API_ROUTES } from '@/lib/api/apiRoutes'
+import { problemDetailMessage } from '@/lib/api/problemDetail'
 import { type Result, err, ok } from '@/lib/common'
 import type { DeclarationsError, ThirdPartyInvoiceResult } from '../types'
 
@@ -23,7 +24,7 @@ export async function uploadThirdPartyInvoice(
     return ok(data)
   } catch (e) {
     if (e instanceof ApiError) {
-      const message = e.status === 403 ? 'Tu perfil no puede agregar CFDI a la declaración.' : e.message
+      const message = e.status === 403 ? 'Tu perfil no puede agregar CFDI a la declaración.' : problemDetailMessage(e)
       return err({ statusCode: e.status, message, code: e.errorCode })
     }
     console.error('[uploadThirdPartyInvoice] Error:', e)

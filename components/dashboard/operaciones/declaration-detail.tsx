@@ -758,10 +758,15 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
           periodo={`${periodo} ${ejercicio}`}
           regimeSatCode={general?.regimeSatCode ?? null}
           consulta={soloConsulta}
+          fiscalYear={ejercicio}
+          periodValueId={general?.periodValueId ?? null}
           puedeSubirTerceros={
             !soloConsulta &&
             general != null &&
             !cancelled &&
+            general.periodValueId != null &&
+            general.periodValueId >= 101 &&
+            general.periodValueId <= 112 &&
             ['612', '625', '626'].includes(general.regimeSatCode ?? '') &&
             general.statusId !== DECLARATION_STATUS.SUBMITTED &&
             !PRESENTED_CODES.has(general.statusCode ?? '')

@@ -11,6 +11,7 @@ import { money } from '../declaraciones/parts'
 import { MONO } from '../constants'
 import { Modal } from '../modal'
 import { Btn } from '../ui'
+import { ConfirmarQuitar } from './confirmar-quitar'
 import { InlineNotice } from './parts-612'
 
 const MAX_XML_BYTES = 900 * 1024
@@ -153,54 +154,17 @@ export function SubirCfdiTercerosButton({ declarationId }: { declarationId: numb
 
 export function QuitarCfdiTerceros({ declarationId, invoiceId }: { declarationId: number; invoiceId: number }) {
   const queryClient = useQueryClient()
-  const [open, setOpen] = useState(false)
-  const [removing, setRemoving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
-  const close = () => {
-    setOpen(false)
-    setError(null)
-  }
-
-  const remove = async () => {
-    setRemoving(true)
-    setError(null)
+  const onConfirm = async () => {
     const res = await removeThirdPartyInvoice(declarationId, invoiceId)
-    setRemoving(false)
-    if (!res.success) return setError(res.error.message)
-    close()
-    void invalidateDeclarationData(queryClient, declarationId)
+    if (!res.success) return res.error.message
+    await invalidateDeclarationData(queryClient, declarationId)
+    return null
   }
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1 -mx-1 px-1 py-0.5 rounded text-[10.5px] font-semibold transition-colors hover:bg-[var(--ink-50)]"
-        style={{ color: 'var(--danger-ink)' }}
-      >
-        <Trash2 size={11} /> Quitar
-      </button>
-      <Modal
-        isOpen={open}
-        onClose={close}
-        title="Quitar CFDI a cuenta de terceros"
-        maxWidth={440}
-        footer={
-          <div className="flex justify-end gap-2">
-            <Btn kind="ghost" size="sm" onClick={close}>Cancelar</Btn>
-            <Btn size="sm" onClick={remove} disabled={removing}>
-              {removing && <Loader2 size={14} className="animate-spin" />} Quitar
-            </Btn>
-          </div>
-        }
-      >
-        <div className="flex flex-col gap-3 text-[13px]" style={{ color: 'var(--ink-700)' }}>
-          <p>El CFDI dejará de contar en esta declaración. Después recalcula para actualizar el cálculo.</p>
-          {error && <InlineNotice kind="error">{error}</InlineNotice>}
-        </div>
-      </Modal>
-    </>
+    <ConfirmarQuitar title="Quitar CFDI a cuenta de terceros" onConfirm={onConfirm}>
+      El CFDI dejará de contar en esta declaración. Después recalcula para actualizar el cálculo.
+    </ConfirmarQuitar>
   )
 }
