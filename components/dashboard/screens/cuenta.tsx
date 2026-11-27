@@ -1,6 +1,7 @@
 'use client';
 
-import { Bell, ChevronDown, ChevronRight, FilePlus2, Gem, Gift, HelpCircle, IdCard, LogOut, Receipt, ShieldCheck, Trash2, UserRound } from 'lucide-react';
+import { Bell, ChevronDown, ChevronRight, FilePlus2, Gem, Gift, HelpCircle, IdCard, LogOut, Receipt, ShieldCheck, Sparkles, Trash2, UserRound } from 'lucide-react';
+import { useSeasonal } from '@/components/seasonal/SeasonalProvider';
 import { useEffect, useState, type ComponentType } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
@@ -79,6 +80,7 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
   const router = useRouter();
   const myRoles = useMyRoles();
   const { theme, setTheme } = useTheme();
+  const seasonal = useSeasonal();
   const { selectedRfc, selectedRfcInfo } = useRfcStore();
   const [plan, setPlan] = useState<ActivePlan | null>(null);
   const [accountant, setAccountant] = useState<{ loading: boolean; name: string | null }>({
@@ -440,6 +442,30 @@ export function CuentaScreen({ fullName, email, rfc, role, initials, phoneNumber
                 </span>
               }
             />
+            {seasonal.season && !seasonal.easterEgg && (
+              <>
+                <Divider />
+                <AccountRow
+                  Icon={Sparkles}
+                  title='Decoración de temporada'
+                  subtitle={
+                    seasonal.enabled
+                      ? 'Activada · toca para quitarla'
+                      : 'Desactivada · toca para ponerla'
+                  }
+                  onClick={() => seasonal.setEnabled(!seasonal.enabled)}
+                  right={
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                      seasonal.enabled
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                        : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                    }`}>
+                      {seasonal.enabled ? 'Activada' : 'Desactivada'}
+                    </span>
+                  }
+                />
+              </>
+            )}
             <Divider />
             <AccountRow
               Icon={ShieldCheck}

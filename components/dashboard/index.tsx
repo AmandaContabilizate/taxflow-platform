@@ -20,6 +20,9 @@ import { TutorialProvider } from './tutorial/TutorialProvider'
 import { PostLoginRedirect } from './post-login-redirect'
 import type { DashboardProps, Screen } from './types'
 import { useUrlState } from './url-state'
+import { SeasonalProvider } from '@/components/seasonal/SeasonalProvider'
+import { SeasonalDecorations } from '@/components/seasonal/SeasonalDecorations'
+import type { SeasonalInit } from '@/lib/seasonal'
 import {
   AprendeScreen,
   AyudaScreen,
@@ -127,7 +130,9 @@ const WIDE_SCREENS = new Set<Screen>([
 const isScreen = (v: string | null): v is Screen =>
   !!v && Object.prototype.hasOwnProperty.call(TITLES, v)
 
-export default function Dashboard({ fullName, email, rfc, role, permissions, userId, phoneNumber, emailChangeBlockedBy, tutorialAutostart = false }: DashboardProps) {
+const NO_SEASON: SeasonalInit = { season: null, easterEgg: false, eggAllowed: false, enabled: null }
+
+export default function Dashboard({ fullName, email, rfc, role, permissions, userId, phoneNumber, emailChangeBlockedBy, tutorialAutostart = false, seasonal = NO_SEASON }: DashboardProps) {
   const { params, setParams } = useUrlState()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -193,6 +198,7 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
   };
 
   return (
+    <SeasonalProvider init={seasonal} mode="user">
     <DashboardQueryProvider>
     <PermissionsProvider permissions={permissions}>
     <RfcProvider>
@@ -260,7 +266,7 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
               </button>
               <div>
                 <div
-                  className='text-[26px] lg:text-[32px] font-extrabold tracking-tight leading-tight'
+                  className='seasonal-title text-[26px] lg:text-[32px] font-extrabold tracking-tight leading-tight'
                   style={{ ...DISPLAY, color: 'var(--ink-900)' }}>
                   {headerScreen === 'home' ? `Hola, ${firstName} 👋` : (TITLES[headerScreen]?.[0] ?? '')}
                 </div>
@@ -313,10 +319,12 @@ export default function Dashboard({ fullName, email, rfc, role, permissions, use
           />
         </main>
       </div>
+      <SeasonalDecorations placement="dashboard" sidebarCollapsed={sidebarCollapsed} showSnow={screen === 'home'} />
     </TutorialProvider>
     </RfcProvider>
     </PermissionsProvider>
     </DashboardQueryProvider>
+    </SeasonalProvider>
   );
 }
 

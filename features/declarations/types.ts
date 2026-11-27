@@ -69,7 +69,8 @@ export interface RunDeclarationDownloadResult {
  * GET download-files/estatus-periodo: los 4 combos de descarga SAT del periodo de la
  * declaración: 0 = gris, nunca se pidió; 1 = verde, completo; 2 = azul, hay algo en curso
  * (DownloadRequest sin terminar, o todavía en la cola interna de scrapers); 3 = rojo, el
- * intento más reciente terminó en Error/Expired; 4 = parcial (medio verde), hay descargas
+ * intento más reciente terminó en Error/Expired o murió antes de crear la solicitud
+ * (p. ej. 5xx de Fispal); 4 = parcial (medio verde), hay descargas
  * completadas que no cubren el periodo — la temprana del día 1 llega sólo a fin de mes y la
  * cola días 1-6 se pide desde el día 7. "Completo" NO es "existe una corrida
  * Completed": es que las corridas completadas CUBRAN por unión de rangos la ventana

@@ -18,6 +18,9 @@ import type { CompanyInviteInfo } from "@/features/auth/types";
 import { useReferralCodeCheck } from "@/hooks/use-referral-code-check";
 import { getPasswordErrors } from "@/features/auth/lib/passwordPolicy";
 import { PROTECTED_ROUTES, PUBLIC_ROUTES } from "@/lib/routes";
+import type { SeasonalInit } from "@/lib/seasonal";
+import { SeasonalProvider } from "@/components/seasonal/SeasonalProvider";
+import { SeasonalDecorations } from "@/components/seasonal/SeasonalDecorations";
 
 // "invite": liga de empresa (?ref=EMP-…) cuya cuenta ya existe; la persona solo define su contraseña.
 type Mode = "login" | "register" | "invite";
@@ -27,7 +30,19 @@ interface LoginPageClientProps {
   googleAuthUrl: string;
   facebookAuthUrl: string;
   appleAuthUrl: string;
+  /** Decoración de temporada (sin usuario: la preferencia sale de localStorage). */
+  seasonal?: SeasonalInit;
 }
+
+const NO_SEASON: SeasonalInit = { season: null, easterEgg: false, eggAllowed: false, enabled: null };
+
+// El login es siempre claro (colores literales), aunque <html> traiga la clase .dark del
+// dashboard: se fijan los tokens de temporada en su versión clara.
+const LIGHT_SEASON_TOKENS = {
+  "--season-gold": "#E8B54A",
+  "--season-berry": "#C2414B",
+  "--season-snow": "#C9C3E3",
+} as React.CSSProperties;
 
 const DISPLAY_FONT = { fontFamily: "var(--font-display)" } as const;
 
@@ -83,7 +98,7 @@ function AppleIcon() {
   );
 }
 
-export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }: LoginPageClientProps) {
+export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl, seasonal = NO_SEASON }: LoginPageClientProps) {
   const router = useRouter();
   const params = useSearchParams();
 
@@ -305,7 +320,8 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
   }
 
   return (
-    <main className="min-h-screen" style={{ background: "#F6F5FB", color: "#221158" }}>
+    <SeasonalProvider init={seasonal} mode="anonymous">
+    <main className="min-h-screen" style={{ background: "#F6F5FB", color: "#221158", ...LIGHT_SEASON_TOKENS }}>
       <div className="grid min-h-screen lg:grid-cols-[370px_1fr]">
         <aside
           className="hidden lg:flex flex-col text-white px-8 py-10"
@@ -382,7 +398,8 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
           )}
         </aside>
 
-        <section className="flex items-center justify-center p-4 sm:p-8 lg:p-14">
+        <section className="relative flex items-center justify-center p-4 sm:p-8 lg:p-14">
+          <SeasonalDecorations placement="login" showSnow />
           <div
             className="w-full max-w-[460px] rounded-3xl px-6 py-8 sm:px-8 sm:py-9"
             style={{
@@ -1007,5 +1024,6 @@ export function LoginPageClient({ googleAuthUrl, facebookAuthUrl, appleAuthUrl }
         </section>
       </div>
     </main>
+    </SeasonalProvider>
   );
 }
