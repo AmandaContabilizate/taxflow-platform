@@ -17,6 +17,9 @@ export interface DeclarationCalculations {
   /** Código SAT ("625", "626"): decide qué parser se aplica a `iva`/`isr` (E3). */
   regimeSatCode?: string | null;
   regimeName?: string | null;
+  /** 612 médico: sus servicios están exentos y el IVA no se toma en cuenta. */
+  ivaNoAplica?: boolean;
+  ivaNoAplicaActividad?: string | null;
 }
 
 /** Montos del backend: number o string decimal ("438.49"). */
@@ -175,8 +178,17 @@ export interface DeclarationInvoice {
   usedInDeclarations?: InvoiceUsage[] | null;
   /** E3: factura de otro régimen del contribuyente, visible pero no computable. */
   esOtroRegimen: boolean;
+  /** CFDI a cuenta de terceros subido a mano: importes de la parte del contribuyente. */
+  esACuentaTerceros?: boolean;
   /** PPD sin complemento: descargada, visible, pero no computable hasta que se pague. Independiente de esOtroRegimen. */
   esPpdSinComplemento: boolean;
+  /**
+   * Sin régimen en el XML (recibidas 3.3) y el contribuyente tiene varios regímenes:
+   * visible, no computable hasta que el contador la asigne a un régimen.
+   */
+  requiresRegimeAssignment?: boolean;
+  /** Versión del CFDI: "3.3", "4.0" (retenciones: "1.0", "2.0"). */
+  cfdiVersion?: string | null;
   wayOfPaymentId: number | null;
   paymentMethodId: number | null;
   /** `Catalogs.PaymentMethod.Code` (PUE/PPD). */

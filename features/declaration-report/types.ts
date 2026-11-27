@@ -67,6 +67,9 @@ export interface DeclarationReport {
   ivaRetenido: Money
   isrRetenido: Money
   personalDeductions: Money
+  /** 612 médico: servicios exentos de IVA; el IVA no se muestra. */
+  ivaNoAplica?: boolean
+  ivaNoAplicaActividad?: string | null
   /** `DeclarationSummary.RawIvaJson` deserializado. Sin tipar: cambia por régimen. */
   ivaDetail: unknown
   /** `DeclarationSummary.RawIsrJson` deserializado. Sin tipar: cambia por régimen. */

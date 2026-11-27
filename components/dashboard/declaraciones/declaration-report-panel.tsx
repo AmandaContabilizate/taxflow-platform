@@ -6,6 +6,7 @@ import {
   authorizeMyDeclarationReport,
   commentMyDeclarationReport,
 } from '@/features/declaration-report/actions'
+import { leyendaIvaNoAplicaCliente } from '@/features/declaration-report/lib/ivaNoAplica'
 import {
   buildDetailBlocks,
   formatMoney,
@@ -54,13 +55,16 @@ export function DeclarationReportPanel({
   const [view, setView] = useState<View>(() =>
     report.statusId === DECLARATION_STATUS.TO_SUBMIT ? 'authorized' : 'main',
   )
-  const [tab, setTab] = useState<'iva' | 'isr'>('iva')
+  const [tab, setTab] = useState<'iva' | 'isr'>(report.ivaNoAplica ? 'isr' : 'iva')
   const [comment, setComment] = useState('')
   const [asking, setAsking] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const ivaBlocks = useMemo(() => buildDetailBlocks(report.ivaDetail, 'iva'), [report.ivaDetail])
+  const ivaBlocks = useMemo(
+    () => (report.ivaNoAplica ? [] : buildDetailBlocks(report.ivaDetail, 'iva')),
+    [report.ivaDetail, report.ivaNoAplica],
+  )
   const isrBlocks = useMemo(() => buildDetailBlocks(report.isrDetail, 'isr'), [report.isrDetail])
   const blocks = tab === 'iva' ? ivaBlocks : isrBlocks
 
@@ -71,7 +75,7 @@ export function DeclarationReportPanel({
   const total = toNumber(report.totalDeclaration) ?? isrCargo + ivaCargo
   // En pago definitivo no hay saldo a favor ni retención de IVA que acreditar: no se pintan.
   const ivaDefinitiva = isIvaDefinitiva(report.ivaDetail)
-  const ivaFavor = ivaDefinitiva ? 0 : toNumber(report.ivaFavor) ?? 0
+  const ivaFavor = ivaDefinitiva || report.ivaNoAplica ? 0 : toNumber(report.ivaFavor) ?? 0
 
   async function authorize() {
     setError(null)
@@ -137,11 +141,17 @@ export function DeclarationReportPanel({
         {total > 0 ? (
           <div className="flex flex-wrap gap-2.5 mt-4">
             {isrCargo > 0 && <Pill label="ISR" value={formatMoney(isrCargo)} />}
-            {ivaCargo > 0 && <Pill label="IVA" value={formatMoney(ivaCargo)} />}
+            {ivaCargo > 0 && !report.ivaNoAplica && <Pill label="IVA" value={formatMoney(ivaCargo)} />}
           </div>
         ) : (
           <p className="text-[13px] mt-2.5" style={{ color: 'var(--ink-300, #9b97b8)' }}>
             No hay impuesto a cargo en este periodo.
+          </p>
+        )}
+
+        {report.ivaNoAplica && (
+          <p className="text-[12.5px] mt-4 pt-4" style={{ color: '#fff', borderTop: '1px solid rgba(255,255,255,.14)' }}>
+            {leyendaIvaNoAplicaCliente(report.ivaNoAplicaActividad)}
           </p>
         )}
 
@@ -157,7 +167,7 @@ export function DeclarationReportPanel({
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Dato label="Ingresos del periodo" value={formatMoney(report.income)} />
         <Dato label="ISR retenido" value={formatMoney(report.isrRetenido)} />
-        {!ivaDefinitiva && <Dato label="IVA retenido" value={formatMoney(report.ivaRetenido)} />}
+        {!ivaDefinitiva && !report.ivaNoAplica && <Dato label="IVA retenido" value={formatMoney(report.ivaRetenido)} />}
         <Dato label="Régimen" value={report.regimeSatCode ?? '—'} />
       </div>
 

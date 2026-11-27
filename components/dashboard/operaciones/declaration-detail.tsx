@@ -40,7 +40,7 @@ import { DescargarArchivosSatBtn } from './descargar-archivos-sat-btn'
 import { DescargasSatStatus } from './descargas-sat-status'
 import { REGIMEN_612 } from './parts-612'
 import { RecalcSeconds } from './recalc-seconds'
-import { declarationStatusBadge, fmtDate } from '../declaraciones/parts'
+import { PRESENTED_CODES, declarationStatusBadge, fmtDate } from '../declaraciones/parts'
 import { DISPLAY, MONO } from '../constants'
 import { useHasPermission } from '../permissions'
 import { Badge, Card, CiecUpdateModal, CiecValidationBadge } from '../ui'
@@ -758,6 +758,19 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
           periodo={`${periodo} ${ejercicio}`}
           regimeSatCode={general?.regimeSatCode ?? null}
           consulta={soloConsulta}
+          fiscalYear={ejercicio}
+          periodValueId={general?.periodValueId ?? null}
+          puedeSubirTerceros={
+            !soloConsulta &&
+            general != null &&
+            !cancelled &&
+            general.periodValueId != null &&
+            general.periodValueId >= 101 &&
+            general.periodValueId <= 112 &&
+            ['612', '625', '626'].includes(general.regimeSatCode ?? '') &&
+            general.statusId !== DECLARATION_STATUS.SUBMITTED &&
+            !PRESENTED_CODES.has(general.statusCode ?? '')
+          }
         />
       )}
       {tab === 1 &&
@@ -777,6 +790,7 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
           fiscalYear={ejercicio}
           periodValueId={general?.periodValueId ?? null}
           taxRegimeId={general?.taxRegimeId ?? null}
+          regimeSatCode={general?.regimeSatCode ?? null}
           periodo={`${periodo} ${ejercicio}`}
           recalc={recalc}
           es612={es612}

@@ -3,6 +3,7 @@
 import { memo, useMemo } from 'react'
 import { useFixedAssets } from '@/features/fixed-assets/hooks/useFixedAssets'
 import { useIvaFavorBalances } from '@/features/iva-favor-balances/hooks/useIvaFavorBalances'
+import { leyendaIvaNoAplicaContador } from '@/features/declaration-report/lib/ivaNoAplica'
 import type { DeclarationCalculations } from '@/features/operations/types'
 import { MONO } from '../constants'
 import { Badge, Card } from '../ui'
@@ -47,6 +48,7 @@ export const Calculos612 = memo(function Calculos612({
 }) {
   const c = useMemo(() => read612(calc), [calc])
   const { iva, isr } = c
+  const sinIva = calc?.ivaNoAplica === true
 
   // `SaldosAFavorAplicados` ya trae el origen de cada saldo; el historial solo completa lo que
   // falte (folio o fecha que se capturaron después del cálculo). El nombre de cada activo vive
@@ -92,6 +94,12 @@ export const Calculos612 = memo(function Calculos612({
         </InlineNotice>
       )}
       <div className="grid gap-4 lg:grid-cols-2 items-start">
+        {sinIva ? (
+          <Card>
+            <PanelHeader612 title="IVA" subtitle={nameMonth} />
+            <InlineNotice>{leyendaIvaNoAplicaContador(calc?.ivaNoAplicaActividad)}</InlineNotice>
+          </Card>
+        ) : (
         <Card>
           <PanelHeader612 title="IVA" subtitle={nameMonth} />
           <SectionLabel>Actividades del periodo</SectionLabel>
@@ -146,6 +154,7 @@ export const Calculos612 = memo(function Calculos612({
             last
           />
         </Card>
+        )}
 
         <Card>
           <PanelHeader612 title="ISR" subtitle={nameMonth} />
@@ -192,7 +201,7 @@ export const Calculos612 = memo(function Calculos612({
         </Card>
       </div>
 
-      {iva.saldosAplicados.length > 0 && (
+      {!sinIva && iva.saldosAplicados.length > 0 && (
         <Card>
           <PanelHeader612
             title="Saldos a favor aplicados en esta declaración"
@@ -276,7 +285,7 @@ export const Calculos612 = memo(function Calculos612({
         </Card>
       )}
 
-      {c.ivaCreditosActivos.length > 0 && (
+      {!sinIva && c.ivaCreditosActivos.length > 0 && (
         <Card>
           <PanelHeader612
             title="IVA de activos fijos"

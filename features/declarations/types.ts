@@ -265,6 +265,8 @@ export interface RecalculatedClassification {
 export interface RecalculationInputSummary {
   issuedXmlCount: number
   receivedXmlCount: number
+  thirdPartyXmlCount?: number
+  manualIncomeCount?: number
   totalXmlCount: number
   manualDeductions: number
   yearToDateIvaFavor: number | null
@@ -384,6 +386,8 @@ export interface DeclarationPeriodInvoice {
   status: string
   /** true = el contribuyente es el emisor. */
   isIssued: boolean
+  /** CFDI a cuenta de terceros: importes de la parte del contribuyente. */
+  isThirdParty?: boolean
   declarationId: number | null
   /** null = todavía no se ha clasificado. */
   isDeductible: boolean | null
@@ -432,10 +436,21 @@ export interface DeclarationPeriodInvoice {
   emitterRegimeName?: string | null
   /** Otras declaraciones donde ya se calculó esta factura. Vacío/ausente = ninguna. */
   usedInDeclarations?: InvoiceUsage[] | null
+  /** Régimen al que el contador asignó la factura a mano; null = el del XML. */
+  assignedRegimeId?: number | null
+  assignedRegimeCode?: string | null
+  assignedRegimeName?: string | null
   /** E3: factura de otro régimen del contribuyente, visible pero no computable. */
   isOtherRegime: boolean
   /** PPD sin complemento: descargada, visible, pero no computable hasta que se pague. Independiente de isOtherRegime. */
   isPpdWithoutComplement: boolean
+  /**
+   * Sin régimen en el XML (recibidas 3.3) y el contribuyente tiene varios regímenes:
+   * visible, no computable hasta que el contador la asigne a un régimen.
+   */
+  requiresRegimeAssignment?: boolean
+  /** Versión del CFDI: "3.3", "4.0" (retenciones: "1.0", "2.0"). */
+  cfdiVersion?: string | null
 }
 
 /**
@@ -454,6 +469,85 @@ export interface InvoiceUsage {
   statusId: number
   statusName: string | null
   isPresented: boolean
+}
+
+/** Respuesta de POST /{declarationId}/third-party-invoices. */
+export interface ThirdPartyInvoiceResult {
+  invoiceId: number
+  linkId: number
+  uuid: string
+  emitterRfc: string
+  emitterName: string | null
+  receiverRfc: string
+  invoiceDate: string
+  regimeCode: string
+  thirdPartyRegimeCode: string | null
+  conceptsCount: number
+  subTotal: number
+  discount: number
+  transferredIva: number
+  total: number
+  createdInvoice: boolean
+  message: string
+}
+
+/** Respuesta de DELETE /{declarationId}/third-party-invoices/{invoiceId}. */
+export interface ThirdPartyInvoiceRemoval {
+  invoiceId: number
+  removed: boolean
+  message: string
+}
+
+export type ManualIncomeIvaRate = '16' | '8' | '0' | 'EXENTO'
+
+/** Ingreso capturado a mano, sin CFDI (GET /{declarationId}/manual-incomes). */
+export interface ManualIncome {
+  id: number
+  incomeDate: string
+  concept: string
+  counterparty: string | null
+  classificationId: number | null
+  classificationName: string | null
+  ivaRate: ManualIncomeIvaRate
+  subtotal: number
+  transferredIva: number
+  total: number
+  createdAt: string
+  createdByName: string | null
+  message?: string
+}
+
+/** Cuerpo de POST /{declarationId}/manual-incomes. */
+export interface ManualIncomeInput {
+  incomeDate: string
+  concept: string
+  subtotal: number
+  ivaRate: ManualIncomeIvaRate
+  classificationId?: number | null
+  counterparty?: string | null
+}
+
+/** Respuesta de DELETE /{declarationId}/manual-incomes/{id}. */
+export interface ManualIncomeRemoval {
+  id: number
+  removed: boolean
+  message: string
+}
+
+/** Respuesta de POST /{declarationId}/invoices/{invoiceId}/assign-regime. */
+export interface InvoiceRegimeAssignmentResult {
+  invoiceId: number
+  uuid: string
+  regimeId: number
+  regimeCode: string | null
+  regimeName: string | null
+  previousRegimeId: number | null
+  previousRegimeCode: string | null
+  /** Declaraciones de otro régimen, sin presentar, de las que salió la factura. */
+  removedFrom: InvoiceUsage[]
+  /** Declaraciones de otro régimen ya presentadas que la incluyeron; no se modifican. */
+  presentedIn: InvoiceUsage[]
+  message: string
 }
 
 export interface DeclarationPeriodInvoiceConcept {

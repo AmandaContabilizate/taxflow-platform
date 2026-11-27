@@ -3,7 +3,10 @@
 import { AlertCircle, AlertTriangle, Check, Columns3, Loader2, RotateCcw, Search, Undo2 } from 'lucide-react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { memo, useCallback, useMemo, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { assignInvoiceRegime } from '@/features/declarations/actions/assignInvoiceRegime.action'
 import {
+  invalidateDeclarationData,
   useClassificationCategories,
   useDeclarationPeriodInvoices,
 } from '@/features/declarations/hooks/useDeclarationQueries'
@@ -16,8 +19,19 @@ import type {
   ClassificationAdjustmentScope,
   ClassificationCategory,
   DeclarationPeriodInvoice,
+  InvoiceUsage,
   RecalcScopeState,
 } from '@/features/declarations/types'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { money } from './calc-read'
 import {
   CatalogCell,
@@ -27,13 +41,14 @@ import {
   FacturasPadre,
   OtroRegimenChip,
   PpdSinComplementoChip,
+  SinRegimenChip,
 } from './comprobantes-tab'
 import { type ColumnKey, COLUMN_DEFS } from './column-defs'
 import { ColumnsModal, FilterSelect } from './filter-columns'
 import { CLASIFICACION_A_ACTIVO } from './parts-612'
 import { RecalcSeconds } from './recalc-seconds'
 import { MONO } from '../constants'
-import { Card } from '../ui'
+import { Badge, Card } from '../ui'
 import { useUrlState } from '../url-state'
 
 interface Props {
@@ -44,6 +59,8 @@ interface Props {
   periodValueId: number | null
   /** Id interno de Users.TaxRegimes; es lo que piden los EP de facturas del periodo. */
   taxRegimeId: number | null
+  /** Clave SAT del régimen de la declaración (ej. "612"); solo para los textos. */
+  regimeSatCode?: string | null
   periodo: string
   recalc: Recalculation
   /** Solo lectura: se ve el resultado pero no se reclasifica ni se dispara el cálculo. */
@@ -158,12 +175,14 @@ export const RecalculoTab = memo(function RecalculoTab({
   fiscalYear,
   periodValueId,
   taxRegimeId,
+  regimeSatCode = null,
   periodo,
   recalc,
   readOnly = false,
   es612 = false,
 }: Props) {
   const { params, setParams } = useUrlState()
+  const queryClient = useQueryClient()
 
   const [query, setQuery] = useState('')
   const [soloProblemas, setSoloProblemas] = useState(false)
@@ -327,12 +346,15 @@ export const RecalculoTab = memo(function RecalculoTab({
       iva: list.reduce((acc, i) => acc + (i.ivaAmount ?? 0), 0),
       total: list.reduce((acc, i) => acc + (Number.isFinite(i.total) ? i.total : 0), 0),
     })
-    const computables = invoices.filter((i) => !i.isOtherRegime && !i.isPpdWithoutComplement)
+    const computables = invoices.filter(
+      (i) => !i.isOtherRegime && !i.isPpdWithoutComplement && !i.requiresRegimeAssignment,
+    )
     return {
       clasificadas: sum(computables.filter((i) => i.isDeductible != null)),
       sinClasificar: sum(computables.filter((i) => i.isDeductible == null)),
       conjunto: sum(computables),
       otroRegimen: sum(invoices.filter((i) => i.isOtherRegime)),
+      sinRegimen: sum(invoices.filter((i) => i.requiresRegimeAssignment)),
     }
   }, [invoices])
   const sinClasificar = totales.sinClasificar.count
@@ -387,6 +409,68 @@ export const RecalculoTab = memo(function RecalculoTab({
     },
     [patch, invoiceByUuid, assetOptionFor, toggleAsset],
   )
+
+  // Un CFDI, un régimen. Asignar una factura a esta declaración la saca del cálculo de
+  // los otros regímenes; se confirma antes con el contador. Pasa al tocar una de otro
+  // régimen ("Asignar a este régimen") y al reclasificar una propia que ya se usó en el
+  // cálculo de otro régimen: el ajuste se aplica después de asignarla.
+  const [assignAsk, setAssignAsk] = useState<{ inv: DeclarationPeriodInvoice; then?: () => void } | null>(null)
+  const [assigning, setAssigning] = useState(false)
+  const [assignNote, setAssignNote] = useState<{ tone: 'info' | 'error'; text: string } | null>(null)
+  // Asignadas en esta sesión, mientras la lista se vuelve a pedir: no se pregunta dos veces.
+  const assignedRef = useRef<Set<number>>(new Set())
+
+  const usesInOtherRegimes = useCallback(
+    (inv: DeclarationPeriodInvoice): InvoiceUsage[] =>
+      (inv.usedInDeclarations ?? []).filter((u) => u.regimeId != null && u.regimeId !== taxRegimeId),
+    [taxRegimeId],
+  )
+
+  const askAssign = useCallback((inv: DeclarationPeriodInvoice) => setAssignAsk({ inv }), [])
+
+  /** Corre `action` o, si la factura propia ya se usó en otro régimen, pregunta primero. */
+  const guardAssign = useCallback(
+    (uuid: string, action: () => void) => {
+      const inv = invoiceByUuid[uuid]
+      const ask =
+        inv != null &&
+        !inv.isOtherRegime &&
+        inv.assignedRegimeId == null &&
+        !assignedRef.current.has(inv.id) &&
+        usesInOtherRegimes(inv).length > 0
+      if (ask) setAssignAsk({ inv, then: action })
+      else action()
+    },
+    [invoiceByUuid, usesInOtherRegimes],
+  )
+
+  const changeClassificationGuarded = useCallback(
+    (uuid: string, classification: string | undefined) =>
+      guardAssign(uuid, () => changeClassification(uuid, classification)),
+    [guardAssign, changeClassification],
+  )
+
+  const patchGuarded = useCallback(
+    (uuid: string, change: Partial<ClassificationAdjustment>) => guardAssign(uuid, () => patch(uuid, change)),
+    [guardAssign, patch],
+  )
+
+  const confirmAssign = useCallback(async () => {
+    if (!assignAsk) return
+    const { inv, then } = assignAsk
+    setAssigning(true)
+    const res = await assignInvoiceRegime(declarationId, inv.id)
+    setAssigning(false)
+    setAssignAsk(null)
+    if (!res.success) {
+      setAssignNote({ tone: 'error', text: res.error.message })
+      return
+    }
+    assignedRef.current.add(inv.id)
+    setAssignNote({ tone: 'info', text: res.value.message })
+    then?.()
+    void invalidateDeclarationData(queryClient, declarationId)
+  }, [assignAsk, declarationId, queryClient])
 
   const clearRow = useCallback(
     (uuid: string) => {
@@ -524,6 +608,8 @@ export const RecalculoTab = memo(function RecalculoTab({
 
           {recalc.error && <Note tone="error">{recalc.error}</Note>}
 
+          {assignNote && <Note tone={assignNote.tone}>{assignNote.text}</Note>}
+
           {recalc.running && (
             <Note tone="info">
               El clasificador está procesando los comprobantes del período. Puede tardar varios
@@ -542,6 +628,15 @@ export const RecalculoTab = memo(function RecalculoTab({
       </Card>
 
       {recalc.result && <ResultadoRecalculo result={recalc.result} />}
+
+      <AssignRegimeDialog
+        ask={assignAsk}
+        regimeSatCode={regimeSatCode}
+        otherUses={assignAsk ? usesInOtherRegimes(assignAsk.inv) : []}
+        assigning={assigning}
+        onCancel={() => setAssignAsk(null)}
+        onConfirm={() => void confirmAssign()}
+      />
 
       <Card>
         <div className="p-5 flex flex-col gap-4">
@@ -742,8 +837,9 @@ export const RecalculoTab = memo(function RecalculoTab({
                         running={recalc.running}
                         gastos={gastos}
                         ingresos={ingresos}
-                        onPatch={patch}
-                        onClassification={changeClassification}
+                        onPatch={patchGuarded}
+                        onClassification={changeClassificationGuarded}
+                        onAssign={askAssign}
                         onClear={clearRow}
                         onScope={setScope}
                         asset={assetOptionFor(inv, adjustments[inv.uuid]?.classification ?? inv.classification)}
@@ -803,6 +899,8 @@ interface RecalcRowProps {
   /** 612: opción de registrar el gasto como activo fijo; `null` si no aplica. */
   asset: AssetOption | null
   onToggleAsset: (uuid: string, code: string | null) => void
+  /** Pide asignar la factura al régimen de esta declaración (confirma el padre). */
+  onAssign: (inv: DeclarationPeriodInvoice) => void
 }
 
 const RecalcRow = memo(function RecalcRow({
@@ -824,16 +922,21 @@ const RecalcRow = memo(function RecalcRow({
   onScope,
   asset,
   onToggleAsset,
+  onAssign,
 }: RecalcRowProps) {
   // Otro régimen (E3) y PPD sin complemento: visibles, no computables, sin ajustes.
-  const rowDisabled = baseDisabled || inv.isOtherRegime || inv.isPpdWithoutComplement
+  const rowDisabled =
+    baseDisabled || inv.isOtherRegime || inv.isPpdWithoutComplement || !!inv.requiresRegimeAssignment
   return (
     <tr
       ref={measureRef}
       data-index={index}
       style={{
         borderBottom: '1px solid var(--border)',
-        background: inv.isOtherRegime || inv.isPpdWithoutComplement ? 'var(--muted)' : undefined,
+        background:
+          inv.isOtherRegime || inv.isPpdWithoutComplement || inv.requiresRegimeAssignment
+            ? 'var(--muted)'
+            : undefined,
       }}
     >
       <td className="px-3 py-3 whitespace-nowrap align-top" style={{ color: 'var(--ink-900)' }}>
@@ -849,6 +952,11 @@ const RecalcRow = memo(function RecalcRow({
         >
           {inv.uuid}
         </code>
+        {inv.isThirdParty && (
+          <div className="mt-1">
+            <Badge kind="sky">A cuenta de terceros</Badge>
+          </div>
+        )}
       </td>
       {visibleColSet.has('tipo') && (
         <td className="px-3 py-3 align-top">
@@ -982,6 +1090,11 @@ const RecalcRow = memo(function RecalcRow({
           <span style={{ color: 'var(--ink-700)' }}>{inv.uso ?? '—'}</span>
         </td>
       )}
+      {visibleColSet.has('version') && (
+        <td className="px-3 py-3 align-top">
+          <span style={{ color: 'var(--ink-700)' }}>{inv.cfdiVersion ?? '—'}</span>
+        </td>
+      )}
       <td className="px-3 py-3 align-top min-w-[230px]">
         {readOnly ? (
           <span style={{ ...MONO, color: 'var(--ink-900)' }}>
@@ -990,15 +1103,53 @@ const RecalcRow = memo(function RecalcRow({
         ) : (
           <div className="flex flex-col gap-1.5">
             {inv.isOtherRegime ? (
-              <span className="text-[11.5px]" style={{ color: 'var(--ink-500)' }}>
-                No pertenece a esta declaración: no se puede ajustar.
-                {inv.usedInDeclarations && inv.usedInDeclarations.length > 0 && (
-                  <> Ya se calculó en {inv.usedInDeclarations.map(usoLabel).join('; ')}.</>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[11.5px]" style={{ color: 'var(--ink-500)' }}>
+                  {inv.assignedRegimeCode
+                    ? `Asignada a mano al régimen ${inv.assignedRegimeCode}.`
+                    : 'No pertenece a esta declaración.'}
+                  {inv.usedInDeclarations && inv.usedInDeclarations.length > 0 && (
+                    <> Ya se calculó en {inv.usedInDeclarations.map(usoLabel).join('; ')}.</>
+                  )}
+                </span>
+                {/* Canceladas y PPD sin complemento no entran a ningún cálculo: no se asignan. */}
+                {inv.statusComprobante !== 2 && !inv.isPpdWithoutComplement && !inv.isThirdParty && (
+                  <button
+                    type="button"
+                    onClick={() => onAssign(inv)}
+                    disabled={baseDisabled}
+                    className="self-start px-2.5 py-1.5 rounded-lg text-[12px] font-semibold disabled:opacity-60"
+                    style={{ background: 'var(--brand-50)', color: 'var(--brand-700)', border: '1px solid var(--border)' }}
+                  >
+                    Asignar a este régimen
+                  </button>
                 )}
-              </span>
+              </div>
+            ) : inv.requiresRegimeAssignment ? (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[11.5px]" style={{ color: 'var(--ink-500)' }}>
+                  La factura no trae régimen{inv.cfdiVersion ? ` (CFDI ${inv.cfdiVersion})` : ''} y el
+                  contribuyente tiene varios regímenes. Asígnala al que corresponda para que entre al cálculo.
+                </span>
+                {inv.statusComprobante !== 2 && !inv.isPpdWithoutComplement && !inv.isThirdParty && (
+                  <button
+                    type="button"
+                    onClick={() => onAssign(inv)}
+                    disabled={baseDisabled}
+                    className="self-start px-2.5 py-1.5 rounded-lg text-[12px] font-semibold disabled:opacity-60"
+                    style={{ background: 'var(--brand-50)', color: 'var(--brand-700)', border: '1px solid var(--border)' }}
+                  >
+                    Asignar a este régimen
+                  </button>
+                )}
+              </div>
             ) : inv.isPpdWithoutComplement ? (
               <span className="text-[11.5px]" style={{ color: 'var(--ink-500)' }}>
                 En espera del complemento de pago: no se puede ajustar.
+              </span>
+            ) : inv.assignedRegimeId != null ? (
+              <span className="text-[11.5px]" style={{ color: 'var(--ink-500)' }}>
+                Asignada a mano a este régimen.
               </span>
             ) : null}
             <select
@@ -1195,6 +1346,18 @@ const ResultadoRecalculo = memo(function ResultadoRecalculo({
             Recibidos:{' '}
             <strong style={{ color: 'var(--ink-900)' }}>{result.input.receivedXmlCount}</strong>
           </span>
+          {(result.input.thirdPartyXmlCount ?? 0) > 0 && (
+            <span style={{ color: 'var(--ink-700)' }}>
+              A cuenta de terceros:{' '}
+              <strong style={{ color: 'var(--ink-900)' }}>{result.input.thirdPartyXmlCount}</strong>
+            </span>
+          )}
+          {(result.input.manualIncomeCount ?? 0) > 0 && (
+            <span style={{ color: 'var(--ink-700)' }}>
+              Ingresos manuales:{' '}
+              <strong style={{ color: 'var(--ink-900)' }}>{result.input.manualIncomeCount}</strong>
+            </span>
+          )}
           <span style={{ color: 'var(--ink-700)' }}>
             Deducciones manuales:{' '}
             <strong style={{ color: 'var(--ink-900)' }}>{amount(result.input.manualDeductions)}</strong>
@@ -1320,7 +1483,13 @@ function BloqueTotales({ label, t }: { label: string; t: TotalesBloque }) {
 const TotalesRecalculo = memo(function TotalesRecalculo({
   totales,
 }: {
-  totales: { clasificadas: TotalesBloque; sinClasificar: TotalesBloque; conjunto: TotalesBloque; otroRegimen: TotalesBloque }
+  totales: {
+    clasificadas: TotalesBloque
+    sinClasificar: TotalesBloque
+    conjunto: TotalesBloque
+    otroRegimen: TotalesBloque
+    sinRegimen: TotalesBloque
+  }
 }) {
   return (
     <div className="flex flex-col gap-3">
@@ -1337,6 +1506,14 @@ const TotalesRecalculo = memo(function TotalesRecalculo({
           <BloqueTotales label="Otro régimen" t={totales.otroRegimen} />
         </div>
       )}
+      {totales.sinRegimen.count > 0 && (
+        <div className="pt-1" style={{ borderTop: '1px dashed var(--border-strong)' }}>
+          <p className="text-[11px] mb-1.5" style={{ color: 'var(--ink-500)' }}>
+            Sin régimen en el XML: no entran al cálculo hasta que las asignes a un régimen:
+          </p>
+          <BloqueTotales label="Sin régimen" t={totales.sinRegimen} />
+        </div>
+      )}
     </div>
   )
 })
@@ -1344,6 +1521,9 @@ const TotalesRecalculo = memo(function TotalesRecalculo({
 function ClasificacionActual({ inv }: { inv: DeclarationPeriodInvoice }) {
   if (inv.isOtherRegime) {
     return <OtroRegimenChip motivo={inv.reason} />
+  }
+  if (inv.requiresRegimeAssignment) {
+    return <SinRegimenChip motivo={inv.reason} />
   }
   if (inv.isPpdWithoutComplement) {
     return <PpdSinComplementoChip motivo={inv.reason} />
@@ -1477,6 +1657,69 @@ function Chip({
     >
       {children}
     </span>
+  )
+}
+
+function AssignRegimeDialog({
+  ask,
+  regimeSatCode,
+  otherUses,
+  assigning,
+  onCancel,
+  onConfirm,
+}: {
+  ask: { inv: DeclarationPeriodInvoice; then?: () => void } | null
+  regimeSatCode: string | null
+  otherUses: InvoiceUsage[]
+  assigning: boolean
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  const inv = ask?.inv
+  const target = regimeSatCode ? `régimen ${regimeSatCode}` : 'régimen de esta declaración'
+  const from =
+    inv?.assignedRegimeCode ??
+    (otherUses.length > 0
+      ? [...new Set(otherUses.map((u) => u.regimeCode ?? '?'))].join(', ')
+      : ((inv?.isIssued ? inv?.emitterRegimeCode : inv?.receiverRegimeCode) ?? null))
+  const abiertas = otherUses.filter((u) => !u.isPresented)
+  const presentadas = otherUses.filter((u) => u.isPresented)
+  return (
+    <AlertDialog open={ask != null} onOpenChange={(open) => !open && !assigning && onCancel()}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Esta factura se asignará al {target}</AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="flex flex-col gap-2 text-[13px]">
+              <p>
+                Una factura solo puede contar en un régimen. {inv?.folio ? `La factura ${inv.folio}` : 'La factura'}{' '}
+                <code style={MONO}>{inv?.uuid}</code> quedará en el {target}
+                {from ? ` y dejará de contar en el ${from}` : ''}.
+              </p>
+              {abiertas.length > 0 && <p>Sale de: {abiertas.map(usoLabel).join('; ')}.</p>}
+              {presentadas.length > 0 && (
+                <p>
+                  Ya se declaró en {presentadas.map(usoLabel).join('; ')}. Esa declaración no se modifica.
+                </p>
+              )}
+              <p>Después recalcula para que entre al cálculo.</p>
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={assigning}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={assigning}
+            onClick={(e) => {
+              e.preventDefault()
+              onConfirm()
+            }}
+          >
+            {assigning ? 'Asignando…' : 'Asignar'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }
 

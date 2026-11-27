@@ -9,6 +9,7 @@ import { getPeriodDownloadStatus } from '@/features/declarations/actions/getPeri
 import { getDeclarationCalculations } from '@/features/operations/actions/getDeclarationCalculations.action'
 import { getDeclarationGeneral } from '@/features/operations/actions/getDeclarationGeneral.action'
 import { getDeclarationInvoices } from '@/features/operations/actions/getDeclarationInvoices.action'
+import { getManualIncomes } from '@/features/operations/actions/getManualIncomes.action'
 import { getDeclarationLogs } from '@/features/operations/actions/getDeclarationLogs.action'
 import { getDeclarationReportLink } from '@/features/operations/actions/getDeclarationReportLink.action'
 import { getDeclarationWithholdings } from '@/features/operations/actions/getDeclarationWithholdings.action'
@@ -88,6 +89,14 @@ export function useDeclarationGeneral(declarationId: number, consulta: boolean) 
   return useQuery({
     queryKey: declarationKeys.general(declarationId, consulta),
     queryFn: async () => unwrap(await getDeclarationGeneral(declarationId, consulta)),
+    staleTime: DATA_STALE_MS,
+  })
+}
+
+export function useManualIncomes(declarationId: number, consulta: boolean) {
+  return useQuery({
+    queryKey: declarationKeys.manualIncomes(declarationId, consulta),
+    queryFn: async () => unwrap(await getManualIncomes(declarationId, consulta)),
     staleTime: DATA_STALE_MS,
   })
 }
