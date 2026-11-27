@@ -505,9 +505,9 @@ export interface ManualIncome {
   id: number
   incomeDate: string
   concept: string
-  counterpartyRfc: string | null
-  counterpartyName: string | null
-  category625: string | null
+  counterparty: string | null
+  classificationId: number | null
+  classificationName: string | null
   ivaRate: ManualIncomeIvaRate
   subtotal: number
   transferredIva: number
@@ -523,9 +523,8 @@ export interface ManualIncomeInput {
   concept: string
   subtotal: number
   ivaRate: ManualIncomeIvaRate
-  category625?: string | null
-  counterpartyRfc?: string | null
-  counterpartyName?: string | null
+  classificationId?: number | null
+  counterparty?: string | null
 }
 
 /** Respuesta de DELETE /{declarationId}/manual-incomes/{id}. */

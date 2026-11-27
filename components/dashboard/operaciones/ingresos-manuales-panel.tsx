@@ -87,12 +87,9 @@ export function IngresosManualesPanel({
           {rows.map((r) => (
             <tr key={r.id} style={{ borderTop: '1px solid var(--border)' }}>
               <td className={`${cellClass} whitespace-nowrap`}>{fmtDate(r.incomeDate)}</td>
-              <td className={cellClass}>
-                {r.counterpartyName ?? (r.counterpartyRfc ? '' : '—')}
-                {r.counterpartyRfc && <code className="block" style={MONO}>{r.counterpartyRfc}</code>}
-              </td>
+              <td className={cellClass}>{r.counterparty ?? '—'}</td>
               <td className={cellClass}>{r.concept}</td>
-              {es625 && <td className={cellClass}>{r.category625 ?? '—'}</td>}
+              {es625 && <td className={cellClass}>{r.classificationName ?? '—'}</td>}
               <td className={cellMoneyClass} style={cellMoneyStyle}>{money(r.subtotal)}</td>
               <td className={cellMoneyClass} style={cellMoneyStyle}>
                 {money(r.transferredIva)}

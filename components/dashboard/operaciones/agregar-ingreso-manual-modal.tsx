@@ -59,7 +59,7 @@ export function AgregarIngresoManualModal({
     if (!form.fecha) return setError('Elige la fecha del cobro.')
     if (!form.concepto.trim()) return setError('Escribe el concepto.')
     if (!montoValido) return setError('El subtotal debe ser mayor a cero.')
-    if (es625 && !form.categoria) return setError('Elige el tipo de servicio.')
+    if (es625 && !form.classificationId) return setError('Elige el tipo de servicio.')
     setSaving(true)
     setError(null)
     try {
@@ -68,9 +68,8 @@ export function AgregarIngresoManualModal({
         concept: form.concepto.trim(),
         subtotal: monto,
         ivaRate: tasaEfectiva,
-        category625: es625 ? form.categoria : null,
-        counterpartyRfc: form.rfc.trim().toUpperCase() || null,
-        counterpartyName: form.nombre.trim() || null,
+        classificationId: es625 ? Number(form.classificationId) : null,
+        counterparty: form.contraparte.trim() || null,
       })
       if (!res.success) return setError(res.error.message)
       setSaved(res.value)
@@ -108,6 +107,7 @@ export function AgregarIngresoManualModal({
           form={form}
           onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
           es625={es625}
+          open={open}
           rango={rangoDelPeriodo(fiscalYear, periodValueId)}
           iva={iva}
           total={montoValido ? monto + iva : 0}
