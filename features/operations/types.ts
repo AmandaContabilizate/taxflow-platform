@@ -178,6 +178,8 @@ export interface DeclarationInvoice {
   usedInDeclarations?: InvoiceUsage[] | null;
   /** E3: factura de otro régimen del contribuyente, visible pero no computable. */
   esOtroRegimen: boolean;
+  /** CFDI a cuenta de terceros subido a mano: importes de la parte del contribuyente. */
+  esACuentaTerceros?: boolean;
   /** PPD sin complemento: descargada, visible, pero no computable hasta que se pague. Independiente de esOtroRegimen. */
   esPpdSinComplemento: boolean;
   /**

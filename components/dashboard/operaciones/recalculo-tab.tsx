@@ -48,7 +48,7 @@ import { ColumnsModal, FilterSelect } from './filter-columns'
 import { CLASIFICACION_A_ACTIVO } from './parts-612'
 import { RecalcSeconds } from './recalc-seconds'
 import { MONO } from '../constants'
-import { Card } from '../ui'
+import { Badge, Card } from '../ui'
 import { useUrlState } from '../url-state'
 
 interface Props {
@@ -952,6 +952,11 @@ const RecalcRow = memo(function RecalcRow({
         >
           {inv.uuid}
         </code>
+        {inv.isThirdParty && (
+          <div className="mt-1">
+            <Badge kind="sky">A cuenta de terceros</Badge>
+          </div>
+        )}
       </td>
       {visibleColSet.has('tipo') && (
         <td className="px-3 py-3 align-top">
@@ -1108,7 +1113,7 @@ const RecalcRow = memo(function RecalcRow({
                   )}
                 </span>
                 {/* Canceladas y PPD sin complemento no entran a ningún cálculo: no se asignan. */}
-                {inv.statusComprobante !== 2 && !inv.isPpdWithoutComplement && (
+                {inv.statusComprobante !== 2 && !inv.isPpdWithoutComplement && !inv.isThirdParty && (
                   <button
                     type="button"
                     onClick={() => onAssign(inv)}
@@ -1126,7 +1131,7 @@ const RecalcRow = memo(function RecalcRow({
                   La factura no trae régimen{inv.cfdiVersion ? ` (CFDI ${inv.cfdiVersion})` : ''} y el
                   contribuyente tiene varios regímenes. Asígnala al que corresponda para que entre al cálculo.
                 </span>
-                {inv.statusComprobante !== 2 && !inv.isPpdWithoutComplement && (
+                {inv.statusComprobante !== 2 && !inv.isPpdWithoutComplement && !inv.isThirdParty && (
                   <button
                     type="button"
                     onClick={() => onAssign(inv)}
