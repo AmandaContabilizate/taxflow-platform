@@ -1352,6 +1352,12 @@ const ResultadoRecalculo = memo(function ResultadoRecalculo({
               <strong style={{ color: 'var(--ink-900)' }}>{result.input.thirdPartyXmlCount}</strong>
             </span>
           )}
+          {(result.input.manualIncomeCount ?? 0) > 0 && (
+            <span style={{ color: 'var(--ink-700)' }}>
+              Ingresos manuales:{' '}
+              <strong style={{ color: 'var(--ink-900)' }}>{result.input.manualIncomeCount}</strong>
+            </span>
+          )}
           <span style={{ color: 'var(--ink-700)' }}>
             Deducciones manuales:{' '}
             <strong style={{ color: 'var(--ink-900)' }}>{amount(result.input.manualDeductions)}</strong>

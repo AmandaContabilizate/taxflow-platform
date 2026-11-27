@@ -47,6 +47,7 @@ import { Pagination } from '../clientes/parts'
 import { MONO } from '../constants'
 import { type Json, num } from './calc-read'
 import { Badge, Card } from '../ui'
+import { IngresosManualesPanel } from './ingresos-manuales-panel'
 import { QuitarCfdiTerceros, SubirCfdiTercerosButton } from './subir-cfdi-terceros-modal'
 import { useUrlState } from '../url-state'
 import { type ColumnKey, COLUMN_DEFS, type ColumnDef } from './column-defs'
@@ -1108,6 +1109,16 @@ export const ComprobantesTab = memo(function ComprobantesTab({
               significar que la constancia no llegó, no que no hubo ingresos.
             </span>
           </div>
+        )}
+
+        {subTab === 0 && ['612', '625', '626'].includes(regimeSatCode ?? '') && (
+          <IngresosManualesPanel
+            declarationId={declarationId}
+            regimeSatCode={regimeSatCode}
+            consulta={consulta}
+            puedeEditar={puedeSubirTerceros}
+            periodo={periodo}
+          />
         )}
 
         <div className="relative">

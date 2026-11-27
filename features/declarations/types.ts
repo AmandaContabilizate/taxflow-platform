@@ -266,6 +266,7 @@ export interface RecalculationInputSummary {
   issuedXmlCount: number
   receivedXmlCount: number
   thirdPartyXmlCount?: number
+  manualIncomeCount?: number
   totalXmlCount: number
   manualDeductions: number
   yearToDateIvaFavor: number | null
@@ -493,6 +494,43 @@ export interface ThirdPartyInvoiceResult {
 /** Respuesta de DELETE /{declarationId}/third-party-invoices/{invoiceId}. */
 export interface ThirdPartyInvoiceRemoval {
   invoiceId: number
+  removed: boolean
+  message: string
+}
+
+export type ManualIncomeIvaRate = '16' | '8' | '0' | 'EXENTO'
+
+/** Ingreso capturado a mano, sin CFDI (GET /{declarationId}/manual-incomes). */
+export interface ManualIncome {
+  id: number
+  incomeDate: string
+  concept: string
+  counterpartyRfc: string | null
+  counterpartyName: string | null
+  category625: string | null
+  ivaRate: ManualIncomeIvaRate
+  subtotal: number
+  transferredIva: number
+  total: number
+  createdAt: string
+  createdByName: string | null
+  message?: string
+}
+
+/** Cuerpo de POST /{declarationId}/manual-incomes. */
+export interface ManualIncomeInput {
+  incomeDate: string
+  concept: string
+  subtotal: number
+  ivaRate: ManualIncomeIvaRate
+  category625?: string | null
+  counterpartyRfc?: string | null
+  counterpartyName?: string | null
+}
+
+/** Respuesta de DELETE /{declarationId}/manual-incomes/{id}. */
+export interface ManualIncomeRemoval {
+  id: number
   removed: boolean
   message: string
 }

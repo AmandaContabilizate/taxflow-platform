@@ -22,9 +22,13 @@ interface DatePickerProps {
   value: string
   onChange: (date: string) => void
   placeholder?: string
+  /** Primer día elegible (yyyy-MM-dd). */
+  min?: string
+  /** Último día elegible (yyyy-MM-dd); nunca pasa de hoy. */
+  max?: string
 }
 
-export function DatePicker({ value, onChange, placeholder = 'Seleccionar fecha' }: DatePickerProps) {
+export function DatePicker({ value, onChange, placeholder = 'Seleccionar fecha', min, max }: DatePickerProps) {
   const [open, setOpen] = useState(false)
   const [showYearPicker, setShowYearPicker] = useState(false)
   const [yearRange, setYearRange] = useState(new Date().getFullYear() - 5)
@@ -139,7 +143,12 @@ export function DatePicker({ value, onChange, placeholder = 'Seleccionar fecha' 
                 selected={selectedDate}
                 onSelect={handleSelect}
                 locale={es}
-                disabled={(date) => date > new Date()}
+                defaultMonth={selectedDate ?? (min ? new Date(min + 'T00:00:00') : undefined)}
+                disabled={(date) =>
+                  date > new Date() ||
+                  (min != null && date < new Date(min + 'T00:00:00')) ||
+                  (max != null && date > new Date(max + 'T23:59:59'))
+                }
                 showOutsideDays={true}
               />
             </div>
