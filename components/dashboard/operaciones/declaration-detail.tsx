@@ -758,6 +758,8 @@ export function DeclarationDetail({ declaration: d, onBack, currentUser }: Props
           periodo={`${periodo} ${ejercicio}`}
           regimeSatCode={general?.regimeSatCode ?? null}
           consulta={soloConsulta}
+          fiscalYear={ejercicio}
+          periodValueId={general?.periodValueId ?? null}
           puedeSubirTerceros={
             !soloConsulta &&
             general != null &&

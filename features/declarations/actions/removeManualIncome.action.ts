@@ -2,6 +2,7 @@
 
 import { ApiError, fetchDelete } from '@/lib/api'
 import { API_ROUTES } from '@/lib/api/apiRoutes'
+import { problemDetailMessage } from '@/lib/api/problemDetail'
 import { type Result, err, ok } from '@/lib/common'
 import type { DeclarationsError, ManualIncomeRemoval } from '../types'
 
@@ -19,7 +20,7 @@ export async function removeManualIncome(
     return ok(data)
   } catch (e) {
     if (e instanceof ApiError) {
-      const message = e.status === 403 ? 'Tu perfil no puede capturar ingresos en la declaración.' : e.message
+      const message = e.status === 403 ? 'Tu perfil no puede quitar ingresos de la declaración.' : problemDetailMessage(e)
       return err({ statusCode: e.status, message, code: e.errorCode })
     }
     console.error('[removeManualIncome] Error:', e)

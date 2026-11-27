@@ -1,74 +1,33 @@
 'use client'
 
-import { Loader2, Plus, Trash2 } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { removeManualIncome } from '@/features/declarations/actions/removeManualIncome.action'
 import { invalidateDeclarationData, useManualIncomes } from '@/features/declarations/hooks/useDeclarationQueries'
 import type { ManualIncome } from '@/features/declarations/types'
-import { MONO } from '../constants'
+import { DISPLAY, MONO } from '../constants'
 import { fmtDate, money } from '../declaraciones/parts'
-import { Modal } from '../modal'
 import { Btn, Card } from '../ui'
-import { AgregarIngresoManualModal, TASAS } from './agregar-ingreso-manual-modal'
+import { ConfirmarQuitar } from './confirmar-quitar'
+import { AgregarIngresoManualModal } from './agregar-ingreso-manual-modal'
+import { TASAS } from './ingreso-manual-form'
 import { InlineNotice, SimpleTable, cellClass, cellMoneyClass, cellMoneyStyle } from './parts-612'
 
 function QuitarIngreso({ declarationId, income }: { declarationId: number; income: ManualIncome }) {
   const queryClient = useQueryClient()
-  const [open, setOpen] = useState(false)
-  const [removing, setRemoving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
-  const close = () => {
-    setOpen(false)
-    setError(null)
-  }
-
-  const remove = async () => {
-    setRemoving(true)
-    setError(null)
-    try {
-      const res = await removeManualIncome(declarationId, income.id)
-      if (!res.success) return setError(res.error.message)
-      close()
-      void invalidateDeclarationData(queryClient, declarationId)
-    } catch {
-      setError('No se pudo quitar el ingreso. Intenta de nuevo.')
-    } finally {
-      setRemoving(false)
-    }
+  const onConfirm = async () => {
+    const res = await removeManualIncome(declarationId, income.id)
+    if (!res.success) return res.error.message
+    await invalidateDeclarationData(queryClient, declarationId)
+    return null
   }
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1 -mx-1 px-1 py-0.5 rounded text-[10.5px] font-semibold transition-colors hover:bg-[var(--ink-50)]"
-        style={{ color: 'var(--danger-ink)' }}
-      >
-        <Trash2 size={11} /> Quitar
-      </button>
-      <Modal
-        isOpen={open}
-        onClose={close}
-        title="Quitar ingreso sin CFDI"
-        maxWidth={440}
-        footer={
-          <div className="flex justify-end gap-2">
-            <Btn kind="ghost" size="sm" onClick={close}>Cancelar</Btn>
-            <Btn size="sm" onClick={remove} disabled={removing}>
-              {removing && <Loader2 size={14} className="animate-spin" />} Quitar
-            </Btn>
-          </div>
-        }
-      >
-        <div className="flex flex-col gap-3 text-[13px]" style={{ color: 'var(--ink-700)' }}>
-          <p>El ingreso dejará de contar al recalcular.</p>
-          {error && <InlineNotice kind="error">{error}</InlineNotice>}
-        </div>
-      </Modal>
-    </>
+    <ConfirmarQuitar title="Quitar ingreso sin CFDI" onConfirm={onConfirm}>
+      El ingreso dejará de contar al recalcular.
+    </ConfirmarQuitar>
   )
 }
 
@@ -78,12 +37,16 @@ export function IngresosManualesPanel({
   consulta,
   puedeEditar,
   periodo,
+  fiscalYear,
+  periodValueId,
 }: {
   declarationId: number
   regimeSatCode: string | null | undefined
   consulta: boolean
   puedeEditar: boolean
   periodo: string
+  fiscalYear: number
+  periodValueId: number
 }) {
   const { data, isPending, error } = useManualIncomes(declarationId, consulta)
   const [adding, setAdding] = useState(false)
@@ -106,7 +69,7 @@ export function IngresosManualesPanel({
   return (
     <Card className="p-4 flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h3 className="text-[15px] font-extrabold" style={{ color: 'var(--ink-900)' }}>Ingresos sin CFDI</h3>
+        <h3 className="text-[15px] font-extrabold" style={{ ...DISPLAY, color: 'var(--ink-900)' }}>Ingresos sin CFDI</h3>
         {puedeEditar && (
           <Btn kind="ghost" size="sm" onClick={() => setAdding(true)}>
             <Plus size={14} /> Agregar ingreso
@@ -161,6 +124,8 @@ export function IngresosManualesPanel({
           declarationId={declarationId}
           es625={es625}
           periodo={periodo}
+          fiscalYear={fiscalYear}
+          periodValueId={periodValueId}
         />
       )}
     </Card>

@@ -128,14 +128,20 @@ export function DatePicker({ value, onChange, placeholder = 'Seleccionar fecha',
           </div>
         ) : (
           <div className="space-y-0">
-            <button
-              onClick={() => setShowYearPicker(true)}
-              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded text-[12px] font-semibold transition"
-              style={{ background: 'var(--input)', color: 'var(--foreground)' }}
-            >
-              <span>{currentYear}</span>
-              <ChevronDown size={14} />
-            </button>
+            {min == null && max == null ? (
+              <button
+                onClick={() => setShowYearPicker(true)}
+                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded text-[12px] font-semibold transition"
+                style={{ background: 'var(--input)', color: 'var(--foreground)' }}
+              >
+                <span>{currentYear}</span>
+                <ChevronDown size={14} />
+              </button>
+            ) : (
+              <div className="px-2.5 py-1.5 text-[12px] font-semibold" style={{ color: 'var(--foreground)' }}>
+                {currentYear}
+              </div>
+            )}
 
             <div className="scale-85 origin-center flex justify-center -mt-6">
               <DayPicker

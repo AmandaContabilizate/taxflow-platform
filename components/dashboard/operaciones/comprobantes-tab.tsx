@@ -825,6 +825,8 @@ export const ComprobantesTab = memo(function ComprobantesTab({
   regimeSatCode,
   consulta = false,
   puedeSubirTerceros = false,
+  fiscalYear,
+  periodValueId,
 }: {
   declarationId: number
   periodo: string
@@ -833,6 +835,9 @@ export const ComprobantesTab = memo(function ComprobantesTab({
   consulta?: boolean
   /** Declaración sin presentar y perfil con edición: permite subir y quitar CFDI a cuenta de terceros. */
   puedeSubirTerceros?: boolean
+  fiscalYear?: number
+  /** Declaraciones mensuales: 101 a 112. Las anuales (501) no capturan ingresos sin CFDI. */
+  periodValueId?: number | null
 }) {
   const { params, setParams } = useUrlState()
 
@@ -1111,13 +1116,15 @@ export const ComprobantesTab = memo(function ComprobantesTab({
           </div>
         )}
 
-        {subTab === 0 && ['612', '625', '626'].includes(regimeSatCode ?? '') && (
+        {subTab === 0 && fiscalYear != null && periodValueId != null && periodValueId >= 101 && periodValueId <= 112 && ['612', '625', '626'].includes(regimeSatCode ?? '') && (
           <IngresosManualesPanel
             declarationId={declarationId}
             regimeSatCode={regimeSatCode}
             consulta={consulta}
             puedeEditar={puedeSubirTerceros}
             periodo={periodo}
+            fiscalYear={fiscalYear}
+            periodValueId={periodValueId}
           />
         )}
 
